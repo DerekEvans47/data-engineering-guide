@@ -28,6 +28,7 @@ commit_parsers = [
   { message = "^fix", group = "🐛 Bug Fixes" },
   { message = "^questions|^Add questions", group = "📚 Content" },
   { message = "^Visual|^Canvas|^V-[0-9]", group = "✨ Features" },
+  { message = "^chore: update changelog", skip = true },
   { message = "^chore\\(nightly\\)|^chore: (rename nightly|improve question|add.*prompt|backfill|enforce)", skip = true },
   { message = "^chore: add.*backlog|^chore: add.*items", skip = true },
   { message = "^chore", group = "🔧 Infrastructure" },
