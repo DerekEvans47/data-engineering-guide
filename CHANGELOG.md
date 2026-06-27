@@ -6,17 +6,16 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### 🐛 Bug Fixes
 
-- Auto-generate changelog correctly; ban session URLs from commits
+- Changelog auto-generation, no-PII commit rule, C-1 status update
 
-- Remove git-cliff changelog regeneration from pre-push hook
 
-- Skip changelog-update commits in git-cliff output
+### 📚 Content
+
+- Add 20 questions for Parts 7-9 and Interview Prep
 
 
 ### 🔧 Infrastructure
 
 - Initial commit
-
-- Mark C-1 as ONGOING to exclude from game improvement runs
 
 
