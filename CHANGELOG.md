@@ -15,6 +15,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Pre-push hook skips deletes, only verifies drill changes
 
+- Reset stuck-active run nodes when showing run map
+
 
 ### 📚 Content
 
