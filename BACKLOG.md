@@ -129,7 +129,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
-| U-1 | Tutorial / first-run walkthrough (3 steps) | 25 | P0 | TODO | — | Coach marks on first launch: place tower → start wave → answer quiz. |
+| U-1 | Tutorial / first-run walkthrough (3 steps) | 25 | P0 | DONE | — | 3-step static modal (localStorage-gated); pauses game until dismissed; sets td_tutorial_v1. |
 | U-2 | Touch target size audit (≥48 px tap zones) | 10 | P1 | TODO | — | Canvas tap and HUD buttons need minimum 48 px hit areas for mobile. |
 | U-3 | Keyboard / gamepad support | 40 | P3 | TODO | — | Arrow keys to navigate world map; 1–4 to select towers; Space to start wave. |
 | U-4 | Color-blind mode (shape indicators alongside color) | 20 | P2 | TODO | — | Overlay pattern fill (diagonal lines, dots) on towers so color isn't sole differentiator. |
@@ -138,8 +138,8 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | U-7 | Tower placement confirmation tap | 12 | P1 | DONE | — | After selecting a cell, show a confirm chip ("Place — 60g ✓ / ✗") before deducting gold and committing. Prevents mis-taps. |
 | U-8 | Free sell / undo for pre-wave placements | 15 | P1 | DONE | U-7 | Towers placed during the build phase (before wave start) can be sold for full refund until the wave begins. Track `placedThisBuild` flag per tower; clear on wave start. |
 | U-9 | Wave preview card ("Incoming: 6 Goblins + 1 Troll") | 10 | P1 | DONE | — | Persistent card above wave button showing next wave enemy composition (type emoji + count chips, boss-wave red styling). Updates on HUD refresh; hides during active wave and when all waves done. |
-| U-10 | Tap-to-inspect tower stats card | 15 | P1 | TODO | — | Tapping a placed tower (with no tool selected) shows a floating card: tower name, current DPS, range, upgrade cost, sell value. Dismiss by tapping elsewhere. Essential for mobile strategy decisions. |
-| U-11 | Gold floaters on enemy kill (+5🪙 text) | 8 | P2 | TODO | V-8 | Reuse the existing damage-number system to also spawn a `+Ng🪙` float on kill. Closes the reward feedback loop — player sees gold earned per kill in real time. |
+| U-10 | Tap-to-inspect tower stats card | 15 | P1 | DONE | — | Tap tower with no tool selected → floating card shows DPS, range, upgrade cost, sell value. Dismiss via tap elsewhere or tool select. |
+| U-11 | Gold floaters on enemy kill (+5🪙 text) | 8 | P2 | DONE | V-8 | Reuses damageNumbers with `label` field; +Ng🪙 floats above enemy on kill in gold color. |
 
 ---
 
@@ -175,6 +175,9 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | T-2  | Background chiptune music (C minor pentatonic, 8-step lookahead scheduler) | 55 | 2026-06-27 |
 | T-3  | Spatial audio: StereoPannerNode on shoot/hit/death/place keyed to x-position | 22 | 2026-06-27 |
 | T-4  | Adaptive music: 3 intensity layers (melody→+harmony→+percussion) by enemy count | 40 | 2026-06-27 |
+| U-1  | Tutorial / first-run walkthrough (3-step modal, localStorage-gated) | 25 | 2026-06-27 |
+| U-10 | Tap-to-inspect tower stats card (floating card, dismisses on tap elsewhere) | 15 | 2026-06-27 |
+| U-11 | Gold floaters on enemy kill (+Ng🪙 float via damageNumbers label field) | 8 | 2026-06-27 |
 
 ---
 

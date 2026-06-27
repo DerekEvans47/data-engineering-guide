@@ -53,7 +53,10 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
   console.log('✅ Filter drawer built correctly');
 
   // ── 3. Navigate to TD battle ────────────────────────────────────────────
-  await page.evaluate(() => localStorage.setItem('qd_tutorial_v1', '1'));
+  await page.evaluate(() => {
+    localStorage.setItem('qd_tutorial_v1', '1');
+    localStorage.setItem('td_tutorial_v1', '1');
+  });
   await page.click('#btn-play', { force: true });
   await page.waitForTimeout(500);
   const mapCard = await page.$('.map-card:not(.map-card-locked)');
