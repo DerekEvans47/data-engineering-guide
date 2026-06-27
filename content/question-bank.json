@@ -2728,5 +2728,315 @@
     "explanation": "Each root cause points to a different layer of the testing gap. Volume-sensitive bugs require a UAT environment with realistic data volumes — they are structurally invisible in Dev against small test datasets. Schema drift requires data contract validation at the source boundary, ideally enforced in CI before any code reaches an environment. Unenforced quality rules need automated quality gates in the CI/CD pipeline, making them a hard promotion criterion rather than an optional check. Option A (more unit tests) catches logic bugs in transformation functions but misses volume, schema, and data-level failures — the actual root causes here. Option C removes a validation layer rather than strengthening the pipeline. Option D (more monitoring) catches failures faster after they occur but does nothing to prevent them from reaching production. The systemic fix requires defense in depth: contracts at the boundary, realistic UAT volumes, and automated quality gates as promotion criteria.",
     "difficulty": 82,
     "num": 180
+  },
+  {
+    "id": "p7-jira-jql",
+    "part": 7,
+    "topic": "Jira & Collaboration Tools",
+    "type": "mc",
+    "stem": "A data engineering team wants to pull all open bugs across three sprints using Jira Query Language (JQL). Which JQL clause correctly filters by multiple sprint values?",
+    "options": [
+      "sprint = 'Sprint 1' OR sprint = 'Sprint 2' OR sprint = 'Sprint 3'",
+      "sprint IN ('Sprint 1', 'Sprint 2', 'Sprint 3')",
+      "sprint = ['Sprint 1', 'Sprint 2', 'Sprint 3']",
+      "sprint BETWEEN 'Sprint 1' AND 'Sprint 3'"
+    ],
+    "correct": 1,
+    "explanation": "JQL's IN operator is the correct way to match any of multiple values for a field, equivalent to multiple OR conditions but more readable and concise. `sprint IN ('Sprint 1','Sprint 2','Sprint 3')` returns issues in any of those sprints. The bracket array syntax (option C) is not valid JQL. BETWEEN (option D) is used for date or numeric ranges, not named sprint values. Option A works logically but is verbose and error-prone at scale.",
+    "difficulty": 32,
+    "num": 181
+  },
+  {
+    "id": "p7-confluence-spaces",
+    "part": 7,
+    "topic": "Jira & Collaboration Tools",
+    "type": "tf",
+    "stem": "True or False: In Confluence, a Space and a Page are interchangeable — any content that can go in a Space can equally go in a Page.",
+    "correct": false,
+    "explanation": "Spaces and Pages serve different purposes and are not interchangeable. A Space is a container (like a namespace or project folder) with its own permissions, homepage, and settings. Pages live inside Spaces and hold the actual documentation content. You cannot put arbitrary content directly into a Space the same way you do into a Page, and you cannot nest Spaces inside each other. Understanding this hierarchy is important when designing Confluence documentation architectures for data teams.",
+    "difficulty": 12,
+    "num": 182
+  },
+  {
+    "id": "p7-figma-wireframe-risk",
+    "part": 7,
+    "topic": "UX Principles for Data Products",
+    "type": "mc",
+    "stem": "A data engineer is asked to implement a Figma wireframe for a new executive dashboard. What is the most important step to take before writing any code?",
+    "options": [
+      "Export all assets from Figma and set up the front-end project structure.",
+      "Validate that the required data sources exist, are reliable, and can support the metrics shown in the wireframe.",
+      "Schedule a demo with stakeholders to gather aesthetic feedback on the wireframe.",
+      "Select the charting library that best matches the visual style in the wireframe."
+    ],
+    "correct": 1,
+    "explanation": "Wireframes are aspirational and designed without knowledge of data constraints. The highest risk in dashboard implementation is discovering mid-build that a required metric cannot be computed from available data, requires a costly new pipeline, or has data quality issues that would make the metric meaningless. Validating data availability and reliability before writing any front-end code prevents expensive rework. Asset export and library selection (options A and D) are tactical steps that follow data validation. Stakeholder aesthetic feedback (option C) is useful but secondary to confirming feasibility.",
+    "difficulty": 52,
+    "num": 183
+  },
+  {
+    "id": "p7-progressive-disclosure",
+    "part": 7,
+    "topic": "UX Principles for Data Products",
+    "type": "mc",
+    "stem": "Which UX principle most directly reduces cognitive overload on a complex data dashboard, improving the chance users engage with the content rather than leaving?",
+    "options": [
+      "Progressive disclosure — surface high-level summaries first, with detail available on demand.",
+      "Colour coding — assign a distinct colour to each KPI to help users scan faster.",
+      "Data density — show all available metrics on a single screen to minimise navigation.",
+      "Animation — use live-updating charts to signal that data is fresh."
+    ],
+    "correct": 0,
+    "explanation": "Progressive disclosure is the principle of initially presenting only the most important information and hiding detail behind interactions (drill-downs, tooltips, expandable sections). This reduces cognitive overload by not overwhelming users with complexity upfront, while still keeping detail accessible. Data density (option C) is the opposite — cramming all metrics onto one screen is a common cause of dashboard abandonment. Colour coding helps scanning but does not reduce overload when the content volume itself is high. Animation (option D) can help signal freshness but adds distraction if overused and does not address information volume.",
+    "difficulty": 45,
+    "num": 184
+  },
+  {
+    "id": "p7-colour-accessibility",
+    "part": 7,
+    "topic": "UX Principles for Data Products",
+    "type": "tf",
+    "stem": "True or False: Using distinct colours alone (without shape, pattern, or label differences) is sufficient to make a data visualisation accessible to all users.",
+    "correct": false,
+    "explanation": "Approximately 8% of men and 0.5% of women have some form of colour vision deficiency, with red-green colour blindness being the most common. Relying on colour alone means these users cannot distinguish encoded data categories. WCAG accessibility guidelines require that colour is not the sole means of conveying information. Accessible data visualisations combine colour with secondary cues — distinct shapes, patterns, textures, or direct labels — so that the same information is perceivable regardless of the viewer's colour vision.",
+    "difficulty": 22,
+    "num": 185
+  },
+  {
+    "id": "p7-sdlc-definition-done",
+    "part": 7,
+    "topic": "The Software Development Lifecycle",
+    "type": "mc",
+    "stem": "A data engineering team is establishing a Definition of Done (DoD) for their sprint tickets. Which of the following acceptance criteria is most commonly omitted in early-stage teams, leading to production incidents?",
+    "options": [
+      "Unit tests written and passing.",
+      "Code reviewed by at least one peer.",
+      "Integration or end-to-end tests covering the new data flow.",
+      "Feature branch merged to the main development branch."
+    ],
+    "correct": 2,
+    "explanation": "Early-stage data engineering teams typically adopt unit tests and code review as DoD criteria quickly because they are well-understood software engineering practices. Integration and end-to-end tests (option C) are often skipped because they are harder to write, require test infrastructure (realistic environments, seed data), and take longer to run. This gap means a piece of code can pass all unit tests and code review but still fail in production when it interacts with real external systems, upstream schema changes, or downstream consumers. The omission of integration tests is one of the most frequent root causes of data pipeline incidents.",
+    "difficulty": 48,
+    "num": 186
+  },
+  {
+    "id": "p8-feature-tree-monotone",
+    "part": 8,
+    "topic": "Feature Engineering",
+    "type": "mc",
+    "stem": "A data scientist is using a gradient boosted tree (XGBoost) to predict customer churn. The `days_since_last_purchase` feature has a right-skewed distribution. What transformation should they apply?",
+    "options": [
+      "Apply log(1 + x) to compress the skew before training.",
+      "Apply min-max normalisation to scale values between 0 and 1.",
+      "No transformation is needed — tree-based models are invariant to monotonic feature transformations.",
+      "Apply z-score standardisation to centre the distribution around zero."
+    ],
+    "correct": 2,
+    "explanation": "Tree-based models (decision trees, random forests, gradient boosting) split features at threshold values and are therefore invariant to any monotonic transformation of the input — log, square root, normalisation, and standardisation all leave the tree's optimal splits unchanged because rank order is preserved. These transformations are important for linear models, SVMs, and neural networks that assume or are sensitive to scale or distribution. Applying them to tree inputs adds complexity without benefit. Options A, B, and D are all valid preprocessing steps for models that are scale-sensitive, but are unnecessary here.",
+    "difficulty": 52,
+    "num": 187
+  },
+  {
+    "id": "p8-cyclical-encoding",
+    "part": 8,
+    "topic": "Feature Engineering",
+    "type": "mc",
+    "stem": "A feature for day-of-week is encoded as integers 0 (Monday) through 6 (Sunday). Why might this encoding be problematic for a linear model, and what is the preferred alternative?",
+    "options": [
+      "Integers violate the independence assumption of linear models; use dummy variables instead.",
+      "The integer encoding implies a false linear ordering (Sunday=6 is not 'more day' than Monday=0) and also breaks the cyclical wrap-around (Sunday and Monday are adjacent). Use sine and cosine encoding of the angle instead.",
+      "Integers are not supported by most ML frameworks; use label encoding followed by PCA.",
+      "The encoding is fine for linear models; the issue only arises with neural networks."
+    ],
+    "correct": 1,
+    "explanation": "Encoding day-of-week as integers 0-6 implies a linear relationship where Sunday (6) is numerically far from Monday (0), but in reality they are adjacent days. Linear models will treat the numeric distance as meaningful. The standard solution is cyclical encoding: convert the integer to an angle (2*pi * day / 7) and then encode as both sin(angle) and cos(angle). This gives the model two continuous features that correctly represent the cyclic proximity — Sunday and Monday are close together in (sin, cos) space. One-hot / dummy encoding (option A) also works but produces 7 features. PCA on label encoding (option C) is not a standard or recommended pattern.",
+    "difficulty": 60,
+    "num": 188
+  },
+  {
+    "id": "p8-target-encoding-leakage",
+    "part": 8,
+    "topic": "Feature Engineering",
+    "type": "tf",
+    "stem": "True or False: It is safe to compute target encoding (replacing a categorical feature with the mean target value per category) on the full training dataset before performing a train/validation split.",
+    "correct": false,
+    "explanation": "Computing target encoding on the full training set before splitting leaks target information into the validation set. The validation rows' categories will have their own target values incorporated into the encoding mean, making the encoded feature artificially informative for those rows. The correct approach is to compute target encoding only on the training fold (using cross-fold target encoding or leave-one-out encoding within the training split), and then apply the resulting mapping to the validation/test set using only training-fold statistics. Leaky target encoding is a common source of overly optimistic validation metrics that fail to generalise to production.",
+    "difficulty": 68,
+    "num": 189
+  },
+  {
+    "id": "p8-timestamp-feature-derivation",
+    "part": 8,
+    "topic": "Feature Engineering",
+    "type": "mc",
+    "stem": "Given a raw event timestamp, which set of derived features typically provides the most predictive signal for a fraud detection model?",
+    "options": [
+      "epoch_seconds, epoch_milliseconds, ISO8601_string",
+      "year, month, day_of_month (as integers)",
+      "days_since_last_event (recency), hour_of_day (cyclical), is_weekend (binary)",
+      "unix_timestamp_log, sqrt_unix_timestamp, timestamp_z_score"
+    ],
+    "correct": 2,
+    "explanation": "For fraud detection, the behavioural and temporal context encoded in derived features is far more predictive than the raw timestamp value. Recency (days_since_last_event) captures unusual gaps or bursts in activity. Hour_of_day (encoded cyclically) captures time-of-day behaviour patterns — fraudulent transactions often cluster at unusual hours. is_weekend captures a behavioural dimension correlated with reduced oversight. Options A and D are monotonic transformations of the raw timestamp that encode essentially the same information. Option B (year/month/day) captures calendar time but misses within-day and recency signals critical to fraud.",
+    "difficulty": 45,
+    "num": 190
+  },
+  {
+    "id": "p8-correlation-nonlinear",
+    "part": 8,
+    "topic": "Model Evaluation Metrics",
+    "type": "mc",
+    "stem": "A Pearson correlation analysis between a candidate feature and the target variable returns r of approximately 0. What is the correct conclusion?",
+    "options": [
+      "The feature has no relationship with the target and should be dropped.",
+      "The feature may still have a strong non-linear relationship with the target; use mutual information or a model-based importance score before discarding.",
+      "The feature has a perfect non-linear relationship with the target by definition.",
+      "Pearson r of 0 indicates the feature is collinear with another feature in the dataset."
+    ],
+    "correct": 1,
+    "explanation": "Pearson correlation measures only linear association. A feature with r near 0 can still have strong non-linear predictive power — for example, a quadratic relationship (y = x squared) produces r = 0 between x and y even though x perfectly determines y. Before discarding a feature based on Pearson r alone, assess it with non-linear measures such as Spearman rank correlation, mutual information (which captures any statistical dependency), or by checking feature importance in a tree-based model. Option C is incorrect — r = 0 does not imply non-linear perfection. Option D confuses correlation with collinearity.",
+    "difficulty": 65,
+    "num": 191
+  },
+  {
+    "id": "p9-supplier-diversification",
+    "part": 9,
+    "topic": "Supply Chain Risk Management",
+    "type": "mc",
+    "stem": "A manufacturer relies on a single overseas supplier for a critical component. Which risk mitigation strategy most directly addresses the root cause of this vulnerability?",
+    "options": [
+      "Increase safety stock to buffer against supply disruptions.",
+      "Implement real-time shipment tracking to detect disruptions earlier.",
+      "Negotiate longer lead-time commitments with the current supplier.",
+      "Qualify and onboard at least one alternative supplier for the component."
+    ],
+    "correct": 3,
+    "explanation": "The root cause of the vulnerability is single-source dependency — if the sole supplier is disrupted (geopolitical event, natural disaster, financial failure, quality issue), no buffer stock, better tracking, or contractual commitment changes that fundamental exposure. Supplier diversification (qualifying and onboarding an alternative source) directly eliminates single-source dependency, allowing production to switch suppliers during disruption. Increased safety stock (option A) delays the impact but does not prevent it. Real-time tracking (option B) improves response time but does not provide an alternative supply path. Longer lead-time commitments (option C) reduce scheduling uncertainty but do not add redundancy.",
+    "difficulty": 38,
+    "num": 192
+  },
+  {
+    "id": "p9-risk-heatmap-cost",
+    "part": 9,
+    "topic": "Supply Chain Risk Management",
+    "type": "tf",
+    "stem": "True or False: A risk heat map that ranks a risk as high-probability and high-impact always means that risk must be mitigated, regardless of the cost of mitigation.",
+    "correct": false,
+    "explanation": "Risk heat maps prioritise risks by inherent severity (likelihood x impact) but do not account for the cost or feasibility of mitigation. Risk management decisions require a cost-benefit analysis: if the cost of mitigation exceeds the expected loss (probability x impact in monetary terms), the economically rational response may be to accept or transfer the risk (e.g., through insurance) rather than mitigate it. Heat maps are a triage tool that guides where to focus analysis, not a mandate to spend on mitigation. A high heat map position should trigger a cost-benefit review, not automatic mitigation spend.",
+    "difficulty": 50,
+    "num": 193
+  },
+  {
+    "id": "p9-bullwhip-effect",
+    "part": 9,
+    "topic": "Supply Chain Risk Management",
+    "type": "mc",
+    "stem": "A retailer notices that small fluctuations in consumer demand lead to increasingly large order swings at each upstream tier of their supply chain. What phenomenon does this describe?",
+    "options": [
+      "Safety stock oscillation",
+      "The bullwhip effect",
+      "Demand smoothing",
+      "Lead-time compression"
+    ],
+    "correct": 1,
+    "explanation": "The bullwhip effect (also called the Forrester effect) describes how small variations in end-consumer demand become progressively amplified as orders are passed upstream through the supply chain. Each tier (retailer to distributor to manufacturer to supplier) adds a buffer based on its own demand uncertainty, causing upstream order variability to far exceed actual consumer demand variability. Common causes include demand forecasting errors, order batching, price fluctuations, and shortage gaming. Mitigation strategies include sharing point-of-sale data upstream, reducing order batch sizes, stabilising pricing, and improving cross-tier demand visibility.",
+    "difficulty": 35,
+    "num": 194
+  },
+  {
+    "id": "p9-forecast-mape-zero",
+    "part": 9,
+    "topic": "Demand Forecasting Basics",
+    "type": "mc",
+    "stem": "A demand forecasting team uses Mean Absolute Percentage Error (MAPE) to evaluate forecasts across thousands of SKUs. Which scenario will cause MAPE to produce misleading or undefined results?",
+    "options": [
+      "SKUs with high seasonal variance in demand.",
+      "SKUs with negative demand values due to returns.",
+      "SKUs with zero or near-zero actual demand values.",
+      "SKUs with demand values greater than 10,000 units per period."
+    ],
+    "correct": 2,
+    "explanation": "MAPE divides the absolute forecast error by the actual value: |actual - forecast| / |actual|. When the actual demand is zero (or near-zero), this produces division by zero (undefined) or astronomically large percentage errors that dominate the average and make MAPE meaningless as a summary metric. This is a well-known limitation of MAPE for intermittent-demand or slow-moving SKUs. Alternatives include sMAPE (symmetric MAPE), MASE (Mean Absolute Scaled Error), or tracking metrics like fill rate and bias. Negative demand values (option B) also cause issues with percentage-based metrics but are less common. High-volume SKUs (option D) do not cause MAPE to fail.",
+    "difficulty": 55,
+    "num": 195
+  },
+  {
+    "id": "p9-vertical-integration-risk",
+    "part": 9,
+    "topic": "Inventory Optimization",
+    "type": "tf",
+    "stem": "True or False: Vertical integration — owning multiple tiers of the supply chain — eliminates supply chain risk for a company.",
+    "correct": false,
+    "explanation": "Vertical integration reduces certain risks (external supplier dependency, information asymmetry between tiers) but introduces new ones and does not eliminate supply chain risk overall. Integrated operations still face demand uncertainty, natural disasters, regulatory changes, labour disruptions, and commodity price volatility. Additionally, vertical integration increases capital requirements, reduces flexibility to switch strategies, and concentrates operational risk within the company rather than distributing it across suppliers. It is a trade-off that may reduce specific external risks at the cost of increased internal complexity and new risk exposures.",
+    "difficulty": 18,
+    "num": 196
+  },
+  {
+    "id": "p7-interview-clarify-first",
+    "part": 7,
+    "topic": "Interview Preparation",
+    "type": "mc",
+    "stem": "During a system design interview for a large-scale data pipeline, what should you do before drawing any architecture diagram?",
+    "options": [
+      "Start with the storage layer, as all data pipelines are storage-bound.",
+      "Clarify requirements: data volume, velocity, latency SLA, consistency requirements, and who the consumers are.",
+      "Propose a Lambda architecture, as it handles both batch and streaming use cases.",
+      "Ask the interviewer which cloud provider the company uses."
+    ],
+    "correct": 1,
+    "explanation": "System design interview performance is heavily weighted on structured thinking, and the first demonstration of that is clarifying ambiguous requirements before designing. Interviewers want to see that you do not jump to solutions without understanding constraints. Clarifying data volume, velocity, latency SLAs, and consumer requirements takes two minutes and prevents designing the wrong system. Proposing a specific architecture (option C) before understanding requirements is a common mistake — it signals pattern-matching rather than analytical thinking. Asking about cloud provider (option D) is relevant but secondary to functional requirements.",
+    "difficulty": 30,
+    "num": 197
+  },
+  {
+    "id": "p7-interview-star-mistake",
+    "part": 7,
+    "topic": "Interview Preparation",
+    "type": "mc",
+    "stem": "When answering a behavioural interview question using the STAR method (Situation, Task, Action, Result), where do most candidates spend too much time?",
+    "options": [
+      "Action — they over-explain the technical steps they took.",
+      "Result — they spend too long quantifying the business impact.",
+      "Situation — they spend too long setting up the context before getting to what they did.",
+      "Task — they repeat the job description rather than the specific challenge."
+    ],
+    "correct": 2,
+    "explanation": "The most common STAR mistake is spending the majority of the answer on Situation — setting up the background story, the team context, the organisation structure — leaving too little time for Action and Result, which are the parts the interviewer actually cares about. The Situation and Task sections should together take no more than 20-30% of the response. Action (what you specifically did) and Result (the measurable outcome) should dominate. A useful rule: if your Situation section is longer than your Action section, you have the balance wrong.",
+    "difficulty": 25,
+    "num": 198
+  },
+  {
+    "id": "p7-interview-sql-second-salary",
+    "part": 7,
+    "topic": "Interview Preparation",
+    "type": "mc",
+    "stem": "A common SQL interview question asks for the second-highest salary from an employees table. Which query correctly handles duplicate salary values (returning NULL if fewer than two distinct salaries exist)?",
+    "options": [
+      "SELECT salary FROM employees ORDER BY salary DESC LIMIT 1 OFFSET 1",
+      "SELECT MAX(salary) FROM employees WHERE salary < (SELECT MAX(salary) FROM employees)",
+      "SELECT DISTINCT salary FROM employees ORDER BY salary DESC LIMIT 1 OFFSET 1",
+      "SELECT salary FROM employees ORDER BY salary DESC LIMIT 2"
+    ],
+    "correct": 1,
+    "explanation": "Option B uses a subquery to find the highest salary, then takes the MAX of all salaries below that threshold — correctly returning the second-distinct salary value and returning NULL automatically if no such value exists (MAX of an empty set is NULL). Option A (OFFSET 1 without DISTINCT) fails when multiple employees share the top salary — it returns the same salary again, not the second-distinct value. Option C (DISTINCT + OFFSET) works for finding the second distinct value but does not return NULL when there is only one distinct salary — it returns no rows instead. Option D returns the top two rows, not just the second highest salary.",
+    "difficulty": 58,
+    "num": 199
+  },
+  {
+    "id": "p7-interview-why-de",
+    "part": 7,
+    "topic": "Interview Preparation",
+    "type": "mc",
+    "stem": "An interviewer asks 'Why do you want to be a data engineer rather than a data scientist or software engineer?' Which answer most effectively differentiates a strong candidate?",
+    "options": [
+      "'I enjoy working with large datasets and learning new tools like Spark and dbt.'",
+      "'I prefer backend systems over frontend development and data is interesting to me.'",
+      "'I am drawn to the challenge of making data reliably available at scale — the measurable correctness of pipelines and the direct business impact when analytics teams can finally trust their data.'",
+      "'Data engineering has strong job growth and good compensation compared to other engineering roles.'"
+    ],
+    "correct": 2,
+    "explanation": "Strong interview answers for motivation questions demonstrate intrinsic alignment between personal values and the role's core function. Option C identifies the specific things that make data engineering distinct — reliability, measurable correctness, and the business impact of trusted data — and links them to personal motivation. This shows the candidate understands what data engineers actually do beyond the tools. Option A mentions tools, which are means not ends, and is too generic. Option B frames DE negatively relative to other roles. Option D cites extrinsic motivations (growth, pay) which raise concerns about long-term commitment and passion for the work.",
+    "difficulty": 20,
+    "num": 200
   }
 ]

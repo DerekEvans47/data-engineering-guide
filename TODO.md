@@ -47,7 +47,7 @@ Content growth needed to make spaced repetition and drill mode meaningful (targe
 |-----|-------|--------|----------|--------|--------------|-------|
 | Q-1 | Add 30 questions for Parts 1–3 | 20 | P0 | DONE | — | Current bank has 100 total. Parts 1–3 are most-played; add coverage for ADLS, ADF, Spark, dbt, CTEs, Delta Lake. Use QUESTION_GENERATION_PROMPT.md. |
 | Q-2 | Add 30 questions for Parts 4–6 | 20 | P1 | DONE | Q-1 | Analytics/viz, delivery/leadership, AI & agentic systems. |
-| Q-3 | Add 20 questions for Parts 7–9 + Appendix | 15 | P1 | TODO | Q-2 | PM fundamentals, ML/statistics, supply chain, interview prep. |
+| Q-3 | Add 20 questions for Parts 7–9 + Appendix | 15 | P1 | DONE | Q-2 | PM fundamentals, ML/statistics, supply chain, interview prep. |
 | Q-4 | Add scenario/case-study question type | 25 | P2 | TODO | Q-1 | Multi-sentence scenario followed by 4 options. Requires new `type: "scenario"` in schema and a wider card render. More realistic to real-world DE decision-making. |
 | Q-5 | Review and update stale questions | 10 | P2 | TODO | — | Some questions may reference outdated services or API versions. Audit and update annually. |
 
@@ -85,7 +85,8 @@ Content growth needed to make spaced repetition and drill mode meaningful (targe
 | A-3 | Offline fallback already implemented via S-8 error handler (retry button shown) | 2026-06-26 |
 | Q-1 | Add 30 questions for Parts 1–3 (10+12+8; bank now 130 total) | 2026-06-26 |
 | Q-2 | Add 30 questions for Parts 4–6 (10+10+10; bank now 160 total) | 2026-06-26 |
+| Q-3 | Add 20 questions for Parts 7–9 + Interview Prep (bank now 200 total) | 2026-06-27 |
 
 ---
 
-*Last updated: 2026-06-26. Picking order: filter `Status = TODO`, sort by Priority then Effort ascending, take the first item whose dependencies are all `DONE` or `—`.*
+*Last updated: 2026-06-27. Picking order: filter `Status = TODO`, sort by Priority then Effort ascending, take the first item whose dependencies are all `DONE` or `—`.*
