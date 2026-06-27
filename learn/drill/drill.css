@@ -2390,6 +2390,19 @@ html, body {
 .rn-completed { pointer-events: none; }
 .rn-active    { pointer-events: none; }
 
+@keyframes rn-pulse {
+  0%, 100% { transform: scale(0.90); opacity: 0.40; }
+  50%       { transform: scale(1.05); opacity: 0.85; }
+}
+.rn-pulse {
+  animation: rn-pulse 2.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rn-pulse { animation: none; opacity: 0.6; }
+}
+
 /* Map selection screen */
 .map-select-screen {
   display: flex;
