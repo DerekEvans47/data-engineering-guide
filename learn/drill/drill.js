@@ -15,6 +15,7 @@ const RELIC_KEY        = 'game_relics';
 const GOLD_KEY         = 'game_gold';
 const ITEMS_KEY        = 'game_items';
 const TUTORIAL_KEY     = 'qd_tutorial_v1';
+const TD_TUTORIAL_KEY    = 'td_tutorial_v1';
 const AUTOSAVE_KEY       = 'td_autosave';
 const TD_INTER_KEY       = 'td_inter_v1';
 const TD_REST_BONUS_KEY  = 'td_rest_bonus';
@@ -3593,6 +3594,7 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
         </button>
       </div>
       <div id="td-place-chip" class="td-place-chip" style="display:none"></div>
+      <div id="td-inspect-card" class="td-inspect-card" style="display:none"></div>
       <div id="td-actions">
         <div id="td-wave-preview" class="td-wave-preview" style="display:none"></div>
         <div class="td-actions-row">
@@ -3608,6 +3610,11 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
   initTDGame(levelDef, levelIdx, startLives, startGold);
   td.__run   = run || null;
   td.__nodeId = nodeId;
+
+  if (!StorageManager.get(TD_TUTORIAL_KEY)) {
+    tdShowTutorial();
+    return;
+  }
 
   const _savedRaw = StorageManager.get(AUTOSAVE_KEY);
   const _saved = _savedRaw ? JSON.parse(_savedRaw) : null;
@@ -3664,8 +3671,9 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   EL.tdActions   = document.getElementById('td-actions');
   EL.tdQOverlay  = document.getElementById('td-q-overlay');
   EL.tdQSheet    = document.getElementById('td-q-sheet');
-  EL.tdPlaceChip   = document.getElementById('td-place-chip');
-  EL.tdWavePreview = document.getElementById('td-wave-preview');
+  EL.tdPlaceChip    = document.getElementById('td-place-chip');
+  EL.tdWavePreview  = document.getElementById('td-wave-preview');
+  EL.tdInspectCard  = document.getElementById('td-inspect-card');
 
   const W = Math.min(wrap.clientWidth || window.innerWidth, 500);
   td.cellSize   = Math.floor(W / TD_COLS);
@@ -3696,6 +3704,7 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
 
   document.querySelectorAll('.td-tool-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (td.inspectTower) tdDismissInspectCard();
       const tool = btn.dataset.tool;
       td.selectedTool = td.selectedTool === tool ? null : tool;
       document.querySelectorAll('.td-tool-btn').forEach(b => b.classList.remove('active'));
@@ -3790,7 +3799,7 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
     lives: initialLives, gold: initialGold, maxLives: initialLives,
     waveIdx:-1, spawnQueue:[], spawnTimer:0, waveActive:false,
     enemies:[], towers:[], projectiles:[], particles:[], damageNumbers:[],
-    selectedTool:null, pendingCol:-1, pendingRow:-1, eid:0,
+    selectedTool:null, pendingCol:-1, pendingRow:-1, eid:0, inspectTower:null,
     quizOpen:false, quizQ:null, quizAnswered:false, quizDone:null, quizOptional:false,
     tapCol:-1, tapRow:-1,
     over:false, won:false, shake:0, lastShootSnd:0, hoverCol:-1, hoverRow:-1,
@@ -3851,6 +3860,7 @@ function tdUpdate(dt) {
   const died = td.enemies.filter(e => e.hp <= 0);
   for (const e of died) {
     td.gold += e.reward;
+    td.damageNumbers.push({ x: e.x + 8, y: e.y - e.r * td.cellSize - 10, label: '+' + e.reward + '🪙', life: 0.85, maxLife: 0.85, color: '#FBBF24' });
     if (e.isBoss) {
       tdSpawnParticles(e.x, e.y, e.color, 40);
       tdSpawnParticles(e.x, e.y, '#FFFFFF', 16);
@@ -3996,6 +4006,8 @@ function tdHandleTap(col, row) {
   if (!td || td.over || td.won || td.quizOpen) return;
   if (col < 0 || col >= TD_COLS || row < 0 || row >= TD_ROWS) return;
 
+  if (td.selectedTool && td.inspectTower) tdDismissInspectCard();
+
   if (td.selectedTool === 'sell') {
     const idx = td.towers.findIndex(t => t.col === col && t.row === row);
     if (idx >= 0) {
@@ -4027,7 +4039,11 @@ function tdHandleTap(col, row) {
     return;
   }
 
-  if (!td.selectedTool) return;
+  if (!td.selectedTool) {
+    const hit = td.towers.find(t => t.col === col && t.row === row);
+    if (hit) tdShowInspectCard(hit); else tdDismissInspectCard();
+    return;
+  }
   if (td.pathSet.has(`${col},${row}`)) return;
   if (td.towers.some(t => t.col === col && t.row === row)) return;
 
@@ -4080,6 +4096,101 @@ function tdUpdatePlaceChip() {
     td.pendingCol = td.pendingRow = -1;
     tdUpdatePlaceChip();
   });
+}
+
+// ── Tutorial (first-run, shown once, localStorage-gated) ──────
+
+function tdShowTutorial() {
+  td.paused = true;
+  const overlay = EL.tdQOverlay;
+  const sheet   = EL.tdQSheet;
+  const steps = [
+    { icon: '🏗️', title: 'Place a tower',
+      body: 'Tap a tower type below to select it, then tap an empty cell on the map to place it. Confirm with ✓. Towers fire automatically at enemies.' },
+    { icon: '⚔️', title: 'Start a wave',
+      body: 'Once your towers are placed, tap <strong>Start Wave</strong>. Each wave begins with a quiz question — answer correctly for bonus gold!' },
+    { icon: '📝', title: 'Earn gold, upgrade, survive',
+      body: 'Kill rewards and quiz gold let you buy and upgrade towers. Hold the line through all waves to win the node. Good luck!' },
+  ];
+  var step = 0;
+  function showStep() {
+    var s = steps[step];
+    var isLast = step === steps.length - 1;
+    sheet.innerHTML =
+      '<div class="tut-card">' +
+        '<div class="tut-icon">' + s.icon + '</div>' +
+        '<div class="tut-title">' + s.title + '</div>' +
+        '<div class="tut-body">' + s.body + '</div>' +
+        '<div class="tut-dots">' + steps.map(function(_, i) {
+          return '<span class="tut-dot' + (i === step ? ' active' : '') + '"></span>';
+        }).join('') + '</div>' +
+        '<button class="td-wave-btn tut-btn" id="tut-next">' + (isLast ? "Let's Play! 🚀" : 'Next →') + '</button>' +
+      '</div>';
+    document.getElementById('tut-next').addEventListener('click', function() {
+      step++;
+      if (step < steps.length) { showStep(); }
+      else {
+        StorageManager.set(TD_TUTORIAL_KEY, '1');
+        overlay.classList.remove('open');
+        td.paused = false;
+      }
+    });
+  }
+  overlay.classList.add('open');
+  showStep();
+}
+
+// ── Tower inspect card ─────────────────────────────────────────
+
+function tdShowInspectCard(tower) {
+  td.inspectTower = tower;
+  const card = EL.tdInspectCard;
+  if (!card) return;
+  const def   = TD_TOWER_DEFS.find(function(d) { return d.id === tower.type; });
+  const stats = tdGetTowerStats(tower);
+  const lvl   = tower.level || 0;
+  const lvlLabel = ['L1', 'L2', 'L3'][lvl] || 'L1';
+  const dps   = (stats.dmg * stats.rate).toFixed(1);
+  const splashTag = stats.splash > 0 ? ' <span class="tdi-tag">AoE</span>' : '';
+  const upgLine = lvl < 2
+    ? '<div class="tdi-row"><span>Upgrade</span><span>' + def.upgrades[lvl].cost + '🪙</span></div>'
+    : '<div class="tdi-row"><span>Upgrade</span><span>Maxed ⭐</span></div>';
+  let totalSpent = def.cost;
+  for (let l = 0; l < lvl; l++) totalSpent += def.upgrades[l].cost;
+  const sellVal = Math.round(totalSpent * (tower.placedThisBuild ? 1.0 : 0.6));
+  card.innerHTML =
+    '<div class="tdi-header">' + (def.icon || '') + ' ' + def.name +
+      ' <span class="tdi-lvl">' + lvlLabel + '</span></div>' +
+    '<div class="tdi-row"><span>DPS' + splashTag + '</span><span>' + dps + '</span></div>' +
+    '<div class="tdi-row"><span>Range</span><span>' + stats.range + ' cells</span></div>' +
+    upgLine +
+    '<div class="tdi-row"><span>Sell</span><span>' + sellVal + '🪙</span></div>';
+
+  const cs = td.cellSize;
+  const canvasEl = td.canvas;
+  const wrap = document.getElementById('td-canvas-wrap');
+  if (canvasEl && wrap) {
+    const rect = canvasEl.getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    const scaleX = rect.width / canvasEl.width;
+    const scaleY = rect.height / canvasEl.height;
+    const towerPxX = tower.col * cs * scaleX + (rect.left - wrapRect.left);
+    const towerPxY = tower.row * cs * scaleY + (rect.top  - wrapRect.top);
+    const cardW = 164;
+    var left = Math.round(towerPxX + cs * scaleX / 2 - cardW / 2);
+    var top  = Math.round(towerPxY - 130);
+    left = Math.max(4, Math.min(left, Math.round(wrapRect.width) - cardW - 4));
+    top  = Math.max(4, top);
+    card.style.left = left + 'px';
+    card.style.top  = top  + 'px';
+  }
+  card.style.display = 'block';
+}
+
+function tdDismissInspectCard() {
+  if (!td) return;
+  td.inspectTower = null;
+  if (EL.tdInspectCard) EL.tdInspectCard.style.display = 'none';
 }
 
 // ── Quiz system ────────────────────────────────────────────────
@@ -4676,7 +4787,7 @@ function tdRender() {
     const a = n.life / n.maxLife;
     ctx.globalAlpha = a;
     ctx.fillStyle = n.color;
-    ctx.fillText('-' + n.val, n.x, n.y);
+    ctx.fillText(n.label !== undefined ? n.label : ('-' + n.val), n.x, n.y);
   }
   ctx.globalAlpha = 1;
 
