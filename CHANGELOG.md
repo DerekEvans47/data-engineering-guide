@@ -8,6 +8,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - TD tutorial, tower inspect card, and gold float labels (U-1, U-10, U-11)
 
+- Replace SMIL pulse with CSS animation on run-map nodes
+
 
 ### 🐛 Bug Fixes
 
