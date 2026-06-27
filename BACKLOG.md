@@ -117,7 +117,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
-| C-1 | Expand question bank to 300+ questions | 50 | P0 | TODO | — | Current bank is thin; more variety needed for spaced repetition to be meaningful. |
+| C-1 | Expand question bank to 300+ questions | 50 | P0 | ONGOING | — | Handled exclusively by QUESTION_GENERATION_PROMPT.md sessions — skip in game improvement runs. Current bank: 160 questions; target: 300+. |
 | C-2 | Question editor UI (add/edit/delete in-app) | 40 | P2 | TODO | I-1 | Modal form to add custom questions; stores to localStorage override list. |
 | C-3 | Question categories / tags visible in quiz overlay | 15 | P2 | TODO | — | Show topic tag (e.g. "Spark", "Kafka") on quiz card for context. |
 | C-4 | Explanation / hint on wrong answer | 18 | P1 | DONE | — | After wrong MC answer, show a 1–2 sentence explanation before continuing. |
