@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1.3 Azure Data Lake Storage &middot; Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="1.3">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part One &nbsp;&middot;&nbsp; The Data Platform Foundation</div>
+          <div class="chap-num">1.3</div>
+          <h1 class="chap-title">Azure Data Lake Storage</h1>
+          <p class="chap-sub">The storage foundation of the Azure data stack &mdash; from Blob to data lake, and everything that lives between</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head">
+            <div class="outcomes-badge">&#10003;</div>
+            <h3>Expected Learning Outcomes</h3>
+          </div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain what Azure Blob Storage is and how ADLS Gen2 is built on top of it</li>
+            <li>Describe the hierarchical namespace and why it matters for Databricks performance</li>
+            <li>Select the appropriate access tier (Hot, Cool, Cold, Archive) for a given data scenario</li>
+            <li>Distinguish between the five Azure storage types and when each is appropriate</li>
+            <li>Compare ADLS Gen2 to Amazon S3 and Google Cloud Storage across key dimensions</li>
+            <li>Identify the correct authentication method for connecting Databricks to ADLS in production</li>
+          </ol>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.3.1</span>
+          <h2 class="sec-title">Blob Storage: The Physical Foundation</h2>
+        </div>
+
+        <p>To understand <span class="df" data-term="ADLS">Azure Data Lake Storage (ADLS)</span>, you first need to understand Azure Blob Storage &mdash; because ADLS Gen2 is not a separate service. It is Azure Blob Storage with one critical feature added. Understanding the relationship between the two removes most of the confusion practitioners have about the Azure storage landscape.</p>
+
+        <p>Azure Blob Storage is Microsoft's <span class="kt" data-term="Object Storage">object storage</span> service. It stores data as "blobs" &mdash; Binary Large Objects &mdash; each identified by a unique URL and accompanied by user-defined metadata. The naming is hierarchical in appearance: a blob might be named <code style="background:#F0F2F7;padding:1px 5px;border-radius:3px;font-size:12px;">sales/2024/january/transactions.parquet</code>, which looks like a folder path. But Blob Storage has no concept of real folders. That slash-delimited name is just a string. Every blob is a flat object in the storage account.</p>
+
+        <p>This matters enormously for data engineering workloads. When Databricks processes a dataset, it constantly renames, moves, and reorganizes directories as part of its execution model &mdash; committing data atomically, cleaning up temp files, moving results from a staging area to a final location. In pure Blob Storage, "renaming a directory" of one million files requires one million individual API calls &mdash; one per blob. At enterprise data volumes, this operation can take hours and costs significant money in API call fees.</p>
+
+        <div class="hl-block">
+          ADLS Gen2 adds exactly one feature on top of Blob Storage: a Hierarchical Namespace (HNS). With HNS enabled, directories become real constructs. Renaming a directory of one million files is a single atomic operation, regardless of how many files it contains. That single change makes ADLS Gen2 dramatically more suitable for Databricks workloads &mdash; and for data lake operations generally.
+        </div>
+
+        <p>Everything else about ADLS Gen2 &mdash; the pricing model, the storage tiers, the redundancy options, the access control &mdash; is inherited directly from Blob Storage. The two services use the same API, the same SDK, and the same Azure Portal interface. The only choice you make at creation time is whether to enable the hierarchical namespace. For data lake workloads, the answer is always yes.</p>
+
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="fs13a"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.15)"/></filter>
+                <linearGradient id="g13blob" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6A7A9A"/><stop offset="100%" stop-color="#3A4A6A"/></linearGradient>
+                <linearGradient id="g13adls" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0076CC"/><stop offset="100%" stop-color="#0050AA"/></linearGradient>
+                <marker id="ma13" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 7 3.5, 0 7" fill="#C8892A"/></marker>
+              </defs>
+              <rect width="700" height="280" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="22" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">Azure Blob Storage vs ADLS Gen2 &mdash; One Key Difference</text>
+
+              <!-- LEFT: Blob Storage flat namespace -->
+              <rect x="18" y="36" width="280" height="216" rx="8" fill="url(#g13blob)" filter="url(#fs13a)"/>
+              <text x="158" y="58" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="9" font-weight="700" letter-spacing="2" text-anchor="middle">AZURE BLOB STORAGE</text>
+              <text x="158" y="72" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="600" text-anchor="middle">Flat Namespace</text>
+              <line x1="30" y1="80" x2="286" y2="80" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+
+              <!-- Flat blobs shown as stacked cards -->
+              <text x="158" y="98" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Every file is just a string key. No real folders.</text>
+              <rect x="38" y="106" width="240" height="20" rx="3" fill="rgba(255,255,255,.12)"/>
+              <text x="48" y="120" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" font-family="monospace">sales/2024/jan/file001.parquet</text>
+              <rect x="38" y="130" width="240" height="20" rx="3" fill="rgba(255,255,255,.12)"/>
+              <text x="48" y="144" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5">sales/2024/jan/file002.parquet</text>
+              <rect x="38" y="154" width="240" height="20" rx="3" fill="rgba(255,255,255,.12)"/>
+              <text x="48" y="168" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5">&#8942; &nbsp;(1,000,000 more files&hellip;)</text>
+
+              <line x1="30" y1="184" x2="286" y2="184" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="158" y="200" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">&#9888;&#65039; Rename &ldquo;sales/2024/jan/&rdquo; folder?</text>
+              <text x="158" y="214" fill="#FF9999" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">= 1,000,000 individual API calls</text>
+              <text x="158" y="230" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Hours of runtime &middot; Thousands in API fees</text>
+              <text x="158" y="244" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Databricks commit model breaks here</text>
+
+              <!-- Plus sign -->
+              <text x="311" y="168" fill="#C8892A" font-family="Inter,sans-serif" font-size="28" font-weight="700" text-anchor="middle">+</text>
+              <text x="311" y="190" fill="#C8892A" font-family="Inter,sans-serif" font-size="9" font-weight="600" text-anchor="middle">HNS</text>
+              <text x="311" y="204" fill="#7A6030" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Hierarchical</text>
+              <text x="311" y="215" fill="#7A6030" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Namespace</text>
+              <line x1="332" y1="152" x2="346" y2="152" stroke="#C8892A" stroke-width="2" marker-end="url(#ma13)"/>
+
+              <!-- RIGHT: ADLS Gen2 -->
+              <rect x="348" y="36" width="334" height="216" rx="8" fill="url(#g13adls)" filter="url(#fs13a)"/>
+              <text x="515" y="58" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="9" font-weight="700" letter-spacing="2" text-anchor="middle">ADLS GEN2</text>
+              <text x="515" y="72" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="600" text-anchor="middle">Hierarchical Namespace</text>
+              <line x1="360" y1="80" x2="670" y2="80" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+
+              <!-- Tree structure -->
+              <text x="515" y="98" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Directories are real constructs with atomic operations.</text>
+              <text x="370" y="118" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="9">&#128193; sales/</text>
+              <text x="382" y="134" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="9">&#9492;&#9472; &#128193; 2024/</text>
+              <text x="396" y="150" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="9">&#9492;&#9472; &#128193; jan/</text>
+              <text x="414" y="166" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8.5">&#9492;&#9472; file001.parquet</text>
+              <text x="414" y="180" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8.5">&#9492;&#9472; file002.parquet</text>
+              <text x="414" y="194" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="8.5">&#9492;&#9472; &hellip; (1,000,000 files)</text>
+
+              <line x1="360" y1="205" x2="670" y2="205" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="515" y="220" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">&#10003; Rename &ldquo;sales/2024/jan/&rdquo; folder?</text>
+              <text x="515" y="234" fill="#88FF88" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">= 1 atomic directory operation</text>
+              <text x="515" y="248" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Milliseconds &middot; Minimal API fees &middot; Databricks works correctly</text>
+
+              <text x="350" y="270" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Enable HNS at storage account creation time &mdash; it cannot be changed afterward</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 1.8</strong>
+            <span>Azure Blob Storage (flat namespace) versus ADLS Gen2 (hierarchical namespace). The single addition of HNS changes directory rename from an operation requiring one API call per file to a single atomic operation. For Databricks workloads that constantly rename staging directories, this is the difference between a functional data lake and an unusably slow one.</span>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Block vs File vs Object storage &mdash; the three storage architectures</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Storage is not one thing. There are three fundamentally different architectures that appear throughout the Azure stack, and each exists for different reasons:</p>
+              <p><strong>Block storage</strong> presents raw disk to an operating system. The OS formats it, manages files, and treats it like an internal hard drive. Block storage is fast and low-latency because there is no filesystem overhead between the application and the disk. Azure Managed Disks is block storage. You use it for VM operating system disks, for SQL Server data files, and for any workload that needs raw disk performance. You never use it for a data lake.</p>
+              <p><strong>File storage</strong> exposes a familiar folder hierarchy over a network using NFS or SMB protocols &mdash; the same protocols your office file server uses. Azure Files is file storage. It is appropriate for shared drives, lift-and-shift of on-premise file servers, and applications that specifically require NFS or SMB. It does not scale to petabytes efficiently.</p>
+              <p><strong>Object storage</strong> stores data as independent objects in a flat namespace. Each object has a unique URL and metadata but no relationship to other objects. It scales virtually without limit, costs a fraction of block or file storage, and is accessible from anywhere via HTTP. Azure Blob Storage is object storage. Every major cloud data lake is built on object storage: ADLS on Azure, S3 on AWS, GCS on Google Cloud. The trade-off is that object storage is not suitable for workloads that require POSIX filesystem operations at low latency &mdash; which is exactly why ADLS adds the hierarchical namespace.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">Enterprise Retail Company &nbsp;&middot;&nbsp; The Rename Problem</span>
+          </div>
+          <div class="field-note-body">
+            <p>A retail company migrating from HDFS (Hadoop Distributed File System) to Azure chose standard Blob Storage for their data lake &mdash; without enabling the hierarchical namespace. Their existing Spark pipelines used a commit pattern that worked by writing data to a temporary staging directory and then renaming it atomically to the final location, guaranteeing that downstream readers never saw partial results. This is a standard Spark pattern and works correctly on any POSIX-compliant filesystem.</p>
+            <p>On flat Blob Storage, each rename was a copy-then-delete of every file. A modest pipeline writing 50,000 Parquet files &mdash; common for a large Spark job &mdash; triggered 100,000 API calls per run (50,000 copies + 50,000 deletes) and took several times longer than the actual computation. Pipeline runtimes tripled. Azure support confirmed the diagnosis and the fix: enable hierarchical namespace. The migration to ADLS Gen2 reduced the rename operations to single atomic calls and restored expected performance.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Enabling the hierarchical namespace is not optional for Databricks workloads. It should be the default choice for any storage account that will serve as a data lake, before any data is written.</p>
+          </div>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.3.2</span>
+          <h2 class="sec-title">Access Tiers: Balancing Cost Against Availability</h2>
+        </div>
+
+        <p>ADLS Gen2 (and all Azure Blob Storage) offers four access tiers. The tier you choose determines the trade-off between storage cost and retrieval cost &mdash; cheaper to store means more expensive and slower to retrieve. Selecting the right tier for each dataset is one of the highest-leverage cost optimization decisions in a data platform, because storage costs accumulate continuously regardless of whether data is being used.</p>
+
+        <p class="table-hint">Tap any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr><th>Tier</th><th>Storage Cost</th><th>Retrieval Cost</th><th>Retrieval Time</th><th>Min Retention</th><th>Best For</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>&#128293; Hot</strong></td><td>Highest</td><td>Lowest</td><td>Milliseconds</td><td>None</td><td>Bronze and Silver layers, actively processed data</td></tr>
+            <tr><td><strong>&#10052;&#65039; Cool</strong></td><td>Lower (~50% of Hot)</td><td>Moderate</td><td>Milliseconds</td><td>30 days</td><td>Data accessed monthly &mdash; older partitions not yet archived</td></tr>
+            <tr><td><strong>&#10052;&#65039;&#10052;&#65039; Cold</strong></td><td>Very low</td><td>Higher</td><td>Milliseconds</td><td>90 days</td><td>Compliance data, accessed rarely but needed quickly when accessed</td></tr>
+            <tr><td><strong>&#127981; Archive</strong></td><td>Lowest (~95% below Hot)</td><td>Highest</td><td>Hours (rehydration required)</td><td>180 days</td><td>True archival &mdash; regulatory requirements, accessed once per year or less</td></tr>
+          </tbody>
+        </table>
+
+        <p>A common pattern: Bronze data starts in Hot tier when first ingested (because Databricks needs to read it quickly to produce Silver). After 30 days &mdash; when that partition has been processed and Silver exists &mdash; a lifecycle management policy automatically moves old Bronze partitions to Cool, then Cold, then Archive. This can reduce storage costs for historical Bronze data by over 90% without any manual intervention.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Lifecycle management policies &mdash; automating tier transitions</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Azure Storage lifecycle management lets you define rules that automatically move blobs between tiers based on age or last access time. A typical data lake policy might look like:</p>
+              <p><strong>Rule 1 (Bronze historical data):</strong> if a blob in the Bronze container has not been modified in 30 days, move to Cool. If not modified in 90 days, move to Cold. If not modified in 365 days, move to Archive.</p>
+              <p><strong>Rule 2 (Delete temporary files):</strong> if a blob in any container whose path contains "/_temporary/" has not been modified in 7 days, delete it. (Databricks occasionally leaves temp files if a job is interrupted.)</p>
+              <p><strong>Rule 3 (Gold data retention):</strong> if a blob in the Gold container has not been accessed in 90 days, move to Cool. Gold data may be actively queried by Power BI for a reporting period but then rarely touched afterward.</p>
+              <p>These rules run automatically and require no engineering intervention once configured. For a large data platform ingesting terabytes per day, lifecycle management can reduce monthly storage costs by tens of thousands of dollars annually. The caveat: Archive tier requires "rehydration" (moving back to Hot or Cool) before data can be read, which takes hours. Do not archive data you might need in an emergency.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.3.3</span>
+          <h2 class="sec-title">Azure Storage Types: When Not to Use ADLS</h2>
+        </div>
+
+        <p>ADLS Gen2 is the right choice for data lake workloads. It is not the right choice for everything. Azure offers five storage types and the wrong choice in architecture design is a common source of performance problems.</p>
+
+        <table class="data-table sortable">
+          <thead>
+            <tr><th>Storage Type</th><th>Azure Service</th><th>Best For</th><th>Not For</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Object (Blob)</strong></td><td>ADLS Gen2 / Blob Storage</td><td>Data lakes, backups, media files, ML model artifacts</td><td>Workloads needing POSIX filesystem ops without HNS</td></tr>
+            <tr><td><strong>File</strong></td><td>Azure Files</td><td>Shared network drives, lift-and-shift file servers, NFS/SMB workloads</td><td>Data lakes, analytics workloads</td></tr>
+            <tr><td><strong>Table</strong></td><td>Azure Table Storage</td><td>Semi-structured NoSQL data, IoT telemetry, simple key-value stores</td><td>Relational queries, complex analytics</td></tr>
+            <tr><td><strong>Queue</strong></td><td>Azure Queue Storage</td><td>Asynchronous message passing between application components</td><td>Data storage of any kind</td></tr>
+            <tr><td><strong>Block (Disk)</strong></td><td>Azure Managed Disks</td><td>VM OS disks, database data files requiring raw disk performance</td><td>Shared access, data lake storage</td></tr>
+          </tbody>
+        </table>
+
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 210" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="fs13b"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter>
+              </defs>
+              <rect width="700" height="210" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="22" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">The Five Azure Storage Types</text>
+
+              <!-- Blob / ADLS -->
+              <rect x="10" y="34" width="126" height="148" rx="7" fill="#0076CC" filter="url(#fs13b)"/>
+              <text x="73" y="54" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="1" text-anchor="middle">OBJECT</text>
+              <text x="73" y="68" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Blob / ADLS</text>
+              <line x1="20" y1="76" x2="126" y2="76" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="73" y="91" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Data lakes</text>
+              <text x="73" y="104" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Backups</text>
+              <text x="73" y="117" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">ML artifacts</text>
+              <text x="73" y="130" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Media files</text>
+              <line x1="20" y1="142" x2="126" y2="142" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="73" y="156" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">&#9733; Use for data lake</text>
+              <text x="73" y="170" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Hot/Cool/Cold/</text>
+              <text x="73" y="181" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Archive tiers</text>
+
+              <!-- Files -->
+              <rect x="146" y="34" width="126" height="148" rx="7" fill="#1B3A6B" filter="url(#fs13b)"/>
+              <text x="209" y="54" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="1" text-anchor="middle">FILE</text>
+              <text x="209" y="68" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Azure Files</text>
+              <line x1="156" y1="76" x2="262" y2="76" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="209" y="91" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Shared network drives</text>
+              <text x="209" y="104" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">NFS / SMB protocol</text>
+              <text x="209" y="117" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Lift-and-shift file</text>
+              <text x="209" y="130" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">servers</text>
+              <line x1="156" y1="142" x2="262" y2="142" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="209" y="156" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Not for analytics</text>
+              <text x="209" y="170" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Does not scale to</text>
+              <text x="209" y="181" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">petabytes</text>
+
+              <!-- Table -->
+              <rect x="282" y="34" width="126" height="148" rx="7" fill="#254F8F" filter="url(#fs13b)"/>
+              <text x="345" y="54" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="1" text-anchor="middle">TABLE</text>
+              <text x="345" y="68" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Azure Table</text>
+              <line x1="292" y1="76" x2="398" y2="76" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="345" y="91" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">NoSQL key-value</text>
+              <text x="345" y="104" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">IoT telemetry</text>
+              <text x="345" y="117" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Semi-structured</text>
+              <text x="345" y="130" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">simple lookups</text>
+              <line x1="292" y1="142" x2="398" y2="142" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="345" y="156" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Not for complex</text>
+              <text x="345" y="168" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">queries or analytics</text>
+
+              <!-- Queue -->
+              <rect x="418" y="34" width="126" height="148" rx="7" fill="#0F2447" filter="url(#fs13b)"/>
+              <text x="481" y="54" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="1" text-anchor="middle">QUEUE</text>
+              <text x="481" y="68" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Azure Queue</text>
+              <line x1="428" y1="76" x2="534" y2="76" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="481" y="91" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Async messaging</text>
+              <text x="481" y="104" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">App-to-app comms</text>
+              <text x="481" y="117" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Decoupling</text>
+              <text x="481" y="130" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">microservices</text>
+              <line x1="428" y1="142" x2="534" y2="142" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="481" y="156" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Not for storing</text>
+              <text x="481" y="168" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">data of any kind</text>
+
+              <!-- Disk -->
+              <rect x="554" y="34" width="130" height="148" rx="7" fill="#3A4A6A" filter="url(#fs13b)"/>
+              <text x="619" y="54" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="1" text-anchor="middle">BLOCK (DISK)</text>
+              <text x="619" y="68" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Managed Disks</text>
+              <line x1="564" y1="76" x2="674" y2="76" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="619" y="91" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">VM OS disks</text>
+              <text x="619" y="104" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">SQL Server data files</text>
+              <text x="619" y="117" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">High-IOPS database</text>
+              <text x="619" y="130" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">workloads</text>
+              <line x1="564" y1="142" x2="674" y2="142" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="619" y="156" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">No shared access</text>
+              <text x="619" y="168" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Not for data lakes</text>
+
+              <text x="350" y="200" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">In data engineering, you will almost exclusively work with Azure Blob Storage / ADLS Gen2</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 1.9</strong>
+            <span>The five Azure storage types. Each exists for a specific purpose. Data engineering workloads use Blob Storage / ADLS Gen2 exclusively for data lake storage. Azure Files is for shared drives and NFS/SMB workloads. Table Storage is for simple NoSQL lookups. Queue Storage is a messaging bus, not a data store. Managed Disks are block storage for VMs and databases.</span>
+          </div>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.3.4</span>
+          <h2 class="sec-title">Security: Authentication and Access Control</h2>
+        </div>
+
+        <p>Securing ADLS is one of the most practically important skills for a data platform practitioner. There are four authentication mechanisms and two access control systems in play, and the right combination depends on who is accessing the data and why.</p>
+
+        <h3 class="subsec">Four Authentication Mechanisms</h3>
+        <p><span class="kt" data-term="Managed Identity">Managed Identity</span> is the recommended approach for service-to-service connections. It gives an Azure service (Databricks, ADF, Azure Functions) its own identity in Azure Active Directory, eliminating the need to store or rotate credentials. Databricks reading ADLS authenticates as its own managed identity &mdash; no connection strings, no passwords, no secrets in notebooks.</p>
+        <p>A <strong>Service Principal</strong> is an application identity in Azure Active Directory &mdash; essentially a machine account. Used when Managed Identity is not available. Requires a client ID, tenant ID, and client secret (or certificate). The secret must be stored in Azure Key Vault and rotated regularly.</p>
+        <p>A <span class="kt" data-term="SAS Token">Shared Access Signature (SAS) token</span> is a time-limited, permission-scoped URL. Used for temporary or delegated access &mdash; giving an external partner read access to a specific container for 48 hours without sharing account keys. Not appropriate for service-to-service production connections.</p>
+        <p>An <strong>Account Key</strong> is the storage account's root credential &mdash; full access, no expiry, maximum risk. Never use account keys in production pipelines. Treat them like a root password.</p>
+
+        <h3 class="subsec">RBAC vs ACLs</h3>
+        <p><span class="kt" data-term="RBAC">Role-Based Access Control (RBAC)</span> grants permissions through Azure roles assigned at the resource level. Common data roles: <em>Storage Blob Data Reader</em> (read-only), <em>Storage Blob Data Contributor</em> (read/write), <em>Storage Blob Data Owner</em> (full control including ACLs).</p>
+        <p>ADLS Gen2 also supports <strong>POSIX ACLs</strong> (Access Control Lists) at the directory and file level &mdash; the same fine-grained permission model used on Linux filesystems. ACLs let you grant a specific user read access to one folder within a container without granting access to sibling folders.</p>
+
+        <div class="hl-block">
+          RBAC and ACLs are evaluated together in ADLS Gen2. This surprises many practitioners: both checks must pass. A user with the Storage Blob Data Reader role AND a Deny ACL on a specific directory is denied access. Understanding that both systems run in parallel prevents a common class of mysterious "access denied" errors.
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Storage redundancy options &mdash; what happens when a datacenter goes down</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Azure Storage replicates your data automatically to protect against hardware failure. The question is how many copies, and where. Four options exist, with increasing cost and durability:</p>
+              <p><strong>LRS (Locally Redundant Storage)</strong> &mdash; three copies within a single datacenter. Cheapest. Protects against disk and server failures. Does not protect against datacenter disasters. Appropriate for data you can regenerate from source if needed (Bronze, for instance, could be re-ingested from the ERP if a datacenter was destroyed).</p>
+              <p><strong>ZRS (Zone-Redundant Storage)</strong> &mdash; three copies across three availability zones in the same region. Protects against entire zone outages. Cannot be replicated to another region. Recommended for production data lake storage in most enterprise scenarios &mdash; good balance of cost and protection.</p>
+              <p><strong>GRS (Geo-Redundant Storage)</strong> &mdash; six copies: three local (LRS) plus three replicated to a paired region 200+ miles away. Protects against full regional disasters. The secondary region is read-only and only accessible during a Microsoft-initiated failover. Appropriate for Gold-tier data that powers critical business decisions and cannot be recovered by re-running pipelines quickly.</p>
+              <p><strong>GZRS (Geo-Zone-Redundant Storage)</strong> &mdash; combines ZRS locally with GRS replication to a second region. Maximum durability. Highest cost. Appropriate for the most critical data products where both zone and regional resilience are required.</p>
+              <p>For most enterprise data platforms: ZRS for Bronze and Silver (compute can re-derive if needed), GRS or GZRS for Gold (business-facing, cannot easily be re-derived during a disaster).</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.3.5</span>
+          <h2 class="sec-title">ADLS vs The Competition: Azure, AWS, GCP</h2>
+        </div>
+
+        <p>Object storage is the one technology area where all major cloud providers offer essentially the same core capability. The differences lie in integration depth, pricing structure, and ecosystem alignment. Understanding these differences matters for two reasons: you may work in multi-cloud environments, and you will regularly be asked to justify technology choices against alternatives.</p>
+
+        <table class="data-table sortable">
+          <thead>
+            <tr><th>Dimension</th><th>Azure ADLS Gen2</th><th>Amazon S3</th><th>Google Cloud Storage</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Built on</strong></td><td>Azure Blob Storage + HNS</td><td>S3 (native object store)</td><td>GCS (native object store)</td></tr>
+            <tr><td><strong>Durability</strong></td><td>99.999999999% (11 nines)</td><td>99.999999999% (11 nines)</td><td>99.999999999% (11 nines)</td></tr>
+            <tr><td><strong>POSIX directory ops</strong></td><td>Yes (with HNS enabled)</td><td>No native; S3A emulates</td><td>No native; GCSFUSE emulates</td></tr>
+            <tr><td><strong>Databricks integration</strong></td><td>Native ABFS driver, Unity Catalog</td><td>S3A driver, common in practice</td><td>GCS connector, less common</td></tr>
+            <tr><td><strong>Active Directory integration</strong></td><td>Native Azure AD / Entra ID</td><td>IAM (separate system)</td><td>Google IAM (separate system)</td></tr>
+            <tr><td><strong>Power BI native connectivity</strong></td><td>Built-in, first-class</td><td>Via connector, additional config</td><td>Via connector, additional config</td></tr>
+            <tr><td><strong>Best in class when</strong></td><td>Microsoft-first organizations</td><td>AWS-first, largest ecosystem</td><td>GCP-first, BigQuery native workloads</td></tr>
+            <tr><td><strong>Pricing model</strong></td><td>Storage + operations + access tier</td><td>Storage + requests + data transfer</td><td>Storage + operations + network egress</td></tr>
+          </tbody>
+        </table>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">Mid-size Manufacturer &nbsp;&middot;&nbsp; The Archive Tier Surprise</span>
+          </div>
+          <div class="field-note-body">
+            <p>A manufacturing company implemented a data lake on ADLS Gen2 and &mdash; cost-conscious from day one &mdash; configured a lifecycle management policy that moved all data older than 90 days to Archive tier. Storage costs dropped immediately. The policy ran quietly in the background, and the team was pleased with the results through the first quarter.</p>
+            <p>During an annual financial close, the Finance team requested historical transaction data from 18 months prior &mdash; data that had been archived. The data team initiated rehydration (moving data from Archive back to a readable tier). The rehydration completed after approximately 15 hours. The Finance close process, which had a hard deadline, was delayed.</p>
+            <p>The investigation revealed that the Archive tier policy had been applied uniformly across all containers, including Gold-tier financial data that the team had assumed would always be immediately accessible. The correct policy &mdash; Archive only Bronze, keep Gold in Cool &mdash; was reconfigured. The lesson was costly but straightforward.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Archive tier means hours to access, not minutes. Apply it only to data you genuinely will not need in a hurry. Gold-tier business data almost never qualifies, regardless of its age.</p>
+          </div>
+        </div>
+
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>ADLS Gen2 is Azure Blob Storage with a hierarchical namespace added &mdash; that single feature makes directory operations atomic and enables efficient Databricks workloads. The four access tiers (Hot, Cool, Cold, Archive) balance storage cost against retrieval cost and speed; lifecycle policies automate transitions. Azure offers five storage types for different purposes; ADLS is for data lake workloads only. Security uses Managed Identity for service connections (preferred), Service Principals, SAS tokens for temporary access, and Account Keys for emergencies only. RBAC and ACLs are evaluated together. Against S3 and GCS, ADLS wins on Microsoft ecosystem integration; all three are equivalent in core durability and scale.</p>
+        </div>
+
+        <div class="info-box gold">
+          <div class="info-label">Coming in Section 1.4 &mdash; Azure Data Factory</div>
+          <p>ADLS is where data lives. ADF is what moves it there. Section 1.4 covers ADF's object model (pipelines, activities, linked services, triggers, integration runtimes), the three IR types and when each is needed, incremental load patterns, and the cost model that surprises most new practitioners.</p>
+        </div>
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 1.3 &nbsp;&middot;&nbsp; Azure Data Lake Storage</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">What does ADLS Gen2 add on top of standard Azure Blob Storage?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Automatic encryption of all stored data at rest</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Significantly lower storage cost per gigabyte than Blob Storage</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">A Hierarchical Namespace (HNS) that makes directory operations atomic &mdash; renaming or deleting a directory is a single operation rather than iterating every file</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Support for SQL queries directly on stored files</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> ADLS Gen2 is Blob Storage with a hierarchical namespace added. That single feature makes directory operations atomic &mdash; critical for Databricks, which constantly renames directories as part of its commit model. Without HNS, renaming a directory of 1 million files requires 1 million API calls. With HNS, it is one. Encryption (option A) exists on both Blob Storage and ADLS. The cost model (option B) is the same. SQL queries on files (option D) are handled by Databricks/Synapse, not ADLS itself.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">Your Bronze layer holds raw data that Databricks reads daily to produce Silver. Which ADLS access tier is most appropriate for Bronze data from the past 7 days?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="true"><div class="option-letter">A</div><div class="option-text">Hot &mdash; actively accessed by Databricks, requires fast retrieval with no access cost penalty</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Cool &mdash; saves storage cost while still being accessible for Databricks jobs</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Cold &mdash; sufficient for daily batch access patterns</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Archive &mdash; Databricks can rehydrate before each daily run</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>A is correct.</strong> Data accessed daily belongs in Hot tier. Hot has the highest storage cost but the lowest retrieval cost and instant access. Cool, Cold, and Archive all add retrieval costs and &mdash; for Archive &mdash; multi-hour rehydration delays that would break daily pipeline SLAs. The optimization pattern is to start Bronze data in Hot, then lifecycle-manage it to cooler tiers after it has been processed into Silver (typically after 30-90 days).</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">Your Databricks cluster needs to read from and write to ADLS in a production environment. Which authentication method should you use?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Account Key &mdash; simplest to configure, provides full access</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">SAS Token &mdash; time-limited and permission-scoped for security</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Shared Access Signature stored in a notebook variable</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">D</div><div class="option-text">Managed Identity &mdash; no credentials to store or rotate, Databricks authenticates as its own Azure AD identity</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>D is correct.</strong> Managed Identity eliminates the credential management problem entirely. Databricks gets its own identity in Azure AD and is granted RBAC roles on the ADLS account. No secrets, no rotation, no risk of credentials appearing in notebook code or logs. Account Keys (option A) are root credentials with no expiry &mdash; a significant security risk. SAS tokens (options B and C) expire and are intended for temporary delegated access, not persistent service connections.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A compliance team confirms that regulatory data must be retained for 7 years but will only be retrieved during an annual audit (and can tolerate a retrieval delay of up to 24 hours). Which ADLS tier best balances compliance requirements with cost?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Hot &mdash; ensures instant access if the audit team needs data urgently</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Cool &mdash; moderate cost with reasonable access speed</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Cold &mdash; very low cost with millisecond retrieval when needed</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">D</div><div class="option-text">Archive &mdash; lowest storage cost for data accessed once per year; the multi-hour rehydration is acceptable given the 24-hour tolerance</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>D is correct.</strong> Archive is the right answer when three conditions are met: data is accessed very rarely (annually), retrieval delay is acceptable (hours), and long-term retention is required. Archive storage costs roughly 95% less than Hot. For 7 years of compliance data, this represents significant savings. The key was the explicit 24-hour tolerance &mdash; if the compliance team had required instant access, Cold would have been the answer.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A user has been granted the "Storage Blob Data Reader" RBAC role on an ADLS Gen2 storage account, but also has a Deny ACL on a specific folder within that account. When they attempt to read files from that folder, what happens?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Access is granted because RBAC overrides ACLs at the resource level</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Access is granted because the Reader role provides read access to all containers</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Access is denied because RBAC and ACLs are both evaluated, and a Deny in either system overrides a Grant in the other</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The behavior is undefined and depends on the specific tenant configuration</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> ADLS Gen2 evaluates both RBAC and POSIX ACLs, and both must pass. A Deny ACL is effective regardless of what RBAC role is assigned. This is a common source of confusion because practitioners familiar with other systems expect RBAC to be the primary control. In ADLS, they are peers. Understanding this prevents a common class of "access denied" errors where the RBAC role looks correct but a directory-level ACL is the actual block.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+
+        <nav class="sec-nav">
+          <a href="1-2-medallion-architecture.html" class="sec-nav-btn sec-nav-prev"><span class="sec-nav-arrow">&#8592;</span><span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">1.2 Medallion Architecture</span></span></a>
+          <a href="1-4-adf.html" class="sec-nav-btn sec-nav-next"><span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">1.4 Azure Data Factory</span></span><span class="sec-nav-arrow">&#8594;</span></a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 1 &nbsp;&middot;&nbsp; The Data Platform Foundation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">3</div>
+        </footer>
+
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:160px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Key Distinction</div>
+          <p><strong>ADLS Gen2 IS Blob Storage</strong> &mdash; not a separate product. The only difference is the hierarchical namespace switch enabled at account creation. Same API, same SDK, same pricing.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Critical Default</div>
+          <p><strong>Always enable HNS.</strong> If you create an ADLS account without the hierarchical namespace, Databricks will work but directory operations will be slow and costly. This cannot be changed after account creation.</p>
+        </div>
+        <div class="ms" style="height:280px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Cost Pattern</div>
+          <p>Start Bronze data in <strong>Hot</strong>. Once Silver is produced (typically 30 days), a lifecycle policy moves old Bronze to <strong>Cool</strong>, then <strong>Cold</strong>, then <strong>Archive</strong>. This pattern can reduce historical storage costs by 90%+ with zero manual intervention.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Security Rule</div>
+          <p><strong>Managed Identity &gt; Service Principal &gt; SAS Token.</strong> Never use Account Keys in production. Never put credentials in notebook code. If you see a storage key in a Databricks notebook, that is a security incident.</p>
+        </div>
+        <div class="ms" style="height:260px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Archive Tier Warning</div>
+          <p><strong>Archive data takes hours to rehydrate.</strong> Apply Archive only to data with a documented multi-hour retrieval tolerance. Gold-tier business data almost never qualifies, regardless of age.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary (coming soon)</div>
+  </div>
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('1.3');</script>
+</body>
+</html>

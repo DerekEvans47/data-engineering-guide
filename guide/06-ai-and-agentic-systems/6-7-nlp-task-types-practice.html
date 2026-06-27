@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6.7 NLP Task Types in Practice &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="6.7">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Six &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="chap-num">6.7</div>
+          <h1 class="chap-title">NLP Task Types in Practice</h1>
+          <p class="chap-sub">A working taxonomy of the NLP (Natural Language Processing) problems a senior data and AI practitioner is expected to recognize by name, which evaluation metric actually fits each one, why hallucination is a structural risk rather than an occasional bug in generative tasks, and how this vocabulary connects directly back to the build/buy decision from section 6.6</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Identify the major NLP task types &mdash; text classification, Named Entity Recognition (NER), sentiment analysis, summarization, and conversational AI &mdash; and describe what distinguishes each one</li>
+            <li>Explain, at a conceptual level, what kind of model approach each task type typically uses today</li>
+            <li>Choose the correct evaluation metric for a given task type, connecting back to the precision/recall/F1/AUC-ROC framework from section 8.3</li>
+            <li>Distinguish extractive from abstractive summarization and explain the accuracy/risk tradeoff between them</li>
+            <li>Explain why hallucination is a structural risk in generative NLP tasks rather than an occasional, fixable bug</li>
+            <li>Map a given business problem to its correct NLP task type, and connect that classification to the prompting/few-shot/RAG/fine-tuning decision from section 6.6</li>
+          </ol>
+        </div>
+
+        <!-- 6.7.1 -->
+        <div class="sec-head"><span class="sec-tag">6.7.1</span><h2 class="sec-title">A Working Taxonomy</h2></div>
+
+        <p>Section 6.6 covered <em>how</em> to customize an LLM's behavior. This section covers <em>what kind of problem</em> you're actually solving when you reach for NLP &mdash; the umbrella term for any technique that processes or generates human language. Being able to name the task type correctly is not academic precision for its own sake: it directly determines which evaluation metric is meaningful, which failure modes to watch for, and &mdash; tying back to 6.6 &mdash; whether prompting alone is realistic or whether the task needs heavier investment.</p>
+
+        <div class="hl-block">Every NLP task this section covers falls into one of two families: <strong>understanding</strong> tasks, which assign a label or extract information from existing text (classification, NER, sentiment), and <strong>generation</strong> tasks, which produce new text (summarization, conversational responses). That distinction matters because generation tasks carry a structural risk &mdash; hallucination &mdash; that understanding tasks simply don't have, covered in 6.7.4.</div>
+
+        <!-- 6.7.2 -->
+        <div class="sec-head"><span class="sec-tag">6.7.2</span><h2 class="sec-title">Understanding Tasks: Classification, NER, and Sentiment</h2></div>
+
+        <p><strong>Text classification</strong> assigns a predefined category to a piece of text &mdash; the support-ticket routing example from section 6.6 is a classification task. <span class="kt" data-term="Named Entity Recognition">Named Entity Recognition</span> (NER) identifies and labels specific spans of text as belonging to a category &mdash; person names, company names, dates, monetary amounts &mdash; rather than classifying the whole document at once; it's the technique behind automatically extracting "invoice number," "vendor name," and "due date" from a scanned invoice. <span class="df" data-term="Sentiment Analysis">Sentiment analysis</span> is a specialized form of classification that assigns an emotional polarity (positive/negative/neutral, or a finer-grained scale) to text, commonly used on customer reviews and support transcripts.</p>
+
+        <p>All three are understanding tasks: the model's job is to assign labels to text that already exists, not to produce new text. This matters because it means their output space is constrained and enumerable &mdash; there is a fixed, known list of possible categories or entity types &mdash; which is exactly what makes them straightforward to evaluate using the same precision, recall, and F1 framework from section 8.3.</p>
+
+        <!-- Figure 6.13 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs><filter id="f613sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter></defs>
+              <rect width="700" height="230" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">NER &mdash; Tagging Spans, Not the Whole Document</text>
+
+              <rect x="30" y="50" width="640" height="50" rx="6" fill="white" stroke="#C8E2F8" stroke-width="1.5"/>
+              <text x="50" y="80" fill="#1B3A6B" font-family="monospace" font-size="11">"Invoice </text>
+              <text x="124" y="80" fill="white" font-family="monospace" font-size="11">#INV-4471</text>
+              <rect x="118" y="65" width="92" height="22" rx="3" fill="#C8892A"/>
+              <text x="164" y="80" fill="white" font-family="monospace" font-size="11" text-anchor="middle">#INV-4471</text>
+              <text x="222" y="80" fill="#1B3A6B" font-family="monospace" font-size="11"> billed to </text>
+              <rect x="296" y="65" width="78" height="22" rx="3" fill="#254F8F"/>
+              <text x="335" y="80" fill="white" font-family="monospace" font-size="11" text-anchor="middle">Acme Corp</text>
+              <text x="384" y="80" fill="#1B3A6B" font-family="monospace" font-size="11"> for </text>
+              <rect x="412" y="65" width="58" height="22" rx="3" fill="#1A7A4A"/>
+              <text x="441" y="80" fill="white" font-family="monospace" font-size="11" text-anchor="middle">$4,200</text>
+              <text x="480" y="80" fill="#1B3A6B" font-family="monospace" font-size="11">, due </text>
+              <rect x="520" y="65" width="92" height="22" rx="3" fill="#7A2A2A"/>
+              <text x="566" y="80" fill="white" font-family="monospace" font-size="11" text-anchor="middle">June 30"</text>
+
+              <g font-family="Inter,sans-serif" font-size="8" font-weight="700">
+                <rect x="118" y="125" width="14" height="14" rx="3" fill="#C8892A"/><text x="138" y="136" fill="#1B3A6B">DOCUMENT_ID</text>
+                <rect x="296" y="125" width="14" height="14" rx="3" fill="#254F8F"/><text x="316" y="136" fill="#1B3A6B">ORGANIZATION</text>
+                <rect x="412" y="125" width="14" height="14" rx="3" fill="#1A7A4A"/><text x="432" y="136" fill="#1B3A6B">MONEY</text>
+                <rect x="520" y="125" width="14" height="14" rx="3" fill="#7A2A2A"/><text x="540" y="136" fill="#1B3A6B">DATE</text>
+              </g>
+
+              <line x1="30" y1="165" x2="670" y2="165" stroke="rgba(27,58,107,.12)" stroke-width="1"/>
+              <text x="350" y="182" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-style="italic">Classification assigns one label to the whole text. NER tags multiple specific spans within the same text &mdash; both are "understanding" tasks with a fixed, enumerable output space.</text>
+              <text x="350" y="200" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-style="italic">Sentiment analysis is classification with a specific, opinion-oriented label set (positive / negative / neutral).</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 6.13</strong><span>Named Entity Recognition tagging four distinct entity types within a single sentence. Each tag is independently evaluable against ground truth, which is exactly what makes precision/recall-style metrics a natural fit for understanding tasks.</span></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Why raw accuracy is often the wrong metric for classification tasks like these</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Section 8.3 introduced precision, recall, F1, and AUC-ROC in the context of classical ML classifiers, and the same logic applies directly to NLP classification tasks &mdash; with the same trap waiting for anyone who reaches for plain accuracy instead. Consider a sentiment model screening support transcripts for genuinely urgent complaints, where only 4% of transcripts are actually urgent. A model that simply predicts "not urgent" for everything achieves 96% accuracy while catching zero real complaints &mdash; a textbook case of class imbalance making accuracy a misleading headline number.</p>
+              <p>The fix is the same one covered in 8.3: report precision (of the transcripts flagged urgent, how many really were?) and recall (of the transcripts that really were urgent, how many did the model catch?) separately, and choose which one to prioritize based on the actual cost of each error type. For urgent-complaint screening, missing a real complaint (a false negative) is usually far costlier than over-flagging a normal one (a false positive) for a human to quickly dismiss &mdash; which argues for optimizing recall, possibly at some cost to precision, exactly the threshold-tuning logic covered in 8.3's classification threshold discussion.</p>
+              <p>The takeaway that generalizes across every NLP classification task in this section: always check the class balance of your evaluation data before trusting a single accuracy number, and report the metric that actually reflects which error type is more costly for your specific business problem.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127974;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">An Insurance Company &nbsp;&middot;&nbsp; The 98% Accurate Model That Missed Almost Every Fraud Case</span>
+          </div>
+          <div class="field-note-body">
+            <p>A claims-processing team built a classifier to flag potentially fraudulent claims for human review, training it on a year of historical claims where roughly 2% had been confirmed fraudulent. The first reported result &mdash; 98% accuracy &mdash; was presented to leadership as a strong success, until a more careful look at the confusion matrix (the same tool from section 8.3) revealed the model was flagging almost nothing as fraud at all, simply because predicting "not fraud" for every single claim already achieves 98% accuracy given the underlying 2% base rate.</p>
+            <p>Recomputing the same model's recall specifically on the fraud class showed it was catching only 11% of actual fraud cases &mdash; a result the headline accuracy number had completely obscured. The team re-ran evaluation reporting precision and recall on the fraud class specifically, retrained with class-weighting to penalize missed fraud cases more heavily during training, and only then started making real progress on the metric that actually mattered to the business.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>On any meaningfully imbalanced classification task &mdash; fraud, churn, urgent-complaint detection &mdash; a high accuracy number is close to meaningless on its own. Always demand the per-class precision and recall, exactly as section 8.3 establishes, before accepting any classification result as a genuine success.</p>
+          </div>
+        </div>
+
+        <!-- 6.7.3 -->
+        <div class="sec-head"><span class="sec-tag">6.7.3</span><h2 class="sec-title">Generation Tasks: Summarization</h2></div>
+
+        <p><span class="kt" data-term="Summarization">Summarization</span> is the first generation task covered in this section: producing a shorter text that captures the key content of a longer source. It splits into two genuinely different techniques. <strong>Extractive summarization</strong> selects and stitches together actual sentences or phrases lifted directly from the source document. <strong>Abstractive summarization</strong> generates entirely new sentences that paraphrase and condense the source &mdash; the way a human asked to summarize an article would naturally write, rather than copy-pasting selected lines from it.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Extractive vs. abstractive: the accuracy/risk tradeoff</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Extractive summarization's core guarantee is that every word in its output actually appeared in the source document &mdash; it cannot introduce a fact that wasn't there, because it never writes new sentences, only selects existing ones. Its weakness is fluency and coherence: stitched-together sentences from different parts of a document can read disjointedly, and the technique cannot paraphrase or condense in the genuinely flexible way a human summarizer can.</p>
+              <p>Abstractive summarization, almost always implemented today via an LLM, produces far more fluent, naturally condensed output &mdash; closer to what a human would actually write. Its weakness is exactly the flip side of extractive's strength: because it generates new text rather than selecting existing text, it can state something that sounds plausible but doesn't actually appear in, or even contradicts, the source document. This is hallucination, covered fully in section 6.7.4, and it is structurally possible in abstractive summarization in a way it simply is not in extractive summarization.</p>
+              <p>The practical decision: extractive summarization is the safer default whenever factual fidelity to the source is non-negotiable (legal document summaries, medical record summaries) even at some cost to fluency. Abstractive summarization is the better fit when fluency and genuine condensation matter more than a guarantee of zero added content, and when downstream review can catch the occasional hallucinated detail.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6.7.4 -->
+        <div class="sec-head"><span class="sec-tag">6.7.4</span><h2 class="sec-title">Conversational AI and the Hallucination Problem</h2></div>
+
+        <p><span class="df" data-term="Conversational AI">Conversational AI</span> &mdash; chatbots, virtual assistants, support agents &mdash; is the broadest and most generation-heavy NLP task type covered here, combining <strong>intent recognition</strong> (a classification sub-task: what is the user actually trying to do?) with open-ended response generation. It's also where hallucination causes the most direct business damage, because a generated response that sounds confident and plausible but is factually wrong is, from the user's perspective, indistinguishable from a correct one until something goes visibly wrong.</p>
+
+        <!-- Figure 6.14 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs><marker id="m614" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#3A9FE0"/></marker></defs>
+              <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Two Architectures, Two Very Different Failure Risks</text>
+
+              <rect x="30" y="48" width="290" height="135" rx="6" fill="white" stroke="#C8E2F8" stroke-width="1.5"/>
+              <text x="175" y="68" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">LLM Answering from Memory</text>
+              <rect x="50" y="80" width="100" height="32" rx="4" fill="#254F8F"/><text x="100" y="100" fill="white" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">User Question</text>
+              <line x1="150" y1="96" x2="190" y2="96" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m614)"/>
+              <rect x="190" y="80" width="100" height="32" rx="4" fill="#7A2A2A"/><text x="240" y="96" fill="white" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-weight="700">LLM</text><text x="240" y="107" fill="#F0D8D8" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">generates from training data</text>
+              <text x="175" y="150" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">No grounding source &mdash; answer is the model's</text>
+              <text x="175" y="162" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">best statistical guess. Confident &#8800; correct.</text>
+
+              <rect x="380" y="48" width="290" height="135" rx="6" fill="white" stroke="#C8E2F8" stroke-width="1.5"/>
+              <text x="525" y="68" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">RAG-Grounded Answering</text>
+              <rect x="400" y="80" width="80" height="32" rx="4" fill="#254F8F"/><text x="440" y="100" fill="white" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Question</text>
+              <line x1="480" y1="96" x2="510" y2="96" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m614)"/>
+              <rect x="510" y="65" width="80" height="28" rx="4" fill="#1A5A78"/><text x="550" y="83" fill="white" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Retrieve</text>
+              <line x1="550" y1="93" x2="550" y2="110" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m614)"/>
+              <rect x="510" y="110" width="80" height="28" rx="4" fill="#7A2A2A"/><text x="550" y="128" fill="white" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">LLM + Docs</text>
+              <text x="525" y="150" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Answer is grounded in retrieved text &mdash;</text>
+              <text x="525" y="162" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">far lower hallucination risk, still not zero.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 6.14</strong><span>Hallucination risk drops sharply when a generative response is grounded in retrieved source text (RAG, section 6.3) rather than generated purely from the model's training data &mdash; but grounding reduces the risk, it does not eliminate it, since a model can still misread or over-generalize from retrieved text.</span></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Why hallucination is structural, not an occasional bug</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Section 6.1 covered how an LLM generates text: predicting the most statistically probable next token given everything before it, learned from patterns across its training data. That mechanism has no built-in concept of "I don't actually know this" &mdash; it produces the most plausible-sounding continuation regardless of whether the underlying claim is true, because plausibility, not truth, is what the model was trained to optimize.</p>
+              <p>This is why hallucination cannot be fully "fixed" by better prompting or a larger model alone: it is a direct consequence of how generation works, not a defect introduced by insufficient training. What can genuinely reduce it: grounding the generation in retrieved source text via RAG (so the model has something concrete to draw from rather than relying purely on its training-data statistics), explicitly instructing the model to say "I don't know" when retrieved context doesn't contain the answer, and &mdash; for the highest-stakes use cases &mdash; a human review step before a generated response reaches a customer or a regulator.</p>
+              <p>The practical implication for choosing between conversational AI architectures: an LLM answering purely "from memory" with no retrieval step is taking on unmitigated hallucination risk on every single response. The moment factual accuracy genuinely matters &mdash; policy details, account information, anything with legal or financial consequences &mdash; that risk is exactly why section 6.3's RAG architecture, not a bare LLM, is the appropriate default.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#128172;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Telecom Customer Support Team &nbsp;&middot;&nbsp; The Chatbot That Invented a Refund Policy</span>
+          </div>
+          <div class="field-note-body">
+            <p>A support chatbot, built as a bare LLM with a system prompt describing the company's general tone and a brief written summary of refund policy, confidently told a customer they were entitled to a full refund outside the actual policy window &mdash; a specific dollar amount and a specific timeframe that simply did not exist in any actual company document. The customer, reasonably, held the company to the chatbot's stated answer, and the dispute escalated to a manual review.</p>
+            <p>A root-cause review found the underlying issue precisely matched the mechanism in this section's deep dive: the bare LLM had no actual policy document to draw from at answer time, only a brief paraphrased summary in its system prompt, and filled remaining detail with statistically plausible-sounding specifics that happened to be fabricated. The team rebuilt the system as a RAG pipeline retrieving the actual current refund policy document at every query, with an explicit instruction to state "I'd need to check on that" whenever the retrieved policy text didn't directly answer the specific question asked.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>A confident-sounding answer is not evidence of a correct one. Any conversational AI use case with real financial, legal, or safety consequences needs a grounding source (RAG) and an explicit "don't know" escape hatch &mdash; not just a well-written system prompt describing the policy in general terms.</p>
+          </div>
+        </div>
+
+        <!-- 6.7.5 -->
+        <div class="sec-head"><span class="sec-tag">6.7.5</span><h2 class="sec-title">Matching Task to Metric, and Back to the Build/Buy Decision</h2></div>
+
+        <p>Pulling the section together: the right evaluation approach and the right failure modes to watch for both follow directly from which task type you're actually solving &mdash; which is exactly why naming the task correctly, rather than reaching for "AI" as an undifferentiated catch-all, is the first real step in scoping any NLP project.</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>Classification / NER / Sentiment</th>
+              <th>Summarization</th>
+              <th>Conversational AI</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Task Family</strong></td>
+              <td>Understanding</td>
+              <td>Generation</td>
+              <td>Generation (with an understanding sub-task: intent)</td>
+            </tr>
+            <tr>
+              <td><strong>Typical Evaluation</strong></td>
+              <td>Precision, recall, F1 per class (section 8.3)</td>
+              <td>Human review for factual fidelity; automated overlap metrics (e.g. ROUGE) as a rough proxy</td>
+              <td>Human review; task-completion rate; hallucination/escalation rate</td>
+            </tr>
+            <tr>
+              <td><strong>Most Common Failure Mode</strong></td>
+              <td>Class imbalance making raw accuracy misleading</td>
+              <td>Abstractive variants introducing unsupported claims</td>
+              <td>Confidently fabricated, plausible-sounding wrong answers</td>
+            </tr>
+            <tr>
+              <td><strong>Hallucination Risk</strong></td>
+              <td>None &mdash; output space is fixed, enumerable labels</td>
+              <td>Present in abstractive; structurally absent in extractive</td>
+              <td>Highest &mdash; fully open-ended generation</td>
+            </tr>
+            <tr>
+              <td><strong>Typical Build Approach (6.6)</strong></td>
+              <td>Often fine-tuning, since the category set is usually stable</td>
+              <td>Prompting/few-shot for general use; extractive for high-stakes fidelity</td>
+              <td>RAG by default whenever factual accuracy carries real consequences</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>That last row is the explicit bridge back to section 6.6: a stable, well-defined classification task with plenty of labeled history is a reasonable fine-tuning candidate, while any conversational task with real factual stakes should default to RAG, not a bare LLM, precisely because of the structural hallucination risk this section has covered in detail.</p>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary &mdash; Part 6 Complete</div>
+          <p>NLP tasks split into understanding tasks (classification, NER, sentiment) with a fixed, enumerable output space evaluable via precision/recall/F1, and generation tasks (summarization, conversational AI) that produce new text and therefore carry hallucination risk that understanding tasks structurally cannot. Extractive summarization trades fluency for a guarantee against added content; abstractive trades that guarantee for more natural output. Hallucination is a direct consequence of how LLMs generate text &mdash; optimizing plausibility, not truth &mdash; and is meaningfully reduced, though never eliminated, by RAG grounding. Naming the correct task type up front determines the right metric, the right failure modes to watch for, and which of section 6.6's four customization approaches actually fits. Part 6 is now complete: how LLMs work, MCP, RAG, agents, agentic pipelines, fine-tuning vs. prompting, and the NLP task taxonomy &mdash; the AI and agentic systems foundation a senior data and analytics practitioner is expected to reason about fluently.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 6.7 &nbsp;&middot;&nbsp; NLP Task Types in Practice</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">What is the fundamental distinction between "understanding" NLP tasks (classification, NER, sentiment) and "generation" NLP tasks (summarization, conversational AI)?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Understanding tasks are always easier to build than generation tasks</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Understanding tasks assign labels from a fixed, enumerable set to existing text; generation tasks produce new text, which is what makes them structurally susceptible to hallucination in a way understanding tasks are not</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Understanding tasks never require any machine learning, while generation tasks always do</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Generation tasks are evaluated using precision and recall, while understanding tasks cannot be evaluated quantitatively</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Understanding tasks have a fixed, known output space (a category list, an entity type set), so there's a clear ground truth to compare against per item. Generation tasks produce open-ended new text with no fixed output space, which is exactly the structural opening for hallucination &mdash; D actually has the metrics backward, since precision/recall fit the fixed-label understanding tasks, not open-ended generation.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">A claims team reports 98% accuracy for a fraud-detection classifier, but the underlying data is 98% non-fraud. What does the insurance field note suggest about this result?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">98% accuracy is a strong result regardless of class balance and should be reported to leadership as-is</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The accuracy figure is likely misleading given the severe class imbalance; per-class precision and recall on the fraud class specifically need to be checked before drawing any conclusion about real-world performance</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The model must be broken, since no fraud-detection model should ever report high accuracy</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Accuracy is the only metric that matters for classification tasks, and additional metrics would be redundant</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> With a 98% non-fraud base rate, a model that predicts "not fraud" for every single case already achieves 98% accuracy while catching zero real fraud &mdash; exactly what happened in the field note, where fraud-class recall was actually only 11%. High accuracy on an imbalanced task tells you almost nothing on its own; per-class precision and recall are required.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">What is the core tradeoff between extractive and abstractive summarization?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Extractive summarization is always more fluent but less accurate than abstractive summarization</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Extractive summarization guarantees every word came from the source (no hallucination risk) but can read disjointedly; abstractive summarization is more fluent but can introduce content not actually present in the source</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Extractive summarization requires an LLM, while abstractive summarization does not</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">There is no meaningful difference between the two in practice</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Extractive summarization only selects existing sentences, so it structurally cannot add unsupported content, at some cost to coherence. Abstractive summarization generates new sentences, which reads more naturally but opens the door to hallucinated content &mdash; the same structural risk covered for conversational AI in 6.7.4, just applied to a different generation task.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">Why can't hallucination be fully eliminated just by writing a better prompt or using a larger model, according to this section's deep dive?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Because hallucination only happens with smaller, less capable models</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Because an LLM generates text by predicting the most statistically plausible next token, with no built-in concept of truth versus falsehood &mdash; hallucination is a direct consequence of that generation mechanism, not a fixable defect</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Because hallucination is caused entirely by poorly written prompts, and a sufficiently detailed prompt eliminates it completely</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Because hallucination only occurs in conversational AI and never in summarization tasks</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The generation mechanism itself &mdash; predicting plausible continuations rather than verified facts &mdash; is the root cause, which is why grounding via RAG reduces but never fully eliminates the risk. D is specifically wrong, since 6.7.3 establishes that abstractive summarization carries the same structural risk as conversational AI.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A team is building a customer-facing chatbot that will answer questions about specific account balances and refund eligibility &mdash; both with real financial consequences if wrong. Based on this section and section 6.6, what is the most defensible architectural choice?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">A bare LLM with a detailed system prompt describing the company's policies in general terms</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">A RAG-grounded system that retrieves the customer's actual current account data and policy documents at query time, with an explicit instruction to defer when retrieved context doesn't directly answer the question</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">A fine-tuned model trained once on historical account and policy data, since fine-tuning produces the most fluent responses</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Any of the four approaches from section 6.6 would perform equally well on this specific use case</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This is precisely the telecom field note's scenario, generalized: real financial consequences plus information that must be current (account balances change constantly) point directly at RAG, not a bare LLM (A, which carries unmitigated hallucination risk) or fine-tuning (C, which section 6.6 already established is the wrong tool for fast-changing facts like account data).</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="6-6-llm-fine-tuning-vs-prompting.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">6.6 LLM Fine-Tuning vs. Prompting</span></span>
+          </a>
+          <a href="../07-product-management-fundamentals/7-1-user-stories-roadmaps.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">7.1 User Stories &amp; Roadmaps</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 6 &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">46</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:150px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Two Families</div>
+          <p>Understanding tasks (classification, NER, sentiment) assign fixed labels. Generation tasks (summarization, conversational AI) produce new text &mdash; and inherit hallucination risk that understanding tasks don't have.</p>
+        </div>
+        <div class="ms" style="height:300px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Check Class Balance First</div>
+          <p>High accuracy on an imbalanced task can mean almost nothing. Always check per-class precision and recall before trusting a headline number.</p>
+        </div>
+        <div class="ms" style="height:320px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Confident &#8800; Correct</div>
+          <p>An LLM optimizes for plausible-sounding text, not truth. Grounding via RAG reduces hallucination risk; it does not eliminate it.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"How would you evaluate an NLP system?" should never get a one-size-fits-all answer. The strong answer starts by naming the task type, then derives the metric from it.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('6.7');</script>
+</body>
+</html>

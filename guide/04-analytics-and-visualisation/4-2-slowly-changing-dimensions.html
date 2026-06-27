@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4.2 Slowly Changing Dimensions &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="4.2">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Four &nbsp;&middot;&nbsp; Analytics &amp; Visualisation</div>
+          <div class="chap-num">4.2</div>
+          <h1 class="chap-title">Slowly Changing Dimensions</h1>
+          <p class="chap-sub">When dimension data changes over time — Types 0 through 7, the trade-offs of each, and Azure implementation patterns using dbt snapshots and Delta Lake MERGE</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain what a Slowly Changing Dimension is and why the choice of SCD type has lasting consequences for analytical accuracy</li>
+            <li>Apply SCD Types 0, 1, 2, and 3 correctly, and explain when each is the appropriate choice</li>
+            <li>Describe the structural requirements of an SCD Type 2 dimension table: surrogate key, effective/expiry dates, and current-row flag</li>
+            <li>Recognize SCD Types 4, 5, 6, and 7 and identify the specific problems they solve</li>
+            <li>Implement SCD Type 2 using dbt snapshots and SCD Type 1 using Delta Lake MERGE in an Azure Databricks environment</li>
+            <li>Choose the correct SCD type for a given scenario and justify that choice against the alternatives</li>
+          </ol>
+        </div>
+
+        <!-- 4.2.1 -->
+        <div class="sec-head"><span class="sec-tag">4.2.1</span><h2 class="sec-title">The Problem: Dimensions Are Not Static</h2></div>
+
+        <p>Section 4.1 introduced dimensions as the descriptive context surrounding a fact — a customer's region, a product's category, a store's type. The star schema presented there treated those dimensions as stable: dim_customer has a region column, and the value in that column is the region. But what happens when a customer moves? When a product is recategorized? When a store is reclassified from Standard to Premium?</p>
+
+        <p>These changes happen constantly in production systems. The term "Slowly Changing Dimension" (SCD) — coined by Ralph Kimball — acknowledges this reality. "Slowly" is relative: an SCD can change once a year (a company's legal name) or once a week (a customer's loyalty tier). What matters is that the change is infrequent enough to be modeled as a dimension attribute rather than as a fact event. The critical question is not whether dimensions change. They do. The question is: <em>when they change, what happens to the historical facts that point to the old value?</em></p>
+
+        <div class="hl-block">The choice of SCD type is not a technical preference — it is a business accuracy decision. Apply the wrong type and your historical reports are quietly wrong: last year's regional sales totals reflect where customers live today, not where they lived when they bought.</div>
+
+        <p>Kimball defined seven SCD types (0 through 6, plus a hybrid Type 7). Types 0, 1, 2, and 3 are the foundational patterns. Types 4, 5, 6, and 7 are composites that solve specific edge cases. Every data engineer should be fluent in all of them — not because all are commonly used, but because interviewers expect command of the full vocabulary, and architects need to recognize when a hybrid approach is warranted.</p>
+
+        <!-- 4.2.2 -->
+        <div class="sec-head"><span class="sec-tag">4.2.2</span><h2 class="sec-title">Type 0 — Fixed (Retain Original)</h2></div>
+
+        <p>SCD Type 0 is the simplest case: no change is permitted. The dimension attribute is set at initial load and never updated, regardless of what happens in the source system. This is appropriate for attributes that are definitionally immutable in the context of the business model: a customer's original acquisition channel (how they first came to the business), a contract's inception date, a financial instrument's (a security, bond, or derivative) country of issuance. These are facts about the entity at a specific moment in time — updating them would destroy information.</p>
+
+        <p>Type 0 is not a design decision to make by default or by laziness. It is a deliberate statement that this attribute's original value has permanent analytical meaning. The implementation is trivial: on updates from the source, ignore the changed column. In dbt, this means not including the column in the snapshot definition. In an ADF pipeline, filter out or discard updates to this field.</p>
+
+        <!-- 4.2.3 -->
+        <div class="sec-head"><span class="sec-tag">4.2.3</span><h2 class="sec-title">Type 1 — Overwrite (No History)</h2></div>
+
+        <p>SCD Type 1 overwrites the existing value when a change is detected. The dimension table always reflects the current state. No additional rows are created. No historical values are preserved. A customer who moves from London to Manchester has their region column updated to "Manchester" — and every historical fact that joins to this customer via the surrogate key now shows "Manchester" regardless of when the sale occurred.</p>
+
+        <h3 class="subsec">When Type 1 Is Correct</h3>
+        <p>Type 1 is the right choice when either the change is a correction (a misspelled name, a wrong postcode entered at point of sale) or when historical context for that attribute genuinely does not matter to any analytical use case. If no stakeholder has ever asked "where did this customer live at the time of the purchase?" — and no regulatory or audit requirement exists — Type 1 is simpler and cheaper to implement and maintain.</p>
+
+        <h3 class="subsec">The Risk of Defaulting to Type 1</h3>
+        <p>Type 1 is the most commonly misapplied SCD type precisely because it is the easiest to implement. Teams apply it by default — often because they didn't know there was an alternative — and discover the problem only when someone asks a historical question that can no longer be answered. Once history is overwritten in a Type 1 dimension, it cannot be recovered from the warehouse. It is gone unless it exists in an audit log, a raw Bronze table, or the source system's own change history. The Bronze layer's role as the immutable raw record becomes critical here: if you ever realize you needed Type 2 but applied Type 1, you can rebuild the dimension from Bronze if that layer has been preserved.</p>
+
+        <p>Type 1 implementation is straightforward: a <code>MERGE</code> (also written as <code>UPSERT</code> — insert if new, update if exists) on the dimension table's natural key, overwriting changed columns. In Delta Lake: <code>MERGE INTO dim_customer USING updates ON dim_customer.customer_id = updates.customer_id WHEN MATCHED THEN UPDATE SET ...</code></p>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Retail Group &nbsp;&middot;&nbsp; Two Years of Regional Data, Silently Wrong</span>
+          </div>
+          <div class="field-note-body">
+            <p>A national retail group had built regional sales reporting over two years. Customers were assigned to regions based on their delivery postcode. The dim_customer table used SCD Type 1 — when a customer updated their address, the region was overwritten. Nobody had thought to question this when the model was built.</p>
+            <p>Two years later, the commercial director noticed that the Southern region appeared to consistently outperform Northern for the same product categories — a gap that didn't match the on-the-ground experience of Northern regional managers. Investigation revealed that the South-East of England had the highest postcode mobility (young professional renters moving into the area from other regions), meaning thousands of customers who had historically bought as Northern customers were now classified as Southern. The two-year trailing figures had been quietly reattributed as customers moved.</p>
+            <p>Rebuilding with Type 2 required going back to Bronze ingestion logs to reconstruct the customer-region timeline. That was only possible because the Bronze layer had been designed as append-only. The rebuild took three weeks. The prior two years of regional reporting were re-issued to the board with a correction notice.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Type 1 is never "safe by default." The question to ask before applying it is: could any business user, in any future analytical context, need to know what this attribute's value was at a specific point in time? If the honest answer is "possibly yes," the correct choice is Type 2.</p>
+          </div>
+        </div>
+
+        <!-- 4.2.4 -->
+        <div class="sec-head"><span class="sec-tag">4.2.4</span><h2 class="sec-title">Type 2 — Add Row (Full History)</h2></div>
+
+        <p>SCD Type 2 is the most important and most widely applicable SCD pattern. When a dimension attribute changes, a new row is inserted into the dimension table with a new surrogate key. The original row is marked as expired. Historical facts continue to reference the original surrogate key — and therefore the original attribute values. New facts reference the new surrogate key and see the updated values. The dimension table maintains a complete, auditable history of every version of every entity.</p>
+
+        <h3 class="subsec">The Required Columns</h3>
+        <p>Beyond the regular dimension attributes, a Type 2 dimension table requires three additional columns that collectively allow users to identify which version of a record was current at any given point in time:</p>
+        <p><strong>row_effective_date</strong>: the date (or datetime) from which this row version became the active truth. Set to the load date when a new version is inserted.</p>
+        <p><strong>row_expiry_date</strong>: the date from which this row version ceased to be the active truth. Set to a sentinel value (9999-12-31 is the standard) when the row is current, and updated to the day before the new version's effective date when the row is expired.</p>
+        <p><strong>is_current</strong>: a boolean flag (TRUE/FALSE or 1/0) indicating whether this row is the currently active version. Redundant with date logic but dramatically simplifies queries: <code>WHERE is_current = TRUE</code> rather than <code>WHERE row_expiry_date = '9999-12-31'</code>.</p>
+
+        <!-- Figure 4.3 — SCD Type 2 Before/After -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 310" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f43sh"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter>
+                <marker id="m43" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+                </marker>
+                <marker id="m43g" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#1A7A4A"/>
+                </marker>
+              </defs>
+              <rect width="700" height="310" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">SCD Type 2 &mdash; How a Region Change Creates a New Dimension Row</text>
+
+              <!-- BEFORE STATE -->
+              <text x="160" y="40" fill="#4A6080" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle" letter-spacing="2">BEFORE CHANGE</text>
+              <!-- Table header -->
+              <rect x="16" y="48" width="290" height="22" rx="3" fill="#0F2447"/>
+              <text x="20" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">customer_sk</text>
+              <text x="78" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">customer_id</text>
+              <text x="136" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">region</text>
+              <text x="185" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">eff_date</text>
+              <text x="234" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">exp_date</text>
+              <text x="282" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">cur</text>
+              <!-- Row 1001 - active -->
+              <rect x="16" y="70" width="290" height="22" rx="0" fill="#E8F4FD" stroke="#C8E2F8" stroke-width="1"/>
+              <text x="20" y="85" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="700">1001</text>
+              <text x="78" y="85" fill="#1A2332" font-family="Inter,sans-serif" font-size="7.5">C-001</text>
+              <text x="136" y="85" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700">London</text>
+              <text x="185" y="85" fill="#1A2332" font-family="Inter,sans-serif" font-size="7.5">2022-01-15</text>
+              <text x="234" y="85" fill="#1A2332" font-family="Inter,sans-serif" font-size="7.5">9999-12-31</text>
+              <text x="282" y="85" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700">✓</text>
+
+              <!-- Fact table BEFORE -->
+              <text x="16" y="112" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-style="italic">fact_sales (historical)</text>
+              <rect x="16" y="118" width="200" height="20" rx="3" fill="#254F8F"/>
+              <text x="22" y="132" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5">sale_id</text>
+              <text x="70" y="132" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5">customer_sk</text>
+              <text x="144" y="132" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5">revenue</text>
+              <rect x="16" y="138" width="200" height="18" fill="white" stroke="#D4DAF0" stroke-width="1"/>
+              <text x="22" y="151" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">F-2022-001</text>
+              <text x="92" y="151" fill="#0076CC" font-family="Inter,sans-serif" font-size="8" font-weight="700">1001</text>
+              <text x="148" y="151" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">£240</text>
+              <rect x="16" y="156" width="200" height="18" fill="#F4F6FB" stroke="#D4DAF0" stroke-width="1"/>
+              <text x="22" y="169" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">F-2023-412</text>
+              <text x="92" y="169" fill="#0076CC" font-family="Inter,sans-serif" font-size="8" font-weight="700">1001</text>
+              <text x="148" y="169" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">£85</text>
+
+              <!-- Arrow BEFORE→AFTER -->
+              <text x="350" y="95" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Customer moves to Manchester</text>
+              <text x="350" y="108" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">2024-03-16</text>
+              <line x1="310" y1="118" x2="394" y2="118" stroke="#B07D2A" stroke-width="2" marker-end="url(#m43)" stroke-dasharray="6,3"/>
+
+              <!-- AFTER STATE -->
+              <text x="555" y="40" fill="#4A6080" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle" letter-spacing="2">AFTER CHANGE</text>
+              <!-- Table header -->
+              <rect x="395" y="48" width="298" height="22" rx="3" fill="#0F2447"/>
+              <text x="399" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">customer_sk</text>
+              <text x="455" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">customer_id</text>
+              <text x="510" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">region</text>
+              <text x="554" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">eff_date</text>
+              <text x="602" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">exp_date</text>
+              <text x="660" y="63" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">cur</text>
+              <!-- Row 1001 - EXPIRED -->
+              <rect x="395" y="70" width="298" height="22" fill="#FFF4E8" stroke="#E8C898" stroke-width="1"/>
+              <text x="399" y="85" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="700">1001</text>
+              <text x="455" y="85" fill="#1A2332" font-family="Inter,sans-serif" font-size="7.5">C-001</text>
+              <text x="510" y="85" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">London</text>
+              <text x="554" y="85" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">2022-01-15</text>
+              <text x="602" y="85" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">2024-03-15</text>
+              <text x="660" y="85" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" font-weight="700">✗</text>
+              <text x="680" y="80" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7" font-style="italic">expired</text>
+              <!-- Row 1002 - CURRENT (new) -->
+              <rect x="395" y="92" width="298" height="22" fill="#E8F8EE" stroke="#B8E4C8" stroke-width="1.5"/>
+              <text x="399" y="107" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700">1002</text>
+              <text x="455" y="107" fill="#1A2332" font-family="Inter,sans-serif" font-size="7.5">C-001</text>
+              <text x="510" y="107" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700">Manchester</text>
+              <text x="554" y="107" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="7.5">2024-03-16</text>
+              <text x="602" y="107" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">9999-12-31</text>
+              <text x="660" y="107" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700">✓</text>
+              <text x="682" y="102" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="7" font-style="italic">new row</text>
+
+              <!-- Fact table AFTER — shows correct joins -->
+              <text x="395" y="132" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-style="italic">fact_sales — historical and new facts</text>
+              <rect x="395" y="138" width="200" height="20" rx="3" fill="#254F8F"/>
+              <text x="401" y="152" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5">sale_id</text>
+              <text x="449" y="152" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5">customer_sk</text>
+              <text x="523" y="152" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5">revenue</text>
+              <rect x="395" y="158" width="200" height="18" fill="white" stroke="#D4DAF0" stroke-width="1"/>
+              <text x="401" y="171" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">F-2022-001</text>
+              <text x="469" y="171" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" font-weight="700">1001</text>
+              <text x="527" y="171" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">£240</text>
+              <rect x="395" y="176" width="200" height="18" fill="#F4F6FB" stroke="#D4DAF0" stroke-width="1"/>
+              <text x="401" y="189" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">F-2023-412</text>
+              <text x="469" y="189" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" font-weight="700">1001</text>
+              <text x="527" y="189" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">£85</text>
+              <rect x="395" y="194" width="200" height="18" fill="white" stroke="#B8E4C8" stroke-width="1.5"/>
+              <text x="401" y="207" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">F-2024-901</text>
+              <text x="469" y="207" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700">1002</text>
+              <text x="527" y="207" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">£310</text>
+
+              <!-- Join arrows showing correctness -->
+              <line x1="595" y1="81" x2="636" y2="81" stroke="#B07D2A" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+              <line x1="636" y1="81" x2="636" y2="167" stroke="#B07D2A" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+              <line x1="636" y1="167" x2="615" y2="167" stroke="#B07D2A" stroke-width="1" opacity="0.6"/>
+              <line x1="595" y1="103" x2="648" y2="103" stroke="#1A7A4A" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+              <line x1="648" y1="103" x2="648" y2="203" stroke="#1A7A4A" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+              <line x1="648" y1="203" x2="615" y2="203" stroke="#1A7A4A" stroke-width="1" opacity="0.6"/>
+
+              <!-- Legend -->
+              <rect x="16" y="222" width="666" height="1" fill="#D4DAF0"/>
+              <rect x="16" y="234" width="10" height="10" rx="1" fill="#FFF4E8" stroke="#E8C898" stroke-width="1"/>
+              <text x="30" y="243" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">Expired row — historical facts (sk=1001) still join here; region remains "London" for 2022/23 sales ✓</text>
+              <rect x="16" y="252" width="10" height="10" rx="1" fill="#E8F8EE" stroke="#B8E4C8" stroke-width="1.5"/>
+              <text x="30" y="261" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">New current row (sk=1002) — new facts from 2024 onwards join here; region = "Manchester" ✓</text>
+              <text x="16" y="278" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" font-style="italic">Key insight: the natural key C-001 is the same in both rows. The surrogate keys (1001, 1002) are different. Historical facts JOIN to 1001 because that was the active key when the sale occurred. Historical accuracy is preserved by design.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 4.3</strong><span>SCD Type 2 before and after a customer moves regions. The expired row (sk=1001) retains its surrogate key and historical facts continue to join to it — correctly reporting "London" for 2022 and 2023 sales. The new row (sk=1002) carries the updated region and all new facts from 2024 onwards point here. The natural key (C-001) is the same in both rows; only the surrogate key distinguishes the versions. The effective_date, expiry_date, and is_current columns allow any query to reconstruct the dimension state at any point in time.</span></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Implementing SCD Type 2 with dbt snapshots — the production pattern</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>dbt snapshots automate SCD Type 2 without requiring you to write the comparison, expiry-date update, and insert logic yourself. You define a snapshot once; dbt handles the rest on each run.</p>
+              <p><strong>Snapshot definition</strong> (in <code>snapshots/snap_customers.sql</code>):</p>
+              <p><code>{% snapshot snap_dim_customer %}</code><br/>
+              <code>{{ config(target_schema='gold', unique_key='customer_id', strategy='timestamp', updated_at='updated_at') }}</code><br/>
+              <code>SELECT customer_id, name, email, region, segment FROM {{ source('silver', 'customers') }}</code><br/>
+              <code>{% endsnapshot %}</code></p>
+              <p><strong>Two snapshot strategies:</strong> <code>timestamp</code> (recommended) compares the updated_at column — if it's newer than the last seen value, dbt treats the row as changed and creates a new version. <code>check</code> strategy compares specified column values directly — slower but works when source systems don't provide reliable updated_at timestamps.</p>
+              <p><strong>What dbt snapshots add automatically:</strong> dbt_scd_id (hash surrogate key for the version), dbt_updated_at, dbt_valid_from (equivalent to row_effective_date), and dbt_valid_to (equivalent to row_expiry_date, NULL for current rows). Run <code>dbt snapshot</code> to execute; combine with <code>dbt run</code> in your pipeline to keep Gold marts up to date.</p>
+              <p><strong>Important limitation:</strong> dbt snapshot tables grow indefinitely. Monitor row counts and consider archiving very old expired rows (pre-2015, say) to a cold storage table if the snapshot table becomes unwieldy. In practice, most dimension tables are small enough that this never becomes an issue — customer tables with 5 million active customers and 3 years of SCD history rarely exceed 20–30 million rows.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4.2.5 -->
+        <div class="sec-head"><span class="sec-tag">4.2.5</span><h2 class="sec-title">Type 3 — Add Column (Limited History)</h2></div>
+
+        <p>SCD Type 3 stores a single previous value alongside the current value, using an additional column per tracked attribute. A dim_customer with Type 3 for the region attribute gains a <code>previous_region</code> column. When a customer moves from London to Manchester, the current_region updates to "Manchester" and the previous_region stores "London."</p>
+
+        <p>Type 3 is occasionally the right choice when: you need before/after comparison but only one level of history, the attribute changes infrequently (once in the entity's lifetime), and the "before" value has specific analytical meaning. A common example: tracking the initial onboarding channel and the current primary channel for a customer — "how many customers who originally came through organic search are now classified as loyalty-tier members?" requires exactly two states, no more.</p>
+
+        <p>The limitation is severe: Type 3 handles exactly one historical change per attribute. A customer who moves three times has their first address lost permanently after the second move. More than one change makes Type 3 inadequate. For most slowly-changing attributes in production systems, Type 2 is the appropriate choice and Type 3 is a compromise made for implementation simplicity that usually creates regret later.</p>
+
+        <!-- 4.2.6 -->
+        <div class="sec-head"><span class="sec-tag">4.2.6</span><h2 class="sec-title">Types 4, 5, 6, and 7 — Advanced Patterns</h2></div>
+
+        <p>The higher-numbered SCD types are composites — combinations of the foundational types (0, 1, 2, 3) designed to solve specific performance or modelling problems that the basics cannot handle cleanly. In interviews, knowing these exists and when they apply is the signal of senior-level modeling knowledge. In production, you will encounter Types 4 and 6 most frequently.</p>
+
+        <h3 class="subsec">Type 4 — Mini-Dimension</h3>
+        <p>Type 4 addresses a specific performance problem: when a subset of dimension attributes changes frequently (demographic band, price tier, credit rating) while the rest of the dimension is stable. Including the rapidly-changing attributes in the main dimension table causes Type 2 to generate enormous numbers of expired rows. Type 4 separates the volatile attributes into a small separate "mini-dimension" table with its own surrogate key. The main dimension references the mini-dimension by FK. When the mini-dimension attribute changes, only the small table is updated — the main dimension is untouched.</p>
+
+        <h3 class="subsec">Type 5 — Mini-Dimension + Type 1 Outrigger</h3>
+        <p>Type 5 extends Type 4 by adding a Type 1 (overwrite) reference to the current mini-dimension row directly in the main dimension. This allows users to query the current state of the volatile attributes without joining to the mini-dimension, while historical facts still join through the mini-dimension FK preserved in the fact table. Rarely implemented in modern cloud lakehouses — columnar storage makes joins cheap enough that the optimization is usually unnecessary.</p>
+
+        <h3 class="subsec">Type 6 — Hybrid (1 + 2 + 3)</h3>
+        <p>Type 6 is the most practically useful of the advanced types. It combines: Type 2 (new row on change, with effective/expiry dates), Type 1 (overwrite a "current value" column on all rows of that entity), and Type 3 (carry the previous value in a separate column). The result: a dimension table where historical rows carry both their historical value AND the current value. This means you can query "what is this customer's current region?" without filtering on is_current — and still see historical context on older rows. Often described as 1+2+3=6. Used in environments where analysts frequently need current state alongside historical context in the same query.</p>
+
+        <h3 class="subsec">Type 7 — Dual Type 1 and Type 2</h3>
+        <p>Type 7 maintains a single physical dimension table but exposes two views from it: a current-state view (equivalent to Type 1, showing only is_current rows) and a full-history view (equivalent to Type 2, showing all rows). The fact table stores a reference to both: the durable surrogate key (points to the Type 2 historical row) and the natural key (used by the Type 1 current-state view). Analysts choose which view to join based on their query intent. Elegant in theory; complex in implementation and often replaced by simply creating two views in the semantic layer.</p>
+
+        <!-- Figure 4.4 — SCD Decision Flowchart -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <marker id="m44" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+                </marker>
+              </defs>
+              <rect width="700" height="300" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">SCD Type Selection Flowchart</text>
+
+              <!-- START -->
+              <rect x="278" y="26" width="144" height="28" rx="14" fill="#0F2447"/>
+              <text x="350" y="44" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">Dimension attribute changes</text>
+              <line x1="350" y1="54" x2="350" y2="70" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m44)"/>
+
+              <!-- Q1: Is attribute immutable? -->
+              <polygon points="350,72 430,96 350,120 270,96" fill="white" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="350" y="91" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">Is this attribute</text>
+              <text x="350" y="103" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">definitionally fixed?</text>
+
+              <!-- YES → Type 0 -->
+              <line x1="430" y1="96" x2="560" y2="96" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m44)"/>
+              <text x="492" y="89" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">Yes</text>
+              <rect x="560" y="80" width="122" height="32" rx="6" fill="#1A7A4A"/>
+              <text x="621" y="93" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Type 0</text>
+              <text x="621" y="105" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Fixed / Retain Original</text>
+
+              <!-- NO → Q2 -->
+              <line x1="350" y1="120" x2="350" y2="138" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m44)"/>
+              <text x="338" y="133" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">No</text>
+
+              <!-- Q2: Correction or irrelevant history? -->
+              <polygon points="350,140 440,166 350,192 260,166" fill="white" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="350" y="159" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">Is this a data correction,</text>
+              <text x="350" y="171" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">or does history not matter?</text>
+
+              <!-- YES → Type 1 -->
+              <line x1="440" y1="166" x2="560" y2="166" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m44)"/>
+              <text x="492" y="159" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">Yes</text>
+              <rect x="560" y="150" width="122" height="32" rx="6" fill="#254F8F"/>
+              <text x="621" y="163" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Type 1</text>
+              <text x="621" y="175" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Overwrite / No History</text>
+
+              <!-- NO → Q3 -->
+              <line x1="350" y1="192" x2="350" y2="210" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m44)"/>
+              <text x="338" y="206" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">No</text>
+
+              <!-- Q3: One level of history enough? -->
+              <polygon points="350,212 440,236 350,260 260,236" fill="white" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="350" y="229" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">Only one historical value</text>
+              <text x="350" y="241" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">ever needed?</text>
+
+              <!-- YES → Type 3 -->
+              <line x1="440" y1="236" x2="560" y2="236" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m44)"/>
+              <text x="492" y="229" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">Yes</text>
+              <rect x="560" y="220" width="122" height="32" rx="6" fill="#5C6270"/>
+              <text x="621" y="233" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Type 3</text>
+              <text x="621" y="245" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Previous column only</text>
+
+              <!-- NO → Type 2 -->
+              <line x1="350" y1="260" x2="350" y2="278" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m44)"/>
+              <text x="338" y="274" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">No</text>
+              <rect x="278" y="278" width="144" height="18" rx="6" fill="#0060AA"/>
+              <text x="350" y="291" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Type 2 — Add Row · Full History</text>
+
+              <!-- Note -->
+              <text x="10" y="280" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" font-style="italic">Types 4-7: apply to Type 2 scenarios</text>
+              <text x="10" y="290" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" font-style="italic">when volatility or query patterns</text>
+              <text x="10" y="300" fill="#4A6080" font-family="Inter,sans-serif" font-size="7" font-style="italic">require composite approaches.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 4.4</strong><span>SCD type selection flowchart. Start at the top with any dimension attribute that changes. Three binary decisions determine the correct type. Type 2 (add row, full history) is the default for any attribute where history matters and changes happen more than once. Types 4–7 layer on top of Type 2 when performance or query-pattern requirements demand a composite approach — not as alternatives to it.</span></div>
+        </div>
+
+        <!-- 4.2.7 -->
+        <div class="sec-head"><span class="sec-tag">4.2.7</span><h2 class="sec-title">Implementation in the Azure Stack</h2></div>
+
+        <p>The Azure stack offers multiple implementation paths for SCD logic. The choice depends on where your transformation layer lives and which type you are implementing.</p>
+
+        <h3 class="subsec">SCD Type 2: dbt Snapshots (Recommended for dbt-managed Gold)</h3>
+        <p>dbt snapshots are the cleanest implementation of Type 2 in a dbt-managed pipeline. Define the snapshot once in the <code>snapshots/</code> folder using the <code>{% snapshot %}</code> block, specify the unique_key (natural key) and strategy (timestamp or check), and run <code>dbt snapshot</code>. dbt compares the current source data against the snapshot table, expires changed rows (sets dbt_valid_to), and inserts new rows for the updated values. The snapshot table grows as history accumulates. Mart models built on the snapshot always filter to <code>dbt_valid_to IS NULL</code> for current state, or apply date-range filters for historical queries.</p>
+
+        <h3 class="subsec">SCD Type 1: Delta Lake MERGE (Recommended for Databricks Gold)</h3>
+        <p>When transformations are managed directly in Databricks PySpark rather than dbt, Delta Lake's MERGE command implements Type 1 efficiently. MERGE evaluates a source dataset against the target Delta table, updating matched rows (WHEN MATCHED THEN UPDATE) and inserting new rows (WHEN NOT MATCHED THEN INSERT). Delta Lake's transaction log ensures the operation is atomic — no partial updates if the job fails.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Delta Lake MERGE implementation for Type 1 — annotated example</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>A full Delta Lake MERGE for SCD Type 1 in PySpark:</p>
+              <p><code>from delta.tables import DeltaTable</code><br/>
+              <code>dim_table = DeltaTable.forPath(spark, "abfss://gold@storage.dfs.core.windows.net/dim_customer")</code><br/>
+              <code>updates_df = spark.table("silver.customers_latest")</code></p>
+              <p><code>dim_table.alias("target").merge(</code><br/>
+              <code>&nbsp;&nbsp;updates_df.alias("source"),</code><br/>
+              <code>&nbsp;&nbsp;"target.customer_id = source.customer_id"</code><br/>
+              <code>).whenMatchedUpdate(set={</code><br/>
+              <code>&nbsp;&nbsp;"name": "source.name",</code><br/>
+              <code>&nbsp;&nbsp;"email": "source.email",</code><br/>
+              <code>&nbsp;&nbsp;"region": "source.region",</code><br/>
+              <code>&nbsp;&nbsp;"updated_at": "source.updated_at"</code><br/>
+              <code>}).whenNotMatchedInsertAll().execute()</code></p>
+              <p><strong>Key points:</strong> The merge condition is the natural key (customer_id). WHEN MATCHED updates all Type 1 columns; the surrogate key (customer_sk) is deliberately excluded from the update — it is set once on INSERT and never changed. WHEN NOT MATCHED handles new customers. The operation is atomic in Delta Lake — if it fails at any point, the table rolls back to its state before the MERGE began.</p>
+              <p><strong>Adding Type 2 to Delta Lake:</strong> Type 2 in pure PySpark is more complex than dbt snapshots. The pattern requires: (1) identify changed rows by comparing source to current dim; (2) expire old rows by updating their expiry_date and is_current flag; (3) insert new rows with new surrogate keys and effective_date set to today. This is multi-step logic. For Type 2 in Databricks, dbt snapshots running against Databricks SQL warehouses is the lower-maintenance path; only build custom PySpark Type 2 logic if dbt is not part of your stack.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A B2B SaaS Company &nbsp;&middot;&nbsp; The Price Column Mistake</span>
+          </div>
+          <div class="field-note-body">
+            <p>A B2B SaaS company built a dim_product table that used SCD Type 2 for all columns, including unit_price. The price changed whenever the commercial team updated their pricing model — which happened three to four times per year. SCD Type 2 was technically correct: historical invoices needed to show the price the product had at the time of sale, and the team wanted to preserve that history.</p>
+            <p>Six months later, the team added list_price_daily — the price at which the product was listed to new prospects on any given day. This changed with every promotion, every campaign, and every A/B test. Within two months, dim_product had 340,000 rows for 800 active products. Power BI report load times on the semantic model quadrupled. The query <code>WHERE is_current = 1</code> was no longer sufficient — current state queries had to filter across a dimension that had become effectively a fact table.</p>
+            <p>The fix was to separate list_price_daily into a Type 4 mini-dimension (dim_product_pricing), updated daily, with the main dim_product retaining only the attributes that changed quarterly. The mini-dimension had 800 rows per day — a manageable 584,000 rows per two-year period, but stored separately and joined only when pricing history was needed.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Applying Type 2 to a high-frequency attribute is a common mistake. If an attribute changes daily, weekly, or more than quarterly, consider whether it belongs in a dimension at all — or whether it is better modeled as a Type 4 mini-dimension or even as a fact.</p>
+          </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="sec-head"><span class="sec-tag">4.2.8</span><h2 class="sec-title">SCD Types at a Glance</h2></div>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Approach</th>
+              <th>History Preserved</th>
+              <th>Table Growth</th>
+              <th>Query Complexity</th>
+              <th>dbt Support</th>
+              <th>Best Used For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Type 0</strong></td>
+              <td>Ignore changes — retain original</td>
+              <td>N/A (fixed)</td>
+              <td>None</td>
+              <td>None</td>
+              <td>Exclude column from snapshot</td>
+              <td>Immutable attributes (inception date, birth date)</td>
+            </tr>
+            <tr>
+              <td><strong>Type 1</strong></td>
+              <td>Overwrite existing value</td>
+              <td>None</td>
+              <td>None (rows update in place)</td>
+              <td>Low</td>
+              <td>MERGE in dbt or Delta Lake</td>
+              <td>Data corrections; attributes with no analytical history requirement</td>
+            </tr>
+            <tr>
+              <td><strong>Type 2</strong></td>
+              <td>Insert new row; expire old</td>
+              <td>Full — unlimited versions</td>
+              <td>High (one row per change per entity)</td>
+              <td>Medium (requires is_current filter)</td>
+              <td>dbt snapshots (native)</td>
+              <td>Any attribute where history matters; standard default choice</td>
+            </tr>
+            <tr>
+              <td><strong>Type 3</strong></td>
+              <td>Add "previous value" column</td>
+              <td>One level only</td>
+              <td>None (columns add; rows don't)</td>
+              <td>Low</td>
+              <td>Manual column add + MERGE</td>
+              <td>Before/after comparisons; attributes that change at most once</td>
+            </tr>
+            <tr>
+              <td><strong>Type 4</strong></td>
+              <td>Separate volatile attrs into mini-dim</td>
+              <td>Full (in mini-dim)</td>
+              <td>Low (main dim stays lean)</td>
+              <td>Medium (extra join)</td>
+              <td>Separate snapshot per mini-dim</td>
+              <td>High-frequency volatile attrs alongside stable main dim</td>
+            </tr>
+            <tr>
+              <td><strong>Type 6</strong></td>
+              <td>Type 1 + 2 + 3 combined</td>
+              <td>Full + current value on all rows</td>
+              <td>High</td>
+              <td>Low (current value always accessible)</td>
+              <td>Custom snapshot + post-hook</td>
+              <td>Environments needing current state without filtering on is_current</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Late-arriving changes — what happens when SCD updates arrive out of order</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>SCD Type 2 implementations assume updates arrive in chronological order. In practice, they sometimes don't — source systems batch updates, CDC (Change Data Capture) streams are occasionally delayed, or a historical correction is applied retroactively.</p>
+              <p><strong>The problem scenario:</strong> Your snapshot runs on 16 March and correctly captures the change from London to Manchester. On 20 March, a correction arrives saying the actual change date was 12 March (not 16). The snapshot now has an incorrect effective_date on the Manchester row.</p>
+              <p><strong>How dbt snapshots handle this:</strong> By default, they don't — dbt sets dbt_valid_from to the timestamp of the snapshot run, not the business date of the change. If business-date accuracy matters, you must either (a) include the business change date as a source attribute and apply custom logic to set effective_date from it, or (b) accept snapshot-run-date as the effective_date and rely on the transaction log in the Bronze layer for exact-date reconstruction.</p>
+              <p><strong>The Bronze layer as the backstop:</strong> This is another reason the Bronze layer must be append-only and never overwritten. If a late-arriving correction makes a SCD rebuild necessary, you can replay Bronze records in chronological order to reconstruct a correct Type 2 history. Without Bronze, that reconstruction is impossible.</p>
+              <p><strong>For regulatory environments:</strong> where the exact change date is auditable, consider adding a <code>source_change_date</code> column to your snapshot that captures the business date of the change from the source system, and use that in reporting rather than dbt_valid_from.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>SCDs handle the reality that dimension data changes over time. The choice of type determines whether historical analytical reports are accurate. Type 0 (fixed) is for immutable attributes — never update. Type 1 (overwrite) is for corrections and attributes with no historical requirement — always shows current state, destroys history. Type 2 (add row) is the standard default for any attribute where history matters — inserts a new row with a new surrogate key, expires the old row with an expiry date, preserves full history through FK relationships in fact tables. Requires surrogate keys, effective/expiry dates, and is_current flag. Implemented in Azure via dbt snapshots or custom Delta Lake MERGE logic. Type 3 (add column) stores one previous value — limited to a single historical change. Types 4, 5, 6, 7 are composites: Type 4 separates volatile attributes into a mini-dimension; Type 6 combines 1+2+3 for current-state accessibility without filtering. The most common interview mistake: not knowing that Type 1 destroys history, or applying Type 2 to high-frequency columns (daily price changes) that will cause table explosion.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Coming in Section 4.3 &mdash; Power BI</div>
+          <p>Section 4.3 covers Power BI — the consumption layer tool that reads from the dimensional model and SCD-managed dimensions built in this section. The star schema pattern, surrogate key relationships, and role-playing dimensions from section 4.1 map directly to Power BI's semantic model. SCD Type 2 dimensions require specific handling in Power BI's DAX (Data Analysis Expressions) language to correctly filter active rows — previewed here, covered in full in section 4.4.</p>
+        </div>
+
+        <!-- Learning Check -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 4.2 &nbsp;&middot;&nbsp; Slowly Changing Dimensions</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A customer's email address was entered incorrectly at registration. The correct email is now available from the source system. Which SCD type should be applied?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Type 0 — the original value should be retained as it was the email at time of registration</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Type 1 — overwrite the incorrect value; this is a data quality correction, not a genuine attribute change, so preserving the wrong email has no analytical value</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Type 2 — insert a new row with a new surrogate key preserving the typo as history</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Type 3 — store the old incorrect email in a previous_email column</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> SCD Type 1 (overwrite) is the correct choice for data quality corrections. A misspelled email is not a genuine attribute change that an analyst would ever need to preserve for historical reporting. The old value has no analytical meaning — preserving it via Type 2 would create a dimension row that accurately records an error, which is neither useful nor accurate. Type 1 corrects the record in place. This is the clearest use case for Type 1 and a standard interview question to test whether the candidate can distinguish between corrections and genuine attribute evolution.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">A retailer needs to track which region each customer belonged to at the time of every historical sale — including customers who have moved regions since those sales occurred. Which SCD type is required?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Type 1 — overwrite the region; current region is what the business reports against</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Type 3 — add a previous_region column so the old region is available</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Type 2 — insert a new row with a new surrogate key when the region changes; historical fact rows continue to join to the old surrogate key, preserving the correct regional attribution</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Type 0 — retain the original region regardless of changes</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> This scenario requires full historical accuracy: the fact that a sale occurred when the customer was in region A must be preserved even after the customer moves to region B. Only SCD Type 2 achieves this correctly. When the customer moves, a new dim_customer row is created with a new surrogate key. All new sales reference the new SK (region B). All historical sales continue to reference the original SK (region A) — because that was the FK value at the time the fact was inserted. Type 1 would overwrite the region, causing all historical sales to silently reattribute to the new region. Type 3 stores one previous value — insufficient if the customer moves more than once.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">Which three additional columns does an SCD Type 2 dimension table require, beyond its standard business attributes?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">version_number, change_reason, modified_by</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">row_effective_date (when this version became active), row_expiry_date (when this version was superseded), and is_current (boolean flag for the active row)</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">created_date, deleted_date, is_deleted</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">source_system, batch_id, load_timestamp</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> SCD Type 2 requires exactly these three control columns to support historical queries. row_effective_date marks when this version became the active truth (typically the load date or the business change date). row_expiry_date marks when this version was superseded — set to 9999-12-31 for current rows, updated to one day before the new row's effective date when expired. is_current (TRUE/FALSE) is technically redundant with the date logic but makes current-state queries dramatically simpler: WHERE is_current = TRUE rather than WHERE row_expiry_date = '9999-12-31'. In dbt snapshots these are named dbt_valid_from, dbt_valid_to, and must be inferred (dbt_valid_to IS NULL means current).</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A dim_product table uses SCD Type 2. A product's list price changes three to four times per day due to dynamic pricing. What problem does this cause, and what is the correct solution?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">No problem — Type 2 handles high-frequency changes by design and will simply create more rows</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Switch to Type 1 — overwrite the price on each change, accepting the loss of pricing history</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">The main dimension table will grow explosively (hundreds of thousands of rows per year per product), degrading query performance. Separate the price into a Type 4 mini-dimension table, updated frequently, keeping the main dim_product lean</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Switch to Type 3 — store current_price and previous_price columns; this handles frequent changes more efficiently</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Type 2 applied to a high-frequency attribute creates table explosion: for 800 products with price changes 3x per day, you generate 2,400 new rows per day — 876,000 new rows per year. After two years, dim_product has ~1.8 million rows for 800 products. Power BI semantic model load times, is_current queries, and join performance all degrade. The solution is SCD Type 4: separate the volatile attribute (list_price) into a dedicated mini-dimension (dim_product_pricing) that has its own lifecycle and is updated independently. The main dim_product retains only the attributes that change slowly (category, brand, product name) and stays compact. Fact tables reference both the main dim_product SK and the dim_product_pricing SK.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">In a dbt snapshot using the timestamp strategy, what does dbt use to detect that a dimension row has changed and requires a new version?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">A hash comparison of all columns in the source row against all columns in the current snapshot row</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The updated_at timestamp column — if the source row's updated_at is more recent than the last time dbt saw it, the row is treated as changed and a new version is inserted</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">A row count comparison between the source table and the snapshot table</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The natural key — any row whose natural key appears in the source is treated as changed on every snapshot run</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The dbt snapshot timestamp strategy compares the updated_at column (or whichever timestamp column you specify in the config) between the source and the current snapshot row. If source.updated_at &gt; snapshot.dbt_updated_at for a matching natural key, dbt treats that row as changed: it expires the existing snapshot row (sets dbt_valid_to) and inserts a new row. The alternative strategy is check, which compares specific column values directly — useful when source systems don't maintain reliable updated_at timestamps, but slower because it requires column-by-column comparison. The hash comparison approach described in option A is actually similar to dbt's internal implementation of check strategy, but it is not what the timestamp strategy does.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="4-1-dimensional-modeling.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">4.1 Dimensional Modeling</span></span>
+          </a>
+          <a href="4-3-power-bi.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">4.3 Power BI</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 4 &nbsp;&middot;&nbsp; Analytics &amp; Visualisation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">18</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Type 1 Is Not Safe by Default</div>
+          <p>Before applying Type 1, ask: could any analyst, in any future context, need to know this attribute's value at a specific point in time? If the answer is "possibly" — use Type 2.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Type 2 Requires Three Columns</div>
+          <p>row_effective_date, row_expiry_date (9999-12-31 for current), is_current. All three. Current-state queries always filter WHERE is_current = TRUE.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">High-Frequency Type 2</div>
+          <p>Never apply Type 2 to daily-changing attributes (prices, scores, ratings). Table explosion follows within months. Use Type 4 mini-dimension instead.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"What's the difference between SCD Type 1 and Type 2?" is the most common dimensional modeling interview question. Know that Type 1 destroys history and Type 2 preserves it. Know the three extra columns Type 2 requires. Know dbt snapshots implement Type 2.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('4.2');</script>
+</body>
+</html>

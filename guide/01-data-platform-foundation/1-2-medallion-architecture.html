@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1.2 Medallion Architecture · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="1.2">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part One &nbsp;&middot;&nbsp; The Data Platform Foundation</div>
+          <div class="chap-num">1.2</div>
+          <h1 class="chap-title">Medallion Architecture</h1>
+          <p class="chap-sub">How data moves from raw to reliable to ready &mdash; and why that progression matters</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head">
+            <div class="outcomes-badge">&#10003;</div>
+            <h3>Expected Learning Outcomes</h3>
+          </div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain why the Medallion Architecture exists and what problem it solves</li>
+            <li>Describe what data looks like at Bronze, Silver, and Gold and what transforms it between tiers</li>
+            <li>Define idempotency and explain why it is a Bronze-layer requirement</li>
+            <li>Compare the Medallion pattern to traditional data warehouse staging models</li>
+            <li>Evaluate when a two-tier model is sufficient and when three tiers are warranted</li>
+          </ol>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.2.1</span>
+          <h2 class="sec-title">The Problem: Data Without Structure Is Just Noise</h2>
+        </div>
+
+        <p>When the modern data stack decoupled storage from compute, it solved one problem and introduced another. You could now store virtually unlimited data in a cheap object store like <span class="df" data-term="ADLS">ADLS</span>. But what you ended up with, absent any organizational discipline, was a <span class="kt" data-term="Data Lake">data lake</span> that functioned more like a data swamp: raw files from dozens of sources, in inconsistent formats, with no clarity about which version of a dataset was trustworthy, which had been cleaned, and which was still exactly as the source system had sent it.</p>
+
+        <p>Two failed approaches emerged. The first was to clean everything at ingest &mdash; standardize formats, enforce schemas, validate columns before data ever touched the lake. This was fast and tidy until a source system changed its schema, which happened constantly. Rigid ingest transformations became fragile infrastructure that broke regularly. The second approach was the opposite: dump everything raw and let analysts sort it out. This was resilient but generated massive duplication of cleaning logic as every analyst rewrote the same transformations in their own notebook.</p>
+
+        <div class="hl-block">
+          The Medallion Architecture, popularized by Databricks around 2019, offered a third path: organize data into progressive quality tiers, preserve raw data exactly as received, and let transformation happen in controlled, documented stages. It is the data engineering equivalent of a manufacturing quality control process &mdash; raw materials in, finished goods out, with inspection stations in between.
+        </div>
+
+        <p>The naming is deliberate. Bronze is unrefined. Silver is processed. Gold is valuable. Each tier represents data at a different stage of readiness, and the movement between tiers is where most of the engineering value is created.</p>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">Databricks &nbsp;&middot;&nbsp; Originating the Pattern</span>
+          </div>
+          <div class="field-note-body">
+            <p>The Medallion Architecture was not invented by Databricks &mdash; the underlying concept of staging data through progressive quality tiers existed in traditional data warehousing under names like "staging layer," "ODS," and "data mart." What Databricks did was give it a memorable name, document it clearly, and build their platform around it at a moment when data lakes were gaining rapid adoption.</p>
+            <p>The timing mattered. As cloud data lakes replaced on-premise data warehouses in the early 2020s, engineering teams needed a clear organizational pattern that worked with object storage and distributed compute. The Medallion Architecture filled that need. Today it is the de facto standard for organizing data in Databricks-based platforms, and variants of it appear in virtually every major cloud data platform regardless of vendor.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>The best architectural patterns often win not because they are technically superior but because they are clearly named, well-documented, and promoted at the right time. Understanding the Medallion lets you read any modern data architecture diagram.</p>
+          </div>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.2.2</span>
+          <h2 class="sec-title">The Three Tiers: Bronze, Silver, Gold</h2>
+        </div>
+
+        <p>Each tier in the Medallion Architecture answers a different question about the data it holds:</p>
+
+        <p><strong>Bronze asks:</strong> "What did the source system actually send us?" Bronze is a faithful record of what arrived, when it arrived, and in what form. No cleaning, no interpretation, no transformation.</p>
+        <p><strong>Silver asks:</strong> "What does clean, trusted, and consistent data look like?" Silver is where business rules are applied, data types are standardized, duplicates are removed, and referential integrity is validated. Silver is trusted by the data engineering team.</p>
+        <p><strong>Gold asks:</strong> "What does this business domain need to make decisions?" Gold is purpose-built for specific consumers &mdash; a daily revenue aggregate for Finance, a shipment-level fact table for Logistics, a product performance dashboard for Marketing. Power BI reads from Gold.</p>
+
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <linearGradient id="g12b" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#D4924A"/><stop offset="100%" stop-color="#8A4A10"/></linearGradient>
+                <linearGradient id="g12s" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#B8BCC4"/><stop offset="100%" stop-color="#5C6270"/></linearGradient>
+                <linearGradient id="g12g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#E8A840"/><stop offset="100%" stop-color="#9A5A08"/></linearGradient>
+                <linearGradient id="g12t" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1B3A6B"/><stop offset="100%" stop-color="#0F2447"/></linearGradient>
+                <filter id="fsm2"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.18)"/></filter>
+                <marker id="ma2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 7 3.5, 0 7" fill="#3A6AAA"/></marker>
+              </defs>
+              <rect width="700" height="300" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="24" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">The Medallion Architecture &mdash; Three Data States</text>
+
+              <!-- ADF pill -->
+              <rect x="8" y="108" width="62" height="84" rx="6" fill="#0076CC" filter="url(#fsm2)"/>
+              <text x="39" y="132" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" letter-spacing="1" text-anchor="middle">INGEST</text>
+              <text x="39" y="148" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">ADF</text>
+              <text x="39" y="162" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">moves</text>
+              <text x="39" y="173" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">raw data</text>
+              <line x1="70" y1="150" x2="78" y2="150" stroke="#3A6AAA" stroke-width="2" marker-end="url(#ma2)"/>
+
+              <!-- BRONZE box -->
+              <rect class="diagram-layer" x="80" y="44" width="162" height="212" rx="6" fill="url(#g12b)" filter="url(#fsm2)"/>
+              <text x="161" y="66" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="2" text-anchor="middle">&#129350; BRONZE</text>
+              <text x="161" y="82" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="600" text-anchor="middle">Raw &middot; As-Ingested</text>
+              <line x1="92" y1="90" x2="230" y2="90" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="161" y="108" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Exact copy of source</text>
+              <text x="161" y="122" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">No transformation applied</text>
+              <text x="161" y="136" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Schema-on-read</text>
+              <text x="161" y="150" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Must be idempotent</text>
+              <text x="161" y="164" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Cheapest to produce</text>
+              <line x1="92" y1="180" x2="230" y2="180" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="161" y="196" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">&#128200; Compute cost: none</text>
+              <text x="161" y="210" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">ADF writes here</text>
+              <text x="161" y="242" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Think: the original receipt</text>
+
+              <!-- Transform 1 -->
+              <line x1="242" y1="150" x2="250" y2="150" stroke="#3A6AAA" stroke-width="2" marker-end="url(#ma2)"/>
+              <rect x="252" y="108" width="78" height="84" rx="5" fill="url(#g12t)" filter="url(#fsm2)"/>
+              <text x="291" y="126" fill="#88BEFF" font-family="Inter,sans-serif" font-size="7" font-weight="700" letter-spacing="1" text-anchor="middle">&#9881;&#65039; DATABRICKS</text>
+              <text x="291" y="139" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="600" text-anchor="middle">Cleans &amp;</text>
+              <text x="291" y="151" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="600" text-anchor="middle">Validates</text>
+              <text x="291" y="166" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Reads Bronze</text>
+              <text x="291" y="176" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Writes Silver</text>
+              <line x1="330" y1="150" x2="338" y2="150" stroke="#3A6AAA" stroke-width="2" marker-end="url(#ma2)"/>
+
+              <!-- SILVER box -->
+              <rect class="diagram-layer" x="340" y="44" width="162" height="212" rx="6" fill="url(#g12s)" filter="url(#fsm2)"/>
+              <text x="421" y="66" fill="#1A2332" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="2" text-anchor="middle">&#129351; SILVER</text>
+              <text x="421" y="82" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="600" text-anchor="middle">Cleaned &middot; Validated</text>
+              <line x1="352" y1="90" x2="490" y2="90" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="421" y="108" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Business rules applied</text>
+              <text x="421" y="122" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Consistent data types</text>
+              <text x="421" y="136" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Duplicates removed</text>
+              <text x="421" y="150" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Trusted by data teams</text>
+              <text x="421" y="164" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Source-agnostic schema</text>
+              <line x1="352" y1="180" x2="490" y2="180" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="421" y="196" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">&#128200; Compute cost: moderate</text>
+              <text x="421" y="210" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Databricks writes here</text>
+              <text x="421" y="242" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Think: the itemized receipt</text>
+
+              <!-- Transform 2 -->
+              <line x1="502" y1="150" x2="510" y2="150" stroke="#3A6AAA" stroke-width="2" marker-end="url(#ma2)"/>
+              <rect x="512" y="108" width="78" height="84" rx="5" fill="url(#g12t)" filter="url(#fsm2)"/>
+              <text x="551" y="126" fill="#88BEFF" font-family="Inter,sans-serif" font-size="7" font-weight="700" letter-spacing="1" text-anchor="middle">&#9881;&#65039; DATABRICKS</text>
+              <text x="551" y="139" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="600" text-anchor="middle">Aggregates</text>
+              <text x="551" y="151" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="600" text-anchor="middle">&amp; Models</text>
+              <text x="551" y="166" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Reads Silver</text>
+              <text x="551" y="176" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Writes Gold</text>
+              <line x1="590" y1="150" x2="598" y2="150" stroke="#3A6AAA" stroke-width="2" marker-end="url(#ma2)"/>
+
+              <!-- GOLD box -->
+              <rect class="diagram-layer" x="600" y="44" width="88" height="212" rx="6" fill="url(#g12g)" filter="url(#fsm2)"/>
+              <text x="644" y="66" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="2" text-anchor="middle">&#129352; GOLD</text>
+              <text x="644" y="80" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="600" text-anchor="middle">Business-Ready</text>
+              <line x1="610" y1="88" x2="678" y2="88" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="644" y="104" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Aggregated</text>
+              <text x="644" y="116" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Joined &amp; modeled</text>
+              <text x="644" y="128" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">KPI-ready</text>
+              <text x="644" y="140" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Serves Power BI</text>
+              <line x1="610" y1="178" x2="678" y2="178" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="644" y="194" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">Cost: high</text>
+              <text x="644" y="206" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">expense report</text>
+
+              <!-- Bottom ADLS bracket -->
+              <line x1="80" y1="264" x2="80" y2="278" stroke="#0076CC" stroke-width="1.5"/>
+              <line x1="80" y1="278" x2="688" y2="278" stroke="#0076CC" stroke-width="1.5"/>
+              <line x1="688" y1="278" x2="688" y2="264" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="384" y="293" fill="#0060AA" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">All three tiers stored in Azure Data Lake Storage (ADLS &middot; Layer 2)</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 1.6</strong>
+            <span>The three Medallion tiers with their transforming agents. ADF drops data into Bronze with no transformation. Databricks reads Bronze and writes cleaned Silver. Databricks reads Silver and writes business-ready Gold. All three states live in ADLS &mdash; the only thing that changes is data quality and shape.</span>
+          </div>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.2.3</span>
+          <h2 class="sec-title">Bronze: The Landing Zone</h2>
+        </div>
+
+        <p>Bronze is the most misunderstood tier. Practitioners new to the Medallion pattern often try to "tidy it up a bit" on the way in &mdash; standardizing date formats, enforcing column names, removing obvious nulls. This instinct is almost always a mistake, and understanding why is foundational to building reliable pipelines.</p>
+
+        <p>Bronze should be an exact, faithful replica of what the source system sent. If the source sends dirty data, Bronze is dirty. If the source has a column called <code style="background:#F0F2F7;padding:1px 5px;border-radius:3px;font-size:12px;">cust_nm</code> instead of <code style="background:#F0F2F7;padding:1px 5px;border-radius:3px;font-size:12px;">customer_name</code>, Bronze has a column called <code style="background:#F0F2F7;padding:1px 5px;border-radius:3px;font-size:12px;">cust_nm</code>. There are three reasons this matters:</p>
+
+        <p><strong>Reprocessing.</strong> Your Silver cleaning logic will contain bugs. When you find one and need to re-run Bronze through the corrected Silver logic, you need Bronze to still be the original data. If Bronze was already "cleaned," the raw signal is gone.</p>
+        <p><strong>Debugging.</strong> When a downstream consumer raises a data quality question, you trace it through Gold → Silver → Bronze → source. That chain only closes if Bronze is unmodified. Bronze is your audit trail to the source system.</p>
+        <p><strong>Idempotency.</strong> The <span class="kt" data-term="Idempotent">idempotency</span> of your pipeline depends on Bronze not being transformed. If an ADF pipeline fails at 2am and reruns at 3am, the only way to guarantee no duplicates is if Bronze ingestion is a clean overwrite of exactly what the source sent.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>What "idempotent" means &mdash; and why Bronze must be</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The word "idempotent" comes from mathematics and means "producing the same result regardless of how many times an operation is applied." In data engineering, an idempotent pipeline is one you can run five times and always get the same output as running it once. This sounds simple but is surprisingly hard to achieve at scale.</p>
+              <p>The main threat to idempotency is append behavior. If your Bronze ingestion appends new records every run without checking for duplicates, a pipeline that retries after a failure will write the same records twice. Now your Bronze layer has duplicate rows. Silver deduplication can fix this, but it adds compute cost and complexity that should not exist.</p>
+              <p>The standard Bronze idempotency pattern: partition data by ingestion date and use ADF's overwrite mode. Each daily run overwrites the partition for that day. If the pipeline fails and reruns, it overwrites the same partition with the same data. No duplicates possible. The trade-off: you cannot use this pattern for streaming or near-real-time ingestion &mdash; it assumes batch windows.</p>
+              <p><strong>The mental test:</strong> if a pipeline runs successfully ten times on the same data, the Bronze layer should look exactly the same as if it had run once. If it doesn't, the pipeline is not idempotent.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.2.4</span>
+          <h2 class="sec-title">Silver and Gold: Where Value Is Created</h2>
+        </div>
+
+        <p>Silver is where Databricks first touches the data. It reads from Bronze and produces a cleaned, validated, standardized dataset that the data engineering team trusts. At Silver, business rules are codified: what constitutes a valid order, which customer IDs can be treated as the same entity across two source systems, what the canonical column names are, how date fields should be normalized. The Silver layer is stable and multi-purpose &mdash; multiple Gold datasets can be built from the same Silver foundation without replicating cleaning logic.</p>
+
+        <div class="hl-block">
+          The most persistent data quality issues in most organizations are caused by the absence of a Silver layer. Without it, each Gold dataset re-implements cleaning logic independently, inconsistently, and invisibly. Two dashboards using the same source data can show different revenue figures because each team's Gold applied slightly different rules. Silver makes that impossible.
+        </div>
+
+        <p>Gold is purpose-built. It is shaped specifically for a consumer &mdash; a Finance Gold might be a daily aggregate joined to a budget dimension. A Logistics Gold might be shipment-level detail with on-time delivery flags pre-calculated. A Marketing Gold might be a customer lifetime value model refreshed weekly. Each is built by Databricks from the same Silver foundation, but organized for its specific audience. This means you can have multiple Gold datasets from the same Silver source, each optimized differently, without duplicating cleaning work.</p>
+
+        <p>Power BI reads from Gold. Analysts query Gold. ML models pull features from Gold. The consumption layer (Section 1.4, 1.3 in terms of platform: ADF → ADLS → Databricks → Power BI) only ever sees Gold-quality data.</p>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Global Manufacturer &nbsp;&middot;&nbsp; The Missing Silver Layer</span>
+          </div>
+          <div class="field-note-body">
+            <p>A recurring pattern in enterprise data audits goes like this: a company has three Power BI dashboards &mdash; one owned by Finance, one by Operations, one by Sales &mdash; all reporting "total revenue" from the same underlying source system. When leadership asks why the three numbers are different, each team defends their calculation as correct. The Finance team excluded returns. The Operations team included intercompany transfers. The Sales team filtered by booking date rather than invoice date.</p>
+            <p>All three pipelines went directly from Bronze (raw source data) to Gold (business dashboards) without a shared Silver layer where a single, agreed definition of "revenue" was encoded. Each team implemented their own cleaning and filtering logic independently. The result: three technically correct but mutually contradictory answers to the same business question.</p>
+            <p>This pattern is so common it has a name in the industry: the "gold rush" anti-pattern, where teams skip Silver and build directly to Gold because it feels faster. It is faster &mdash; for the first dashboard. The debt accumulates as each subsequent dashboard adds another inconsistent definition to the mix.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Silver is where the organization agrees on what data means. Skipping it pushes that agreement downstream into individual dashboards, where it becomes invisible, inconsistent, and extremely expensive to reconcile later.</p>
+          </div>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.2.5</span>
+          <h2 class="sec-title">Medallion vs Traditional Data Warehouse Architecture</h2>
+        </div>
+
+        <p>The Medallion pattern did not emerge in a vacuum. Traditional enterprise data warehouses had their own progressive tier model: a <span class="kt" data-term="Data Lake">Staging layer</span> received raw data from source systems, an <span class="kt" data-term="Data Lake">ODS (Operational Data Store)</span> held integrated and cleaned data, and the Data Warehouse or Data Mart held business-facing aggregates. The parallels to Bronze / Silver / Gold are intentional. The Medallion is, in many ways, the cloud-native restatement of an idea that data warehousing architects developed decades ago.</p>
+
+        <p class="table-hint">Tap any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Dimension</th>
+              <th>Traditional DW (Staging/ODS/EDW)</th>
+              <th>Medallion (Bronze/Silver/Gold)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Raw data preservation</strong></td><td>Staging is often overwritten; raw may be lost</td><td>Bronze is permanent; raw always available</td></tr>
+            <tr><td><strong>Schema approach</strong></td><td>Schema-on-write throughout</td><td>Bronze is schema-on-read; Silver/Gold schema-on-write</td></tr>
+            <tr><td><strong>Storage infrastructure</strong></td><td>Separate database per layer (licensing cost)</td><td>All tiers in one data lake (cheap object storage)</td></tr>
+            <tr><td><strong>ETL vs ELT</strong></td><td>ETL &mdash; transform before loading</td><td>ELT &mdash; load raw first, transform after</td></tr>
+            <tr><td><strong>Source schema tolerance</strong></td><td>Breaking change when source schema changes</td><td>Bronze absorbs changes; only Silver logic needs updating</td></tr>
+            <tr><td><strong>Compute model</strong></td><td>Dedicated server, always running</td><td>On-demand (Databricks spins up, shuts down)</td></tr>
+            <tr><td><strong>Reprocessing</strong></td><td>Difficult if staging is overwritten</td><td>Always possible from Bronze</td></tr>
+            <tr><td><strong>Scale ceiling</strong></td><td>Database licensing limits growth</td><td>Object storage is virtually unlimited</td></tr>
+          </tbody>
+        </table>
+
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 290" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="fs12"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.15)"/></filter>
+                <linearGradient id="g12trad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#C8892A"/><stop offset="100%" stop-color="#8A5010"/></linearGradient>
+              </defs>
+              <rect width="700" height="290" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="22" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">Traditional DW Architecture vs Medallion</text>
+
+              <!-- LEFT: Traditional -->
+              <rect x="18" y="34" width="286" height="230" rx="8" fill="#FFF8EC" stroke="#C8892A" stroke-width="1.5" filter="url(#fs12)"/>
+              <rect x="18" y="34" width="286" height="36" rx="8" fill="url(#g12trad)"/>
+              <rect x="18" y="58" width="286" height="12" fill="#8A5010"/>
+              <text x="161" y="56" fill="white" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">Traditional Data Warehouse</text>
+              <text x="161" y="67" fill="#FDDDB8" font-family="Inter,sans-serif" font-size="9.5" text-anchor="middle">Staging &rarr; ODS &rarr; EDW</text>
+
+              <rect x="38" y="82" width="246" height="48" rx="5" fill="white" stroke="#D8A060" stroke-width="1"/>
+              <text x="161" y="101" fill="#8A4800" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">Staging Layer</text>
+              <text x="161" y="115" fill="#A06020" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Raw extract &middot; often overwritten &middot; schema-on-write</text>
+
+              <text x="161" y="145" fill="#C8892A" font-family="Inter,sans-serif" font-size="14" text-anchor="middle">&darr;</text>
+
+              <rect x="38" y="154" width="246" height="48" rx="5" fill="white" stroke="#D8A060" stroke-width="1"/>
+              <text x="161" y="173" fill="#8A4800" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">ODS (Operational Data Store)</text>
+              <text x="161" y="187" fill="#A06020" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Integrated &middot; near real-time &middot; schema enforced</text>
+
+              <text x="161" y="217" fill="#C8892A" font-family="Inter,sans-serif" font-size="14" text-anchor="middle">&darr;</text>
+
+              <rect x="38" y="226" width="246" height="30" rx="5" fill="#C8892A"/>
+              <text x="161" y="245" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">EDW / Data Mart &mdash; Business-Facing</text>
+
+              <!-- RIGHT: Medallion -->
+              <rect x="396" y="34" width="286" height="230" rx="8" fill="#EBF4FD" stroke="#0076CC" stroke-width="1.5" filter="url(#fs12)"/>
+              <rect x="396" y="34" width="286" height="36" rx="8" fill="#0F2447"/>
+              <rect x="396" y="58" width="286" height="12" fill="#0A1A30"/>
+              <text x="539" y="56" fill="white" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">Medallion Architecture</text>
+              <text x="539" y="67" fill="#A8D4F8" font-family="Inter,sans-serif" font-size="9.5" text-anchor="middle">Bronze &rarr; Silver &rarr; Gold &middot; All in ADLS</text>
+
+              <rect x="416" y="82" width="246" height="48" rx="5" fill="#B87333"/>
+              <text x="539" y="101" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">&#129350; Bronze</text>
+              <text x="539" y="115" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Raw &middot; permanent &middot; schema-on-read &middot; idempotent</text>
+
+              <text x="539" y="145" fill="#0076CC" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">&#8659; Databricks transforms</text>
+
+              <rect x="416" y="154" width="246" height="48" rx="5" fill="#8C9099"/>
+              <text x="539" y="173" fill="#0F2447" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">&#129351; Silver</text>
+              <text x="539" y="187" fill="#0F2447" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Cleaned &middot; validated &middot; trusted &middot; multi-purpose</text>
+
+              <text x="539" y="217" fill="#0076CC" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">&#8659; Databricks aggregates</text>
+
+              <rect x="416" y="226" width="246" height="30" rx="5" fill="#C8892A"/>
+              <text x="539" y="245" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">&#129352; Gold &mdash; Business-Facing &middot; Power BI Reads Here</text>
+
+              <!-- Equivalency arrows -->
+              <text x="352" y="110" fill="#6A8AAA" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">&harr;</text>
+              <text x="352" y="185" fill="#6A8AAA" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">&harr;</text>
+              <text x="352" y="245" fill="#6A8AAA" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">&harr;</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 1.7</strong>
+            <span>Traditional data warehouse tiers vs Medallion tiers. The conceptual layers are equivalent, but the implementation differs fundamentally: Medallion preserves raw data permanently, uses schema-on-read at the landing zone, runs all compute on-demand rather than on dedicated servers, and stores everything in cheap cloud object storage instead of separate licensed databases.</span>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Two-tier vs three-tier &mdash; when to simplify</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Not every implementation needs all three tiers. A two-tier model (Bronze → Gold, skipping Silver) is sometimes the right call, particularly for:</p>
+              <p><strong>Small-scale or low-complexity environments:</strong> if you have one or two source systems, each sending clean and consistent data, a Silver layer adds overhead without adding much value.</p>
+              <p><strong>Single-consumer architectures:</strong> if exactly one Gold dataset reads from exactly one source and there is no foreseeable need for other Gold datasets to share that source's data, the cross-domain value of Silver doesn't materialize.</p>
+              <p><strong>Rapid prototyping:</strong> when validating whether a data product delivers business value, starting with Bronze → Gold lets you move faster. You can add Silver later if the product proves its worth.</p>
+              <p><strong>The risk of skipping Silver:</strong> as the organization scales, the absence of Silver becomes debt. When a second team needs to build a Gold dataset from the same source, they must choose between copying the first team's cleaning logic (fragile, inconsistent) or building their own (duplicated effort). The standard recommendation: build with Silver from the start unless you have a specific, well-understood reason not to.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Schema evolution &mdash; handling source changes without breaking pipelines</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Source systems change their schemas. A column gets renamed. A new field appears. A data type changes from integer to string. In a traditional ETL pipeline, this breaks the ingest process immediately because the schema was enforced at write time. In the Medallion architecture, Bronze absorbs changes gracefully &mdash; the raw data still lands, because Bronze is schema-on-read.</p>
+              <p>The impact of a schema change in Medallion propagates differently through each tier:</p>
+              <p><strong>Bronze:</strong> no impact. The new column appears in raw files. Existing partitions are unaffected.</p>
+              <p><strong>Silver:</strong> the cleaning logic may need updating if the changed column is used in transformations. Delta Lake's schema evolution (MERGE SCHEMA) allows Silver tables to accept new columns without rewriting. Changed data types may require an explicit cast.</p>
+              <p><strong>Gold:</strong> only impacted if the changed field flows through to a business metric. This is usually where the business conversation happens.</p>
+              <p>The practical implication: Medallion pipelines require monitoring for schema drift. Tools like Databricks's schema enforcement on Silver and Great Expectations tests can alert you when a source schema changes before it silently corrupts downstream data.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>The Medallion Architecture organizes data lake content into three progressive quality tiers: Bronze (raw, idempotent, schema-on-read), Silver (cleaned, validated, trusted), and Gold (business-ready, purpose-built for consumers). ADF ingests to Bronze. Databricks transforms Bronze to Silver and Silver to Gold. All three tiers live in ADLS. The pattern is the cloud-native successor to traditional staging/ODS/EDW architectures, with meaningful improvements: raw data is preserved permanently, schema changes are absorbed gracefully, and all tiers share cheap object storage rather than separate licensed databases.</p>
+        </div>
+
+        <div class="info-box gold">
+          <div class="info-label">Coming in Section 1.3 &mdash; Azure Data Lake Storage</div>
+          <p>Now that you understand how data is organized within the lake, Section 1.3 covers the lake itself: Azure Data Lake Storage Gen2, how it is built on Azure Blob Storage, the hierarchical namespace that makes it Databricks-compatible, the four access tiers and their cost tradeoffs, and how to secure it correctly.</p>
+        </div>
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 1.2 &nbsp;&middot;&nbsp; Medallion Architecture</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">Your ADF pipeline ingests customer records from a CRM API into the Bronze layer. The API occasionally sends duplicate records when retried after a network timeout. What is the correct approach to handle this in Bronze?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Deduplicate records in ADF before writing to Bronze to keep the layer clean</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Design Bronze ingestion to overwrite a date partition on each run, making the pipeline idempotent &mdash; duplicates from retries are prevented by the overwrite, not filtering</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Add a DISTINCT clause to the Bronze ingestion query to filter duplicates at source</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Accept the duplicates in Bronze and rely on Silver deduplication to fix them</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The right approach to idempotency in Bronze is structural &mdash; use partition-overwrite mode so that retrying the pipeline produces the same result as running it once. Option D (accepting duplicates and fixing in Silver) is technically workable but adds unnecessary compute cost to Silver and creates a dependency between layers that should be clean. Option A violates the Bronze principle of landing data exactly as received.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">Which layer in the Medallion Architecture is most appropriate to store a pre-calculated "monthly revenue by region" aggregate that Power BI reads from?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Bronze &mdash; calculate it at ingest time so it is immediately available</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Silver &mdash; alongside cleaned individual transaction records</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Gold &mdash; purpose-built for business consumers, pre-aggregated and query-optimized</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It should be calculated in Power BI using DAX rather than stored in the lake</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Gold is purpose-built for business consumers. Pre-calculating aggregations in Gold means the computation happens once at pipeline run time rather than on every Power BI dashboard load by every user. Option D (DAX calculation) works but means recomputing on every query and places compute load on the BI layer rather than the more efficient Spark compute layer.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">Why does the Medallion Architecture use schema-on-read for Bronze but schema-on-write for Silver and Gold?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Schema-on-read is faster to write data, so it is used where speed matters most</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Databricks only supports schema-on-read; Power BI enforces schema-on-write</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Bronze must absorb source schema changes without breaking &mdash; schema-on-read enables this. Silver and Gold serve consumers who need reliable, consistent schemas &mdash; schema-on-write provides that guarantee</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Both approaches are equivalent; the choice is a matter of preference</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The asymmetry is intentional and meaningful. Bronze uses schema-on-read so that source schema changes (a renamed column, a new field) are absorbed gracefully &mdash; raw data still lands without pipeline failures. Silver and Gold use schema-on-write to give consumers a stable, reliable contract: a Power BI report can trust that the column names and data types it depends on will not change unexpectedly.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A company's Finance and Operations teams both report "total revenue" from the same ERP source system but consistently get different numbers. Which structural fix most directly addresses this?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Requiring both teams to use the same Power BI report rather than separate dashboards</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Running the ERP data through a centralized SQL Server database before the lake</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Building a shared Silver layer where a single, agreed definition of revenue is encoded, and requiring both teams' Gold datasets to build from that Silver</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Auditing each team's DAX measures in Power BI to identify the discrepancy</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The root cause of inconsistent revenue figures across teams is the absence of a shared Silver layer &mdash; each team has implemented their own cleaning and filtering logic independently. A shared Silver that encodes one agreed definition (which transactions to include, how to handle returns, which date field to use) makes inconsistent figures structurally impossible. DAX auditing (option D) can identify the discrepancy but cannot fix the underlying architectural gap.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">What is the most significant architectural difference between the Bronze tier and the traditional "Staging" layer in a legacy data warehouse?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Bronze is stored in a relational database; Staging used flat files</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Staging was permanent; Bronze is typically overwritten on each run</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Bronze is permanent and schema-on-read, preserving raw data indefinitely; Staging was typically overwritten, destroying the raw signal once loaded into the ODS</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">There is no meaningful difference &mdash; Bronze is simply a new name for the Staging concept</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> This difference has significant practical implications. Traditional Staging was often a temporary holding area &mdash; once data was loaded into the ODS, Staging was truncated for the next run. If a bug was found in ODS logic, reprocessing required going back to the source system. Bronze, by design, is permanent. Raw data is never deleted, which means any error in Silver or Gold logic can be corrected by reprocessing from Bronze without touching the source system again.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+
+        <nav class="sec-nav">
+          <a href="1-1-modern-data-stack.html" class="sec-nav-btn sec-nav-prev"><span class="sec-nav-arrow">&#8592;</span><span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">1.1 The Modern Data Stack</span></span></a>
+          <a href="1-3-adls.html" class="sec-nav-btn sec-nav-next"><span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">1.3 Azure Data Lake Storage</span></span><span class="sec-nav-arrow">&#8594;</span></a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 1 &nbsp;&middot;&nbsp; The Data Platform Foundation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">2</div>
+        </footer>
+
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:180px;"></div>
+
+        <div class="mnote warn">
+          <div class="mnote-label">Common Mistake</div>
+          <p><strong>Cleaning Bronze is almost always wrong.</strong> The instinct to "tidy it up" at ingest destroys your audit trail, breaks idempotency, and removes your ability to reprocess from raw.</p>
+        </div>
+
+        <div class="ms" style="height:48px;"></div>
+
+        <div class="mnote key">
+          <div class="mnote-label">Key Term</div>
+          <p><strong>Idempotent</strong> &mdash; running the same pipeline ten times produces the same output as running it once. Achieved in Bronze by using partition-overwrite mode in ADF. Essential for safe retries at 3am.</p>
+        </div>
+
+        <div class="ms" style="height:260px;"></div>
+
+        <div class="mnote tip">
+          <div class="mnote-label">Remember This</div>
+          <p><strong>Silver is the agreement layer.</strong> It is where the organization decides what data means. All inconsistencies between Gold datasets trace back to Silver logic disagreements &mdash; which means fixing them at Silver fixes them everywhere.</p>
+        </div>
+
+        <div class="ms" style="height:200px;"></div>
+
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"Why not write directly to Gold?" is one of the most common Medallion interview questions. The answer: Gold is shaped for one consumer. Silver is the reusable foundation that multiple Gold datasets share. Without Silver, cleaning logic is duplicated and inconsistent.</p>
+        </div>
+
+        <div class="ms" style="height:220px;"></div>
+
+        <div class="mnote warn">
+          <div class="mnote-label">Architecture Note</div>
+          <p>You can have <strong>multiple Gold layers</strong> from a single Silver source &mdash; one for Finance, one for Logistics, one for Marketing. This is the right pattern. Each Gold is shaped for its consumer's specific questions.</p>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head">
+      <span id="def-term"></span>
+      <button class="def-close" id="defClose">&#10005;</button>
+    </div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary (coming soon)</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('1.2');</script>
+</body>
+</html>

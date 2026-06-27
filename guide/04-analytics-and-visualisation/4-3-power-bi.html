@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4.3 Power BI &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="4.3">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Four &nbsp;&middot;&nbsp; Analytics &amp; Visualisation</div>
+          <div class="chap-num">4.3</div>
+          <h1 class="chap-title">Power BI</h1>
+          <p class="chap-sub">Microsoft's business intelligence platform — semantic models, storage modes, row-level security, deployment pipelines, and where Power BI fits in the evolution toward Microsoft Fabric</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain what a Power BI semantic model is and why it is the central artefact of any Power BI solution</li>
+            <li>Compare Import, DirectQuery, Composite, and Live Connection storage modes and select the correct one for a given scenario</li>
+            <li>Design and implement static and dynamic Row-Level Security (RLS) in a Power BI model</li>
+            <li>Describe the Power BI Service deployment pipeline pattern (Dev / Test / Prod) and its role in a governed BI delivery process</li>
+            <li>Position Power BI against Tableau, Looker, Qlik, and Superset — and explain when each wins</li>
+            <li>Explain what Microsoft Fabric is and what it means for teams currently running a separate Azure data stack and Power BI</li>
+          </ol>
+        </div>
+
+        <!-- 4.3.1 -->
+        <div class="sec-head"><span class="sec-tag">4.3.1</span><h2 class="sec-title">What Power BI Is and Where It Fits</h2></div>
+
+        <p>Power BI is Microsoft's business intelligence (BI) platform — the consumption layer of the Azure data stack. It connects to data sources, models data using a semantic layer (a business-friendly abstraction over physical tables), and renders interactive reports and dashboards for business users. It sits at the top of the four-layer architecture: everything built in Parts 1 through 3 of this guide — the ingestion, storage, transformation, and Gold-layer dimensional models — exists so that Power BI can answer questions quickly and accurately.</p>
+
+        <p>Power BI has three distinct components that practitioners regularly confuse. <strong>Power BI Desktop</strong> is the free Windows application used by data engineers and analysts to build semantic models and reports. <strong>Power BI Service</strong> is the cloud-hosted platform (app.powerbi.com) where reports are published, shared, scheduled for refresh, and governed. <strong>Power BI Mobile</strong> is the iOS/Android app for consuming published reports. A data engineer's primary concern is Power BI Desktop (model design and DAX) and Power BI Service (deployment, refresh, governance, and security).</p>
+
+        <div class="hl-block">The semantic model is the product. Reports are windows into the model. Building a report without a well-designed semantic model is like building a house without foundations — it works until it doesn't, and fixing it after the fact is far more expensive than designing correctly from the start.</div>
+
+        <!-- 4.3.2 -->
+        <div class="sec-head"><span class="sec-tag">4.3.2</span><h2 class="sec-title">The Semantic Model</h2></div>
+
+        <p>A Power BI semantic model (previously called a dataset — Microsoft renamed it in 2023) is a structured, calculated, and governed version of the data that reports query against. It contains: the data tables (either imported into memory or referenced via DirectQuery), the relationships between those tables, calculated measures written in DAX (Data Analysis Expressions — Power BI's formula language, covered fully in section 4.4), calculated columns, and row-level security rules. Every Power BI report connects to a semantic model, either one embedded within the same .pbix file or a published shared model in the Service.</p>
+
+        <p>The semantic model is where the star schema from section 4.1 becomes directly relevant. Power BI's VertiPaq (a high-performance in-memory columnar storage engine) is optimized for the star schema pattern: a central fact table joined to surrounding dimension tables. The engine compresses repeated string values in denormalized dimension columns with exceptional efficiency, which is why star schemas perform better in Power BI than equivalent snowflake or 3NF schemas — as established in section 4.1.</p>
+
+        <h3 class="subsec">Measures vs Calculated Columns</h3>
+        <p>Two ways to create new fields in a Power BI model, and choosing incorrectly has significant performance consequences. A <strong>calculated column</strong> is evaluated row by row at refresh time and stored in memory for every row of the table — it increases model size. Use calculated columns only when you need the value to be available as a slicer/filter or as a sort order that cannot be derived at query time. A <strong>measure</strong> is evaluated at query time, in the current filter context, and stored nowhere — it is computed fresh for each visual. Measures are almost always the correct choice for anything that aggregates (total revenue, average order value, customer count). The rule: if it aggregates, it's a measure. If it must exist as a property of each row, it's a calculated column.</p>
+
+        <!-- 4.3.3 -->
+        <div class="sec-head"><span class="sec-tag">4.3.3</span><h2 class="sec-title">Storage Modes: The Most Important Technical Decision</h2></div>
+
+        <p>How a Power BI model connects to its data source is the single most consequential technical decision in any Power BI implementation. The four storage modes make different trade-offs between query speed, data freshness, model size, and feature completeness. Choosing the wrong mode early in a project is one of the most common and costly BI architecture mistakes.</p>
+
+        <h3 class="subsec">Import Mode</h3>
+        <p>Data is extracted from the source, compressed by VertiPaq, and stored in the Power BI model's in-memory engine. Every query against the report runs against this in-memory copy — no network round-trips to the source. Result: exceptionally fast query performance regardless of source system load. The limitations: the dataset must be refreshed on a schedule (the maximum is eight times per day on Pro, 48 on Premium) and there is a dataset size limit (1 GB for Pro workspaces, 25 GB for Premium per user, larger for Premium capacity). Import is the default recommendation. Start here unless a specific constraint forces you elsewhere.</p>
+
+        <h3 class="subsec">DirectQuery Mode</h3>
+        <p>No data is stored in the model. Every report visual generates a SQL query sent to the source system at the moment a user interacts with the report. Data is always live — the report shows whatever is in the source right now. The trade-off: every interaction requires a network round-trip and a query execution at the source. Performance depends entirely on source system speed and the efficiency of the generated SQL. DAX functionality is also reduced in DirectQuery: time intelligence functions, calculated columns, and some filter operations either don't work or work differently. DirectQuery is appropriate when: data must be real-time (financial positions, live operational metrics), the dataset is too large to import, or data residency requirements prevent copying data into Power BI.</p>
+
+        <h3 class="subsec">Composite Mode</h3>
+        <p>Individual tables within a single model can have different storage modes — some imported, some DirectQuery. The canonical pattern: large fact tables on DirectQuery (live, no size limit), dimension tables imported (fast, cached). When a report filters by a dimension (customer region, product category), the filter resolves against the in-memory dimension and is then pushed down to DirectQuery for the fact. This hybrid approach captures most of the performance benefit of Import for filtering while keeping fact data live. Composite mode adds complexity — table interactions, aggregations, and RLS behavior all require careful consideration. Only adopt it when the trade-off is clearly justified.</p>
+
+        <h3 class="subsec">Live Connection</h3>
+        <p>Connects to an existing published Power BI semantic model, an Azure Analysis Services model, or a SQL Server Analysis Services (SSAS) model. The report has no model of its own — it reads exclusively from the connected model. No modifications to the data model are possible from the report file. This is the pattern for enterprise BI governance: a central team owns and publishes the semantic model; report authors across the business connect to it without modifying the underlying definitions. Measures defined in the central model are available to all reports, ensuring consistent metric definitions.</p>
+
+        <!-- Figure 4.5 — Power BI Architecture -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f45sh"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.14)"/></filter>
+                <marker id="m45" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+                </marker>
+              </defs>
+              <rect width="700" height="280" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Power BI Architecture &mdash; Sources to Consumption</text>
+
+              <!-- SOURCES (left) -->
+              <text x="72" y="40" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="1.5">CLOUD SOURCES</text>
+              <rect x="10" y="48" width="124" height="24" rx="4" fill="#0F2447" filter="url(#f45sh)"/>
+              <text x="72" y="64" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="600" text-anchor="middle">ADLS / Delta Lake</text>
+              <rect x="10" y="78" width="124" height="24" rx="4" fill="#0F2447" filter="url(#f45sh)"/>
+              <text x="72" y="94" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="600" text-anchor="middle">Databricks SQL</text>
+              <rect x="10" y="108" width="124" height="24" rx="4" fill="#0F2447" filter="url(#f45sh)"/>
+              <text x="72" y="124" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="600" text-anchor="middle">Azure SQL Database</text>
+
+              <!-- ON-PREM SOURCES -->
+              <text x="72" y="152" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="1.5">ON-PREM SOURCES</text>
+              <rect x="10" y="160" width="124" height="24" rx="4" fill="#3A4A6A" filter="url(#f45sh)"/>
+              <text x="72" y="176" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">SQL Server</text>
+              <rect x="10" y="190" width="124" height="24" rx="4" fill="#3A4A6A" filter="url(#f45sh)"/>
+              <text x="72" y="206" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Excel / SharePoint</text>
+
+              <!-- GATEWAY -->
+              <rect x="152" y="170" width="82" height="44" rx="5" fill="#254F8F" filter="url(#f45sh)"/>
+              <text x="193" y="188" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">On-Premises</text>
+              <text x="193" y="200" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Data Gateway</text>
+              <text x="193" y="212" fill="rgba(200,225,255,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">secure tunnel</text>
+              <!-- gateway arrows -->
+              <line x1="134" y1="184" x2="152" y2="188" stroke="#0076CC" stroke-width="1.2" marker-end="url(#m45)"/>
+              <line x1="134" y1="206" x2="152" y2="200" stroke="#0076CC" stroke-width="1.2" marker-end="url(#m45)"/>
+
+              <!-- Arrows cloud → service -->
+              <line x1="134" y1="60" x2="260" y2="110" stroke="#0076CC" stroke-width="1.2" marker-end="url(#m45)"/>
+              <line x1="134" y1="90" x2="260" y2="120" stroke="#0076CC" stroke-width="1.2" marker-end="url(#m45)"/>
+              <line x1="134" y1="120" x2="260" y2="130" stroke="#0076CC" stroke-width="1.2" marker-end="url(#m45)"/>
+              <!-- Arrow gateway → service -->
+              <line x1="234" y1="192" x2="260" y2="155" stroke="#0076CC" stroke-width="1.2" marker-end="url(#m45)"/>
+
+              <!-- POWER BI SERVICE (center) -->
+              <rect x="260" y="56" width="188" height="180" rx="6" fill="#0F2447" filter="url(#f45sh)"/>
+              <rect x="260" y="56" width="188" height="24" rx="6" fill="#0060AA"/>
+              <rect x="260" y="70" width="188" height="10" fill="#0060AA"/>
+              <text x="354" y="72" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Power BI Service</text>
+
+              <!-- Semantic Model box inside service -->
+              <rect x="272" y="88" width="164" height="72" rx="4" fill="rgba(255,255,255,.07)" stroke="rgba(58,159,224,.4)" stroke-width="1"/>
+              <text x="354" y="104" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Semantic Model</text>
+              <text x="354" y="117" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">VertiPaq engine (Import)</text>
+              <text x="354" y="129" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Relationships &middot; Measures (DAX)</text>
+              <text x="354" y="141" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">RLS &middot; Calculated Columns</text>
+              <text x="354" y="153" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Scheduled Refresh</text>
+
+              <!-- Deployment pipeline inside service -->
+              <rect x="272" y="170" width="164" height="28" rx="3" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+              <text x="354" y="182" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">Deployment Pipeline</text>
+              <text x="354" y="193" fill="rgba(200,220,255,.4)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Dev &rarr; Test &rarr; Prod workspaces</text>
+
+              <!-- Workspace label -->
+              <text x="354" y="222" fill="rgba(200,220,255,.4)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Workspaces &middot; Apps &middot; Dataflows &middot; Scorecards</text>
+              <text x="354" y="232" fill="rgba(200,220,255,.35)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">app.powerbi.com</text>
+
+              <!-- Arrows service → consumption -->
+              <line x1="448" y1="100" x2="468" y2="96" stroke="#0076CC" stroke-width="1.2" marker-end="url(#m45)"/>
+              <line x1="448" y1="120" x2="468" y2="140" stroke="#0076CC" stroke-width="1.2" marker-end="url(#m45)"/>
+              <line x1="448" y1="155" x2="468" y2="185" stroke="#0076CC" stroke-width="1.2" marker-end="url(#m45)"/>
+
+              <!-- CONSUMPTION (right) -->
+              <text x="570" y="40" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="1.5">CONSUMPTION</text>
+              <rect x="468" y="48" width="218" height="36" rx="4" fill="#1B3A6B" filter="url(#f45sh)"/>
+              <text x="577" y="63" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Power BI Reports &amp; Dashboards</text>
+              <text x="577" y="76" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">interactive visuals &middot; drillthrough &middot; bookmarks</text>
+
+              <rect x="468" y="122" width="104" height="36" rx="4" fill="#1B3A6B" filter="url(#f45sh)"/>
+              <text x="520" y="137" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Power BI Mobile</text>
+              <text x="520" y="150" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">iOS &amp; Android</text>
+
+              <rect x="580" y="122" width="106" height="36" rx="4" fill="#1B3A6B" filter="url(#f45sh)"/>
+              <text x="633" y="137" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Excel / Copilot</text>
+              <text x="633" y="150" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Analyze in Excel</text>
+
+              <rect x="468" y="170" width="218" height="36" rx="4" fill="#254F8F" filter="url(#f45sh)"/>
+              <text x="577" y="185" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Power BI Embedded</text>
+              <text x="577" y="198" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">reports inside your own applications (ISV/developer)</text>
+
+              <!-- Power BI Desktop label -->
+              <rect x="272" y="244" width="164" height="22" rx="3" fill="rgba(0,118,204,.15)" stroke="rgba(0,118,204,.25)" stroke-width="1"/>
+              <text x="354" y="258" fill="#5AABEE" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">Power BI Desktop (local authoring tool)</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 4.5</strong><span>Power BI architecture from source to consumption. Cloud sources (ADLS, Databricks SQL, Azure SQL) connect directly to the Power BI Service. On-premises sources (SQL Server, SharePoint) connect via the On-Premises Data Gateway, which acts as a secure tunnel. The Semantic Model (VertiPaq engine in Import mode) sits inside Power BI Service and is queried by all connected reports. Reports are published to workspaces and promoted through Dev/Test/Prod deployment pipelines. Power BI Desktop is the local authoring tool — reports are authored locally, then published to the Service.</span></div>
+        </div>
+
+        <!-- Figure 4.6 — Storage Modes -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f46sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.11)"/></filter>
+              </defs>
+              <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Storage Modes &mdash; Import vs DirectQuery vs Composite</text>
+
+              <!-- IMPORT -->
+              <rect x="8" y="26" width="218" height="184" rx="5" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f46sh)"/>
+              <rect x="8" y="26" width="218" height="24" rx="5" fill="#0F2447"/>
+              <rect x="8" y="40" width="218" height="10" fill="#0F2447"/>
+              <text x="117" y="43" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Import Mode</text>
+              <!-- Diagram: source → copy in memory → report -->
+              <rect x="18" y="60" width="60" height="22" rx="3" fill="#3A4A6A"/>
+              <text x="48" y="75" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Source DB</text>
+              <line x1="78" y1="71" x2="96" y2="71" stroke="#0076CC" stroke-width="1.5"/>
+              <rect x="98" y="56" width="72" height="50" rx="3" fill="#0060AA"/>
+              <text x="134" y="74" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">VertiPaq</text>
+              <text x="134" y="85" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">In-memory</text>
+              <text x="134" y="97" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">compressed copy</text>
+              <line x1="170" y1="80" x2="186" y2="80" stroke="#0076CC" stroke-width="1.5"/>
+              <rect x="186" y="68" width="32" height="24" rx="3" fill="#1B3A6B"/>
+              <text x="202" y="83" fill="white" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">⚡ Fast</text>
+
+              <text x="117" y="127" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">✓ Excellent query performance</text>
+              <text x="117" y="140" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">✓ Full DAX functionality</text>
+              <text x="117" y="153" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">⚠ Data freshness = refresh schedule</text>
+              <text x="117" y="166" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">⚠ Size limit (1 GB Pro / 25 GB PPU)</text>
+              <rect x="26" y="176" width="166" height="22" rx="3" fill="#E8F4FD"/>
+              <text x="109" y="190" fill="#0F2447" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Default choice — start here</text>
+
+              <!-- DIRECTQUERY -->
+              <rect x="240" y="26" width="218" height="184" rx="5" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f46sh)"/>
+              <rect x="240" y="26" width="218" height="24" rx="5" fill="#6B3FA0"/>
+              <rect x="240" y="40" width="218" height="10" fill="#6B3FA0"/>
+              <text x="349" y="43" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">DirectQuery Mode</text>
+              <!-- Diagram: every query → source -->
+              <rect x="250" y="60" width="60" height="22" rx="3" fill="#3A4A6A"/>
+              <text x="280" y="75" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Source DB</text>
+              <line x1="310" y1="71" x2="340" y2="71" stroke="#9B6FD0" stroke-width="1.5" stroke-dasharray="4,2"/>
+              <text x="355" y="61" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">SQL query</text>
+              <text x="355" y="82" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">on every click</text>
+              <line x1="370" y1="71" x2="394" y2="71" stroke="#9B6FD0" stroke-width="1.5" stroke-dasharray="4,2"/>
+              <rect x="394" y="60" width="54" height="22" rx="3" fill="#6B3FA0"/>
+              <text x="421" y="72" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Report visual</text>
+              <text x="421" y="82" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">no local copy</text>
+
+              <text x="349" y="127" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">✓ Always live / real-time</text>
+              <text x="349" y="140" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">✓ No dataset size limit</text>
+              <text x="349" y="153" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">⚠ Slow — every click hits source</text>
+              <text x="349" y="166" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">⚠ Reduced DAX support</text>
+              <rect x="258" y="176" width="182" height="22" rx="3" fill="#F3EEF9"/>
+              <text x="349" y="190" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Use when real-time or size forces it</text>
+
+              <!-- COMPOSITE -->
+              <rect x="472" y="26" width="218" height="184" rx="5" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f46sh)"/>
+              <rect x="472" y="26" width="218" height="24" rx="5" fill="#1A5A78"/>
+              <rect x="472" y="40" width="218" height="10" fill="#1A5A78"/>
+              <text x="581" y="43" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Composite Mode</text>
+              <!-- Diagram: mix -->
+              <rect x="482" y="58" width="72" height="22" rx="3" fill="#0060AA"/>
+              <text x="518" y="70" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">Dim tables</text>
+              <text x="518" y="80" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">IMPORT (cached)</text>
+              <rect x="482" y="86" width="72" height="22" rx="3" fill="#6B3FA0"/>
+              <text x="518" y="98" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">Fact table</text>
+              <text x="518" y="108" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">DIRECTQUERY (live)</text>
+              <line x1="554" y1="80" x2="572" y2="80" stroke="#1A5A78" stroke-width="1.5"/>
+              <rect x="572" y="66" width="48" height="32" rx="3" fill="#1A5A78"/>
+              <text x="596" y="80" fill="white" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Report</text>
+              <text x="596" y="91" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">hybrid</text>
+              <text x="636" y="80" fill="#1A5A78" font-family="Inter,sans-serif" font-size="7.5" font-weight="700">⚡+🔄</text>
+
+              <text x="581" y="127" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">✓ Fast dims, live facts</text>
+              <text x="581" y="140" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">✓ Best of both modes</text>
+              <text x="581" y="153" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">⚠ Complex to configure correctly</text>
+              <text x="581" y="166" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">⚠ RLS and aggregation complexity</text>
+              <rect x="490" y="176" width="182" height="22" rx="3" fill="#E8F4F8"/>
+              <text x="581" y="190" fill="#1A5A78" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Use when Import size limit hit</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 4.6</strong><span>The three primary storage modes compared. Import (left): data is copied into VertiPaq's in-memory engine at refresh time — queries run against local memory, making this the fastest option. DirectQuery (centre): no data is stored; every report interaction generates a SQL query sent live to the source — always fresh, but slow and with reduced DAX functionality. Composite (right): dimension tables are imported (fast, cached) while the fact table remains on DirectQuery (live) — the recommended pattern when dataset size prevents full Import.</span></div>
+        </div>
+
+        <!-- 4.3.4 -->
+        <div class="sec-head"><span class="sec-tag">4.3.4</span><h2 class="sec-title">Row-Level Security</h2></div>
+
+        <p>Row-Level Security (RLS) restricts which rows of data each user can see, without creating separate reports or models per audience. A sales manager in the North region sees only Northern sales data; a national director sees everything — from the same published report. RLS is enforced at the semantic model level, not the report level, meaning it cannot be bypassed by a user exporting data to Excel or connecting a new report to the same model.</p>
+
+        <h3 class="subsec">Static RLS</h3>
+        <p>Static RLS defines fixed filter rules in Power BI Desktop. Each role has a DAX filter expression applied to one or more tables: <code>[Region] = "North"</code>. Users are assigned to roles in the Power BI Service. Straightforward to implement but requires manual maintenance as regions, territories, or user assignments change. Suitable for small, stable audience segmentations.</p>
+
+        <h3 class="subsec">Dynamic RLS</h3>
+        <p>Dynamic RLS uses the <code>USERNAME()</code> or <code>USERPRINCIPALNAME()</code> DAX function to filter data based on the identity of the signed-in user, matched against a security table in the model. The DAX filter expression: <code>[email] = USERPRINCIPALNAME()</code> applied to a security mapping table (user_email → region), which then filters the dimension and propagates through the model via table relationships. No role assignment is required for each individual user — just ensure the user_email exists in the security table. This is the scalable pattern for enterprise deployments: onboard a new regional manager by adding one row to the security table, not by modifying the Power BI model.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Dynamic RLS implementation — security table design and testing</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p><strong>Security table design:</strong> Create a <code>dim_user_security</code> table in your Gold layer with columns: user_email (TEXT), region (TEXT), or whatever dimension attributes the user is permitted to see. Maintain it as a regular Gold dimension — loaded from HR or identity management systems, refreshed on the same schedule as the rest of the model.</p>
+              <p><strong>DAX filter for dynamic RLS:</strong> In Power BI Desktop, create a role (e.g., "Regional Users"). In the role's table filter for dim_user_security: <code>[user_email] = USERPRINCIPALNAME()</code>. The relationship from dim_user_security to dim_region (or directly to the fact via region_code) propagates the filter automatically — users only see data for regions where their email appears in the security table.</p>
+              <p><strong>Testing RLS before publishing:</strong> In Power BI Desktop → Modeling tab → View as → select a role and enter a test email. The report switches to that user's perspective. This is the only way to verify RLS logic before it reaches production users. Always test with: (1) a user with one region assignment, (2) a user with multiple regions, (3) an admin user who should see everything (usually exempt from RLS via role assignment in the Service).</p>
+              <p><strong>The admin exemption:</strong> Members of the workspace Admin and Member roles in Power BI Service bypass RLS by default. Viewers (the role for end-user consumers) are subject to RLS. Verify that report consumers are assigned the Viewer role, not Member or Admin, or RLS will silently have no effect for those users.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Logistics Company &nbsp;&middot;&nbsp; DirectQuery at Scale</span>
+          </div>
+          <div class="field-note-body">
+            <p>A logistics company built their Power BI reporting stack on DirectQuery against their Azure SQL Database Gold layer, reasoning that live data was essential for operational decision-making. Reports were delivered to 240 concurrent users across three shifts. Within two weeks of go-live, the Azure SQL Database was running at 95% CPU during shift handovers — when all three shifts were simultaneously active and all 240 users were refreshing their dashboards.</p>
+            <p>Each Power BI visual generates between one and five SQL queries. With 240 users, 15 visuals per report page, and three pages open at handover, the database was receiving upward of 5,000 simultaneous queries. The Gold layer, designed for analytical batch queries, was not built to handle this OLTP-style request pattern. Report load times degraded from under two seconds to over 45 seconds.</p>
+            <p>The fix was a hybrid approach: Import mode for all dimension tables and the previous-day summary fact table (covering 95% of report use cases), DirectQuery only for the live-position table that genuinely required real-time data. Report load times returned to sub-two-second. The Azure SQL Database CPU dropped to under 20% at peak. The "real-time" requirement had been real for one table — not for all 18 tables in the model.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Before choosing DirectQuery, audit which tables genuinely need to be live versus which can tolerate a scheduled refresh. The answer is almost always "fewer than you think." Composite mode gives you real-time where it matters and Import performance everywhere else.</p>
+          </div>
+        </div>
+
+        <!-- 4.3.5 -->
+        <div class="sec-head"><span class="sec-tag">4.3.5</span><h2 class="sec-title">Power BI Service — Workspaces, Deployment Pipelines, and Governance</h2></div>
+
+        <p>Power BI Service is where models are published, governed, and consumed. Understanding its organizational structure is essential for any engineer responsible for delivering and maintaining BI solutions at scale.</p>
+
+        <h3 class="subsec">Workspaces</h3>
+        <p>Workspaces are containers for Power BI content — semantic models, reports, dashboards, dataflows. Every workspace has access control (Admin, Member, Contributor, Viewer roles). The My Workspace is personal and cannot be shared. All production content should live in a shared workspace, not My Workspace. Workspaces map to teams or subject areas: one workspace per business domain (Finance, Operations, HR) or per project, depending on organizational scale.</p>
+
+        <h3 class="subsec">Deployment Pipelines</h3>
+        <p>Power BI's built-in Dev/Test/Prod promotion mechanism. Three linked workspaces (Development, Test, Production) where content is promoted stage by stage — with the ability to configure stage-specific data source connections (Development points to a test database; Production points to the live Gold layer). Report authors work in Development, validate in Test, and promote to Production without modifying the report itself. This mirrors the software engineering CI/CD pattern and prevents the common problem of developers editing production reports directly.</p>
+
+        <h3 class="subsec">Dataflows</h3>
+        <p>Dataflows are Power Query transformations running in the Power BI Service rather than in Power BI Desktop. They produce reusable, cloud-executed datasets that multiple semantic models can connect to — avoiding the pattern where the same transformation logic is duplicated across ten different .pbix files. Think of dataflows as the Power BI equivalent of dbt models: centralized, reusable transformation logic. For teams without a mature Azure data platform, dataflows can serve as a lightweight Silver layer. For teams with a proper Gold layer in ADLS/Databricks, dataflows are largely unnecessary — your Gold tables are already the reusable, curated datasets.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Microsoft Fabric — what it is and what it means for your current stack</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Microsoft Fabric (announced 2023, GA since late 2023) is Microsoft's attempt to unify the entire data stack into a single platform: data engineering (Spark notebooks, Delta Lake), data warehousing (Fabric Warehouse), data integration (Data Factory pipelines), real-time analytics (KQL databases, Event Streams), data science (ML experiments), and Power BI — all under one licence, one governance model (Microsoft Purview), and one storage layer (OneLake).</p>
+              <p><strong>What changes for Power BI users:</strong> Power BI is now embedded natively inside Fabric. The Power BI experience in the Fabric portal is identical to the current Service. Semantic models, reports, and workspaces continue to work exactly as before. The benefit: direct connectivity from Power BI to Fabric lakehouses and warehouses without leaving the platform, and shared governance between the data and analytics layers.</p>
+              <p><strong>What changes for data engineers:</strong> Fabric's unified compute uses Spark (via Fabric notebooks) on top of Delta/Parquet files in OneLake. If you already run Databricks + ADLS, you have 80% of what Fabric provides — but as two separately licensed, separately governed products. Fabric consolidates this into one. Microsoft is positioning Fabric as the successor to the separate Azure-stack-plus-Power-BI architecture.</p>
+              <p><strong>Migration urgency:</strong> Low for most organizations in 2025–2026. Existing Azure + Power BI stacks continue to be fully supported. Fabric is the direction of travel — not an immediate migration requirement. Begin evaluating Fabric for net-new projects and greenfield builds. Do not migrate a working production stack without a clear business case for the consolidation benefits.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4.3.6 BI Tool Comparison -->
+        <div class="sec-head"><span class="sec-tag">4.3.6</span><h2 class="sec-title">Power BI vs the Market</h2></div>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Cost Model</th>
+              <th>Technical Depth</th>
+              <th>Business User Ease</th>
+              <th>Azure / M365 Integration</th>
+              <th>Market Position</th>
+              <th>When It Wins</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Power BI</strong></td>
+              <td>Included in M365 E3+; Pro £9/mo; Premium £18/mo PPU</td>
+              <td>High (DAX, composite models, Fabric)</td>
+              <td>Excellent — designed for non-technical users</td>
+              <td>Native — Teams, Excel, Azure, Purview, Fabric</td>
+              <td>#1 in Gartner Magic Quadrant Analytics &amp; BI since 2021</td>
+              <td>Microsoft shops; cost-sensitive orgs; broad user base</td>
+            </tr>
+            <tr>
+              <td><strong>Tableau</strong></td>
+              <td>~£55–75/user/mo (Creator). No free tier.</td>
+              <td>High — calculations, LOD expressions</td>
+              <td>Excellent — best drag-and-drop UX</td>
+              <td>Salesforce integration; weaker Azure native</td>
+              <td>Premium BI; Salesforce ecosystem</td>
+              <td>Data storytelling; design-heavy use cases; Salesforce orgs</td>
+            </tr>
+            <tr>
+              <td><strong>Looker (Google)</strong></td>
+              <td>Enterprise pricing (£20k+ pa typically)</td>
+              <td>Very high — LookML code-first modelling</td>
+              <td>Moderate — requires LookML expertise</td>
+              <td>Native BigQuery; weaker Azure</td>
+              <td>Technical/engineering-led BI teams</td>
+              <td>Metric governance; BigQuery shops; API-driven analytics</td>
+            </tr>
+            <tr>
+              <td><strong>Qlik</strong></td>
+              <td>~£25–40/user/mo; enterprise negotiated</td>
+              <td>High — associative query engine</td>
+              <td>Good — associative exploration is powerful for analysts</td>
+              <td>Limited Azure native; connector-based</td>
+              <td>Strong in manufacturing, industrial sectors</td>
+              <td>Complex, multi-source exploration; industrial/operational BI</td>
+            </tr>
+            <tr>
+              <td><strong>Apache Superset</strong></td>
+              <td>Free (open source); hosting cost only</td>
+              <td>Medium — SQL-first, extensible</td>
+              <td>Moderate — developer-friendly, less business-user polished</td>
+              <td>None native; connects via SQL</td>
+              <td>Growing rapidly in engineering orgs</td>
+              <td>Cost-sensitive; technically capable teams; open-source preference</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>DirectQuery performance optimization — query folding, aggregations, and dual storage</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>When DirectQuery is unavoidable, three techniques materially improve performance before resorting to Composite mode:</p>
+              <p><strong>Query folding:</strong> Power BI should be able to translate every step of a Power Query transformation into a single SQL query sent to the source. When folding works, the source database applies filters and aggregations before returning data — reducing network transfer dramatically. When folding breaks (usually from a step Power Query cannot translate to SQL, such as a custom function or a complex merge), Power BI pulls all rows and processes them in memory. Check folding status in Power Query Editor: right-click a step → "View Native Query." If this option is greyed out, folding has broken at that step. Reorder or rewrite steps to restore folding.</p>
+              <p><strong>Pre-built aggregation tables:</strong> Power BI supports user-defined aggregation tables — pre-aggregated versions of large fact tables stored in Import mode. When a report visual can be answered by the aggregation table (the query grain is at or above the aggregation grain), Power BI automatically uses the Import copy instead of querying the DirectQuery source. Users see Import-speed performance for common queries and DirectQuery for detail-level drillthrough. Configure aggregation tables in Power BI Desktop → Manage aggregations on the aggregation table.</p>
+              <p><strong>Dual storage mode:</strong> Individual dimension tables in a Composite model can be set to Dual storage mode — they exist both as an Import copy and as a DirectQuery reference. When Power BI queries fact data via DirectQuery and filters via a dimension, it selects whichever dimension source (Import or DirectQuery) produces the most efficient execution plan. Dual mode tables are cached for fast local filtering but can still participate in DirectQuery query generation when needed. Set via column storage properties in the Model view.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Professional Services Firm &nbsp;&middot;&nbsp; Deploying RLS for 12 Business Units</span>
+          </div>
+          <div class="field-note-body">
+            <p>A professional services firm needed a single Power BI report covering project performance across 12 business units. Each unit head should see only their own unit's data. Partners should see all 12. The initial design used static RLS — 12 roles, one per business unit, each with a hardcoded filter like <code>[business_unit] = "Advisory"</code>. When a new business unit launched six months later, the data engineer had to open Power BI Desktop, add a 13th role, republish the dataset, and manually assign every new unit manager in the Service.</p>
+            <p>The team rebuilt using dynamic RLS with a user_security table maintained in Databricks Gold. The security table had one row per user per business unit (some users had rows for multiple units). The DAX filter used USERPRINCIPALNAME() to look up the current user's permitted units. Adding a new business unit required inserting rows into the security table — no Power BI Desktop changes, no republish. When the firm added four new units over the following year, each was live in the BI platform within 20 minutes of the data engineer updating the security table.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Static RLS is a prototype pattern. For any production deployment with more than five audience segments or any likelihood of organizational change, implement dynamic RLS from day one. The security table belongs in your Gold layer alongside every other governed dimension.</p>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Power BI is the consumption layer of the Azure data stack, built around a semantic model (VertiPaq-powered) that sits atop the Gold-layer dimensional model built in sections 4.1 and 4.2. Four storage modes: Import (data in memory — fastest, scheduled refresh, size-limited — default choice), DirectQuery (live queries to source — always fresh, slow, reduced DAX), Composite (hybrid — Import for dims, DirectQuery for facts), Live Connection (read-only connection to existing published model). Row-level security is enforced at model level: static RLS uses hardcoded role filters; dynamic RLS uses USERPRINCIPALNAME() matched to a security mapping table — the scalable pattern for enterprise deployments. Power BI Service organizes content in workspaces and promotes between Dev/Test/Prod via deployment pipelines. Dataflows provide reusable cloud-executed Power Query transformations — less relevant when a mature Gold layer already exists. Microsoft Fabric is the strategic direction: unified data + BI platform on OneLake — evaluate for new projects, do not rush migration of working production stacks.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Coming in Section 4.4 &mdash; DAX</div>
+          <p>Section 4.4 covers DAX (Data Analysis Expressions) — Power BI's formula language for calculated measures, time intelligence, and context manipulation. The two most important concepts — filter context and the CALCULATE function — explain why DAX measures sometimes return unexpected results and how to control them precisely. USERELATIONSHIP(), which activates the role-playing dimension relationships from section 4.1, is also covered in full.</p>
+        </div>
+
+        <!-- Learning Check -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 4.3 &nbsp;&middot;&nbsp; Power BI</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A fact table containing 2.5 billion rows cannot be imported into a Power BI Pro workspace due to the 1 GB dataset size limit. The business requires data no older than 15 minutes. Which storage mode is most appropriate?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Import mode with a scheduled refresh every 15 minutes</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">DirectQuery for all tables in the model</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Composite mode — dimension tables imported for fast filtering, fact table on DirectQuery for near-real-time data without size constraints</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Live Connection to an Azure Analysis Services model</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Composite mode addresses both constraints simultaneously. The fact table's 2.5 billion rows exceed the Import size limit, ruling out full Import. Pure DirectQuery would work but would make every report interaction slow — 2.5 billion row queries against any source are expensive. Composite mode imports dimension tables (they are small — typically thousands to hundreds of thousands of rows) so filter operations are fast and cached, while the fact table remains on DirectQuery so its size isn't a constraint and data is near-real-time. Import with 15-minute refresh (A) doesn't help with the size limit and Power BI Pro only allows 8 refreshes per day. DirectQuery for all tables (B) would work but performs poorly at this scale without optimization.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">What is the correct DAX function to use in dynamic RLS to retrieve the identity of the currently signed-in Power BI user?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">CURRENTUSER()</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">LOOKUPVALUE()</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">USERPRINCIPALNAME() — returns the UPN (user principal name / email) of the authenticated user, used to filter the security mapping table</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">USERNAME() — returns the domain and username in domain\username format</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> USERPRINCIPALNAME() returns the email address of the currently signed-in Power BI user (e.g., j.smith@company.com), which matches the format stored in a security mapping table keyed by email. This is the standard function for dynamic RLS in Power BI Service, where users authenticate via Azure Active Directory (Microsoft Entra ID) and their UPN is the email address. USERNAME() (option D) exists but returns a domain\username format that typically doesn't match the email addresses stored in security tables, making it less reliable. CURRENTUSER() is not a DAX function — it does not exist. LOOKUPVALUE() is a DAX lookup function used in calculated columns, not in RLS filter expressions.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A Power BI workspace member (not Admin) has been given access to a report that uses Row-Level Security. During testing, the member reports seeing all data rather than just their permitted subset. What is the most likely cause?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The security table in the semantic model is missing the user's email</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The RLS role was defined using static filters instead of dynamic</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Members of the workspace Admin and Member roles bypass RLS by default — the user should be assigned the Viewer role to be subject to RLS restrictions</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">RLS only works in Import mode and the model is using DirectQuery</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> In Power BI Service, workspace Admins and Members bypass RLS — they always see all data regardless of what RLS roles are defined. Only users with the Viewer workspace role are subject to RLS restrictions. This is a very common production oversight: a developer tests the RLS logic correctly in Power BI Desktop, publishes to the Service, assigns the user as a Member to let them "view" the report — and the RLS appears to do nothing. The fix: assign end-user consumers as Viewers, not Members. Members are for content contributors and developers. RLS does work with DirectQuery (option D is incorrect).</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">What is the primary purpose of Power BI deployment pipelines?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">To automatically refresh datasets on a scheduled basis across multiple workspaces</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">To promote content (reports, semantic models) through Dev, Test, and Production workspaces in a governed, repeatable way — with stage-specific data source configurations</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">To deploy Power BI Gateway configurations to new servers</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">To migrate reports from Tableau or Qlik into Power BI format</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Deployment pipelines are Power BI's built-in CI/CD mechanism for BI content. Three linked workspaces (Development, Test, Production) allow content to be promoted stage by stage with a single click. Crucially, each stage can have different data source configurations: Development connects to a dev database, Production connects to the live Gold layer — the same report works correctly in both environments because the data source is swapped at promotion time. This prevents the common anti-pattern of editing production reports directly. Deployment pipelines require Power BI Premium or Premium Per User (PPU) licensing.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A financial services organisation is evaluating Power BI vs Looker for their new analytics platform. Their data team is highly technical (strong SQL engineers), their primary data warehouse is Google BigQuery, and they want strict centralised control over how metrics like "Revenue" and "Churn Rate" are defined across the business. Which tool is the stronger fit, and why?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Power BI — it has better business user adoption and Microsoft 365 integration</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Looker — its code-first LookML semantic layer provides version-controlled, centralised metric governance; it integrates natively with BigQuery; and the SQL-first approach suits the technical team</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Power BI — it is cheaper than Looker and has a larger market share</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Looker — it is always the better tool for financial services organisations regardless of technical context</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct</strong> — in this specific context. Three factors align with Looker: the technical team is SQL-strong (LookML is SQL-based and version-controlled in Git, which technical teams manage well); the primary warehouse is BigQuery (Looker is Google-native and integrates with BigQuery without an intermediate layer); and the strict metric governance requirement matches Looker's core value proposition — LookML defines "Revenue" once in a central repository and every report that references it is guaranteed to use the same definition. Power BI has metric management features (Power BI Goals) but they are less mature than Looker's approach. This question illustrates the importance of context: Power BI is the better choice for Microsoft-ecosystem organizations with broad non-technical user bases; Looker is better for technically sophisticated teams with BigQuery and strict metric governance needs.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="4-2-slowly-changing-dimensions.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">4.2 Slowly Changing Dimensions</span></span>
+          </a>
+          <a href="4-4-dax.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">4.4 DAX &mdash; Data Analysis Expressions</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 4 &nbsp;&middot;&nbsp; Analytics &amp; Visualisation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">19</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Default to Import</div>
+          <p>Start every Power BI project in Import mode. Move to DirectQuery or Composite only when a specific constraint — size limit or real-time requirement — forces the change. Don't pre-optimize for problems you haven't hit yet.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">RLS Bypassed by Members</div>
+          <p>Workspace Admins and Members always see all data regardless of RLS. End-user consumers must be assigned the Viewer role. Test RLS by signing in as a Viewer — not as the developer who built it.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Measures, Not Columns</div>
+          <p>If the calculation aggregates (sum, count, average), it's a measure. Calculated columns increase model size for every row — only use them when a value must exist as a per-row attribute for slicing or sorting.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"When would you use DirectQuery over Import?" is a standard Power BI interview question. The answer: real-time requirement OR dataset too large to import. Always add: "I'd evaluate Composite as the first option — Import dims, DirectQuery fact."</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('4.3');</script>
+</body>
+</html>

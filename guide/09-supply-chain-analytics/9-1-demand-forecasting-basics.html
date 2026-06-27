@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>9.1 Demand Forecasting Basics &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="9.1">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Nine &nbsp;&middot;&nbsp; Supply Chain Analytics</div>
+          <div class="chap-num">9.1</div>
+          <h1 class="chap-title">Demand Forecasting Basics</h1>
+          <p class="chap-sub">Why a bad forecast is a data engineering problem long before it's an inventory problem, the bullwhip effect that turns small demand noise into large upstream chaos, the progression from naive baselines through exponential smoothing to ARIMA and ML-based forecasting, and the evaluation pitfalls that make a forecast look better or worse than it really is</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain why demand forecasting accuracy is a data engineering concern, and describe the bullwhip effect and how it amplifies small forecasting errors up a supply chain</li>
+            <li>Build and critique naive and moving-average baseline forecasts, and explain why a baseline is a necessary first step before anything more sophisticated</li>
+            <li>Explain exponential smoothing and how its weighting of recent observations differs from a simple moving average</li>
+            <li>Describe, at a conceptual level, what ARIMA (AutoRegressive Integrated Moving Average) and ML-based forecasting models add beyond simpler methods, and what each requires to work well</li>
+            <li>Choose an appropriate forecast accuracy metric and explain a common pitfall &mdash; specifically MAPE's (Mean Absolute Percentage Error) instability on low-volume or intermittent data</li>
+            <li>Select the right forecasting method for a given demand pattern &mdash; stable, seasonal, or intermittent &mdash; rather than defaulting to one method for everything</li>
+          </ol>
+        </div>
+
+        <!-- 9.1.1 -->
+        <div class="sec-head"><span class="sec-tag">9.1.1</span><h2 class="sec-title">Why a Senior Data Engineer Needs to Care About Forecasting</h2></div>
+
+        <p>Demand forecasting is conventionally treated as a supply-chain analyst's job, not a data engineer's &mdash; but the moment a forecast feeds an automated reorder pipeline, a Power BI dashboard executives make purchasing decisions from, or a real-time inventory system, forecast quality becomes a direct data engineering concern: garbage forecasts feeding clean pipelines still produce garbage business decisions, and a senior data engineer is frequently the person best positioned to notice when a forecasting model is silently degrading because they own the pipeline feeding it.</p>
+
+        <p>The clearest illustration of why forecast accuracy matters more than it might first appear is the <span class="kt" data-term="Bullwhip Effect">bullwhip effect</span>: small, ordinary fluctuations in actual customer demand get amplified into much larger swings as they propagate backward through a supply chain &mdash; from retailer to distributor to manufacturer to raw-material supplier &mdash; with each link adding its own buffer of caution on top of an already-uncertain forecast.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>The bullwhip effect: why a 10% demand blip becomes a 40% order swing</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Imagine a retailer sees a genuine but modest 10% increase in weekly demand for a product. To avoid stockouts and build in a safety margin, the retailer orders 20% more from its distributor &mdash; the real increase plus a buffer. The distributor, seeing a 20% jump in orders from just one of its many retailers, can't easily tell whether that's a one-off blip or the start of a trend, so it orders 30% more from the manufacturer to be safe. The manufacturer, seeing a 30% order increase and unsure how long it will last, orders 40% more raw materials &mdash; far beyond what the original 10% demand increase actually warranted.</p>
+              <p>Each link in the chain is behaving rationally given the information available to it, but every link adds its own safety buffer on top of an already-amplified signal from the link before it, and information about <em>actual end-customer demand</em> gets progressively more distorted the further back up the chain you go. The result: warehouses full of excess inventory at exactly the point the original demand blip fades, followed by a painful correction.</p>
+              <p>The data engineering implication: the bullwhip effect is fundamentally a problem of information distortion across organizational boundaries. The most effective mitigation is not a smarter forecasting algorithm at any single link, but better data sharing &mdash; giving every link in the chain visibility into actual end-customer demand directly, rather than each link forecasting based only on the (already distorted) orders it receives from the link immediately downstream. This is precisely the kind of cross-system data integration problem a senior data engineer is positioned to solve.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 9.1.2 -->
+        <div class="sec-head"><span class="sec-tag">9.1.2</span><h2 class="sec-title">Naive and Moving Average Baselines</h2></div>
+
+        <p>Every forecasting effort should start with a deliberately simple baseline, for the same reason section 8.3's evaluation metrics matter: without a baseline, there's no way to know whether a sophisticated model is actually adding value. The <strong>naive forecast</strong> simply predicts that next period's demand will equal the most recent period's actual demand &mdash; trivial to compute, and a surprisingly strong baseline for genuinely stable, non-seasonal demand.</p>
+
+        <p>The <span class="df" data-term="Moving Average">moving average</span> forecast improves on this by averaging the most recent N periods rather than relying on just the last one, smoothing out short-term noise. A 4-week moving average for a retail SKU averages the last four weeks of actual sales to forecast week five, recomputing as each new week of actuals arrives.</p>
+
+        <!-- Figure 9.1 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs><filter id="f91sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter></defs>
+              <rect width="700" height="250" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Naive vs. Moving Average &mdash; Smoothing Out Noise</text>
+
+              <line x1="50" y1="190" x2="650" y2="190" stroke="#1B3A6B" stroke-width="1"/>
+              <line x1="50" y1="190" x2="50" y2="50" stroke="#1B3A6B" stroke-width="1"/>
+
+              <polyline points="60,140 130,100 200,160 270,90 340,150 410,110 480,170 550,95" fill="none" stroke="#9B3A3A" stroke-width="2"/>
+              <g fill="#9B3A3A"><circle cx="60" cy="140" r="3"/><circle cx="130" cy="100" r="3"/><circle cx="200" cy="160" r="3"/><circle cx="270" cy="90" r="3"/><circle cx="340" cy="150" r="3"/><circle cx="410" cy="110" r="3"/><circle cx="480" cy="170" r="3"/><circle cx="550" cy="95" r="3"/></g>
+              <text x="610" y="98" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" font-weight="700">Actual Demand</text>
+
+              <polyline points="200,127 270,112 340,125 410,123 480,130 550,131" fill="none" stroke="#254F8F" stroke-width="2.5" stroke-dasharray="6,3"/>
+              <text x="610" y="135" fill="#254F8F" font-family="Inter,sans-serif" font-size="8" font-weight="700">4-Period MA</text>
+
+              <line x1="130" y1="100" x2="200" y2="100" stroke="#C8892A" stroke-width="2" stroke-dasharray="2,2"/>
+              <text x="610" y="103" fill="#C8892A" font-family="Inter,sans-serif" font-size="8" font-weight="700">Naive (last value)</text>
+
+              <text x="350" y="215" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-style="italic">The naive forecast simply repeats the last actual value. The moving average smooths recent noise but lags behind genuine trend changes &mdash; both are deliberately simple baselines, not production-grade forecasts.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 9.1</strong><span>Naive and moving-average baselines plotted against noisy actual demand. Both exist to give a sophisticated model something concrete to beat &mdash; if exponential smoothing or ARIMA can't outperform a simple moving average, the added complexity isn't earning its cost.</span></div>
+        </div>
+
+        <p class="hmm-moment">&#x1F4AD; <em>Hmm moment:</em> Notice the moving average line lags visibly behind sharp changes in the actual demand series. That lag is the moving average's defining weakness &mdash; it treats every one of the last N periods equally, so a genuine recent shift in demand takes N periods to fully show up in the forecast. Exponential smoothing, covered next, exists specifically to fix this.</p>
+
+        <!-- 9.1.3 -->
+        <div class="sec-head"><span class="sec-tag">9.1.3</span><h2 class="sec-title">Exponential Smoothing</h2></div>
+
+        <p><span class="kt" data-term="Exponential Smoothing">Exponential smoothing</span> forecasts the next period as a weighted average of the most recent actual value and the previous forecast, where the weight given to the most recent observation (called <strong>alpha</strong>, between 0 and 1) determines how quickly the forecast reacts to new information. A higher alpha makes the forecast track recent changes more closely &mdash; reacting faster to genuine shifts, but also reacting more to noise. A lower alpha smooths more aggressively, reducing noise sensitivity at the cost of reacting more slowly to real trend changes.</p>
+
+        <p>Unlike a simple moving average, which weights its last N periods equally and then drops off a cliff to zero weight beyond that window, exponential smoothing weights <em>every</em> past observation, with the weight decaying exponentially the further back in time you go &mdash; the most recent observation gets the most weight, but nothing is ever weighted exactly zero. More advanced variants &mdash; collectively known as Holt-Winters methods &mdash; extend the same core idea to explicitly model trend and seasonality components separately, which matters enormously for products with genuine seasonal demand patterns (holiday retail spikes, back-to-school surges) that a basic exponential smoothing model would otherwise treat as unexplained noise.</p>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127978;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Seasonal Retailer &nbsp;&middot;&nbsp; The Naive Forecast That Missed Every December</span>
+          </div>
+          <div class="field-note-body">
+            <p>A retailer's automated reorder system used a naive forecast &mdash; next month's expected demand equals last month's actual &mdash; for a category of holiday-adjacent products. Through most of the year the approach performed adequately, since demand for these products was relatively flat outside the holiday season. Every November, the naive forecast predicted roughly the same modest demand as October, drastically underestimating the genuine December spike that followed every single year, leading to repeated stockouts during the highest-revenue period of the year, three years running before anyone formally investigated why.</p>
+            <p>The root cause, once examined, was structural rather than a one-off mistake: a naive forecast has no mechanism for representing seasonality at all &mdash; it can only ever predict a continuation of the most recent value, which is exactly wrong the moment a predictable seasonal pattern, rather than genuine randomness, is driving the change. Switching to a Holt-Winters exponential smoothing model with an explicit seasonal component correctly anticipated the December spike the very next forecasting cycle, using nothing more than the same historical sales data that had been available all along.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>A forecasting method's failure mode is often structural, not random &mdash; a naive or basic moving-average forecast will reliably and repeatedly miss any genuine seasonal pattern, every single cycle, because the method has no component capable of representing seasonality at all. Matching the method to the actual shape of the demand pattern, not just picking the simplest available option, is the real skill.</p>
+          </div>
+        </div>
+
+        <!-- 9.1.4 -->
+        <div class="sec-head"><span class="sec-tag">9.1.4</span><h2 class="sec-title">ARIMA and ML-Based Forecasting</h2></div>
+
+        <p><span class="df" data-term="ARIMA">ARIMA</span> (AutoRegressive Integrated Moving Average) is a more formally rigorous statistical forecasting approach that models a time series as a combination of its own past values (the <em>autoregressive</em> part), the differencing needed to make the series statistically stable over time (the <em>integrated</em> part), and past forecast errors (the <em>moving average</em> part &mdash; a different, unrelated use of the term from section 9.1.2's moving average baseline). ARIMA can capture more complex patterns than exponential smoothing, but it requires more data, more careful setup, and a property called <strong>stationarity</strong> &mdash; the statistical characteristics of the series (its average level, its variance) staying stable over time, which most raw demand data does not naturally have until it's been differenced.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Why ARIMA needs stationarity, and what "differencing" actually does</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>ARIMA's autoregressive component assumes that the relationship between a value and its own past values is stable over time &mdash; the same underlying statistical pattern holds whether you're looking at last month or six months ago. A series with a strong upward trend violates this directly: the average level keeps climbing, so any fixed relationship the model learns from earlier, lower-level data won't accurately describe later, higher-level data.</p>
+              <p><strong>Differencing</strong> &mdash; the "integrated" part of ARIMA's name &mdash; fixes this by working with the <em>change</em> between consecutive periods rather than the raw level itself. Instead of modeling "demand was 100, then 110, then 121," differencing models "demand increased by 10, then by 11" &mdash; and if the underlying growth rate itself is roughly stable even while the raw level keeps climbing, the differenced series becomes stationary even though the original wasn't. ARIMA models are typically labeled ARIMA(p,d,q), where d is specifically the number of times the series needed to be differenced to become stationary before the autoregressive and moving-average components are fitted.</p>
+              <p>The practical takeaway for a data engineer setting up a forecasting pipeline: ARIMA is not a method you can blindly point at raw data and expect good results from. It requires an explicit stationarity check (and differencing step if needed) as part of the pipeline &mdash; skip this step and the model's core assumptions are violated before it even starts fitting.</p>
+            </div>
+          </div>
+        </div>
+
+        <p><strong>ML-based forecasting</strong> &mdash; gradient-boosted trees or neural networks, the same families covered in Part 8, applied to time-series data &mdash; trades ARIMA's statistical rigor and interpretability for the ability to incorporate external features directly: weather, promotional calendars, competitor pricing, macroeconomic indicators, alongside the historical demand series itself. This is genuinely powerful when demand is driven by factors beyond the series' own history, but it inherits the same data-hunger and interpretability tradeoffs section 8.5 covered for deep learning generally &mdash; it earns its added complexity when those external drivers are actually available and matter, not as a default upgrade over simpler methods.</p>
+
+        <!-- Figure 9.2 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Forecasting Methods &mdash; Increasing Complexity, Increasing Requirements</text>
+
+              <g font-family="Inter,sans-serif" font-size="8.5" font-weight="700" fill="white" text-anchor="middle">
+                <rect x="20" y="55" width="150" height="40" rx="5" fill="#3A5A80"/><text x="95" y="79">Naive / Moving Avg</text>
+                <rect x="190" y="55" width="150" height="40" rx="5" fill="#254F8F"/><text x="265" y="79">Exponential Smoothing</text>
+                <rect x="360" y="55" width="150" height="40" rx="5" fill="#1A5A78"/><text x="435" y="79">ARIMA</text>
+                <rect x="530" y="55" width="150" height="40" rx="5" fill="#7A2A2A"/><text x="605" y="79">ML-Based</text>
+              </g>
+              <line x1="170" y1="75" x2="186" y2="75" stroke="#3A9FE0" stroke-width="2"/>
+              <line x1="340" y1="75" x2="356" y2="75" stroke="#3A9FE0" stroke-width="2"/>
+              <line x1="510" y1="75" x2="526" y2="75" stroke="#3A9FE0" stroke-width="2"/>
+
+              <g font-family="Inter,sans-serif" font-size="7.5" fill="#4A6080" text-anchor="middle">
+                <text x="95" y="115">No setup, no</text><text x="95" y="126">seasonality handling</text>
+                <text x="265" y="115">Handles trend</text><text x="265" y="126">&amp; seasonality</text>
+                <text x="435" y="115">Needs stationarity,</text><text x="435" y="126">more data &amp; setup</text>
+                <text x="605" y="115">Can use external</text><text x="605" y="126">features, most data-hungry</text>
+              </g>
+
+              <line x1="20" y1="155" x2="680" y2="155" stroke="rgba(27,58,107,.12)" stroke-width="1"/>
+              <text x="350" y="172" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-style="italic">Each step right typically buys better accuracy on complex patterns, at the cost of more data, more setup, and less interpretability &mdash; the same shape of tradeoff Part 8 established for classical ML vs. deep learning.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 9.2</strong><span>The forecasting method spectrum. Moving right is justified by a demonstrated need &mdash; genuine seasonality, genuine non-stationarity, genuine external demand drivers &mdash; not by complexity for its own sake.</span></div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127981;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Spare-Parts Manufacturer &nbsp;&middot;&nbsp; When Every Method in This Section Failed the Same Way</span>
+          </div>
+          <div class="field-note-body">
+            <p>A manufacturer applied a standard ARIMA model to forecast demand for a category of spare parts, where most SKUs sold only a handful of units in any given month &mdash; many months saw zero orders for a given part at all. The model consistently produced near-flat, low-confidence forecasts that captured almost none of the genuine, if irregular, demand spikes when a part actually was ordered, and a moving average baseline performed no better, since averaging mostly zeros simply forecasts mostly zero.</p>
+            <p>The underlying issue was a demand pattern neither method was designed for: <strong>intermittent demand</strong>, characterized by long stretches of zero demand punctuated by occasional, irregular spikes, rather than the continuous, roughly-every-period demand pattern both ARIMA and moving averages implicitly assume. The team eventually adopted forecasting methods specifically designed for intermittent demand (outside this section's scope, but worth knowing by name for an interview: Croston's method and its variants), which separately model the probability of any demand occurring in a given period from the size of demand when it does occur.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>The forecasting methods covered in this section &mdash; naive, moving average, exponential smoothing, ARIMA &mdash; all implicitly assume continuous, regularly-occurring demand. Recognizing when a demand pattern is genuinely intermittent, rather than just noisy, is itself a critical skill: applying any of these standard methods to intermittent demand fails in a structurally similar way regardless of which one you pick.</p>
+          </div>
+        </div>
+
+        <p>Forecast accuracy is most commonly reported using <span class="df" data-term="MAPE">MAPE</span> (Mean Absolute Percentage Error) &mdash; the average absolute error expressed as a percentage of the actual value, which is intuitive for business stakeholders to interpret ("the forecast was off by 8% on average"). Its specific pitfall, directly relevant to the spare-parts field note above: MAPE is mathematically unstable when actual demand is zero or very close to zero, since dividing by a near-zero actual value can produce an enormous or undefined percentage error from a forecast that was only off by a small absolute amount. For intermittent or low-volume demand specifically, an absolute error metric (like MAE from section 8.3) is usually more honest than MAPE.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>MAPE's instability, worked through with real numbers</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Suppose actual demand for a SKU in a given month was 100 units, and the forecast was 90 &mdash; a 10-unit miss. MAPE for that period is |100&minus;90| / 100 = 10%, a perfectly reasonable, interpretable number. Now suppose a different SKU had actual demand of just 1 unit that month, and the forecast was 0 (a perfectly plausible forecast for a low-volume part) &mdash; an absolute miss of only 1 unit, smaller in every practical sense than the first example's 10-unit miss. MAPE for that period is |1&minus;0| / 1 = 100%, even though the actual error in business terms is trivial.</p>
+              <p>Now push the example one step further: actual demand was 0 units (genuinely no orders that month, common for the spare-parts field note's intermittent SKUs) and the forecast was 1 unit. MAPE's formula requires dividing by the actual value, which is now zero &mdash; mathematically undefined. Different forecasting software handles this differently (some skip the period, some substitute a small constant, some return an error), but none of those workarounds change the underlying problem: MAPE simply isn't a coherent metric once actual values get close to zero.</p>
+              <p>The practical fix, already stated in the main text but worth reinforcing here with the numbers behind it: for any SKU or category where demand is frequently zero or very low, report MAE (average absolute error in actual units) instead of, or alongside, MAPE. MAE has no division-by-actual-value in its formula and remains stable and interpretable regardless of how low demand gets.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 9.1.5 -->
+        <div class="sec-head"><span class="sec-tag">9.1.5</span><h2 class="sec-title">Choosing a Method, and a Word on Evaluation</h2></div>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>Moving Average</th>
+              <th>Exponential Smoothing</th>
+              <th>ARIMA</th>
+              <th>ML-Based</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Data Requirements</strong></td>
+              <td>Low &mdash; a few periods</td>
+              <td>Low to moderate</td>
+              <td>Moderate &mdash; enough history to fit reliably</td>
+              <td>High, especially with external features</td>
+            </tr>
+            <tr>
+              <td><strong>Handles Seasonality</strong></td>
+              <td>No</td>
+              <td>Yes, via Holt-Winters variants</td>
+              <td>Yes, with seasonal ARIMA variants</td>
+              <td>Yes, if represented as a feature</td>
+            </tr>
+            <tr>
+              <td><strong>Interpretability</strong></td>
+              <td>Very high</td>
+              <td>High</td>
+              <td>Moderate &mdash; requires statistical literacy</td>
+              <td>Low</td>
+            </tr>
+            <tr>
+              <td><strong>Accuracy on Complex Patterns</strong></td>
+              <td>Weak</td>
+              <td>Moderate</td>
+              <td>Strong, if assumptions hold</td>
+              <td>Strong, if data and features support it</td>
+            </tr>
+            <tr>
+              <td><strong>Setup Effort</strong></td>
+              <td>Minimal</td>
+              <td>Low</td>
+              <td>Moderate &mdash; stationarity checks required</td>
+              <td>High &mdash; feature engineering, training pipeline</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Demand forecasting is a data engineering concern the moment a forecast feeds an automated decision, and the bullwhip effect shows how small forecast errors amplify dramatically as they propagate up a supply chain. Naive and moving-average forecasts are deliberately simple baselines that any sophisticated method needs to beat. Exponential smoothing weights recent observations more heavily and, in its Holt-Winters form, handles trend and seasonality explicitly &mdash; a capability naive forecasts structurally lack. ARIMA requires stationary data (achieved via differencing) and offers more statistical rigor; ML-based forecasting trades interpretability for the ability to incorporate external demand drivers. MAPE is the common accuracy metric but breaks down on low-volume or intermittent demand, where an absolute-error metric is more honest. The right method depends on the actual shape of the demand pattern &mdash; stable, seasonal, or intermittent &mdash; not on which method sounds most sophisticated.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 9.1 &nbsp;&middot;&nbsp; Demand Forecasting Basics</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">What does the bullwhip effect actually describe?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">A forecasting algorithm specifically designed for retail demand</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The amplification of small, genuine demand fluctuations into much larger order swings as they propagate backward through successive links of a supply chain, each adding its own safety buffer</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">A statistical test used to determine whether a time series is stationary</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">A type of forecasting error that only occurs when using ARIMA models</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The bullwhip effect is a supply-chain dynamics phenomenon, not a specific algorithm or test &mdash; each link in the chain rationally adds a buffer to the (already distorted) signal it receives from the link before it, and the cumulative distortion grows the further back from the end customer you measure.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">Why did the naive forecast in the seasonal retailer field note repeatedly fail every December, rather than failing randomly?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The naive forecast had a software bug that was never fixed</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">A naive forecast can only ever predict a continuation of the most recent value, so it has no structural mechanism for representing a predictable seasonal spike at all &mdash; the failure is guaranteed to recur every cycle, not random</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">December demand was genuinely unpredictable and no forecasting method could have anticipated it</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The retailer simply had insufficient historical data to forecast accurately</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The naive method's failure was structural, not data-related (C and D are both ruled out by the fact that switching to Holt-Winters exponential smoothing, using the same historical data, immediately fixed the problem). A naive forecast has no component capable of representing seasonality &mdash; it will miss the same predictable pattern every single cycle by construction.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">What does "differencing" accomplish in the context of preparing a series for ARIMA?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">It removes seasonal patterns from the data entirely so they never need to be modeled</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">It converts the series into period-over-period changes rather than raw levels, which can make a non-stationary series (e.g. one with a trend) statistically stationary, satisfying a core ARIMA assumption</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">It increases the amount of historical data available for the model to train on</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It converts a regression problem into a classification problem</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Differencing works with consecutive changes rather than raw levels, which can remove a trend's effect on the series' average level even though the underlying level keeps climbing &mdash; making the differenced series stationary, which ARIMA's autoregressive component requires to produce a stable, meaningful fit.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">Why did both ARIMA and a moving average fail similarly on the spare-parts manufacturer's data in the field note?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Because ARIMA and moving averages are mathematically identical methods</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Because both methods implicitly assume continuous, regularly-occurring demand, and the actual demand pattern was intermittent &mdash; long zero-demand stretches with occasional irregular spikes &mdash; a pattern neither method is designed to represent</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Because the manufacturer had a corrupted dataset that affected every forecasting method equally</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Because neither method can ever be used for manufacturing demand, regardless of the actual demand pattern</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The shared failure mode points to a structural mismatch between the demand pattern (intermittent) and what both methods assume (continuous, regular demand) &mdash; not a data quality issue or a flaw specific to one method. This is exactly why specialized intermittent-demand methods exist as a distinct category.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">Why is MAPE (Mean Absolute Percentage Error) often a poor choice for evaluating forecasts on low-volume or intermittent demand?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">MAPE can only be computed for seasonal data, never for non-seasonal data</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">MAPE divides the error by the actual value, so when actual demand is zero or very close to zero, the resulting percentage error can become enormous or undefined even for a forecast that was only off by a small absolute amount</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">MAPE always reports a lower error than the forecast actually achieved, making models look worse than they are</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">MAPE cannot be used alongside ARIMA models for technical reasons</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> MAPE's division-by-actual-value structure is mathematically unstable as the actual value approaches zero &mdash; exactly the situation intermittent or low-volume demand creates routinely. An absolute-error metric like MAE avoids this specific instability, which is why it's the more honest choice on this kind of data.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="../08-classical-ml-and-statistics/8-5-deep-learning-basics.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">8.5 Deep Learning Basics</span></span>
+          </a>
+          <a href="9-2-inventory-optimization.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">9.2 Inventory Optimization</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 9 &nbsp;&middot;&nbsp; Supply Chain Analytics</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">47</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:160px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">The Bullwhip Effect</div>
+          <p>Small demand fluctuations amplify into large order swings as they propagate up a supply chain &mdash; an information distortion problem, best fixed with shared visibility into actual demand.</p>
+        </div>
+        <div class="ms" style="height:300px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Always Build a Baseline First</div>
+          <p>A naive or moving-average forecast tells you whether a sophisticated model is actually adding value &mdash; skip it and you can't tell.</p>
+        </div>
+        <div class="ms" style="height:340px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Match Method to Pattern</div>
+          <p>Stable &rarr; naive/MA. Seasonal &rarr; Holt-Winters or seasonal ARIMA. Intermittent &rarr; specialized methods. None of these are interchangeable.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('9.1');</script>
+</body>
+</html>

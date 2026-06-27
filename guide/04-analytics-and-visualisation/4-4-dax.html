@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4.4 DAX &mdash; Data Analysis Expressions &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="4.4">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Four &nbsp;&middot;&nbsp; Analytics &amp; Visualisation</div>
+          <div class="chap-num">4.4</div>
+          <h1 class="chap-title">DAX</h1>
+          <p class="chap-sub">Data Analysis Expressions — Power BI's formula language for calculated measures, context manipulation, time intelligence, and the CALCULATE function that underpins almost everything</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Distinguish DAX from M (Power Query) and explain when each language executes and what each is responsible for</li>
+            <li>Explain filter context and row context — the two evaluation contexts that determine what every DAX expression returns</li>
+            <li>Write correct CALCULATE expressions to override filter context and explain why it is the most important DAX function</li>
+            <li>Apply ALL, ALLEXCEPT, and ALLSELECTED to remove filters from a measure's evaluation context</li>
+            <li>Write time intelligence measures using SAMEPERIODLASTYEAR, DATEADD, TOTALYTD, and TOTALQTD</li>
+            <li>Use VAR/RETURN for readable, performant measures, and SUMX/AVERAGEX for row-by-row calculations</li>
+          </ol>
+        </div>
+
+        <!-- 4.4.1 -->
+        <div class="sec-head"><span class="sec-tag">4.4.1</span><h2 class="sec-title">DAX vs M — Two Languages, One Tool</h2></div>
+
+        <p>Power BI uses two distinct formula languages, and confusing them is the source of significant frustration for practitioners new to the platform. Understanding which language does what — and when each runs — is the essential foundation before writing a single formula.</p>
+
+        <p><strong>M (Power Query)</strong> is the data preparation language. It runs during data refresh, before anything is loaded into the semantic model. M is responsible for connecting to sources, filtering, transforming, reshaping, and cleaning data — the equivalent of a SQL SELECT or a dbt model. M shapes the tables that land in the model. Once refresh completes, M has finished its work. It does not run at query time.</p>
+
+        <p><strong>DAX (Data Analysis Expressions)</strong> is the analytical calculation language. It runs at query time — when a user interacts with a report, when a visual refreshes, when a measure is evaluated. DAX operates on the data that M has already loaded into the semantic model. It cannot change what data is in the model; it can only calculate against it. DAX writes measures (calculations evaluated in the current filter context) and calculated columns (values computed row by row at refresh time and stored in the model).</p>
+
+        <div class="hl-block">The rule of thumb: use M to clean and shape — anything that could be done in SQL or dbt belongs in M or upstream. Use DAX to calculate — ratios, running totals, period comparisons, and context-sensitive aggregations that must be evaluated dynamically against whatever filters a user has applied to the report.</div>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Characteristic</th>
+              <th>DAX (Data Analysis Expressions)</th>
+              <th>M (Power Query Formula Language)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>When it runs</strong></td>
+              <td>Query time — on every visual interaction</td>
+              <td>Refresh time — when data is loaded into the model</td>
+            </tr>
+            <tr>
+              <td><strong>What it operates on</strong></td>
+              <td>Data already in the semantic model (in memory)</td>
+              <td>Data being fetched from source systems</td>
+            </tr>
+            <tr>
+              <td><strong>Primary use</strong></td>
+              <td>Measures, calculated columns, RLS filters, KPIs</td>
+              <td>Data cleaning, reshaping, combining, filtering</td>
+            </tr>
+            <tr>
+              <td><strong>Execution engine</strong></td>
+              <td>VertiPaq (columnar in-memory) + Formula Engine</td>
+              <td>Mashup Engine (runs as Power Query steps)</td>
+            </tr>
+            <tr>
+              <td><strong>Edited in</strong></td>
+              <td>Power BI Desktop — Measure editor, Model view</td>
+              <td>Power BI Desktop — Power Query Editor</td>
+            </tr>
+            <tr>
+              <td><strong>Analogy</strong></td>
+              <td>SQL aggregation and window functions at query time</td>
+              <td>SQL SELECT / dbt model at ETL/ELT time</td>
+            </tr>
+            <tr>
+              <td><strong>Common mistake</strong></td>
+              <td>Doing data preparation work in calculated columns</td>
+              <td>Doing analytical calculations in Power Query steps</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- 4.4.2 -->
+        <div class="sec-head"><span class="sec-tag">4.4.2</span><h2 class="sec-title">Filter Context and Row Context</h2></div>
+
+        <p>Everything in DAX ultimately comes down to understanding two evaluation contexts. These are the conceptual foundation that explains why DAX measures sometimes return unexpected values — and how to control what they return precisely.</p>
+
+        <h3 class="subsec">Filter Context</h3>
+        <p>Filter context is the set of filters currently applied to the data when a DAX measure is evaluated. It includes: slicer selections (Region = North), report page filters, visual-level filters, and the current row and column headers of a matrix visual. When a user selects "North" from a region slicer, the filter context for every measure on the page changes — the measure is now evaluated as if the data were already filtered to Region = North. Filters propagate through the model's relationships automatically: filtering dim_region to "North" also filters fact_sales to only the rows with North region FK values.</p>
+
+        <p>A measure receives its filter context from the report and cannot control it — unless CALCULATE is used to modify it deliberately.</p>
+
+        <h3 class="subsec">Row Context</h3>
+        <p>Row context is the current row being evaluated. It exists only inside calculated columns (which are evaluated row by row across an entire table) and inside iterator functions like SUMX and AVERAGEX. A calculated column expression <code>[Revenue] = [Quantity] * [Unit Price]</code> evaluates in row context — [Quantity] and [Unit Price] refer to the values in the current row. Measures do not have row context by default.</p>
+
+        <h3 class="subsec">Context Transition</h3>
+        <p>Context transition is the mechanism by which row context is converted into filter context when a measure is called from within a calculated column or an iterator function. When you call a measure inside SUMX (which iterates rows), CALCULATE implicitly converts the current row context into a filter context that filters the table to only the current row's values. This is one of the most commonly misunderstood behaviors in DAX — and the root cause of many unexpected results. The deep dive below covers it in detail.</p>
+
+        <!-- Figure 4.7 — Filter Context Propagation -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f47sh"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter>
+                <marker id="m47" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+                </marker>
+                <marker id="m47r" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#B07D2A"/>
+                </marker>
+              </defs>
+              <rect width="700" height="280" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Filter Context &mdash; How Filters Flow from Report to Measure</text>
+
+              <!-- REPORT LEVEL FILTER -->
+              <rect x="10" y="28" width="680" height="34" rx="4" fill="#0F2447" filter="url(#f47sh)"/>
+              <text x="350" y="42" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="1.5">REPORT / PAGE FILTERS</text>
+              <text x="350" y="56" fill="white" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Year = 2024 &nbsp;&nbsp;|&nbsp;&nbsp; Business Unit = "Advisory" (slicer selection)</text>
+
+              <line x1="350" y1="62" x2="350" y2="76" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m47)"/>
+
+              <!-- VISUAL FILTER + CONTEXT -->
+              <rect x="10" y="78" width="440" height="80" rx="4" fill="white" stroke="#C8E2F8" stroke-width="1.5" filter="url(#f47sh)"/>
+              <text x="130" y="95" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700">Matrix Visual — Revenue by Region &amp; Product</text>
+              <!-- mini matrix -->
+              <rect x="18" y="102" width="200" height="15" rx="2" fill="#0F2447"/>
+              <text x="22" y="113" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7">Region</text>
+              <text x="100" y="113" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7">Product A</text>
+              <text x="160" y="113" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7">Product B</text>
+              <rect x="18" y="117" width="200" height="13" fill="#E8F4FD"/>
+              <text x="22" y="127" fill="#1A2332" font-family="Inter,sans-serif" font-size="7">North</text>
+              <text x="100" y="127" fill="#0076CC" font-family="Inter,sans-serif" font-size="7" font-weight="700">£124,800</text>
+              <text x="160" y="127" fill="#0076CC" font-family="Inter,sans-serif" font-size="7" font-weight="700">£88,200</text>
+              <rect x="18" y="130" width="200" height="13" fill="white"/>
+              <text x="22" y="140" fill="#1A2332" font-family="Inter,sans-serif" font-size="7">South</text>
+              <text x="100" y="140" fill="#0076CC" font-family="Inter,sans-serif" font-size="7" font-weight="700">£97,400</text>
+              <text x="160" y="140" fill="#0076CC" font-family="Inter,sans-serif" font-size="7" font-weight="700">£61,900</text>
+              <text x="240" y="100" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" font-style="italic">For each cell, filter context =</text>
+              <text x="240" y="112" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">Year=2024, BU=Advisory</text>
+              <text x="240" y="124" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">+ Region=[this row]</text>
+              <text x="240" y="136" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">+ Product=[this column]</text>
+
+              <!-- CALCULATE box -->
+              <rect x="460" y="78" width="230" height="80" rx="4" fill="#FFF8EC" stroke="#E0C800" stroke-width="1.5" filter="url(#f47sh)"/>
+              <text x="575" y="95" fill="#B07D2A" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">CALCULATE overrides context</text>
+              <text x="575" y="108" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Revenue YTD =</text>
+              <text x="575" y="120" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">CALCULATE(</text>
+              <text x="575" y="131" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">&nbsp;&nbsp;[Revenue],</text>
+              <text x="575" y="142" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">&nbsp;&nbsp;DATESYTD(dim_date[date_actual])</text>
+              <text x="575" y="153" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">)</text>
+              <text x="460" y="168" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7.5" font-style="italic">Adds YTD date filter to existing context</text>
+
+              <!-- RELATIONSHIP PROPAGATION -->
+              <rect x="10" y="174" width="680" height="90" rx="4" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f47sh)"/>
+              <text x="350" y="192" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Filter Propagation Through Relationships</text>
+              <!-- Model diagram -->
+              <rect x="18" y="200" width="80" height="36" rx="3" fill="#254F8F"/>
+              <text x="58" y="215" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">dim_region</text>
+              <text x="58" y="227" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Filter: North</text>
+              <line x1="98" y1="218" x2="138" y2="218" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m47)"/>
+              <text x="118" y="213" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="7">one-to</text>
+              <text x="118" y="223" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="7">many ↓</text>
+              <rect x="138" y="196" width="100" height="52" rx="3" fill="#0060AA"/>
+              <text x="188" y="214" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">fact_sales</text>
+              <text x="188" y="226" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Automatically filtered</text>
+              <text x="188" y="237" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">to North rows only</text>
+              <line x1="280" y1="218" x2="328" y2="218" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="304" y="212" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">FK join</text>
+              <rect x="328" y="200" width="80" height="36" rx="3" fill="#254F8F"/>
+              <text x="368" y="215" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">dim_product</text>
+              <text x="368" y="227" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Filter: Product A</text>
+              <line x1="408" y1="218" x2="448" y2="218" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m47)"/>
+              <rect x="448" y="200" width="80" height="36" rx="3" fill="#254F8F"/>
+              <text x="488" y="215" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">dim_date</text>
+              <text x="488" y="227" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Filter: Year=2024</text>
+              <text x="582" y="218" fill="#4A6080" font-family="Inter,sans-serif" font-size="9" font-style="italic">→ Measure evaluates</text>
+              <text x="582" y="230" fill="#4A6080" font-family="Inter,sans-serif" font-size="9" font-style="italic">against intersection</text>
+              <text x="582" y="242" fill="#0076CC" font-family="Inter,sans-serif" font-size="9" font-weight="700">= £124,800</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 4.7</strong><span>Filter context propagation in a Power BI semantic model. Page-level filters (Year = 2024, Business Unit = Advisory) establish the base context. Each matrix cell adds its row header (Region = North) and column header (Product = Product A) to the context. Filters propagate automatically through model relationships — filtering dim_region to "North" automatically restricts fact_sales to North rows only. CALCULATE can intercept and modify this context before the measure is evaluated, as shown in the YTD measure example where a date filter is added while preserving all other existing filters.</span></div>
+        </div>
+
+        <!-- 4.4.3 -->
+        <div class="sec-head"><span class="sec-tag">4.4.3</span><h2 class="sec-title">CALCULATE — The Most Important DAX Function</h2></div>
+
+        <p>CALCULATE is what makes DAX fundamentally different from Excel formulas or SQL aggregations. It evaluates an expression in a modified filter context — allowing you to override, extend, or remove filters that the report has applied. Almost every non-trivial DAX measure uses CALCULATE directly or calls functions that use it internally.</p>
+
+        <p>The syntax: <code>CALCULATE(&lt;expression&gt;, &lt;filter1&gt;, &lt;filter2&gt;, ...)</code>. The expression is what you want to calculate (usually a simple aggregation like SUM or COUNTROWS). The filter arguments modify the filter context before the expression is evaluated. CALCULATE does not change what data is in the model — it changes the lens through which the expression sees the data.</p>
+
+        <h3 class="subsec">What CALCULATE's Filter Arguments Do</h3>
+        <p>Each filter argument either adds a new filter, replaces an existing one, or removes filters entirely. <code>CALCULATE([Revenue], dim_region[region] = "North")</code> adds a region filter to whatever context exists — even if the report has already filtered to "South," this measure returns North revenue because the CALCULATE filter argument replaces the conflicting region filter. <code>CALCULATE([Revenue], ALL(dim_region))</code> removes the region filter entirely, so the measure returns total revenue regardless of what region the user has selected.</p>
+
+        <!-- Figure 4.8 — CALCULATE Mechanics -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f48sh"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter>
+                <marker id="m48" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+                </marker>
+              </defs>
+              <rect width="700" height="230" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">CALCULATE &mdash; Three Patterns</text>
+
+              <!-- PATTERN 1: Add filter -->
+              <rect x="8" y="28" width="215" height="192" rx="5" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f48sh)"/>
+              <rect x="8" y="28" width="215" height="22" rx="5" fill="#0F2447"/>
+              <rect x="8" y="42" width="215" height="8" fill="#0F2447"/>
+              <text x="115" y="43" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Add a Filter</text>
+              <text x="14" y="64" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" font-style="italic">Report context: Region = North</text>
+              <rect x="14" y="72" width="200" height="46" rx="3" fill="#0D1B2E"/>
+              <text x="24" y="88" fill="#C8D8F0" font-family="Courier New,monospace" font-size="8.5">North Revenue YTD =</text>
+              <text x="24" y="102" fill="#C8D8F0" font-family="Courier New,monospace" font-size="8.5">CALCULATE(</text>
+              <text x="24" y="114" fill="#88BEFF" font-family="Courier New,monospace" font-size="8.5">&nbsp;&nbsp;[Revenue],</text>
+              <text x="24" y="126" fill="#C8892A" font-family="Courier New,monospace" font-size="8.5">&nbsp;&nbsp;DATESYTD(dim_date[date])</text>
+              <text x="24" y="138" fill="#C8D8F0" font-family="Courier New,monospace" font-size="8.5">)</text>
+              <rect x="14" y="128" width="200" height="1" fill="rgba(255,255,255,.05)"/>
+              <text x="115" y="158" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Evaluates: Region=North</text>
+              <text x="115" y="170" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">AND year-to-date dates</text>
+              <text x="115" y="182" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">DATESYTD adds to existing filters</text>
+              <text x="115" y="194" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">(doesn't remove Region = North)</text>
+              <text x="115" y="210" fill="#0F2447" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">= North YTD Revenue</text>
+
+              <!-- PATTERN 2: Replace filter -->
+              <rect x="240" y="28" width="215" height="192" rx="5" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f48sh)"/>
+              <rect x="240" y="28" width="215" height="22" rx="5" fill="#254F8F"/>
+              <rect x="240" y="42" width="215" height="8" fill="#254F8F"/>
+              <text x="347" y="43" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Replace a Filter</text>
+              <text x="246" y="64" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" font-style="italic">Report context: Region = North</text>
+              <rect x="246" y="72" width="200" height="46" rx="3" fill="#0D1B2E"/>
+              <text x="256" y="88" fill="#C8D8F0" font-family="Courier New,monospace" font-size="8.5">All-Region Revenue =</text>
+              <text x="256" y="102" fill="#C8D8F0" font-family="Courier New,monospace" font-size="8.5">CALCULATE(</text>
+              <text x="256" y="114" fill="#88BEFF" font-family="Courier New,monospace" font-size="8.5">&nbsp;&nbsp;[Revenue],</text>
+              <text x="256" y="126" fill="#C8892A" font-family="Courier New,monospace" font-size="8.5">&nbsp;&nbsp;ALL(dim_region)</text>
+              <text x="256" y="138" fill="#C8D8F0" font-family="Courier New,monospace" font-size="8.5">)</text>
+              <text x="347" y="158" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Evaluates: no region filter</text>
+              <text x="347" y="170" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">ALL() removes Region=North</text>
+              <text x="347" y="182" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Used for % of total patterns:</text>
+              <text x="347" y="194" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">[Revenue] / CALCULATE([Revenue], ALL(dim_region))</text>
+              <text x="347" y="210" fill="#0F2447" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">= Total All-Region Revenue</text>
+
+              <!-- PATTERN 3: USERELATIONSHIP -->
+              <rect x="472" y="28" width="218" height="192" rx="5" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f48sh)"/>
+              <rect x="472" y="28" width="218" height="22" rx="5" fill="#1A5A78"/>
+              <rect x="472" y="42" width="218" height="8" fill="#1A5A78"/>
+              <text x="581" y="43" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Activate Relationship</text>
+              <text x="478" y="64" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" font-style="italic">Ship date relationship is inactive</text>
+              <rect x="478" y="72" width="204" height="56" rx="3" fill="#0D1B2E"/>
+              <text x="488" y="88" fill="#C8D8F0" font-family="Courier New,monospace" font-size="8">Revenue by Ship Date =</text>
+              <text x="488" y="100" fill="#C8D8F0" font-family="Courier New,monospace" font-size="8">CALCULATE(</text>
+              <text x="488" y="112" fill="#88BEFF" font-family="Courier New,monospace" font-size="8">&nbsp;&nbsp;[Revenue],</text>
+              <text x="488" y="124" fill="#C8892A" font-family="Courier New,monospace" font-size="7.5">&nbsp;&nbsp;USERELATIONSHIP(</text>
+              <text x="488" y="136" fill="#C8892A" font-family="Courier New,monospace" font-size="7.5">&nbsp;&nbsp;&nbsp;&nbsp;fact_sales[ship_date_sk],</text>
+              <text x="488" y="148" fill="#C8892A" font-family="Courier New,monospace" font-size="7.5">&nbsp;&nbsp;&nbsp;&nbsp;dim_date[date_sk]))</text>
+              <text x="581" y="168" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Activates the ship date</text>
+              <text x="581" y="180" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">relationship for this measure only</text>
+              <text x="581" y="192" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Role-playing dimension pattern (4.1)</text>
+              <text x="581" y="204" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">dim_date joined twice to fact</text>
+              <text x="581" y="218" fill="#0F2447" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">= Revenue filtered by ship date</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 4.8</strong><span>Three CALCULATE patterns. Left: adding a filter — DATESYTD extends the existing context with a year-to-date date filter, preserving other filters like Region=North. Centre: removing a filter — ALL(dim_region) strips the region filter entirely, enabling percentage-of-total measures that compare a selection against the unrestricted total. Right: USERELATIONSHIP — activates an inactive relationship for a single measure, enabling role-playing dimensions (introduced in section 4.1) where dim_date is joined to the fact table multiple times in different roles (order date, ship date, delivery date).</span></div>
+        </div>
+
+        <!-- 4.4.4 -->
+        <div class="sec-head"><span class="sec-tag">4.4.4</span><h2 class="sec-title">Context Modifiers: ALL, ALLEXCEPT, ALLSELECTED</h2></div>
+
+        <p>Three functions remove filters from the evaluation context. Each removes a different scope of filters, and choosing the wrong one produces subtly wrong results that can pass visual inspection but fail under scrutiny.</p>
+
+        <p><strong>ALL(table or column)</strong> removes all filters from the specified table or column, regardless of what the user has selected in the report. <code>CALCULATE([Revenue], ALL(dim_region))</code> always returns total revenue across all regions, even if the user has selected North from a slicer. Used for: percentage of total, % share measures.</p>
+
+        <p><strong>ALLEXCEPT(table, column1, column2, ...)</strong> removes all filters from a table except for the specified columns. <code>CALCULATE([Revenue], ALLEXCEPT(dim_customer, dim_customer[segment]))</code> removes all customer filters except segment — the measure evaluates across all customers within the currently selected segment. Used for: ranking within a group, share within a category.</p>
+
+        <p><strong>ALLSELECTED(table or column)</strong> removes inner filters (from the visual itself) but preserves outer filters (from slicers and page-level filters). This is the correct function for "% of what's currently visible in this visual." If a user selects North from a slicer but the visual shows all regions, ALLSELECTED([Revenue]) returns the total for North only (respecting the slicer), not the total for all regions (which ALL would return). The most nuanced of the three and worth spending time with before using in production measures.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Context transition — the hardest concept in DAX, explained</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Context transition is what happens when a measure is called from within a row context (inside a calculated column or an iterator function). CALCULATE implicitly converts the current row's values into a filter context that restricts the table to only that row's values.</p>
+              <p><strong>The concrete example:</strong> You have a calculated column in dim_customer: <code>Customer Revenue = [Total Revenue]</code>. This seems like it should return the total revenue for that customer. But [Total Revenue] is a measure — and measures have no row context. Without context transition, [Total Revenue] would return the same grand total for every customer row.</p>
+              <p>With context transition (which CALCULATE triggers automatically when you reference a measure in a row context), the current row's dimension values — customer_sk = 1001, region = North, segment = Premium — are converted into filter context. The measure [Total Revenue] is then evaluated with those filters active, returning revenue for that specific customer. This is why referencing a measure inside a calculated column produces per-row values rather than a constant.</p>
+              <p><strong>The dangerous implication:</strong> If you call [Total Revenue] inside SUMX without understanding context transition, you will get unexpected results. SUMX([customers], [Total Revenue]) does not sum Total Revenue across all customers — each row's measure call triggers context transition, filtering to that specific customer. The result is the same as SUM over per-customer revenue, which may or may not be what you intended.</p>
+              <p><strong>Rule of thumb:</strong> When you reference a measure inside SUMX, AVERAGEX, or a calculated column, context transition is happening. Be explicit about what you want: if you want the total (not per-row), use the measure directly in CALCULATE with ALL(). If you want per-row, referencing the measure directly is correct — context transition will handle it.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4.4.5 -->
+        <div class="sec-head"><span class="sec-tag">4.4.5</span><h2 class="sec-title">Time Intelligence</h2></div>
+
+        <p>Time intelligence is DAX's built-in set of functions for period comparisons, year-to-date calculations, and rolling windows. All time intelligence functions require a dedicated date dimension table (dim_date) with a contiguous date range — no gaps — marked as a date table in the Power BI model. This is why building a proper dim_date is required for any production Power BI model (referenced in section 4.1 — now you see why).</p>
+
+        <h3 class="subsec">Core Time Intelligence Functions</h3>
+        <p><strong>SAMEPERIODLASTYEAR(dates)</strong> returns a set of dates one year earlier than the dates in the current filter context. Used in CALCULATE to compare this period to the equivalent period last year: <code>Revenue LY = CALCULATE([Revenue], SAMEPERIODLASTYEAR(dim_date[date_actual]))</code>. Derive YoY % change as <code>([Revenue] - [Revenue LY]) / [Revenue LY]</code>.</p>
+
+        <p><strong>DATEADD(dates, number, interval)</strong> shifts dates by a specified number of intervals (DAY, MONTH, QUARTER, YEAR). More flexible than SAMEPERIODLASTYEAR: <code>CALCULATE([Revenue], DATEADD(dim_date[date_actual], -1, QUARTER))</code> returns prior quarter revenue.</p>
+
+        <p><strong>TOTALYTD(expression, dates, [year_end_date])</strong> calculates a year-to-date total. <code>Revenue YTD = TOTALYTD([Revenue], dim_date[date_actual])</code>. For fiscal years that don't end on 31 December, specify the year-end date: <code>TOTALYTD([Revenue], dim_date[date_actual], "31-03")</code> for a March fiscal year-end. TOTALQTD and TOTALMTD work identically for quarter-to-date and month-to-date.</p>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Manufacturing Company &nbsp;&middot;&nbsp; The Wrong Revenue Total</span>
+          </div>
+          <div class="field-note-body">
+            <p>A manufacturing company's Power BI report showed a "Revenue by Product Category" matrix with a Grand Total row. The Grand Total consistently showed a higher number than the visible category rows added together — sometimes by 20%. Analysts assumed there was a calculation bug in the data warehouse and escalated to the data engineering team, who spent two days auditing Gold tables before finding no discrepancy. The data was correct. The measure was wrong.</p>
+            <p>The measure had been written as a calculated column that summed a revenue measure: <code>Category Revenue = SUMX(fact_sales, [Unit Revenue Measure])</code>. Because [Unit Revenue Measure] was a measure (not a column), calling it inside SUMX triggered context transition on every row of fact_sales — summing the revenue measure evaluated at the fact_sales row level, which included tax and shipping adjustments not visible at the category level. The Grand Total summed all adjusted values. The category rows, filtered by category, showed net category revenue before adjustments. Two different calculations, in the same report, called "Revenue."</p>
+            <p>The fix was replacing the calculated column with a direct measure using SUM over the correct column: <code>Revenue = SUM(fact_sales[revenue_net])</code>. Grand Total and category rows agreed immediately.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Context transition is silent. When a measure produces unexpected values — especially in Grand Total rows or when called from a calculated column — context transition is the first thing to audit. Never call a measure inside a calculated column or SUMX without explicitly understanding what context it will be evaluated in.</p>
+          </div>
+        </div>
+
+        <!-- 4.4.6 -->
+        <div class="sec-head"><span class="sec-tag">4.4.6</span><h2 class="sec-title">Variables and Iterators</h2></div>
+
+        <h3 class="subsec">VAR / RETURN</h3>
+        <p>DAX variables (introduced to DAX in 2016) solve two problems at once: readability and performance. The pattern: declare named values with VAR, then use them in the RETURN expression. A variable is evaluated exactly once at the point of declaration and reused as needed — avoiding recalculation in complex measures.</p>
+
+        <p>Example — YoY revenue change percentage:</p>
+        <p><code>Revenue YoY % = VAR CurrentRevenue = [Revenue] VAR PriorRevenue = CALCULATE([Revenue], SAMEPERIODLASTYEAR(dim_date[date_actual])) RETURN DIVIDE(CurrentRevenue - PriorRevenue, PriorRevenue, BLANK())</code></p>
+
+        <p>Without variables, [Revenue] would be evaluated twice: once for CurrentRevenue and once inside SAMEPERIODLASTYEAR. With variables, it is evaluated once per RETURN call. At scale — a matrix with 200 cells — this halves the number of measure evaluations. Always use VAR/RETURN for any measure that references the same sub-expression more than once. Use DIVIDE() instead of the division operator (/) to handle division by zero gracefully — it returns BLANK() rather than an error when the denominator is zero.</p>
+
+        <h3 class="subsec">Iterator Functions: SUMX, AVERAGEX, MAXX</h3>
+        <p>Iterator functions evaluate an expression for each row in a table and aggregate the results. SUMX(table, expression) iterates each row, evaluates the expression in row context, and sums the results. This is powerful for row-level calculations that cannot be expressed as a simple column aggregation:</p>
+        <p><code>Weighted Revenue = SUMX(fact_sales, fact_sales[quantity_sold] * fact_sales[unit_price] * fact_sales[discount_factor])</code></p>
+        <p>This calculates the discounted revenue for each line and sums across all lines — not possible with a simple SUM if discount_factor is applied per-row. AVERAGEX, MINX, MAXX, and COUNTX follow the same pattern with different aggregation operations.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Time intelligence prerequisites — what breaks when dim_date is missing or incomplete</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>All DAX time intelligence functions have three requirements that must all be met before they work correctly:</p>
+              <p><strong>1. A marked date table.</strong> In Power BI Desktop: select the date dimension table → Table tools → Mark as date table → specify the date column. Without this, time intelligence functions may work inconsistently or not at all. The marked column must be of type Date (not DateTime), must have no duplicate values, and must have no missing dates in the range you intend to use.</p>
+              <p><strong>2. Contiguous date range with no gaps.</strong> If your dim_date has rows for 2020-2024 but is missing a bank holiday (because your source only included business days), TOTALYTD will give incorrect results for any period that includes the missing date. Your dim_date must include every calendar day in the range, regardless of whether any business activity occurred on that day. Generate dates programmatically: in Python or SQL, generate a row for every day from your start year to five years beyond your expected end year.</p>
+              <p><strong>3. The relationship must be active.</strong> If your fact table has multiple date columns (order_date, ship_date, delivery_date) and only the order_date relationship is active, time intelligence functions will always filter by order_date. To apply time intelligence to ship_date, wrap the time intelligence function inside CALCULATE with USERELATIONSHIP — as shown in Figure 4.8.</p>
+              <p><strong>Common symptom of a missing date table mark:</strong> SAMEPERIODLASTYEAR returns BLANK() for all periods. First check: has the table been marked as a date table? Second check: are there missing dates in the range?</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">An Insurance Company &nbsp;&middot;&nbsp; YoY Blank for Three Months</span>
+          </div>
+          <div class="field-note-body">
+            <p>An insurance company launched a Power BI claims dashboard in October 2023 with a Year-on-Year claims comparison using SAMEPERIODLASTYEAR. The YoY measure worked correctly for all months except October, November, and December — for those three months it returned BLANK(). The data team confirmed that claims data existed for October–December 2022. The DAX formula was syntactically correct. The date table appeared complete.</p>
+            <p>The root cause: the dim_date in the Gold layer had been generated to cover 1 January 2023 through 31 December 2024. SAMEPERIODLASTYEAR attempts to find dates one year earlier than the current filter — for October 2023, it looks for October 2022 dates. Those dates did not exist in the dim_date table (which started at January 2023), so the function found no matching dates and returned BLANK(). The fix was regenerating dim_date to start from 1 January 2020, covering five years of historical comparison window.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Build dim_date to span a range significantly broader than your current data. A good rule: start at least five years before the earliest fact record and extend at least three years beyond the current date. The storage cost of 3,000 extra rows in dim_date is negligible. The debugging cost of a BLANK() YoY measure in production is not.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>FILTER vs CALCULATE filter arguments — performance implications</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>There are two ways to apply a filter inside CALCULATE, and they have very different performance characteristics at scale:</p>
+              <p><strong>Table filter (slow):</strong> <code>CALCULATE([Revenue], FILTER(fact_sales, fact_sales[amount] &gt; 1000))</code> — FILTER iterates every row of fact_sales, evaluates the condition for each row, and returns the matching rows. At 500 million rows, this is expensive.</p>
+              <p><strong>Column filter (fast):</strong> <code>CALCULATE([Revenue], dim_product[category] = "Electronics")</code> — this uses the VertiPaq column filter directly, leveraging dictionary encoding and bitmap indexing. No row-by-row iteration. Dramatically faster at scale.</p>
+              <p><strong>The rule:</strong> when filtering on a column value, use the column filter syntax directly in CALCULATE rather than wrapping it in FILTER(). Only use FILTER() when you need to filter based on a calculated measure value (FILTER returns rows where a measure is above a threshold) or when you need to filter on multiple columns of the same table in a way that the column filter syntax cannot express. When in doubt, try the column filter syntax first — if DAX accepts it, it's the faster option.</p>
+              <p><strong>Practical example:</strong> North revenue share measure — recommended pattern using column filter syntax:</p>
+              <p><code>North Revenue Share = DIVIDE(CALCULATE([Revenue], dim_region[region] = "North"), CALCULATE([Revenue], ALL(dim_region)))</code></p>
+              <p>This uses two column filter arguments: one restricts to North, one removes all region filters. Both resolve at the storage engine level with no row iteration. A version using FILTER() for either argument would produce the same result but 10–50x more slowly at realistic fact table scales.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary — Part 4 Complete</div>
+          <p>DAX is Power BI's query-time formula language (M handles refresh-time data preparation — never confuse the two). Everything in DAX operates within a filter context (the set of filters currently applied by the report) or a row context (the current row in a calculated column or iterator). CALCULATE is the function that modifies filter context: it can add filters, replace filters, remove filters (ALL/ALLEXCEPT/ALLSELECTED), and activate inactive relationships (USERELATIONSHIP — the role-playing dimension pattern from section 4.1). Time intelligence functions (SAMEPERIODLASTYEAR, DATEADD, TOTALYTD) require a marked date table with a contiguous date range extending beyond the data. VAR/RETURN patterns improve both readability and performance by evaluating shared sub-expressions once. Iterator functions (SUMX, AVERAGEX) evaluate expressions row by row and aggregate — correct for per-row calculations but dangerous without understanding context transition. Context transition is the silent conversion of row context to filter context when a measure is referenced inside a calculated column or iterator — the most common source of unexpected results in production DAX.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Part 5 &mdash; Delivery &amp; Leadership</div>
+          <p>Part 4 is complete. The analytical foundation — dimensional modeling, SCDs, Power BI, and DAX — is now in place. Part 5 covers how data engineering work is delivered in a professional team context: Agile methodology adapted for data work, Git and GitHub for version control, MVP-driven delivery, DataOps and CI/CD, stakeholder communication, and change management. These are the skills that separate a strong individual contributor from a senior practitioner who can lead and deliver at scale.</p>
+        </div>
+
+        <!-- Learning Check -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 4.4 &nbsp;&middot;&nbsp; DAX</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A data engineer wants to calculate the percentage of total revenue that each product category contributes. The report has a region slicer. The denominator should always show total revenue for all regions regardless of what the user selects. Which DAX pattern is correct?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Revenue % = [Revenue] / TOTALYTD([Revenue], dim_date[date_actual])</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Revenue % = DIVIDE([Revenue], CALCULATE([Revenue], ALL(dim_region))) — ALL removes the region filter so the denominator is always the grand total regardless of slicer selection</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Revenue % = DIVIDE([Revenue], CALCULATE([Revenue], ALLSELECTED(dim_region)))</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Revenue % = [Revenue] / SUM(fact_sales[revenue_net])</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> CALCULATE([Revenue], ALL(dim_region)) removes all region filters from the evaluation context — CALCULATE overrides whatever the slicer has applied — so the denominator always returns total revenue across all regions. This is the standard "% of total" pattern. Option C (ALLSELECTED) would respect the slicer selection, making the denominator the total for the selected region(s) rather than the true grand total — correct for "% of what's visible" but wrong for "% of all revenue." Option A uses TOTALYTD which changes the date context, not the region context — not relevant here. Option D (SUM in a measure context) would behave identically to [Revenue] in this context and would also be affected by the slicer filter.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">What is the difference between ALLSELECTED and ALL when used as a CALCULATE filter argument?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">ALLSELECTED removes all filters; ALL removes only the filters applied by slicers</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">They are functionally identical — ALLSELECTED is just an alias for ALL</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">ALL removes all filters regardless of origin (including slicers); ALLSELECTED removes filters from within the current visual but preserves filters from outer contexts like slicers and page-level filters</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">ALLSELECTED removes filters from the current column only; ALL removes filters from the entire table</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> This distinction is critical for "% of visible total" vs "% of grand total." If a user selects "North" from a region slicer and the visual shows all products for North: ALL(dim_product) returns total revenue for North across all products (slicer still applies — only product filter removed). ALLSELECTED(dim_product) returns the same result in this case since no product filter is active within the visual. But if the visual itself also filters a subset of products, ALLSELECTED returns revenue for only those visible products while ALL returns revenue for all products. Use ALL for true grand total denominators. Use ALLSELECTED when you want the "% of what's currently showing in this visual" — a more nuanced and situational calculation.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A SAMEPERIODLASTYEAR measure returns BLANK() for all months in Q4 of the current year. Q4 data exists in the fact table. What is the most likely cause?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The fact table does not have data for Q4 of the prior year</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">SAMEPERIODLASTYEAR only works for years that are complete — it cannot process the current year</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">The dim_date table does not include dates from Q4 of the prior year — SAMEPERIODLASTYEAR looks for dates one year earlier and finds no matching rows in dim_date</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The dim_date table has not been marked as a date table in Power BI Desktop</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> SAMEPERIODLASTYEAR(dim_date[date_actual]) returns the set of dates from dim_date that are exactly one year earlier than the dates in the current filter context. For Q4 2024, it looks for Q4 2023 dates in dim_date. If dim_date starts at 1 January 2024, those Q4 2023 dates do not exist in the table — the function returns an empty set and CALCULATE evaluates over no dates, returning BLANK(). The fix: extend dim_date's start date to cover at least as far back as the earliest comparison period you will ever need. Option D (not marked as date table) would cause issues across all time intelligence functions, not specifically Q4.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">Why should VAR/RETURN be used in measures that reference the same sub-expression more than once?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Variables allow the measure to be edited without republishing the semantic model</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Variables make the measure available as a calculated column without additional code</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Variables are evaluated once at declaration and reused without recalculation — improving performance by avoiding redundant measure evaluations, and improving readability by naming complex sub-expressions</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Variables prevent context transition when a measure is used inside an iterator function</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> A DAX variable is evaluated exactly once when the RETURN statement is reached, and its value is stored and reused anywhere it is referenced in the RETURN expression. A measure like <code>YoY % = ([Revenue] - CALCULATE([Revenue], SAMEPERIODLASTYEAR(...))) / CALCULATE([Revenue], SAMEPERIODLASTYEAR(...))</code> evaluates the SAMEPERIODLASTYEAR expression twice. Rewriting with VAR evaluates it once. In a matrix with 500 cells, this halves the formula engine work for that calculation. Additionally, named variables make complex expressions self-documenting: VAR PriorYearRevenue = ... is clearer than an inline nested expression. Variables do not prevent context transition (D is incorrect — context transition is a CALCULATE behavior, not a variable behavior).</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A Power BI model has fact_sales with three date foreign keys: order_date_sk, ship_date_sk, and delivery_date_sk — all referencing dim_date. Only the order_date relationship is active. How do you write a measure that calculates revenue filtered by ship date while the report is filtered by order date?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Create three separate dim_date tables — one for each date role — and make all relationships active</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">It is not possible to filter by ship date and order date simultaneously in a single Power BI model</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Use RELATED(dim_date[date_actual]) inside a calculated column on fact_sales to create a ship date column, then filter on that column</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">D</div><div class="option-text">Use CALCULATE with USERELATIONSHIP(fact_sales[ship_date_sk], dim_date[date_sk]) to activate the inactive ship date relationship for that specific measure only, without affecting other measures</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>D is correct.</strong> USERELATIONSHIP is CALCULATE's mechanism for activating an inactive relationship within the scope of a single measure evaluation. The model maintains one physical dim_date table with three relationships to fact_sales — only one can be active at a time (the order_date relationship). USERELATIONSHIP temporarily activates the ship_date_sk → date_sk relationship for the duration of that specific CALCULATE expression, without deactivating the default relationship for any other measure. This is the role-playing dimension pattern introduced in section 4.1. Creating three separate dim_date tables (A) works but dramatically increases model size and creates maintenance overhead. The pattern is not technically impossible (B is wrong) — USERELATIONSHIP is the designed solution for exactly this scenario.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="4-3-power-bi.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">4.3 Power BI</span></span>
+          </a>
+          <span class="sec-nav-btn sec-nav-next sec-nav-disabled">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Coming Next</span><span class="sec-nav-name">Part 5 &mdash; Delivery &amp; Leadership</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </span>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 4 &nbsp;&middot;&nbsp; Analytics &amp; Visualisation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">20</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">M cleans, DAX calculates</div>
+          <p>If it could be done in SQL or dbt, do it upstream in M or the Gold layer — not in DAX. DAX measures should calculate, not prepare. Calculated columns that do data preparation are technical debt.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Context Transition Is Silent</div>
+          <p>When a measure is referenced inside a calculated column or SUMX, context transition fires automatically. If your Grand Total doesn't match the sum of visible rows, context transition is the first thing to audit.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">dim_date Must Be Wide</div>
+          <p>Generate dim_date from five years before your earliest fact to three years beyond today. Include every calendar day — no gaps. Mark it as a date table. SAMEPERIODLASTYEAR returning BLANK is almost always a dim_date coverage problem.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"Explain filter context" and "what does CALCULATE do?" are the two most common DAX interview questions. Know the answer to both cold. Bonus: explain how USERELATIONSHIP connects to role-playing dimensions (section 4.1).</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('4.4');</script>
+</body>
+</html>

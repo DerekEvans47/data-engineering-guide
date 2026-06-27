@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6.6 LLM Fine-Tuning vs. Prompting &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="6.6">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Six &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="chap-num">6.6</div>
+          <h1 class="chap-title">LLM Fine-Tuning vs. Prompting</h1>
+          <p class="chap-sub">Why "customizing an LLM" is a spectrum of four genuinely different techniques rather than one decision, what LoRA actually does that makes fine-tuning affordable, the maintenance trap fine-tuning sets that prompting and RAG avoid, and a practical framework for choosing the right approach instead of defaulting to the most impressive-sounding one</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Place prompting, few-shot prompting, RAG (Retrieval-Augmented Generation), and fine-tuning on a single spectrum and explain what each one actually changes about a model's behavior</li>
+            <li>Compare the four approaches on cost, data requirements, and latency, and explain why the cheapest approach is also usually the right starting point</li>
+            <li>Explain what LoRA (Low-Rank Adaptation) does differently from full fine-tuning, and why that difference is what made fine-tuning accessible outside large AI labs</li>
+            <li>Identify the ongoing maintenance burden each approach creates &mdash; including model drift and retraining cadence &mdash; not just its upfront cost</li>
+            <li>Explain catastrophic forgetting as a fine-tuning-specific risk, and why prompting and RAG cannot suffer from it</li>
+            <li>Choose the right approach for a given business scenario by reasoning through data volatility, latency requirements, and available labeled data, rather than reaching for fine-tuning by default</li>
+          </ol>
+        </div>
+
+        <!-- 6.6.1 -->
+        <div class="sec-head"><span class="sec-tag">6.6.1</span><h2 class="sec-title">A Spectrum, Not a Menu</h2></div>
+
+        <p>Section 6.1 covered how a large language model works internally; sections 6.2&ndash;6.5 covered how to extend what a model can <em>do</em> through tools, retrieval, and agentic orchestration. This section answers a different and equally common question: how do you change how a model <em>behaves</em> &mdash; its tone, its domain vocabulary, its accuracy on a specific task &mdash; when the general-purpose model out of the box doesn't behave quite the way your business needs it to?</p>
+
+        <p>There are four broad techniques, and the most common mistake senior practitioners see junior teams make is treating this as a single either/or decision &mdash; usually jumping straight to "we should fine-tune a model" &mdash; rather than recognizing it as a spectrum ordered by how much you're actually changing about the model itself:</p>
+
+        <div class="hl-block"><strong>Prompting</strong> changes nothing about the model &mdash; it changes only the instructions you send it, fresh, every single call. <strong>Few-shot prompting</strong> is still just instructions, but includes worked examples in the prompt itself. <strong>RAG</strong> still changes nothing about the model's weights &mdash; it changes what information is available to it at the moment of answering, retrieved fresh from a knowledge source. <strong>Fine-tuning</strong> is the only one of the four that actually modifies the model's internal weights, baking new behavior in permanently until the next retraining.</div>
+
+        <p>That ordering &mdash; from "send better instructions" to "permanently retrain the model" &mdash; is also, not coincidentally, roughly the order of increasing cost, increasing data requirements, and increasing maintenance burden. The practical implication, covered throughout this section: start from the cheap end of the spectrum and move right only when you have a specific, demonstrated reason the cheaper option fell short.</p>
+
+        <!-- 6.6.2 -->
+        <div class="sec-head"><span class="sec-tag">6.6.2</span><h2 class="sec-title">Prompting and Few-Shot Prompting</h2></div>
+
+        <p><span class="kt" data-term="Prompt Engineering">Prompt engineering</span> is the practice of structuring instructions &mdash; task description, constraints, output format, relevant context &mdash; to reliably get the behavior you want from a general-purpose model, with zero changes to the model itself. A well-engineered prompt for a support-ticket classifier might specify the exact category list, give a one-sentence definition of each category, state the required output format (a single category name, nothing else), and explicitly say what to do when no category clearly fits.</p>
+
+        <p><span class="df" data-term="Few-Shot Learning">Few-shot prompting</span> extends this by including a small number of worked examples directly in the prompt &mdash; "here are three example tickets and their correct categories; now classify this new ticket" &mdash; rather than relying purely on a written description of the task. Few-shot prompting routinely closes a large part of the accuracy gap between a naive zero-shot prompt and a fine-tuned model, at none of fine-tuning's cost or maintenance burden, which is exactly why it's the natural second step before reaching for anything heavier.</p>
+
+        <!-- Figure 6.11 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f611sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m611" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#3A9FE0"/></marker>
+              </defs>
+              <rect width="700" height="240" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">The Customization Spectrum &mdash; What Each Approach Actually Changes</text>
+
+              <line x1="50" y1="120" x2="650" y2="120" stroke="#C8E2F8" stroke-width="3"/>
+              <circle cx="50" cy="120" r="5" fill="#3A9FE0"/>
+              <circle cx="250" cy="120" r="5" fill="#3A9FE0"/>
+              <circle cx="450" cy="120" r="5" fill="#C8892A"/>
+              <circle cx="650" cy="120" r="5" fill="#9B3A3A"/>
+
+              <rect x="10" y="50" width="80" height="48" rx="5" fill="#254F8F" filter="url(#f611sh)"/>
+              <text x="50" y="70" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Prompting</text>
+              <text x="50" y="84" fill="#C8E2F8" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">No data needed</text>
+              <line x1="50" y1="98" x2="50" y2="115" stroke="#3A9FE0" stroke-width="1.5"/>
+
+              <rect x="208" y="50" width="84" height="48" rx="5" fill="#254F8F" filter="url(#f611sh)"/>
+              <text x="250" y="70" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Few-Shot</text>
+              <text x="250" y="84" fill="#C8E2F8" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">A handful of examples</text>
+              <line x1="250" y1="98" x2="250" y2="115" stroke="#3A9FE0" stroke-width="1.5"/>
+
+              <rect x="406" y="50" width="88" height="48" rx="5" fill="#1A5A78" filter="url(#f611sh)"/>
+              <text x="450" y="70" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">RAG</text>
+              <text x="450" y="84" fill="#C8E2F8" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">A knowledge source</text>
+              <line x1="450" y1="98" x2="450" y2="115" stroke="#C8892A" stroke-width="1.5"/>
+
+              <rect x="606" y="50" width="88" height="48" rx="5" fill="#7A2A2A" filter="url(#f611sh)"/>
+              <text x="650" y="70" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Fine-Tuning</text>
+              <text x="650" y="84" fill="#F0D8D8" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Hundreds&ndash;1000s of examples</text>
+              <line x1="650" y1="98" x2="650" y2="115" stroke="#9B3A3A" stroke-width="1.5"/>
+
+              <text x="50" y="145" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-weight="700">Changes:</text>
+              <text x="50" y="158" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">The instructions sent</text>
+
+              <text x="250" y="145" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-weight="700">Changes:</text>
+              <text x="250" y="158" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Instructions + examples</text>
+
+              <text x="450" y="145" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-weight="700">Changes:</text>
+              <text x="450" y="158" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Info available at answer time</text>
+
+              <text x="650" y="145" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-weight="700">Changes:</text>
+              <text x="650" y="158" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">The model's weights, permanently</text>
+
+              <line x1="20" y1="190" x2="680" y2="190" stroke="rgba(27,58,107,.12)" stroke-width="1"/>
+              <text x="350" y="205" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-style="italic">Only fine-tuning is permanent. Everything to its left can be changed by editing a prompt or a knowledge source &mdash; no retraining, no new model version.</text>
+              <text x="350" y="222" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-style="italic">Cost, data requirements, and maintenance burden all increase left to right.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 6.11</strong><span>The four approaches arranged on a single spectrum. Moving right buys more capability but costs more in data, compute, and ongoing maintenance &mdash; and is the only direction that's hard to undo, since fine-tuning bakes behavior into the weights themselves rather than into something you can edit in a text file.</span></div>
+        </div>
+
+        <p class="hmm-moment">&#x1F4AD; <em>Hmm moment:</em> If few-shot prompting and RAG can close most of the gap to a fine-tuned model's accuracy, why does fine-tuning still get reached for so often? Partly genuine need &mdash; covered in 6.6.4 &mdash; and partly because "we fine-tuned a model" sounds like a more serious engineering accomplishment than "we wrote a better prompt," even when the better prompt was the right call. This is the same dynamic the deep learning field note in section 8.5 described for classical ML vs. deep learning: the more impressive-sounding technique isn't automatically the better business decision.</p>
+
+        <!-- 6.6.3 -->
+        <div class="sec-head"><span class="sec-tag">6.6.3</span><h2 class="sec-title">Fine-Tuning and the LoRA Breakthrough</h2></div>
+
+        <p><span class="kt" data-term="Fine-Tuning">Fine-tuning</span> continues training an already-trained model on a smaller, task-specific dataset, adjusting its internal weights so the resulting behavior is baked permanently into the model rather than supplied fresh at each call. Historically this meant <strong>full fine-tuning</strong> &mdash; updating every one of a model's weights, which for a large model means recomputing and storing billions of parameters, requiring substantial GPU (Graphics Processing Unit) memory and compute cost well beyond what most organizations outside large AI labs could justify.</p>
+
+        <p><span class="df" data-term="LoRA">LoRA</span> (Low-Rank Adaptation) changed that calculus. Instead of updating the model's full weight matrices, LoRA freezes the original pre-trained weights entirely and trains a much smaller pair of "adapter" matrices that are added on top during inference. The mathematical insight is that the <em>change</em> needed to adapt a model to a new task is usually far simpler &mdash; lower "rank," in linear algebra terms &mdash; than the full weight matrix itself, so a small adapter can capture most of the useful adaptation at a tiny fraction of the parameter count.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Why LoRA works: low-rank decomposition in plain terms</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>A large language model's weight matrices are enormous &mdash; a single layer might be a 4096&times;4096 matrix, over 16 million numbers. Full fine-tuning updates every one of those numbers. LoRA's insight, borrowed from a well-established idea in linear algebra, is that the <em>update</em> you actually need to apply &mdash; call it &Delta;W &mdash; can usually be approximated very well as the product of two much smaller matrices: a 4096&times;8 matrix multiplied by an 8&times;4096 matrix, where 8 (the "rank") is a small number you choose.</p>
+              <p>Multiplying those two small matrices back together reconstructs an approximation of the full-size update, but the number of trainable parameters during fine-tuning is only 4096&times;8 + 8&times;4096 &mdash; roughly 65,000 numbers instead of 16 million, often well under 1% of the original layer's parameter count, repeated across the layers you choose to adapt. The original pre-trained weights never change at all; only this small adapter is trained, then added back in (W + &Delta;W) at inference time.</p>
+              <p>The practical consequences are what made LoRA the default approach for most production fine-tuning today: dramatically lower GPU memory requirements during training (since you're not storing gradients for billions of frozen parameters), much faster training runs, and &mdash; because the adapter is so small &mdash; the ability to store many different task-specific adapters for the same base model and swap between them cheaply, rather than needing a full separate copy of the entire model per task.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Figure 6.12 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs><filter id="f612sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter></defs>
+              <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Full Fine-Tuning vs. LoRA &mdash; Trainable Parameters for One Layer</text>
+
+              <text x="170" y="50" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Full Fine-Tuning</text>
+              <rect x="60" y="60" width="220" height="120" rx="4" fill="#7A2A2A" filter="url(#f612sh)"/>
+              <text x="170" y="125" fill="white" font-family="Inter,sans-serif" font-size="13" font-weight="700" text-anchor="middle">~16,000,000</text>
+              <text x="170" y="145" fill="#F0D8D8" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">trainable numbers</text>
+              <text x="170" y="200" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Every weight in the 4096&times;4096 layer updated</text>
+
+              <text x="520" y="50" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">LoRA (rank 8)</text>
+              <rect x="510" y="174" width="20" height="6" rx="2" fill="#1A7A4A" filter="url(#f612sh)"/>
+              <text x="520" y="160" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="13" font-weight="700" text-anchor="middle">~65,000</text>
+              <text x="520" y="195" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Only the two small adapter matrices trained</text>
+
+              <line x1="20" y1="208" x2="680" y2="208" stroke="rgba(27,58,107,.12)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 6.12</strong><span>The bar heights are deliberately to scale: LoRA's trainable parameter count for a single layer is roughly 0.4% of full fine-tuning's, which is the direct cause of its dramatically lower GPU memory and training time requirements.</span></div>
+        </div>
+
+        <!-- 6.6.4 -->
+        <div class="sec-head"><span class="sec-tag">6.6.4</span><h2 class="sec-title">The Risk Fine-Tuning Carries That the Others Don't</h2></div>
+
+        <p>Fine-tuning's permanence is a double-edged property. It's what makes the resulting behavior reliable and fast &mdash; no retrieval step, no lengthy prompt to process on every call &mdash; but it's also what creates <span class="df" data-term="Catastrophic Forgetting">catastrophic forgetting</span>: the tendency for a model, while learning a new narrow task, to lose some of its original general capability. A model fine-tuned heavily on internal support-ticket language can become measurably worse at general reasoning or at tasks unrelated to its fine-tuning data, because the same weights that encoded broad knowledge were the ones nudged to specialize.</p>
+
+        <p>Prompting and RAG are structurally immune to this. A prompt that goes wrong is fixed by editing text and trying again, instantly, with zero risk to the model's other capabilities. A RAG knowledge source that goes stale is fixed by updating the underlying documents. A fine-tuned model that develops an unwanted side effect requires retraining &mdash; the same multi-step, GPU-time-consuming process that created the problem in the first place &mdash; and there is no guarantee the next training run won't introduce a different unwanted side effect.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Why RAG is usually the better default than fine-tuning for "knowledge" problems</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>A common but mistaken instinct: "our model doesn't know about our internal product catalog, so we should fine-tune it on our product data." Section 6.3 covered why this is usually the wrong tool for that specific problem. Fine-tuning teaches a model a <em>style</em> or a <em>skill</em> well &mdash; how to format a response, how to classify a specific kind of input, how to imitate a particular tone &mdash; but it is a poor mechanism for teaching a model <em>facts</em>, especially facts that change.</p>
+              <p>Bake a product catalog into a model's weights via fine-tuning and the moment the catalog changes &mdash; a new SKU, a discontinued product, an updated price &mdash; the model is wrong until the next expensive retraining cycle. A RAG system instead retrieves the current catalog at answer time; update the underlying documents and the next query is correct immediately, with no retraining at all.</p>
+              <p>The clean rule of thumb that falls out of this distinction: reach for fine-tuning when the goal is changing <em>how</em> the model behaves &mdash; its output format, its tone, its skill at a narrow specialized task with a stable definition. Reach for RAG when the goal is giving the model access to <em>current information</em> it doesn't otherwise have, especially information that changes on any cadence faster than your appetite for retraining cycles.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A B2B Software Company &nbsp;&middot;&nbsp; The Fine-Tune That Chased the Last 5%</span>
+          </div>
+          <div class="field-note-body">
+            <p>A support team wanted an LLM to classify incoming tickets into one of fourteen internal categories. A carefully engineered zero-shot prompt &mdash; clear category definitions, explicit instructions for ambiguous cases &mdash; reached 84% accuracy against a human-labeled validation set. Adding eight worked examples per category as few-shot context pushed that to 91%, achieved in an afternoon with no training infrastructure at all.</p>
+            <p>Leadership wanted higher, and commissioned a fine-tuning effort: collecting 3,000 labeled historical tickets, running a LoRA fine-tune over several iterations of hyperparameter adjustment, consuming roughly three weeks of an ML engineer's time and a meaningful cloud GPU bill. The result reached 94% &mdash; a genuine three-point improvement over the few-shot prompt, but one that introduced a new, ongoing obligation: every time the company added a fifteenth category (which happened twice in the following year), the fine-tuned model needed to be retrained from labeled examples of the new category, while the few-shot prompt would have needed only a new paragraph of instructions and a handful of new examples.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>The three-point accuracy gain was real, but so was the new maintenance obligation it created. Whether that trade was worth it depends entirely on how often the category list changes &mdash; a question worth asking explicitly before committing to fine-tuning, not after the retraining bill arrives for the third time.</p>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#9878;&#65039;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Legal Document Review Firm &nbsp;&middot;&nbsp; Why Fine-Tuning Was the Wrong Tool Entirely</span>
+          </div>
+          <div class="field-note-body">
+            <p>A firm reviewing client contracts wanted an LLM that "knew" the firm's current standard contract clauses, which were revised by the legal team roughly every two to three weeks as case law and client preferences evolved. An initial proposal suggested fine-tuning a model on the firm's clause library so it would "just know" the current standards without needing them supplied in every prompt.</p>
+            <p>A short pilot made the problem obvious before any GPU time was spent: by the time a fine-tuning run, evaluation, and deployment cycle would have completed (roughly a week, even moving fast), the underlying clause library would already be out of date again. The firm instead built a RAG pipeline retrieving the current version of relevant clauses directly from the firm's document management system at query time &mdash; the same architecture covered in section 6.3 &mdash; so every answer reflected whatever the clause library said as of that morning, with zero retraining cost when clauses changed.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>When the rate of change in the underlying information is faster than your fine-tuning and deployment cycle, fine-tuning cannot keep up by construction &mdash; no amount of process improvement fixes a fundamental mismatch between how fast facts change and how slowly a baked-in model can be updated. This is the single clearest diagnostic for "RAG, not fine-tuning."</p>
+          </div>
+        </div>
+
+        <!-- 6.6.5 -->
+        <div class="sec-head"><span class="sec-tag">6.6.5</span><h2 class="sec-title">Choosing the Right Approach</h2></div>
+
+        <p>Putting the four approaches side by side makes the decision framework concrete. The questions that actually drive the choice, in practice: how often does the underlying information change? How much labeled data do you realistically have or can you collect? How latency-sensitive is the use case &mdash; can it tolerate a retrieval step, or does it need an immediate response from the model alone? And how much engineering and ML infrastructure does your team already have in place to support training and redeployment cycles?</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Why the spectrum framing is a teaching tool, not a real-world either/or</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>This section has deliberately presented prompting, few-shot, RAG, and fine-tuning as a spectrum to make the underlying cost and risk tradeoffs clear &mdash; but production systems routinely combine more than one at once, and recognizing this is itself part of the senior-level judgment this section is building toward. A single deployed system frequently uses a carefully engineered system prompt (prompting), a few worked examples for edge cases (few-shot), a retrieval step pulling in current account or policy data (RAG), and a model that was fine-tuned once to reliably produce a specific output format the business needs (fine-tuning) &mdash; all four operating together on the same request.</p>
+              <p>The decision this section actually equips you to make is not "pick exactly one," but "decide whether each layer earns its place," since each one adds its own cost and maintenance burden independently of the others. A system that's already paying for a fine-tuned model still benefits from good prompt engineering on top of it; a RAG system still needs careful prompting to instruct the model on how to use what it retrieves. Treating the four as mutually exclusive is the same kind of false simplification as assuming a data pipeline must be either fully batch or fully streaming &mdash; real systems are usually a deliberate combination, chosen layer by layer.</p>
+            </div>
+          </div>
+        </div>
+
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>Prompt Engineering</th>
+              <th>Few-Shot</th>
+              <th>RAG</th>
+              <th>Fine-Tuning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Upfront Cost</strong></td>
+              <td>Minimal &mdash; time to write a good prompt</td>
+              <td>Low &mdash; time to curate a few examples</td>
+              <td>Moderate &mdash; retrieval pipeline + vector store</td>
+              <td>High &mdash; labeled data, GPU compute, ML expertise</td>
+            </tr>
+            <tr>
+              <td><strong>Data Required</strong></td>
+              <td>None</td>
+              <td>A handful of examples (5&ndash;20)</td>
+              <td>An indexed knowledge source</td>
+              <td>Hundreds to thousands of labeled examples</td>
+            </tr>
+            <tr>
+              <td><strong>Maintenance Burden</strong></td>
+              <td>Lowest &mdash; edit text, redeploy instantly</td>
+              <td>Low &mdash; update examples as needed</td>
+              <td>Low &mdash; keep the knowledge source current</td>
+              <td>Highest &mdash; retrain whenever behavior must change</td>
+            </tr>
+            <tr>
+              <td><strong>Best For</strong></td>
+              <td>Format, tone, simple task instructions</td>
+              <td>Improving accuracy on a well-defined task without training</td>
+              <td>Current or proprietary <em>facts</em> the model doesn't otherwise know</td>
+              <td>Specialized <em>skills</em> or styles with a stable definition</td>
+            </tr>
+            <tr>
+              <td><strong>Risk of Catastrophic Forgetting</strong></td>
+              <td>None</td>
+              <td>None</td>
+              <td>None</td>
+              <td>Present &mdash; general capability can degrade</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>The senior-level habit this builds toward: treat the spectrum as ordered, and earn the right to move further right by first demonstrating the cheaper options genuinely fall short for your specific problem &mdash; not by assuming the most sophisticated-sounding technique is automatically the most effective one.</p>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Customizing an LLM's behavior sits on a spectrum from prompting (instructions only, no model change) through few-shot prompting (instructions plus examples) and RAG (retrieval of current information at answer time) to fine-tuning (permanent changes to the model's own weights). LoRA made fine-tuning practical outside large labs by training a small low-rank adapter instead of the full weight matrix, cutting trainable parameters by orders of magnitude. Fine-tuning's permanence is also its risk: catastrophic forgetting can degrade general capability, and any fix requires another full retraining cycle &mdash; a maintenance burden prompting and RAG simply don't carry. The practical rule: use RAG for facts that change, fine-tuning for stable skills and styles, and start from the cheap end of the spectrum regardless, moving right only once a specific, demonstrated gap justifies it.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 6.6 &nbsp;&middot;&nbsp; LLM Fine-Tuning vs. Prompting</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">What is the single defining difference between fine-tuning and the other three approaches (prompting, few-shot, RAG)?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Fine-tuning is the only approach that can improve accuracy on a specific task</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Fine-tuning is the only approach that permanently changes the model's internal weights; the other three change only the instructions or information supplied at call time, with no change to the model itself</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Fine-tuning is the only approach that requires any data at all</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Fine-tuning is the only approach that can be used with open-source models</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Prompting, few-shot prompting, and RAG all leave the model's weights completely untouched &mdash; they change what's sent to the model at call time. Fine-tuning is unique in actually modifying the model's parameters, which is the source of both its permanence and its specific risks (catastrophic forgetting, retraining burden). A is false &mdash; few-shot and RAG both routinely improve task accuracy too. C is false &mdash; few-shot prompting and RAG both require some data (examples, or a knowledge source).</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">What does LoRA (Low-Rank Adaptation) actually train, and why does this make fine-tuning dramatically cheaper than the full fine-tuning approach it replaced?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">It trains a smaller copy of the entire model from scratch, which is inherently faster than training the original large model</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">It freezes the original pre-trained weights and trains a much smaller pair of low-rank adapter matrices added on top, capturing most of the needed adaptation at a tiny fraction of the original parameter count</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">It removes layers from the original model to reduce the total number of parameters that need to be stored</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It compresses the training dataset using low-rank matrix factorization before training begins</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> LoRA's core insight is that the <em>update</em> needed to adapt a model is usually well-approximated by a low-rank (small) matrix product, so only that small adapter needs training while the full original weights stay frozen. This is why LoRA fine-tuning needs far less GPU memory and far less time than updating every weight in the model, as the deep dive in 6.6.3 works through with concrete numbers.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A company's internal policy documents are revised on an unpredictable, sometimes weekly basis, and the team wants an LLM that always answers using the current version of those policies. Which approach is the strongest fit, and why?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Fine-tuning, because it produces the most accurate and fluent-sounding answers</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">RAG, because it retrieves whatever the current documents say at the moment of answering, so the response stays correct immediately after any policy update with no retraining required</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Few-shot prompting, because including a few example Q&amp;A pairs is sufficient to teach the model the full current policy content</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">All four approaches perform identically on this kind of problem</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This is exactly the legal-firm field note's scenario: when underlying facts change faster than a fine-tuning-and-deploy cycle can keep up, fine-tuning is wrong by construction, no matter how accurate any individual training run is. RAG retrieves current information at answer time, which is precisely what unpredictable, frequent changes require. Few-shot prompting (C) cannot realistically encode an entire policy document's worth of content in a handful of examples.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">What is catastrophic forgetting, and which of the four approaches in this section can actually cause it?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">A failure where a RAG system retrieves outdated documents; it is caused by RAG specifically</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">A degradation of a model's general capability caused by the same weight updates that taught it a new narrow task; only fine-tuning can cause it, since it's the only approach that changes the model's weights at all</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">A bug where a poorly written prompt causes the model to ignore part of its instructions; it is caused by prompt engineering specifically</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">A general property of all four approaches equally, unrelated to whether the model's weights are changed</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Catastrophic forgetting is specifically a side effect of updating a model's weights &mdash; the same parameters that encoded broad general knowledge get nudged toward the new narrow task, sometimes at the cost of that broader capability. Since prompting, few-shot prompting, and RAG never touch the model's weights, none of them can cause this failure mode at all &mdash; it is structurally specific to fine-tuning.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A support team's zero-shot prompt reaches 84% classification accuracy; adding worked examples (few-shot) raises it to 91%; a full fine-tuning effort raises it further to 94% but requires retraining every time a new category is added. Based on the field note in 6.6.4, what is the most defensible senior-level takeaway?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Fine-tuning should always be used once available, since it produced the highest accuracy in this case</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The accuracy gain from fine-tuning was real, but the decision to use it should explicitly weigh that gain against the new ongoing retraining obligation it introduces &mdash; a trade-off that depends on how often the category list actually changes</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Few-shot prompting should never be used as an intermediate step, since it didn't reach the same accuracy as fine-tuning</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The 84% zero-shot result proves prompting is an unreliable approach that should be avoided for classification tasks</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This is the explicit lesson of the B2B software field note: a real accuracy gain doesn't automatically justify the approach that produced it, if that approach also creates an ongoing cost (here, mandatory retraining on every category change) that wasn't part of the original comparison. The right call depends on information outside the accuracy numbers alone &mdash; specifically, how often the underlying task definition changes.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="6-5-agentic-data-pipelines.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">6.5 Agentic Data Pipelines</span></span>
+          </a>
+          <a href="6-7-nlp-task-types-practice.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">6.7 NLP Task Types in Practice</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 6 &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">45</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:160px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Spectrum, Not a Menu</div>
+          <p>Prompting &rarr; Few-Shot &rarr; RAG &rarr; Fine-Tuning is ordered by cost, data, and maintenance burden. Start cheap; move right only with a demonstrated reason.</p>
+        </div>
+        <div class="ms" style="height:340px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">LoRA in One Line</div>
+          <p>Freeze the original weights, train a small low-rank adapter on top. Same idea behind why you can keep several task-specific adapters for one base model.</p>
+        </div>
+        <div class="ms" style="height:330px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Facts vs. Skills</div>
+          <p>RAG for facts that change. Fine-tuning for stable skills and styles. Baking changing facts into weights guarantees they go stale.</p>
+        </div>
+        <div class="ms" style="height:280px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"When would you fine-tune instead of using RAG?" tests judgment. A strong answer leads with data volatility and task stability &mdash; not "fine-tuning is more advanced."</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('6.6');</script>
+</body>
+</html>

@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5.4 DataOps &amp; CI/CD &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="5.4">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Five &nbsp;&middot;&nbsp; Delivery &amp; Leadership</div>
+          <div class="chap-num">5.4</div>
+          <h1 class="chap-title">DataOps &amp; CI/CD</h1>
+          <p class="chap-sub">Applying engineering rigour to data pipelines — automated testing, deployment, and observability for dbt, Databricks, and ADF; data quality tooling; and building the monitoring that tells you your pipeline is broken before your stakeholders do</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain what DataOps means and describe its three operational pillars: CI/CD, data quality monitoring, and observability</li>
+            <li>Describe the CI/CD automation pattern for each major Azure stack component: dbt, Databricks (DABs), and ADF</li>
+            <li>Explain the four categories of data health that observability monitoring should cover: volume, freshness, schema, and distribution</li>
+            <li>Design an alert strategy that avoids alert fatigue — knowing when to alert and what not to alert on</li>
+            <li>Compare Great Expectations, dbt tests, Soda, Monte Carlo, and Datafold — and select the appropriate tool for a given context</li>
+            <li>Compare Azure DevOps Pipelines, GitHub Actions, GitLab CI, and Jenkins as CI/CD platforms for data workloads</li>
+          </ol>
+        </div>
+
+        <!-- 5.4.1 -->
+        <div class="sec-head"><span class="sec-tag">5.4.1</span><h2 class="sec-title">What DataOps Actually Means</h2></div>
+
+        <p>DataOps is a set of practices that apply the principles of DevOps — automation, collaboration, fast feedback, and continuous improvement — to data pipelines and analytics workflows. The term is often misused by vendors to describe any modern data tooling. The concept itself is valuable and specific: treat data pipelines as production software, not as ad hoc scripts.</p>
+
+        <p>For a data engineering team, this means three things in practice. First, <strong>automated CI/CD</strong>: pipeline changes are tested automatically when a PR is opened, and deployed automatically when that PR is merged — nobody manually runs a notebook to deploy a change. Second, <strong>data quality monitoring</strong>: automated checks run against the data itself (not just the code), verifying that the records loaded match expected patterns of volume, completeness, and values. Third, <strong>observability</strong>: the team knows the pipeline is healthy without manually inspecting it — dashboards, alerts, and logs provide a continuous picture of pipeline state.</p>
+
+        <div class="hl-block">A data pipeline without monitoring is not a production system — it is a script that may or may not be working, with no mechanism to find out until a stakeholder notices a wrong number. DataOps turns "may or may not be working" into "working, and here is the evidence."</div>
+
+        <p>This section builds directly on section 5.2 (Git and GitHub). CI/CD for data requires version control. If your team's data pipelines are not in Git, DataOps is not possible yet — address that first, then return here.</p>
+
+        <!-- 5.4.2 -->
+        <div class="sec-head"><span class="sec-tag">5.4.2</span><h2 class="sec-title">CI/CD for Data Pipelines</h2></div>
+
+        <p>CI (Continuous Integration) means that every change to the codebase is automatically tested before it can be merged. CD (Continuous Deployment or Delivery) means that every approved change is automatically deployed to the target environment without manual steps. Applied to data pipelines, CI/CD gives you: confidence that a change will not break production before it reaches production, deployment traceability (every change in production is linked to a PR with a reviewer and a description), and fast rollback capability (the previous version is always reachable via Git).</p>
+
+        <!-- Figure 5.7 — DataOps CI/CD Loop -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f57sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m57" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+                </marker>
+                <marker id="m57g" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#1A7A4A"/>
+                </marker>
+                <marker id="m57o" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#B07D2A"/>
+                </marker>
+              </defs>
+              <rect width="700" height="260" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">DataOps Loop &mdash; CI, CD, and Observability</text>
+
+              <!-- DEVELOPER (left) -->
+              <rect x="8" y="56" width="110" height="70" rx="5" fill="#0F2447" filter="url(#f57sh)"/>
+              <text x="63" y="84" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Developer</text>
+              <text x="63" y="97" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Makes change</text>
+              <text x="63" y="108" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Pushes branch</text>
+              <text x="63" y="119" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Opens PR</text>
+
+              <!-- Arrow to CI -->
+              <line x1="118" y1="91" x2="154" y2="91" stroke="#0076CC" stroke-width="1.8" marker-end="url(#m57)"/>
+
+              <!-- CI BOX -->
+              <rect x="156" y="38" width="148" height="106" rx="5" fill="#1B3A6B" filter="url(#f57sh)"/>
+              <rect x="156" y="38" width="148" height="22" rx="5" fill="#254F8F"/>
+              <rect x="156" y="50" width="148" height="10" fill="#254F8F"/>
+              <text x="230" y="53" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">CI — On PR Open</text>
+              <text x="165" y="72" fill="#88BEFF" font-family="Inter,sans-serif" font-size="7.5">&#10003; dbt slim CI (state:modified+)</text>
+              <text x="165" y="84" fill="#88BEFF" font-family="Inter,sans-serif" font-size="7.5">&#10003; dbt tests (not_null, unique…)</text>
+              <text x="165" y="96" fill="#88BEFF" font-family="Inter,sans-serif" font-size="7.5">&#10003; Python linting (ruff/flake8)</text>
+              <text x="165" y="108" fill="#88BEFF" font-family="Inter,sans-serif" font-size="7.5">&#10003; Notebook unit tests (pytest)</text>
+              <text x="165" y="120" fill="#88BEFF" font-family="Inter,sans-serif" font-size="7.5">&#10003; YAML validation</text>
+              <text x="165" y="134" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7" font-style="italic">PR blocked if tests fail</text>
+
+              <!-- Arrow CI → PR Review -->
+              <line x1="304" y1="91" x2="334" y2="91" stroke="#0076CC" stroke-width="1.8" marker-end="url(#m57)"/>
+
+              <!-- PR REVIEW -->
+              <rect x="336" y="60" width="90" height="62" rx="5" fill="#254F8F" filter="url(#f57sh)"/>
+              <text x="381" y="78" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">PR Review</text>
+              <text x="381" y="91" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Peer review</text>
+              <text x="381" y="103" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Approve &amp; merge</text>
+
+              <!-- Arrow PR → CD -->
+              <line x1="426" y1="91" x2="456" y2="91" stroke="#1A7A4A" stroke-width="1.8" marker-end="url(#m57g)"/>
+
+              <!-- CD BOX -->
+              <rect x="458" y="38" width="148" height="106" rx="5" fill="#1A5A78" filter="url(#f57sh)"/>
+              <rect x="458" y="38" width="148" height="22" rx="5" fill="#1B7A50"/>
+              <rect x="458" y="50" width="148" height="10" fill="#1B7A50"/>
+              <text x="532" y="53" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">CD — On Merge</text>
+              <text x="467" y="72" fill="#88EEC8" font-family="Inter,sans-serif" font-size="7.5">&#10003; Deploy to Dev</text>
+              <text x="467" y="84" fill="#88EEC8" font-family="Inter,sans-serif" font-size="7.5">&#10003; Integration tests</text>
+              <text x="467" y="96" fill="#88EEC8" font-family="Inter,sans-serif" font-size="7.5">&#10003; Deploy to Test/Staging</text>
+              <text x="467" y="108" fill="#88EEC8" font-family="Inter,sans-serif" font-size="7.5">&#10003; Smoke tests</text>
+              <text x="467" y="120" fill="#88EEC8" font-family="Inter,sans-serif" font-size="7.5">&#10003; Deploy to Production</text>
+              <text x="467" y="134" fill="rgba(200,240,225,.5)" font-family="Inter,sans-serif" font-size="7" font-style="italic">Automated promotion</text>
+
+              <!-- OBSERVABILITY (bottom) -->
+              <rect x="80" y="182" width="540" height="66" rx="5" fill="#3A2A0A" filter="url(#f57sh)" stroke="rgba(200,137,42,.3)" stroke-width="1"/>
+              <rect x="80" y="182" width="540" height="20" rx="5" fill="#B07D2A" opacity=".6"/>
+              <rect x="80" y="192" width="540" height="10" fill="#B07D2A" opacity=".6"/>
+              <text x="350" y="196" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">Observability &amp; Monitoring — Continuous</text>
+              <text x="120" y="213" fill="#E0B870" font-family="Inter,sans-serif" font-size="7.5">&#128202; Volume checks</text>
+              <text x="120" y="225" fill="#E0B870" font-family="Inter,sans-serif" font-size="7.5">(row counts ±10%?)</text>
+              <text x="250" y="213" fill="#E0B870" font-family="Inter,sans-serif" font-size="7.5">&#9200; Freshness checks</text>
+              <text x="250" y="225" fill="#E0B870" font-family="Inter,sans-serif" font-size="7.5">(updated on schedule?)</text>
+              <text x="390" y="213" fill="#E0B870" font-family="Inter,sans-serif" font-size="7.5">&#128203; Schema checks</text>
+              <text x="390" y="225" fill="#E0B870" font-family="Inter,sans-serif" font-size="7.5">(columns present?)</text>
+              <text x="530" y="213" fill="#E0B870" font-family="Inter,sans-serif" font-size="7.5">&#128200; Distribution</text>
+              <text x="530" y="225" fill="#E0B870" font-family="Inter,sans-serif" font-size="7.5">(null rate, range?)</text>
+              <text x="350" y="242" fill="#E0B870" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-style="italic">Alert when threshold crossed → investigate → fix → update threshold</text>
+
+              <!-- Feedback arrow from observability back to developer -->
+              <path d="M 80,215 Q 44,215 44,150 Q 44,91 63,91" fill="none" stroke="#B07D2A" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#m57o)"/>
+              <text x="36" y="175" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" transform="rotate(-90 36 175)">Alert feedback</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 5.7</strong><span>The DataOps loop. Left to right: a developer makes a change on a feature branch and opens a PR, triggering the CI pipeline (dbt slim CI, unit tests, linting, YAML validation). Passing CI allows peer review. Approved merge triggers CD (automated deployment through dev → test → production). Below: continuous observability monitoring runs independently of deployments — volume, freshness, schema, and distribution checks generate alerts that feed back to the developer when production data deviates from expected patterns. The loop closes when an alert triggers investigation, a fix is made, and the cycle repeats.</span></div>
+        </div>
+
+        <h3 class="subsec">dbt CI/CD Pattern</h3>
+        <p>dbt CI runs on PR open: <code>dbt build --select state:modified+ --defer --state target/</code> (slim CI, covered in section 5.2). This runs only the changed models and their downstream dependents, using production artifacts for unmodified upstream nodes. Test failures block the PR. dbt CD runs on merge to main: <code>dbt build</code> (full production run) or <code>dbt build --select state:modified+ --defer</code> depending on environment strategy. The dbt Cloud Orchestration layer or a scheduled GitHub Actions workflow handles the production cadence.</p>
+
+        <h3 class="subsec">Databricks CI/CD with DABs</h3>
+        <p>Databricks Asset Bundles (DABs) are the current standard for Databricks CI/CD. A <code>bundle.yml</code> file in the repository defines jobs, cluster configurations, notebook paths, and environment-specific parameters. Deployment: <code>databricks bundle deploy --target dev</code> promotes all resources to the dev workspace; <code>databricks bundle deploy --target prod</code> promotes to production. GitHub Actions or Azure Pipelines trigger the deployment command on PR merge. Every job definition, cluster spec, and scheduled run is in version control — the entire Databricks workspace configuration is reproducible from code.</p>
+
+        <p>For notebook testing: the <code>pytest</code> framework with <code>databricks-connect</code> allows unit tests to run against a Databricks cluster as part of CI. This catches Python logic errors before deployment. Alternatively, extract pure Python logic from notebooks into importable modules and test those modules without a cluster connection — faster CI and better code organization.</p>
+
+        <h3 class="subsec">ADF CI/CD Pattern</h3>
+        <p>ADF CI/CD uses ARM (Azure Resource Manager) template deployment. The ADF Git integration (covered in section 5.2) stores pipeline definitions as JSON files in the collaboration branch. A CI/CD pipeline (Azure Pipelines or GitHub Actions) exports the ARM template from the ADF JSON files and deploys it to each environment using <code>az deployment group create</code>. Environment-specific linked service connections (dev database vs. production database) are parameterised in the ARM template. The Publish button in the ADF UI is used only in development — never as the production deployment mechanism.</p>
+
+        <!-- 5.4.3 -->
+        <div class="sec-head"><span class="sec-tag">5.4.3</span><h2 class="sec-title">Data Observability</h2></div>
+
+        <p>Observability is the property of a system that allows you to infer its internal state from its external outputs — without looking at the code or manually inspecting tables. For a data pipeline, observability means: you can know whether the pipeline ran correctly, whether the data it produced is healthy, and whether anything has changed unexpectedly — from a dashboard or alert, not from a morning of manual checking.</p>
+
+        <p>The practical question is: what should you monitor? Four categories cover the vast majority of production data health issues.</p>
+
+        <!-- Figure 5.8 — Data Quality Monitoring Layers -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f58sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Four Categories of Data Health Monitoring</text>
+
+              <!-- SCHEMA (layer 1 — foundation) -->
+              <rect x="8" y="168" width="684" height="44" rx="4" fill="#0F2447" filter="url(#f58sh)"/>
+              <text x="116" y="186" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700">1. Schema</text>
+              <text x="116" y="199" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8">Are all expected columns present? Correct data types? No new columns added?</text>
+              <text x="116" y="208" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5">dbt: <code>dbt compile</code> + schema contracts · Alert: column_count != expected OR dtype changed</text>
+              <text x="644" y="193" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Foundation</text>
+
+              <!-- FRESHNESS (layer 2) -->
+              <rect x="8" y="120" width="684" height="44" rx="4" fill="#1B3A6B" filter="url(#f58sh)"/>
+              <text x="116" y="138" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700">2. Freshness</text>
+              <text x="116" y="151" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8">Was the table updated when it should have been? Stale data is invisible failure.</text>
+              <text x="116" y="160" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5">dbt: <code>source freshness</code> block in schema.yml · Alert: MAX(updated_at) &gt; threshold minutes ago</text>
+              <text x="644" y="145" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Reliability</text>
+
+              <!-- VOLUME (layer 3) -->
+              <rect x="8" y="72" width="684" height="44" rx="4" fill="#254F8F" filter="url(#f58sh)"/>
+              <text x="116" y="90" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700">3. Volume</text>
+              <text x="116" y="103" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8">Did the expected number of records load? Drop of 15% is often invisible without a count check.</text>
+              <text x="116" y="112" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5">Alert: row_count &lt; (7-day avg × 0.85) OR row_count = 0 · Compare today vs same-day last week</text>
+              <text x="644" y="97" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Completeness</text>
+
+              <!-- DISTRIBUTION (layer 4 — top) -->
+              <rect x="8" y="26" width="684" height="42" rx="4" fill="#0060AA" filter="url(#f58sh)"/>
+              <text x="116" y="44" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700">4. Distribution</text>
+              <text x="116" y="57" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8">Are values within expected ranges? Null rates acceptable? No unexpected new values?</text>
+              <text x="116" y="66" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5">dbt: <code>accepted_values</code>, <code>not_null</code> tests · Alert: null_rate &gt; 5% OR new categorical value appears</text>
+              <text x="644" y="50" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Accuracy</text>
+
+              <!-- Left label -->
+              <text x="68" y="108" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Catch</text>
+              <text x="68" y="120" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">most issues</text>
+              <text x="68" y="50" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Catch</text>
+              <text x="68" y="62" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">subtle issues</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 5.8</strong><span>Four-layer data health monitoring framework, ordered from most fundamental (schema, bottom) to most nuanced (distribution, top). Schema and freshness checks catch failures that make data unusable — wrong columns or stale tables. Volume checks catch silent data loss — the missing 15% of records that no error log captures. Distribution checks catch semantic drift — values that are technically valid but statistically anomalous. Most teams should implement all four layers, starting from the bottom. dbt provides native support for schema contracts, source freshness, and distribution tests; volume checks require custom monitoring logic or an observability platform.</span></div>
+        </div>
+
+        <h3 class="subsec">Alert Design and Avoiding Alert Fatigue</h3>
+        <p>Alert fatigue is the condition where a monitoring system generates so many alerts that engineers begin ignoring them — including the important ones. It is the single most common failure mode of data observability implementations. A team that receives 50 alerts per day acknowledges none of them meaningfully. A team that receives 3 alerts per day treats each one as significant.</p>
+
+        <p><strong>Alert on deviation from baseline, not on absolute thresholds.</strong> An alert that fires when a table has fewer than 10,000 rows is brittle — it fires every time business activity is seasonally low and adds no signal. An alert that fires when today's row count is more than 15% below the rolling 7-day average for the same day of week is informative — it signals something unusual happened, regardless of absolute scale.</p>
+
+        <p><strong>Every alert must be actionable.</strong> If the person receiving the alert cannot take a specific action in response, the alert should not exist. "Revenue table freshness is 4 hours overdue" is actionable (investigate the ADF pipeline run). "Revenue table has 247,892 rows" is not actionable — it conveys no signal about whether that is correct or not. Alerts should say something is wrong, not just that something exists.</p>
+
+        <p><strong>Start with fewer alerts than you think you need.</strong> The correct starting point for observability is not comprehensive coverage — it is the three or four checks that would have caught the three or four production incidents your team has actually experienced in the past year. Build from known failure modes, not hypothetical ones. Add alerts as new failure modes occur.</p>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Retail Bank &nbsp;&middot;&nbsp; The Silent 15% Drop</span>
+          </div>
+          <div class="field-note-body">
+            <p>A retail bank's data engineering team ran a daily ingestion pipeline from their core banking system into the Gold layer. The pipeline had been running in production for 14 months without incident. One quarter, the risk team noticed that their loan portfolio exposure figures were consistently lower than the credit team's independent calculation — by approximately 15%.</p>
+            <p>Investigation revealed that three months earlier, a schema change in the core banking system had added a new loan_status code ("SECURITISED") to the loan table. The ingestion pipeline had a filter excluding loan records with status values not in a hardcoded list — a list that had been written at implementation and never updated. The new status code was silently excluded from every load. Three months of loan records, totalling approximately 15% of the portfolio, had been dropped without any error, any warning, or any alert.</p>
+            <p>The pipeline had run correctly — it had done exactly what it was coded to do. The problem was that what it was coded to do no longer matched what it should do. No monitoring had been in place to detect the volume anomaly. Adding a single dbt test — <code>accepted_values</code> for the loan_status column — would have flagged the new status value on its first appearance.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Pipelines that run without errors are not necessarily pipelines that produce correct data. Volume monitoring and distribution checks catch silent failures that error logs never surface. A pipeline that drops 15% of records silently is harder to detect than one that crashes visibly — and more dangerous, because the data looks plausible.</p>
+          </div>
+        </div>
+
+        <!-- 5.4.4 -->
+        <div class="sec-head"><span class="sec-tag">5.4.4</span><h2 class="sec-title">Data Quality Tools</h2></div>
+
+        <p>Data quality tooling operates at different layers of the stack and solves different problems. Choosing correctly requires understanding what problem each tool is actually designed for — and not conflating testing (does the data meet defined rules?) with observability (is the data behaving consistently over time?). The planning doc for this guide explicitly called out this comparison, and it is worth covering in full because the market is fragmented and the tool names are often used loosely.</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Layer</th>
+              <th>Type</th>
+              <th>Setup</th>
+              <th>Anomaly Detection</th>
+              <th>Cost</th>
+              <th>Best For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>dbt tests</strong></td>
+              <td>Transformation (Gold)</td>
+              <td>Rule-based testing</td>
+              <td>Very low — YAML only</td>
+              <td>No (rules only)</td>
+              <td>Free (open source)</td>
+              <td>Everyone using dbt — always the first choice; catches known bad patterns</td>
+            </tr>
+            <tr>
+              <td><strong>Great Expectations</strong></td>
+              <td>Any layer (Bronze/Silver/Gold)</td>
+              <td>Rule-based testing</td>
+              <td>Medium — Python SDK</td>
+              <td>No (rules only)</td>
+              <td>Free (open source)</td>
+              <td>Non-dbt stacks; cross-tool validation; complex custom checks</td>
+            </tr>
+            <tr>
+              <td><strong>Soda</strong></td>
+              <td>Any layer</td>
+              <td>Rule-based + alerting</td>
+              <td>Medium — YAML checks</td>
+              <td>Yes (ML alerts in paid tier)</td>
+              <td>Free tier / paid plans</td>
+              <td>Business-friendly alerting; teams that want non-engineers to manage data quality rules</td>
+            </tr>
+            <tr>
+              <td><strong>Monte Carlo</strong></td>
+              <td>Service/warehouse level</td>
+              <td>ML-based observability</td>
+              <td>High — enterprise onboarding</td>
+              <td>Yes (ML baseline, automated)</td>
+              <td>Enterprise pricing (£30k+ pa)</td>
+              <td>Enterprise full observability; teams needing automated anomaly detection at scale</td>
+            </tr>
+            <tr>
+              <td><strong>Datafold</strong></td>
+              <td>PR / development</td>
+              <td>Data diff + column lineage</td>
+              <td>Medium — GitHub/CI integration</td>
+              <td>Yes (data diff on PR)</td>
+              <td>Free tier / paid plans</td>
+              <td>PR-level data impact preview; catching model changes that silently affect downstream metrics</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 class="subsec">The Decision Framework</h3>
+        <p>Start with dbt tests. If you use dbt, you have no excuse not to have <code>not_null</code>, <code>unique</code>, and <code>relationships</code> tests on every primary key and foreign key in your Gold layer — they are four lines of YAML each and run as part of every CI pipeline. Add <code>accepted_values</code> for any categorical column you care about. This catches a large proportion of production data issues with minimal investment.</p>
+
+        <p>Add Great Expectations when you need rule-based testing outside the dbt layer — in Bronze ingestion (before transformation), in Python pipelines that don't use dbt, or for complex validation logic that dbt's generic tests cannot express. Great Expectations works well in Databricks notebooks as a validation step after ingestion.</p>
+
+        <p>Consider Soda when your business stakeholders want visibility into data quality without reading dbt test output. Soda's dashboard and notification integrations (Teams, Slack, email) are business-friendlier than dbt's CLI output. Use it as the presentation layer for data quality checks that non-engineers need to monitor.</p>
+
+        <p>Monte Carlo and Datafold are appropriate at scale and maturity levels where the cost is justified. Monte Carlo makes sense for large data platforms (50+ tables in production, 10+ engineers) where manual rule-writing cannot cover the surface area and automated ML-based anomaly detection is needed. Datafold makes sense for teams with frequent model changes who need to see the downstream data impact of a PR before it merges, not after.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Great Expectations vs dbt tests — when each is the right choice</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Both tools perform rule-based data validation, and teams sometimes wonder whether they need both or whether one replaces the other. The answer: they are complementary, not competitive, and the choice of which to reach for first depends on where in the pipeline the validation needs to happen.</p>
+              <p><strong>dbt tests are the right choice when:</strong> The data you want to test has passed through dbt — it is a Gold or Silver table built by a dbt model. Tests are defined as YAML in the same repository as the model, run as part of <code>dbt build</code> and therefore automatically included in your CI pipeline. Zero new tooling, zero new infrastructure, minimal learning curve. The test types are limited (generic: unique, not_null, accepted_values, relationships; singular: custom SQL assertions) but those four cover 80–90% of what most teams need. dbt tests are always the starting point for teams already using dbt.</p>
+              <p><strong>Great Expectations is the right choice when:</strong> You need to validate data at the Bronze layer — before dbt has run, directly on the raw ingested data. For example: after an ADF pipeline loads a CSV to ADLS, before any transformation, run a Great Expectations suite to verify that the expected columns exist, the row count is within range, and key fields are not null. GE is also the right choice for non-dbt transformation stacks (Python scripts, Spark notebooks not managed by dbt) where there is no dbt project to add tests to. GE's Expectations can be defined in Python code and run anywhere Python runs — in a Databricks notebook, in a GitHub Actions job, in an Azure Function.</p>
+              <p><strong>The combined pattern:</strong> Great Expectations at the Bronze ingestion layer (raw data validation before transformation), dbt tests at the Gold layer (business logic validation after transformation). This gives you a two-layer quality gate: bad source data is caught at ingestion, bad transformation logic is caught at the model layer. An issue caught by GE at Bronze points to the source system or ingestion pipeline. An issue caught by dbt at Gold points to transformation logic. The two layers give you root-cause locality — you know where to look.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5.4.5 -->
+        <div class="sec-head"><span class="sec-tag">5.4.5</span><h2 class="sec-title">CI/CD Platform Comparison</h2></div>
+
+        <p>Four platforms dominate CI/CD for data engineering teams. The choice is often determined by organizational context (existing tooling, procurement, infrastructure team preference) rather than technical superiority — all four are capable of running dbt, deploying DABs, and triggering ADF ARM template deployments. The differences lie in integration depth, configuration complexity, and enterprise support.</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Platform</th>
+              <th>Azure Integration</th>
+              <th>dbt Support</th>
+              <th>Databricks Support</th>
+              <th>ADF Support</th>
+              <th>Config Complexity</th>
+              <th>Best For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>GitHub Actions</strong></td>
+              <td>Good — Azure connectors, service principal auth</td>
+              <td>Excellent — dbt-core runs natively; dbt Labs provides official action</td>
+              <td>Excellent — Databricks CLI action; DABs deploy command</td>
+              <td>Good — az CLI action available</td>
+              <td>Low — YAML workflows, huge marketplace</td>
+              <td>Teams using GitHub; open-source tooling; most data engineering teams</td>
+            </tr>
+            <tr>
+              <td><strong>Azure DevOps Pipelines</strong></td>
+              <td>Native — deepest Azure integration; service connections built-in</td>
+              <td>Good — runs dbt via script task; no first-party task</td>
+              <td>Good — Databricks extension in marketplace</td>
+              <td>Native — ADF ARM deployment task built in</td>
+              <td>Medium — YAML pipelines, GUI option</td>
+              <td>Microsoft/Azure-first enterprises; regulated industries; teams already on Azure DevOps</td>
+            </tr>
+            <tr>
+              <td><strong>GitLab CI/CD</strong></td>
+              <td>Good — Azure CLI runner integration</td>
+              <td>Good — runs dbt via script jobs</td>
+              <td>Good — runs DABs via script jobs</td>
+              <td>Good — az CLI in runners</td>
+              <td>Medium — .gitlab-ci.yml, mature ecosystem</td>
+              <td>Teams on GitLab; data sovereignty (self-hosted runners); full DevSecOps</td>
+            </tr>
+            <tr>
+              <td><strong>Jenkins</strong></td>
+              <td>Manual — via plugins; more configuration required</td>
+              <td>Manual — via shell scripts</td>
+              <td>Manual — via shell scripts</td>
+              <td>Manual — via Azure CLI scripts</td>
+              <td>High — significant infrastructure and maintenance overhead</td>
+              <td>Teams with existing Jenkins investment; maximum flexibility; legacy enterprise environments</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>DIY data observability without Monte Carlo — using dbt + Azure Monitor</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>For teams that cannot justify Monte Carlo's enterprise pricing, a functional observability stack can be built from tools you already have. The result won't have ML-based anomaly detection, but it will catch the 90% of production issues that rule-based monitoring covers.</p>
+              <p><strong>Volume monitoring with dbt:</strong> Create an <code>audit_table_stats</code> model in your dbt project that runs after your main build and records row counts, null rates, and max(updated_at) for each production table into a monitoring Gold table. Query this table in Power BI or a simple Python script to track trends. A chart of daily row counts per table, visible to the team, is enough to see drops visually before they become incidents.</p>
+              <p><strong>Freshness monitoring:</strong> dbt's <code>source freshness</code> feature (defined in schema.yml with <code>freshness: warn_after: {count: 6, period: hour}</code>) generates a JSON report on each dbt run. Parse this JSON in a post-run step and send an alert to Teams or Slack via webhook if any source fails freshness. This runs as part of your existing CI/CD pipeline — no additional tool required.</p>
+              <p><strong>Azure Monitor for pipeline health:</strong> ADF, Databricks, and dbt (via dbt Cloud) emit diagnostic logs to Azure Monitor. Create alert rules in Azure Monitor that trigger on: ADF pipeline run failure (sends Teams message), Databricks job failure (sends Teams message), dbt build failure (sends Teams message via GitHub Actions). This gives you infrastructure-level observability at no additional cost beyond Azure Monitor's standard billing.</p>
+              <p><strong>The escalation path:</strong> Start with this DIY stack. When your team grows beyond 5 data engineers, your Gold layer exceeds 50 tables, and you are spending more time triaging noisy alerts than building product — that is when the Monte Carlo or Soda investment conversation becomes justified. Until then, dbt tests + source freshness + Azure Monitor covers the essentials.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Fintech Company &nbsp;&middot;&nbsp; dbt CI Cuts Production Incidents by 70%</span>
+          </div>
+          <div class="field-note-body">
+            <p>A fintech data team was deploying dbt model changes directly to production without any CI gate. A developer would make a change locally, test it manually against their dev environment, and push to main. Production ran the next scheduled dbt job and picked up the change. This worked until it didn't: a change that passed local testing failed in production because it relied on a materialized table that existed in the developer's dev schema but not in production (it had been manually created during a debugging session and never cleaned up).</p>
+            <p>The team implemented a slim CI pipeline: on every PR to main, GitHub Actions ran <code>dbt build --select state:modified+ --defer --state target/</code> against a dedicated CI database environment, using the previous production run's manifest as the state reference. The pipeline blocked merge if any test or build failed. The CI environment was isolated from production and automatically cleaned up after each run.</p>
+            <p>In the four months following implementation: three PRs were blocked by CI failures that would have caused production incidents. Two were logical errors (a join condition that produced duplicates — caught by a <code>unique</code> test). One was a missing column reference (a model referenced a field that didn't exist in the production source). All three would have generated incorrect data in production reports. The team's tracked production data incidents dropped by approximately 70% in the first quarter after implementation.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>The CI investment is two days to set up — a GitHub Actions YAML file, a CI database environment, and dbt state artifacts from the last production run stored in Azure Blob Storage. The return is measured in production incidents that don't happen. The three failures caught in this team's first quarter of CI would each have required a weekend fix and an apologetic email to stakeholders.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Databricks CI/CD with DABs — bundle.yml structure and deployment pattern</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Databricks Asset Bundles (DABs) are the successor to the older dbx library and the even older "copy notebooks to a folder" deployment pattern. They define the complete Databricks workspace configuration — jobs, clusters, notebooks, libraries, and secrets — in a YAML bundle, versioned in Git, deployed via CLI.</p>
+              <p><strong>Basic bundle.yml structure:</strong></p>
+              <p><code>bundle:</code><br/>
+              <code>&nbsp;&nbsp;name: data-warehouse</code><br/>
+              <code>targets:</code><br/>
+              <code>&nbsp;&nbsp;dev:</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;workspace:</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;host: https://adb-dev.azuredatabricks.net</code><br/>
+              <code>&nbsp;&nbsp;prod:</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;workspace:</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;host: https://adb-prod.azuredatabricks.net</code><br/>
+              <code>resources:</code><br/>
+              <code>&nbsp;&nbsp;jobs:</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;daily_silver_load:</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name: daily-silver-load</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;schedule:</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;quartz_cron_expression: "0 0 4 * * ?"</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;timezone_id: Europe/London</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tasks:</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- task_key: silver_transform</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;notebook_task:</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;notebook_path: notebooks/silver_transform</code></p>
+              <p><strong>Deployment commands:</strong><br/>
+              <code>databricks bundle validate</code> — checks YAML syntax and resource references<br/>
+              <code>databricks bundle deploy --target dev</code> — deploys to dev workspace<br/>
+              <code>databricks bundle run daily_silver_load --target dev</code> — runs a job manually<br/>
+              <code>databricks bundle deploy --target prod</code> — deploys to production</p>
+              <p><strong>GitHub Actions integration:</strong> Add a <code>databricks/setup-cli</code> action step, authenticate via service principal (client ID and secret stored as GitHub secrets), then call <code>databricks bundle deploy --target prod</code> on push to main. Every job definition, cluster config, and schedule is now in version control — reproducible, reviewable, and deployable in minutes after a workspace reset.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>DataOps applies DevOps principles to data pipelines: automated CI/CD, data quality monitoring, and observability. Requires version control (section 5.2) as a prerequisite. CI/CD pattern: dbt (slim CI on PR via state:modified+, full build on merge), Databricks (DABs — bundle.yml defines jobs/clusters, databricks bundle deploy on merge), ADF (ARM template export + az deployment group create — never the Publish button for production). Four observability categories: schema (columns present, types correct), freshness (table updated on schedule), volume (row counts within expected range), distribution (null rates, value ranges). Alert design: alert on deviation from baseline, not absolute thresholds; every alert must be actionable; start with fewer alerts than you think you need. Data quality tools: dbt tests first (free, YAML, catches most known-bad patterns); Great Expectations for non-dbt stacks; Soda for business-friendly alerting; Monte Carlo for enterprise ML-based anomaly detection; Datafold for PR-level data diff. CI/CD platforms: GitHub Actions (easiest for most data teams), Azure DevOps Pipelines (native Azure, best for Microsoft enterprises), GitLab CI (self-hosted option), Jenkins (legacy, high overhead).</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Coming in Section 5.5 &mdash; Stakeholder Communication</div>
+          <p>With delivery methodology (5.1–5.4) in place, section 5.5 covers the human side of senior data engineering: how to communicate pipeline health, data quality issues, and project progress to business stakeholders who do not speak SQL. The "so what" framework, the translator role, and the data narrative.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 5.4 &nbsp;&middot;&nbsp; DataOps &amp; CI/CD</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A data team's production pipeline fails silently — it runs without errors but drops 12% of records due to a new source system status code not in the pipeline's filter list. Which observability check would have caught this, and what should it measure?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">A freshness check — the table would have shown as stale if records were missing</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">A schema check — the new status code would have triggered a column type mismatch</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">A volume check measuring row count vs. a rolling baseline — a 12% drop below the 7-day average would have triggered an alert; additionally, an accepted_values distribution check on the status column would have flagged the new unrecognised value</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">A CI test — the pipeline's unit tests would have caught the missing status code</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> This is a classic silent data loss scenario — no error, no stack trace, just missing records. Volume monitoring (row count today vs. 7-day rolling average) would have flagged the anomaly on the first day it occurred. A dbt <code>accepted_values</code> test on the status column would have flagged the new unrecognised value the first time it appeared in the data. Freshness checks (A) would not help — the table was updated on schedule, just with fewer records. Schema checks (B) would not help — no columns changed. CI tests (D) could help if the accepted_values test had been added to the dbt project, but that is a data quality test, not a CI test — and it only helps if someone thought to define it in advance, which is exactly the lesson of the field note in this section.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">What is the correct approach for deploying an Azure Data Factory pipeline change to production — and what is wrong with clicking the Publish button after merging to the collaboration branch?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Clicking Publish is the correct approach; it packages and deploys the pipeline to production automatically</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Merging to the collaboration branch deploys to production automatically in ADF Git mode</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">The correct approach is ARM template CI/CD: export the ARM template from ADF JSON files and deploy using az deployment group create via Azure Pipelines or GitHub Actions. Publish is problematic because it is a manual step that can be skipped, bypasses environment promotion (dev → test → prod), and is performed by whoever is logged in rather than tied to an approved PR</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">ADF changes cannot be automated — they must always be deployed manually via the Publish button</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The ADF Publish button has three problems in a production context: (1) it is manual — it can be forgotten, meaning the collaboration branch and production diverge silently; (2) it bypasses environment promotion — a developer can Publish directly to the production ADF instance without going through test; (3) it is not tied to the PR approval process — anyone with ADF Author permissions can Publish, regardless of whether their change has been reviewed. ARM template CI/CD solves all three: deployment is automated (no manual step to forget), goes through defined environments in sequence, and is triggered only on approved PR merge. Merging to the collaboration branch (B) does NOT deploy — this is the core misunderstanding covered in section 5.2.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A data team is receiving 60 monitoring alerts per day. Engineers have started ignoring most of them. What is the fundamental design problem, and how should it be addressed?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The monitoring tool is misconfigured; switch to a different observability platform</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The team needs more engineers to handle the alert volume</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Alert fatigue: too many alerts, most non-actionable. Fix by reducing to only alerts that are actionable (a specific response is possible) and that signal genuine deviation from baseline — not absolute thresholds that fire on normal variance</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Alerts should be sent to a dedicated channel that engineers check once per week rather than in real-time</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Alert fatigue is not a staffing problem — it is a design problem. When alerts fire for non-issues (seasonal volume variation, known acceptable null rates, informational events), engineers correctly learn that most alerts don't require action. But when a real issue fires, it is lost in the noise. The fix: audit every alert. For each one, ask: "If this alert fires at 2am, what specific action does the on-call engineer take?" If the answer is "nothing" or "it depends," the alert should not exist. Reduce to the minimum set of alerts that are genuinely actionable and signal genuine deviation. A monitoring system generating three alerts per day is more effective than one generating sixty — because every alert from the three-alert system is treated as significant.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A data engineering team at a startup uses dbt, Databricks, and GitHub. They have no data quality monitoring in place. What is the correct order to implement monitoring, starting from the highest value for lowest effort?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Implement Monte Carlo first for ML-based anomaly detection, then add dbt tests</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Implement Great Expectations across all pipeline layers simultaneously for comprehensive coverage</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Add dbt tests (not_null, unique, accepted_values, relationships) to Gold tables first — free, YAML, runs in existing CI. Then add source freshness monitoring. Then add volume checks via a dbt audit model. Add observability platforms only when scale justifies the cost.</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Build a custom Python observability framework specific to the team's stack before adopting any third-party tool</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The correct sequence follows the principle: highest value at lowest cost first, then expand as maturity grows. dbt tests on Gold tables are four lines of YAML per test, run for free in the CI pipeline that likely already exists, and catch the most common data quality failures (duplicate PKs, missing FKs, unexpected NULL values, new categorical values). Source freshness monitoring is another few lines of YAML in the dbt schema.yml. Both are zero incremental tooling cost for a team already running dbt. Volume monitoring via an audit model adds a small dbt model. Only when these layers are in place and scale demands more — more tables, more engineers, more sources — does the Monte Carlo or Soda investment conversation become justified. Starting with Monte Carlo (A) for a startup is the wrong tool for the maturity level and is unlikely to be used correctly without a foundation of basic dbt tests beneath it.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A team is evaluating GitHub Actions vs Azure DevOps Pipelines for their data CI/CD. Their stack is: Azure Databricks, ADF, dbt, and Azure Data Lake Storage. Their source control is in Azure DevOps Repos. Which platform is the stronger fit, and why?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="true"><div class="option-letter">A</div><div class="option-text">Azure DevOps Pipelines — source control is already in Azure DevOps Repos (native integration, no cross-platform auth needed), ADF has a built-in deployment task, and all Azure resources use service connections that are natively managed within Azure DevOps</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">GitHub Actions — it has a larger marketplace and is used by more data engineering teams globally</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Either platform is equally suitable — the choice makes no practical difference</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Neither — Jenkins is the enterprise standard for complex multi-tool CI/CD pipelines</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>A is correct.</strong> When source control is already in Azure DevOps Repos, Azure DevOps Pipelines is the path of least resistance: the pipeline can reference repository files, branch policies, and service connections without any cross-platform authentication configuration. ADF's ARM deployment task is a first-party Azure DevOps extension — simpler than the az CLI approach required in GitHub Actions. All Azure service principals and Managed Identities are managed in the same environment. GitHub Actions (B) is excellent for teams on GitHub, but moving from Azure DevOps Repos to GitHub Actions requires additional service principal configuration, secret management, and cross-platform repo webhooks — complexity without a clear benefit if the team has no reason to use GitHub. The "larger marketplace" argument doesn't justify that overhead. Jenkins (D) adds infrastructure management overhead with no advantage over either native option.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="5-3-mvp-driven-delivery.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">5.3 MVP-Driven Delivery</span></span>
+          </a>
+          <a href="5-5-stakeholder-communication.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">5.5 Stakeholder Communication</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 5 &nbsp;&middot;&nbsp; Delivery &amp; Leadership</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">24</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">DataOps Three Pillars</div>
+          <p>CI/CD (automate testing and deployment), data quality monitoring (automate checks on the data), observability (know the pipeline is healthy without looking). All three together — not any one alone.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">ADF: Publish ≠ Deploy</div>
+          <p>In ADF Git mode, the Publish button updates the adf_publish branch manually. In production CI/CD: deploy via ARM template, triggered by PR merge. The Publish button is for dev only.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Start with dbt Tests</div>
+          <p>Four lines of YAML per test. Free. Runs in CI. Catches most production data quality failures. No other tool is worth evaluating until your Gold tables have not_null, unique, and relationships tests on every key.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"How do you ensure data quality in production?" Answer: dbt tests in CI (catches known bad patterns before merge), source freshness monitoring (catches stale tables), volume alerts on deviation from baseline (catches silent drops). Mention that pipelines that run without errors can still produce wrong data — this distinguishes senior from junior thinking.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('5.4');</script>
+</body>
+</html>

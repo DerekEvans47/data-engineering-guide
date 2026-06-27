@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>7.1 User Stories &amp; Roadmaps &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="7.1">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Seven &nbsp;&middot;&nbsp; Product Management Fundamentals</div>
+          <div class="chap-num">7.1</div>
+          <h1 class="chap-title">User Stories &amp; Roadmaps</h1>
+          <p class="chap-sub">Why "build me a dashboard" is not a requirement, the anatomy of a user story that survives contact with a sprint, the difference between a roadmap and a deadline list, and which artifact — story, use case, job story, or PRD — actually gets read by the audience you're writing it for</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Write a user story in proper form and apply the INVEST criteria to judge whether it is ready to build</li>
+            <li>Distinguish a Theme, an Epic, a Story, and a Task, and decompose a vague business request into that hierarchy</li>
+            <li>Write acceptance criteria that remove ambiguity before development starts, and distinguish Definition of Ready from Definition of Done</li>
+            <li>Split an oversized story into independently shippable pieces without losing its original intent</li>
+            <li>Build and explain a Now / Next / Later roadmap, and identify when a timeline-based roadmap is the better tool</li>
+            <li>Choose the right requirements artifact — user story, use case, job story, or PRD — for a given audience and decision</li>
+          </ol>
+        </div>
+
+        <!-- 7.1.1 -->
+        <div class="sec-head"><span class="sec-tag">7.1.1</span><h2 class="sec-title">The Broken Telephone Problem</h2></div>
+
+        <p>A stakeholder sends a message: "Can we get a dashboard showing how sales are doing by region?" Three weeks later, a data engineer delivers a Power BI report with regional revenue, and the stakeholder is unhappy — they meant <em>units sold</em>, not revenue, they needed it broken down by <em>sales rep</em>, not just region, and they needed it two weeks ago for a board meeting that has already happened. Nobody lied. Nobody was careless. The request was simply not specific enough to build from, and nobody surfaced that fact until the wrong thing had already been built.</p>
+
+        <p>This is the most expensive failure mode in data product delivery, and it has nothing to do with SQL, Spark, or Power BI. It is a requirements failure — the gap between what a stakeholder means and what gets built — and it compounds every layer it passes through. The stakeholder's mental model gets compressed into a sentence. That sentence gets relayed to a project manager, who relays a summary of it to a developer, who fills in the remaining gaps with assumptions. By the time code gets written, the thing being built may bear only a loose resemblance to what was actually needed.</p>
+
+        <div class="hl-block">A user story is not a project management formality. It is a structured defense against the broken telephone problem — a format specifically designed to force the missing context (who, what, why) into the open before a single line of code gets written.</div>
+
+        <p>The discipline covered in this Part — user stories, acceptance criteria, roadmaps, the tools that operationalize them, and the lifecycle that wraps around all of it — exists because "build me a dashboard" is a wish, not a requirement. Senior data practitioners are expected to translate wishes into requirements themselves, push back when a request is too vague to build from, and communicate progress against a roadmap that the business actually understands. This is as much a senior-level skill as knowing when to use Databricks over Synapse.</p>
+
+        <!-- 7.1.2 -->
+        <div class="sec-head"><span class="sec-tag">7.1.2</span><h2 class="sec-title">The Anatomy of a User Story</h2></div>
+
+        <p>A <span class="df" data-term="User Story">user story</span> is a short, structured description of a piece of functionality written from the perspective of the person who needs it, in a fixed template:</p>
+
+        <div class="code-wrap">
+          <button class="copy-btn">Copy</button>
+          <pre><code>As a [type of user]
+I want [some capability]
+So that [some benefit / reason]</code></pre>
+        </div>
+
+        <p>The template's power is in what it forces you to specify. "As a" forces a named persona, not a generic "user" — a regional sales manager needs different things from a finance controller, even from the same underlying data. "I want" forces a concrete capability rather than a vague wish — not "better visibility" but "a single page showing my team's pipeline by deal stage." "So that" forces a reason — and the reason is frequently more useful to the builder than the capability itself, because it reveals what the stakeholder will actually do with the result, which often changes the right technical answer.</p>
+
+        <p>A worked example: <em>"As a regional sales manager, I want to see my team's quarter-to-date revenue broken down by sales rep and deal stage, updated daily, so that I can identify which reps need coaching before the quarter closes."</em> Notice what this single sentence already tells an engineer that "build me a sales dashboard" never would: the grain is sales rep × deal stage, the refresh cadence is daily (not real-time — that single word changes the architecture), and the actual decision being supported is a coaching intervention, which implies the report needs to make underperformance visible and comparable across reps, not just display totals.</p>
+
+        <!-- Figure 7.1 — Requirements Hierarchy -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 290" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f71sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m71g" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#3A9FE0"/>
+                </marker>
+              </defs>
+              <rect width="700" height="290" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">The Requirements Hierarchy &mdash; Theme to Task</text>
+
+              <!-- Theme -->
+              <rect x="220" y="36" width="260" height="36" rx="5" fill="#0F2447" filter="url(#f71sh)"/>
+              <text x="350" y="55" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">THEME &mdash; Improve Self-Service Reporting</text>
+              <line x1="350" y1="72" x2="350" y2="90" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m71g)"/>
+
+              <!-- Epic -->
+              <rect x="180" y="92" width="340" height="36" rx="5" fill="#1A5A78" filter="url(#f71sh)"/>
+              <text x="350" y="111" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">EPIC &mdash; Regional Sales Performance Workspace</text>
+              <line x1="280" y1="128" x2="190" y2="148" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m71g)"/>
+              <line x1="420" y1="128" x2="510" y2="148" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m71g)"/>
+
+              <!-- Story 1 -->
+              <rect x="40" y="150" width="280" height="50" rx="5" fill="#254F8F" filter="url(#f71sh)"/>
+              <text x="180" y="168" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">STORY</text>
+              <text x="180" y="182" fill="rgba(220,232,255,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">As a regional manager, I want QTD</text>
+              <text x="180" y="192" fill="rgba(220,232,255,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">revenue by rep &amp; stage, daily&#8230;</text>
+
+              <!-- Story 2 -->
+              <rect x="380" y="150" width="280" height="50" rx="5" fill="#254F8F" filter="url(#f71sh)"/>
+              <text x="520" y="168" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">STORY</text>
+              <text x="520" y="182" fill="rgba(220,232,255,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">As a VP Sales, I want a region</text>
+              <text x="520" y="192" fill="rgba(220,232,255,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">comparison view, weekly&#8230;</text>
+
+              <line x1="120" y1="200" x2="90" y2="220" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m71g)"/>
+              <line x1="220" y1="200" x2="250" y2="220" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m71g)"/>
+
+              <!-- Tasks -->
+              <rect x="20" y="222" width="170" height="40" rx="4" fill="#3A9FE0" opacity=".85" filter="url(#f71sh)"/>
+              <text x="105" y="240" fill="#0A1E38" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">TASK &mdash; Build Gold table</text>
+              <text x="105" y="251" fill="#0A1E38" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">rep &#215; stage grain (dbt)</text>
+
+              <rect x="200" y="222" width="170" height="40" rx="4" fill="#3A9FE0" opacity=".85" filter="url(#f71sh)"/>
+              <text x="285" y="240" fill="#0A1E38" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">TASK &mdash; DAX measure</text>
+              <text x="285" y="251" fill="#0A1E38" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">QTD revenue, daily refresh</text>
+
+              <text x="350" y="280" fill="#6080A0" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Granularity increases top to bottom &mdash; vision narrows into buildable, estimable units</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 7.1</strong><span>The requirements hierarchy. A <span class="kt" data-term="Theme">Theme</span> is a strategic goal spanning months. An <span class="kt" data-term="Epic">Epic</span> is a large body of work under that goal, too big to build in one sprint. A Story is a single, independently valuable, sprint-sized slice of the epic, written from a user's perspective. A Task is the technical work inside a story &mdash; the unit an engineer actually picks up. Each layer down adds detail and removes ambiguity; nothing at the bottom should exist without a traceable line back to a Theme at the top.</span></div>
+        </div>
+
+        <h3 class="subsec">INVEST &mdash; Is This Story Actually Ready?</h3>
+        <p>Not every sentence shaped like a user story is a <em>good</em> user story. The <span class="df" data-term="INVEST">INVEST criteria</span>, a mnemonic that has survived because it is genuinely useful, gives a six-point checklist:</p>
+        <p><strong>Independent</strong> &mdash; the story can be built and shipped without waiting on another story. <strong>Negotiable</strong> &mdash; the story describes a need, not a fixed solution; the "how" stays open for discussion between the requester and the builder. <strong>Valuable</strong> &mdash; the story delivers something a real user can use or perceive, not just an internal technical milestone (a Task may not be independently valuable; a Story should be). <strong>Estimable</strong> &mdash; the team has enough information to size the effort, even roughly. <strong>Small</strong> &mdash; the story fits comfortably inside one sprint. <strong>Testable</strong> &mdash; there is a concrete way to know the story is done, which leads directly into acceptance criteria below.</p>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Logistics Provider &nbsp;&middot;&nbsp; The Story That Wasn't Independent</span>
+          </div>
+          <div class="field-note-body">
+            <p>A logistics data team picked up a story: "As an operations planner, I want a live map of in-transit shipments, so that I can reroute around delays." It looked Estimable and Valuable on the surface, so it went into the sprint. Three days in, the team discovered the story silently depended on a separate, unscheduled piece of work: a GPS ping ingestion pipeline that did not exist yet and belonged to a different epic entirely.</p>
+            <p>The story was not Independent, and nobody had checked. The sprint commitment had to be broken, the story was pulled, and the team's velocity for that sprint took a visible hit in front of the stakeholders who were tracking it. The actual root cause was not effort estimation — it was that the story's dependency had never been surfaced during planning, because nobody had explicitly run it against the "I" in INVEST.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>INVEST is not a box-ticking ritual — every letter catches a specific, recurring failure mode. Independence failures are the most common and the most disruptive, because they surface mid-sprint rather than during planning, when it is too late to absorb gracefully.</p>
+          </div>
+        </div>
+
+        <!-- 7.1.3 -->
+        <div class="sec-head"><span class="sec-tag">7.1.3</span><h2 class="sec-title">Acceptance Criteria, Ready, and Done</h2></div>
+
+        <p><span class="df" data-term="Acceptance Criteria">Acceptance criteria</span> are the specific, testable conditions a story must satisfy before it can be called complete. They are what makes the "Testable" letter in INVEST concrete. Where the story states the need, acceptance criteria state the boundary of what "meeting that need" actually means — and they exist precisely so that "done" is not a matter of opinion between the engineer and the stakeholder after the fact.</p>
+
+        <p>For the regional sales story above, acceptance criteria might read: <em>"Given a sales rep with at least one closed-won deal this quarter, the dashboard shows their QTD revenue updated as of the most recent completed daily load. Given a rep with zero deals, the dashboard shows $0, not a blank cell. The page loads in under 5 seconds for a manager viewing their own team. Deal stage values match the seven stages defined in the CRM pipeline configuration, with no 'Unknown' category visible to end users."</em> Each of these is something a tester can verify with a yes or no — that is the entire point.</p>
+
+        <p>Two related terms are frequently confused. <span class="df" data-term="Definition of Ready">Definition of Ready</span> is the bar a story must clear <em>before</em> a team accepts it into a sprint — does it have acceptance criteria, has it been estimated, are its dependencies resolved? <span class="df" data-term="Definition of Done">Definition of Done</span> is the bar work must clear <em>after</em> building, before it ships — has it passed code review, have tests run, has it been deployed to the right environment, has documentation been updated? Ready is a gate at the start of the pipeline; Done is a gate at the end. A team that only enforces Done and skips Ready ends up building from stories that were never fit to build from in the first place — the broken telephone problem resurfaces, just one layer downstream.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Writing acceptance criteria that actually prevent scope creep</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Vague acceptance criteria are almost worse than none, because they create the illusion of precision without delivering it. "The dashboard should be fast and easy to use" is not testable — it cannot be marked pass or fail by anyone other than the person who wrote it, on a day-by-day basis, which guarantees disagreement later.</p>
+              <p><strong>The Given/When/Then pattern</strong> (borrowed from behaviour-driven development) forces precision: <em>Given</em> a starting condition, <em>When</em> an action occurs, <em>Then</em> a specific, observable outcome follows. "Given a user with no sales this quarter, when they open the dashboard, then their revenue figure displays as $0 with a 'No closed deals yet' label" is testable. "The dashboard should handle users with no sales gracefully" is not — "gracefully" means something different to everyone in the room.</p>
+              <p><strong>Numbers close more arguments than adjectives.</strong> "Loads quickly" invites a debate about what "quickly" means three weeks after the fact, when the engineer has shipped something they consider quick and the stakeholder disagrees. "Loads in under 5 seconds on a standard office connection" ends the debate before it starts, because it was settled at planning time, when both sides were in the room and incentivized to agree.</p>
+              <p><strong>Negative cases prevent the most expensive rework.</strong> Most acceptance criteria describe the happy path — what happens when everything works. The scope creep that derails sprints almost always comes from the edge cases nobody specified: what does the report show for a brand-new sales rep with no historical data? For a deal that was reopened after being marked lost? For a currency that isn't the reporting default? Writing at least one negative or edge-case criterion per story is a habit that pays for itself within the first month of adopting it.</p>
+              <p><strong>Acceptance criteria are negotiated, not handed down.</strong> The best version of this process has the engineer and the requester writing the criteria together during refinement, not the requester writing them alone and throwing them over the wall. An engineer who understands the underlying data model will often catch an ambiguity ("what counts as a 'closed-won' deal if it was later partially refunded?") that the requester never thought to specify, precisely because they know where the data gets messy.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7.1.4 -->
+        <div class="sec-head"><span class="sec-tag">7.1.4</span><h2 class="sec-title">Roadmaps &mdash; Communicating Direction, Not Dates</h2></div>
+
+        <p>A roadmap answers a different question than a backlog. A <span class="df" data-term="Product Backlog">backlog</span> answers "what is the team working on, in priority order?" A roadmap answers "where is this product going, and why?" The most common roadmap failure in data teams is treating the two as interchangeable — publishing a roadmap that is really just a backlog with dates attached, which inevitably becomes a list of broken promises the moment priorities shift, which they always do.</p>
+
+        <p>The <span class="df" data-term="Now-Next-Later Roadmap">Now / Next / Later</span> format sidesteps this trap by deliberately refusing to commit to dates beyond the immediate term. "Now" is what the team is actively building, described with reasonable confidence. "Next" is what is planned after that, described in less detail because priorities can still shift. "Later" is direction of travel — themes the team believes matter, without commitment to scope or timing. This format is honest about the actual level of certainty a data team has about its own future, which is usually much lower three months out than stakeholders assume.</p>
+
+        <!-- Figure 7.2 — Roadmap Formats Compared -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f72sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="280" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Two Roadmap Formats, Same Underlying Plan</text>
+
+              <!-- NOW NEXT LATER -->
+              <text x="160" y="38" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">NOW &#8203;/&#8203; NEXT &#8203;/&#8203; LATER</text>
+              <rect x="30" y="46" width="100" height="120" rx="5" fill="#1A7A4A" filter="url(#f72sh)"/>
+              <text x="80" y="64" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">NOW</text>
+              <text x="80" y="84" fill="rgba(220,255,235,.85)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Sales rep</text>
+              <text x="80" y="95" fill="rgba(220,255,235,.85)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">dashboard</text>
+              <text x="80" y="115" fill="rgba(220,255,235,.7)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">High confidence</text>
+              <text x="80" y="125" fill="rgba(220,255,235,.7)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">in scope</text>
+
+              <rect x="140" y="46" width="100" height="120" rx="5" fill="#1A5A78" filter="url(#f72sh)"/>
+              <text x="190" y="64" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">NEXT</text>
+              <text x="190" y="84" fill="rgba(220,240,255,.85)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Region</text>
+              <text x="190" y="95" fill="rgba(220,240,255,.85)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">comparison</text>
+              <text x="190" y="115" fill="rgba(220,240,255,.7)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">Planned, scope</text>
+              <text x="190" y="125" fill="rgba(220,240,255,.7)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">may shift</text>
+
+              <rect x="250" y="46" width="100" height="120" rx="5" fill="#3A5A80" opacity=".7" filter="url(#f72sh)"/>
+              <text x="300" y="64" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">LATER</text>
+              <text x="300" y="84" fill="rgba(220,232,255,.8)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Predictive</text>
+              <text x="300" y="95" fill="rgba(220,232,255,.8)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">forecasting</text>
+              <text x="300" y="115" fill="rgba(220,232,255,.65)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">Direction only,</text>
+              <text x="300" y="125" fill="rgba(220,232,255,.65)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">no commitment</text>
+
+              <text x="190" y="186" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&#10003; No dates promised beyond &ldquo;Now&rdquo;</text>
+
+              <!-- divider -->
+              <line x1="380" y1="40" x2="380" y2="220" stroke="rgba(27,58,107,.15)" stroke-width="1" stroke-dasharray="3,3"/>
+
+              <!-- TIMELINE / GANTT -->
+              <text x="535" y="38" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">TIMELINE &#8203;/&#8203; GANTT</text>
+              <line x1="400" y1="56" x2="670" y2="56" stroke="rgba(27,58,107,.2)" stroke-width="1"/>
+              <text x="410" y="50" fill="#6080A0" font-family="Inter,sans-serif" font-size="6.5">Apr</text>
+              <text x="480" y="50" fill="#6080A0" font-family="Inter,sans-serif" font-size="6.5">May</text>
+              <text x="550" y="50" fill="#6080A0" font-family="Inter,sans-serif" font-size="6.5">Jun</text>
+              <text x="620" y="50" fill="#6080A0" font-family="Inter,sans-serif" font-size="6.5">Jul</text>
+
+              <rect x="408" y="64" width="80" height="22" rx="3" fill="#3A5A80" filter="url(#f72sh)"/>
+              <text x="448" y="78" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Sales rep dash</text>
+
+              <rect x="478" y="92" width="90" height="22" rx="3" fill="#3A5A80" filter="url(#f72sh)"/>
+              <text x="523" y="106" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Region compare</text>
+
+              <rect x="558" y="120" width="100" height="22" rx="3" fill="#3A5A80" opacity=".6" filter="url(#f72sh)"/>
+              <text x="608" y="134" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Forecasting</text>
+
+              <text x="535" y="170" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&#10007; Implies fixed dates</text>
+              <text x="535" y="182" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">that rarely hold</text>
+
+              <text x="350" y="252" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8.5" font-weight="600" text-anchor="middle">Same three deliverables &mdash; one format sets an honest expectation, the other sets a promise</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 7.2</strong><span>The same underlying plan presented two ways. Now / Next / Later communicates confidence level alongside content &mdash; it tells the stakeholder how firm each commitment is. A Gantt-style timeline communicates dates whether or not the team actually has that level of certainty, which is why timeline roadmaps for data products are frequently wrong and frequently cited afterward as broken promises. Timeline roadmaps are not always the wrong choice &mdash; they work well for genuinely date-driven work like a regulatory deadline &mdash; but they should be used deliberately, not by default.</span></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Running a Now / Next / Later roadmap review without it turning into a status meeting</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The roadmap review's most common failure is drifting into a sprint status update — "here's what we did this week" — which is what the backlog and stand-ups are already for. A roadmap review should answer three different questions: has anything moved between Now, Next, and Later since last time; why did it move; and does the audience still agree with what's in Later.</p>
+              <p><strong>Structure that works for a monthly 20-minute review:</strong> Start with what shipped from "Now" since last review — concrete, completed, no caveats. Then what's currently in "Now" and the confidence level on each item. Then what moved into "Next" or out of it, and why — this is usually the most valuable five minutes, because it surfaces the prioritization tradeoffs the business needs to weigh in on, rather than the data team silently absorbing them. Finally, a quick gut-check on "Later" — is the long-term direction still right, or has something changed in the business that should pull an item forward.</p>
+              <p><strong>The reframe that prevents stakeholder frustration:</strong> when something planned for "Next" gets pushed out, resist the instinct to apologize or explain delays in technical terms the stakeholder can't evaluate. Instead, frame it as a tradeoff decision: "Building the region comparison view as planned would have meant delaying the data quality fix for the rep dashboard you're using right now. We chose to fix that first — does that still feel like the right call, or would you prioritize differently?" This turns a missed date into a decision the stakeholder participated in, rather than a promise the data team broke.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7.1.5 -->
+        <div class="sec-head"><span class="sec-tag">7.1.5</span><h2 class="sec-title">Choosing the Right Artifact</h2></div>
+
+        <p>User stories are not the only way to capture a requirement, and they are not always the best one. Three close relatives exist, and senior practitioners pick deliberately rather than defaulting to whichever format they learned first.</p>
+
+        <p>A <span class="df" data-term="Use Case">use case</span> describes a complete interaction between a user and a system, step by step, including alternate and exception paths — much heavier than a user story, and far more precise about system behaviour. It earns its weight when a process has many branching paths that must all be specified before development (a regulatory reporting workflow, for example, where missing an exception path has compliance consequences).</p>
+
+        <p>A <span class="df" data-term="Job Story">job story</span>, drawn from the <span class="df" data-term="Jobs-to-be-Done">Jobs-to-be-Done</span> framework, reframes the user story to centre on a triggering situation rather than a persona: <em>"When [situation], I want to [motivation], so I can [expected outcome]."</em> It deliberately omits the "as a [user type]" framing because JTBD's core claim is that people hire products to do a job in a specific moment, regardless of their job title — a finance director and a junior analyst might have the identical job-to-be-done ("when I'm asked to justify next quarter's budget on short notice, I want to see the trend behind a cost line, so I can answer follow-up questions confidently") even though a persona-based story would have written two entirely separate requirements for them.</p>
+
+        <p>A <span class="df" data-term="PRD">PRD</span> (Product Requirements Document) is the heaviest of the four — a comprehensive document covering the problem, the goals, the proposed solution, success metrics, and explicit out-of-scope boundaries for an entire feature or initiative, typically spanning many individual stories. It exists for a different audience than a story: a PRD is written for alignment across a leadership group before work starts, while a story is written for a single developer about to build one slice of it. A PRD without stories underneath it never gets built; stories without a PRD above them frequently drift directionless across many small, locally-sensible decisions that don't add up to a coherent product.</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Artifact</th>
+              <th>Primary Audience</th>
+              <th>Granularity</th>
+              <th>Best For</th>
+              <th>Weak Point</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>User Story</strong></td>
+              <td>Developer building the next sprint item</td>
+              <td>Single, sprint-sized slice</td>
+              <td>Iterative delivery; agile teams; most day-to-day data product work</td>
+              <td>Too lightweight for processes with many branching exception paths</td>
+            </tr>
+            <tr>
+              <td><strong>Use Case</strong></td>
+              <td>Developer and tester verifying full process coverage</td>
+              <td>Complete interaction, all paths</td>
+              <td>Compliance-sensitive or branching workflows where missed exceptions are costly</td>
+              <td>Heavy to write and maintain; slows iteration on simple features</td>
+            </tr>
+            <tr>
+              <td><strong>Job Story</strong></td>
+              <td>Designer or PM exploring the underlying motivation</td>
+              <td>Triggering situation &#8594; outcome</td>
+              <td>Discovery phase; products serving varied personas with one shared need</td>
+              <td>Less directly actionable for an engineer than a story with acceptance criteria</td>
+            </tr>
+            <tr>
+              <td><strong>PRD</strong></td>
+              <td>Leadership and cross-functional stakeholders pre-build</td>
+              <td>Entire feature or initiative</td>
+              <td>Securing alignment and budget before significant investment begins</td>
+              <td>Too abstract to build from directly; always needs stories underneath it</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Splitting a story that's too big &mdash; patterns that preserve its original intent</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The "Small" letter in INVEST is the one most often violated, because stakeholders naturally describe needs at the size that makes sense to them, not at the size that fits in a sprint. "As a finance director, I want a complete view of company financial health" is a real need, but it is not one story — it is an epic wearing a story's clothing. Splitting it well, rather than just chopping it arbitrarily, preserves the original value while making each piece independently shippable.</p>
+              <p><strong>Split by workflow step.</strong> If the story spans a multi-step process, each step can often become its own story: "review pending transactions" → "approve or flag transactions" → "generate the approval report" — each independently valuable, each testable on its own.</p>
+              <p><strong>Split by data variation.</strong> "Show financial health" might split into the metrics that matter most first (revenue and cash position) versus a later story for the secondary metrics (expense ratios, headcount cost) — same dashboard, built and shipped in value-ordered layers rather than all at once.</p>
+              <p><strong>Split by business rule complexity.</strong> Ship the 80% straightforward case first, then a follow-up story for the edge cases: "calculate commission for standard deals" ships sprint one; "calculate commission for deals with custom split agreements" ships sprint two. This gets something real in front of users faster and isolates the genuinely hard part instead of letting it block the whole release.</p>
+              <p><strong>What not to do:</strong> splitting along pure technical layers ("build the database table" as one story, "build the API" as a second, "build the front end" as a third) usually violates "Valuable" — none of those pieces is independently useful to an actual user, and a sprint that only delivers the database table looks, from the business's perspective, exactly like a sprint that delivered nothing.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Manufacturing Group &nbsp;&middot;&nbsp; The Roadmap That Promised Dates</span>
+          </div>
+          <div class="field-note-body">
+            <p>A manufacturing group's data team published a quarterly roadmap as a Gantt chart, with named features against fixed weeks, distributed to plant managers across six sites. It looked professional and reassuring — exactly the kind of artifact a stakeholder wants to see. Two weeks in, a critical data quality issue in the production line throughput pipeline forced the team to reprioritize, pushing two roadmap items by three weeks each.</p>
+            <p>The reaction was sharper than the delay itself warranted. Plant managers had treated the Gantt dates as commitments, not estimates — because the format itself communicated certainty the team never actually had. Several had already told their own teams "the new scrap-rate dashboard ships the week of the 14th," and now had to walk that back themselves, which damaged their credibility along with the data team's.</p>
+            <p>The team switched to a Now / Next / Later format for the following quarter, explicitly framing "Next" items as "planned, not committed." The next reprioritization, caused by a similar production issue, produced almost no stakeholder pushback — the format itself had already set the expectation that "Next" could move, so moving it didn't feel like a broken promise.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>A roadmap format is itself a communication choice, not a neutral container. A Gantt chart communicates certainty by its very shape, regardless of the words written on it. Choose the format that matches your actual confidence level, not the format that looks most reassuring in the room.</p>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>"Build me a dashboard" is a wish, not a requirement — the gap between what a stakeholder means and what gets built is the most expensive failure mode in data delivery, and user stories exist to close it. A story follows the As a / I want / So that template and should pass the INVEST checklist before it enters a sprint, with Independent and Small the two letters most often violated. Acceptance criteria, ideally written as Given/When/Then, make "done" testable rather than a matter of opinion; Definition of Ready gates entry into a sprint, Definition of Done gates exit from it. Roadmaps communicate direction, not promises — Now / Next / Later is honest about decreasing certainty over time, while a Gantt-style timeline implies fixed dates that data work rarely holds to. Beyond the story itself, use cases, job stories, and PRDs each serve a different audience and a different level of granularity; choosing the wrong one either overwhelms a developer with unnecessary process or starves leadership of the alignment they need before funding real investment.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Next &mdash; 7.2 Jira, Confluence &amp; Figma in Practice</div>
+          <p>Stories, acceptance criteria, and roadmaps are concepts — they need somewhere to live, get tracked, and get communicated day to day. Section 7.2 covers the practical tooling that operationalizes everything in this section: Jira for tracking stories through a sprint, Confluence for the longer-form documentation a Jira ticket can't hold, and Figma for the visual mockups that get a stakeholder to agree on a dashboard layout before a single DAX measure gets written.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 7.1 &nbsp;&middot;&nbsp; User Stories &amp; Roadmaps</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A stakeholder writes: "As a user, I want better reporting, so that I can make decisions." What is the most significant problem with this story, and what should be fixed first?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">It's missing acceptance criteria — add Given/When/Then conditions and the story is ready to estimate</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">"User," "better reporting," and "make decisions" are all too vague to build from or estimate — the persona, the specific capability, and the underlying reason all need to be made concrete before acceptance criteria would even be meaningful</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Nothing — this is a valid story; the engineering team should use their judgment to fill in the specifics during development</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It should be rewritten as a Job Story instead, since the persona is too generic</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Every slot in the template is filled with a placeholder rather than real content: "user" names no specific persona, "better reporting" names no specific capability, and "make decisions" names no specific reason. Writing acceptance criteria (A) on top of this would just produce specific-sounding criteria for an undefined need — solving the wrong problem precisely. Letting engineering fill in the specifics (C) reintroduces the broken telephone problem the story format exists to prevent; an engineer's assumption about what "better" means is exactly the gap that causes rework. Switching format (D) doesn't fix vagueness — a vague Job Story has the identical problem with different syntax.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">During sprint planning, a team discovers that Story B cannot be built until Story A (in a different epic, not yet scheduled) is finished. Which INVEST criterion does this violate, and what is the practical consequence of missing it during planning rather than catching it before the sprint starts?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Estimable — the team simply needs a more accurate effort estimate for Story B</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Independent — the story has a hidden dependency on unscheduled work; discovering this mid-sprint, rather than during planning, typically forces the team to break its sprint commitment and pull the story, damaging delivery predictability and stakeholder trust in the team's estimates</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Testable — the story's acceptance criteria must not have been specific enough to reveal the dependency</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Small — the story is too large in scope to fit inside the sprint</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> A hidden cross-epic dependency is precisely what "Independent" checks for — can this story be built and shipped without waiting on other unscheduled work? Estimating effort more accurately (A) doesn't help if the work literally cannot start. Acceptance criteria (C) describe what "done" looks like, not what other work must precede this one — a dependency check is a separate concern. Size (D) is unrelated; a small, well-scoped story can still have an external blocking dependency. The practical cost of missing an Independence check is specifically that it surfaces mid-sprint, when the team has already made a public commitment, rather than during planning, when the story could simply have been deferred without consequence.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">What is the functional difference between Definition of Ready and Definition of Done, and what failure occurs when a team enforces only Done?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Ready applies to bugs, Done applies to new features — they govern different work item types</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">They are functionally the same checklist applied at different times; enforcing only one has no real consequence</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Ready gates entry into a sprint (acceptance criteria exist, estimated, dependencies clear); Done gates exit from it (tested, reviewed, deployed). Enforcing only Done means the team builds from stories that were never actually fit to build from, reintroducing ambiguity-driven rework that Ready exists specifically to prevent</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Ready is a stakeholder-facing checklist, Done is an engineering-only checklist; they serve different audiences but check the same conditions</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The two checklists sit at opposite ends of the development pipeline and check fundamentally different things: Ready is a pre-flight check on the requirement itself, Done is a post-flight check on the delivered work. A team with a rigorous Done checklist but no Ready gate will faithfully test, review, and deploy work that was built against an ambiguous or incomplete story — the resulting product may pass every Done criterion and still be the wrong thing, because the ambiguity was never caught before building started. This is the broken telephone problem resurfacing one layer downstream, exactly where it's most expensive to catch.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A data team publishes a quarterly roadmap as a fixed-date Gantt chart. Two months in, a production data quality issue forces a major reprioritization, and the published dates slip. Stakeholders are unusually frustrated despite the underlying reprioritization decision being reasonable. What roadmap-format choice most directly contributed to this reaction?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The team should have used a longer planning horizon so the Gantt chart covered a full year instead of one quarter</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">A Gantt-style timeline format communicates fixed-date certainty regardless of the words used around it; stakeholders reasonably treated the dates as commitments, so the slip felt like a broken promise rather than a normal reprioritization, which a Now/Next/Later format would have framed as an expected possibility from the start</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The team should have hidden the reprioritization from stakeholders until the new dates were finalized</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Quarterly roadmaps are inherently flawed; the team should publish no roadmap at all</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The format itself sets the expectation independent of intent — a Gantt chart's visual structure (named items against fixed weeks) reads as a commitment, so any slip reads as a broken promise, even when the underlying business decision to reprioritize was entirely reasonable. A longer horizon (A) doesn't fix the certainty problem, it just extends it. Hiding the change (C) would make the eventual disclosure worse, not better, and erodes trust further. Roadmaps generally are not the problem (D) — the specific date-implying format chosen for an inherently uncertain plan is the problem; Now/Next/Later solves exactly this by communicating decreasing certainty as a built-in feature of the format.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A regulatory reporting workflow has many branching exception paths (incomplete submissions, late filings, amended filings, rejected filings) that all must be specified before development, because a missed exception path has compliance consequences. Which requirements artifact is the better fit, and why?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">A single user story with detailed acceptance criteria covering every branch</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">A use case, because it is specifically designed to document a complete interaction including all alternate and exception paths in a structured, step-by-step way that a single story's lighter format isn't built to hold</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">A job story, because the regulatory submitter's job-to-be-done is the most important thing to capture</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">A PRD, because regulatory work always requires leadership sign-off regardless of its branching complexity</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> A use case's entire purpose is documenting a complete interaction with all its alternate and exception paths in one structured artifact — exactly the shape of the regulatory problem described. Stretching a single user story's acceptance criteria (A) to cover many branching exception paths usually produces an unreadable wall of criteria that's harder to verify, not easier, and the story format wasn't designed for branching logic in the first place. A job story (C) captures motivation, not process branching — useful for discovery, not for compliance-grade specification. A PRD (D) may also be needed for leadership alignment, but it operates at a different altitude entirely (the whole initiative) and doesn't substitute for the step-by-step exception coverage a use case provides at the implementation level.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="../06-ai-and-agentic-systems/6-7-nlp-task-types-practice.html" class="sec-nav-btn sec-nav-prev">
+          <span class="sec-nav-arrow">&#8592;</span>
+          <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">6.7 NLP Task Types in Practice</span></span>
+          </a>
+          <a href="7-2-jira-confluence-figma.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">7.2 Jira, Confluence &amp; Figma</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 7 &nbsp;&middot;&nbsp; Product Management Fundamentals</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">36</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:140px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Key Term</div>
+          <p><strong>INVEST</strong> &mdash; Independent, Negotiable, Valuable, Estimable, Small, Testable. A six-point checklist for whether a story is actually ready to build. Independent and Small are the two most commonly violated in practice.</p>
+        </div>
+        <div class="ms" style="height:520px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Ready vs Done</div>
+          <p>Ready gates entry to a sprint. Done gates exit from it. A team that only enforces Done will build from stories that were never fit to build from &mdash; the ambiguity just resurfaces one layer downstream, where it's more expensive.</p>
+        </div>
+        <div class="ms" style="height:260px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Roadmap Format Is a Promise</div>
+          <p>A Gantt-style timeline implies fixed dates whether or not the team has that certainty. Now/Next/Later communicates decreasing confidence honestly &mdash; use it as the default for data product roadmaps; reserve timelines for genuinely date-driven work like regulatory deadlines.</p>
+        </div>
+        <div class="ms" style="height:300px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"Walk me through how you'd turn a vague stakeholder request into a sprint-ready story" is a common senior PM/data interview question. A strong answer names the hierarchy (Theme &#8594; Epic &#8594; Story &#8594; Task), the INVEST check, and Given/When/Then acceptance criteria &mdash; in that order.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('7.1');</script>
+</body>
+</html>

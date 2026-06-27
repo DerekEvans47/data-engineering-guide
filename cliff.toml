@@ -1,0 +1,40 @@
+[changelog]
+header = """
+# Quiz Defense — Changelog
+
+A record of every feature, fix, and improvement shipped to the app.\n
+"""
+body = """
+{% if version %}\
+## {{ version }}
+{% else %}\
+## Unreleased
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group }}
+{% for commit in commits | sort(attribute="message") %}
+- {{ commit.message | split(pat="\n") | first | upper_first | trim }}
+{% endfor %}
+{% endfor %}\n
+"""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+commit_parsers = [
+  { message = "^feat", group = "✨ Features" },
+  { message = "^fix", group = "🐛 Bug Fixes" },
+  { message = "^questions|^Add questions", group = "📚 Content" },
+  { message = "^Visual|^Canvas|^V-[0-9]", group = "✨ Features" },
+  { message = "^chore\\(nightly\\)|^chore: (rename nightly|improve question|add.*prompt|backfill|enforce)", skip = true },
+  { message = "^chore: add.*backlog|^chore: add.*items", skip = true },
+  { message = "^chore", group = "🔧 Infrastructure" },
+  { message = "^Merge pull request", skip = true },
+  { message = "^Merge branch", skip = true },
+  { message = ".*", group = "🔧 Infrastructure" },
+]
+filter_commits = false
+topo_order = true
+sort_commits = "oldest"

@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5.2 Git &amp; GitHub for Data Teams &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="5.2">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Five &nbsp;&middot;&nbsp; Delivery &amp; Leadership</div>
+          <div class="chap-num">5.2</div>
+          <h1 class="chap-title">Git &amp; GitHub for Data Teams</h1>
+          <p class="chap-sub">Version control for every artefact in the data stack — the mental model, core commands, branching strategy, merge conflicts, pull requests, and Git integration across Databricks, dbt, and ADF</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain what version control is and describe Git's four areas: working directory, staging area, local repository, and remote</li>
+            <li>Execute the core daily Git workflow: branch, add, commit, push, pull request, merge</li>
+            <li>Distinguish between git fetch, git pull, git merge, and git rebase — and explain when to use each</li>
+            <li>Read a merge conflict marker and resolve a conflict correctly</li>
+            <li>Design a branching strategy appropriate for a data engineering team using GitHub Flow</li>
+            <li>Configure Git integration for Databricks, dbt, and ADF — and explain why the ADF publish button is a trap in Git mode</li>
+          </ol>
+        </div>
+
+        <!-- 5.2.1 -->
+        <div class="sec-head"><span class="sec-tag">5.2.1</span><h2 class="sec-title">Why Version Control Exists</h2></div>
+
+        <p>Every data engineering team has a version of this story. A SQL file named <code>customer_revenue_final.sql</code> gets modified. Someone renames it <code>customer_revenue_final_v2.sql</code>. A week later there is a <code>customer_revenue_FINAL_USE_THIS_ONE.sql</code> and nobody is certain which one is actually used in production. A pipeline fails on a Monday morning and the engineer who knows which file is live is on holiday.</p>
+
+        <p>Version control solves this by making the history of every change the source of truth. Not the filename, not a folder called "archive," not a Slack message saying "I updated the model last Thursday." The repository. Every file in a Git-managed project has a complete, auditable history: who changed what, when, and with what description. Rolling back to any previous state takes one command. Working on a new feature without disrupting what's in production takes one command. Deploying a reviewed and approved change takes one command.</p>
+
+        <div class="hl-block">Every artefact a data engineering team produces — SQL models, Python scripts, dbt YAML configs, ADF pipeline JSON, Databricks notebooks, YAML workflow definitions — is a text file. Every text file belongs in version control. There is no exception to this rule for data engineering work.</div>
+
+        <p>Three things version control gives you that nothing else does: <strong>History</strong> — every version of every file, forever, with context. <strong>Collaboration</strong> — multiple engineers can work simultaneously without overwriting each other's changes. <strong>Rollback</strong> — any file, any state, any point in time, recoverable in seconds.</p>
+
+        <!-- 5.2.2 -->
+        <div class="sec-head"><span class="sec-tag">5.2.2</span><h2 class="sec-title">The Mental Model: Git's Four Areas</h2></div>
+
+        <p>The most important thing to understand about Git before learning any commands is the mental model. Git has four distinct areas where your code can exist. Understanding which area each command moves code between is the key that makes all the commands coherent. Without this model, Git commands feel like arbitrary incantations. With it, they feel inevitable.</p>
+
+        <!-- Figure 5.3 — Git's Four Areas -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f53sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m53" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+                </marker>
+                <marker id="m53r" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#5C3F9A"/>
+                </marker>
+              </defs>
+              <rect width="700" height="200" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Git's Four Areas &mdash; Where Your Code Lives</text>
+
+              <!-- Your Machine boundary -->
+              <rect x="8" y="26" width="520" height="164" rx="5" fill="rgba(27,58,107,.04)" stroke="rgba(27,58,107,.15)" stroke-width="1" stroke-dasharray="5,3"/>
+              <text x="264" y="196" fill="rgba(27,58,107,.4)" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle" letter-spacing="1.5">YOUR LOCAL MACHINE</text>
+
+              <!-- WORKING DIRECTORY -->
+              <rect x="16" y="36" width="128" height="144" rx="4" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f53sh)"/>
+              <rect x="16" y="36" width="128" height="22" rx="4" fill="#3A4A6A"/>
+              <rect x="16" y="48" width="128" height="10" fill="#3A4A6A"/>
+              <text x="80" y="51" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Working Directory</text>
+              <text x="80" y="72" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Files on your disk</text>
+              <text x="80" y="84" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">as they exist now.</text>
+              <text x="80" y="104" fill="#0F2447" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-family="Courier New">dim_customer.sql</text>
+              <text x="80" y="116" fill="#0F2447" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-family="Courier New">pipeline.py</text>
+              <text x="80" y="128" fill="#0F2447" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-family="Courier New">schema.yml</text>
+              <text x="80" y="148" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-style="italic">git status shows</text>
+              <text x="80" y="159" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-style="italic">changes here</text>
+
+              <!-- Arrow: wd → staging (git add) -->
+              <line x1="144" y1="108" x2="176" y2="108" stroke="#0076CC" stroke-width="2" marker-end="url(#m53)"/>
+              <text x="160" y="100" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">git add</text>
+
+              <!-- STAGING AREA -->
+              <rect x="178" y="36" width="118" height="144" rx="4" fill="white" stroke="#C8E2F8" stroke-width="1.5" filter="url(#f53sh)"/>
+              <rect x="178" y="36" width="118" height="22" rx="4" fill="#254F8F"/>
+              <rect x="178" y="48" width="118" height="10" fill="#254F8F"/>
+              <text x="237" y="51" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Staging Area</text>
+              <text x="237" y="72" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Files staged, ready</text>
+              <text x="237" y="84" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">to be committed.</text>
+              <text x="237" y="104" fill="#0F2447" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-family="Courier New">dim_customer.sql ✓</text>
+              <text x="237" y="116" fill="rgba(74,96,128,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">pipeline.py (not staged)</text>
+              <text x="237" y="148" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-style="italic">"Intent to commit"</text>
+              <text x="237" y="159" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-style="italic">— add selectively</text>
+
+              <!-- Arrow: staging → local repo (git commit) -->
+              <line x1="296" y1="108" x2="328" y2="108" stroke="#0076CC" stroke-width="2" marker-end="url(#m53)"/>
+              <text x="312" y="100" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">git commit</text>
+
+              <!-- LOCAL REPOSITORY -->
+              <rect x="330" y="36" width="118" height="144" rx="4" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f53sh)"/>
+              <rect x="330" y="36" width="118" height="22" rx="4" fill="#0F2447"/>
+              <rect x="330" y="48" width="118" height="10" fill="#0F2447"/>
+              <text x="389" y="51" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Local Repository</text>
+              <text x="389" y="72" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Committed history</text>
+              <text x="389" y="84" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">on your machine.</text>
+              <text x="389" y="104" fill="#0F2447" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-family="Courier New">c3f9a1 "add SCD logic"</text>
+              <text x="389" y="116" fill="#0F2447" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-family="Courier New">b12de4 "fix null test"</text>
+              <text x="389" y="128" fill="#0F2447" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-family="Courier New">a78f2c "init schema"</text>
+              <text x="389" y="148" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-style="italic">Safe but private</text>
+              <text x="389" y="159" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-style="italic">until pushed</text>
+
+              <!-- Arrow: local → remote (git push) -->
+              <line x1="448" y1="90" x2="540" y2="90" stroke="#0076CC" stroke-width="2" marker-end="url(#m53)"/>
+              <text x="494" y="82" fill="#0F2447" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">git push</text>
+
+              <!-- Arrow: remote → local (git fetch/pull) -->
+              <line x1="540" y1="126" x2="448" y2="126" stroke="#5C3F9A" stroke-width="2" marker-end="url(#m53r)"/>
+              <text x="494" y="144" fill="#5C3F9A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">git fetch / pull</text>
+
+              <!-- REMOTE (GitHub) -->
+              <rect x="544" y="36" width="144" height="144" rx="4" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f53sh)"/>
+              <rect x="544" y="36" width="144" height="22" rx="4" fill="#1A5A78"/>
+              <rect x="544" y="48" width="144" height="10" fill="#1A5A78"/>
+              <text x="616" y="51" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Remote (GitHub)</text>
+              <text x="616" y="72" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Shared repository.</text>
+              <text x="616" y="84" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Team sees this.</text>
+              <text x="616" y="104" fill="#0F2447" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Origin/main</text>
+              <text x="616" y="116" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Pull requests</text>
+              <text x="616" y="128" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Code review</text>
+              <text x="616" y="148" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-style="italic">GitHub / Azure DevOps</text>
+              <text x="616" y="159" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-style="italic">GitLab / Bitbucket</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 5.3</strong><span>Git's four areas and the commands that move code between them. Working directory is your local disk. git add stages specific changes (this is the "intent to commit" step — you choose which changes to include). git commit creates a permanent snapshot in the local repository with a message describing what changed and why. git push sends local commits to the remote (GitHub) where teammates can see and review. git fetch/pull retrieves changes from the remote — fetch downloads without merging, pull fetches and merges in one step.</span></div>
+        </div>
+
+        <p><strong>Working directory:</strong> Files on your disk as they currently exist. Edits you haven't yet staged. The state you see in your code editor.</p>
+        <p><strong>Staging area (index):</strong> A holding area for changes you intend to commit. Running <code>git add dim_customer.sql</code> moves that file's changes to staging. This intermediate step exists so you can commit related changes together, leaving unrelated changes unstaged. It is the "intent to commit" step — deliberate, selective, and yours to control.</p>
+        <p><strong>Local repository:</strong> The permanent history on your machine. A commit is a snapshot of the staged changes at a point in time, with a message, an author, a timestamp, and a unique hash (e.g., <code>c3f9a1b</code>). Commits are private to your machine until pushed. Running <code>git log</code> shows your local commit history.</p>
+        <p><strong>Remote (origin):</strong> The shared repository on GitHub, Azure DevOps, GitLab, or similar. This is what your team sees. Push sends your local commits here. Pull (or fetch + merge) retrieves remote changes to your local repository.</p>
+
+        <!-- 5.2.3 -->
+        <div class="sec-head"><span class="sec-tag">5.2.3</span><h2 class="sec-title">Core Commands for Data Work</h2></div>
+
+        <p>The following commands cover approximately 95% of a data engineer's day-to-day Git usage. Each is illustrated with a real data engineering context rather than a generic software example.</p>
+
+        <h3 class="subsec">Getting Started</h3>
+        <p><code>git clone &lt;url&gt;</code> — copies a remote repository to your local machine. First command run when joining a project. Creates a local copy of the repo with the full history. Example: <code>git clone https://github.com/org/data-warehouse.git</code></p>
+        <p><code>git status</code> — shows what has changed since the last commit: modified files (not yet staged), staged files (ready to commit), and untracked files (new files Git doesn't know about yet). Run this constantly. It is your orientation tool.</p>
+
+        <h3 class="subsec">The Daily Workflow</h3>
+        <p><code>git checkout -b feature/add-dim-product</code> — creates a new branch and switches to it. Never work directly on main. Branch names should be descriptive: <code>feature/</code> for new work, <code>fix/</code> for bug fixes, <code>chore/</code> for maintenance. This keeps main deployable at all times.</p>
+        <p><code>git add &lt;file&gt;</code> or <code>git add .</code> — stages changes. Prefer staging specific files (<code>git add models/dim_product.sql</code>) over staging everything at once (<code>git add .</code>) to ensure your commit contains only related changes. A commit that touches a dbt model, a Python utility function, and a config file is harder to review and harder to revert than three separate focused commits.</p>
+        <p><code>git commit -m "add dim_product with SCD Type 2 columns"</code> — creates a snapshot. Write commit messages in the imperative present tense as a description of the change: "add", "fix", "update", "remove". A good commit message completes the sentence: "If applied, this commit will: [your message]." Bad: "fixed stuff". Good: "fix null handling in fact_sales revenue calculation".</p>
+        <p><code>git push origin feature/add-dim-product</code> — pushes your branch to the remote. After this, open a Pull Request on GitHub or Azure DevOps.</p>
+
+        <h3 class="subsec">Staying Up to Date</h3>
+        <p><code>git pull</code> — fetches changes from the remote and merges them into your current branch. Use before starting new work and before pushing to avoid conflicts. On a branch that's been open several days: pull from main regularly to avoid diverging far from the base. <code>git pull origin main</code> pulls the latest main into your current branch.</p>
+        <p><code>git fetch</code> — downloads remote changes without merging them. Safer than pull when you want to inspect what changed before incorporating it. After fetch: <code>git log origin/main..HEAD</code> shows what's in main that you don't have. Then <code>git merge origin/main</code> when you're ready.</p>
+
+        <h3 class="subsec">Undoing Work</h3>
+        <p><code>git stash</code> — temporarily shelves uncommitted changes so you can switch context. Useful when an urgent prod fix interrupts ongoing work. <code>git stash pop</code> restores the stashed changes when you return.</p>
+        <p><code>git revert &lt;commit-hash&gt;</code> — creates a new commit that undoes the changes of a specific commit. Safe for shared branches because it adds to history rather than rewriting it. Use this to undo a broken pipeline deployment in production.</p>
+        <p><code>git reset</code> — moves the current branch pointer. Three modes with different consequences: <code>--soft</code> (uncommit but keep changes staged), <code>--mixed</code> (uncommit and unstage but keep changes), <code>--hard</code> (uncommit, unstage, and discard changes permanently). Only use <code>--hard</code> when you are certain you want to destroy the changes. Never use <code>reset</code> on commits that have been pushed to a shared branch.</p>
+
+        <h3 class="subsec">Useful Inspection Commands</h3>
+        <p><code>git log --oneline</code> — compact history view. One commit per line with hash and message. Add <code>--graph</code> to see branch topology: <code>git log --oneline --graph</code>.</p>
+        <p><code>git diff</code> — shows exact line-by-line changes between working directory and staging. <code>git diff --staged</code> shows differences between staging and last commit.</p>
+        <p><code>git blame &lt;file&gt;</code> — shows who wrote each line and when. Invaluable for understanding why a specific SQL transformation or pipeline config was written a particular way. "Who wrote this and in what context?" — git blame answers both.</p>
+        <p><code>git cherry-pick &lt;commit-hash&gt;</code> — applies a specific commit from another branch to the current branch without merging the whole branch. Use case: a fix was made on a feature branch but needs to be applied to main immediately without merging the entire feature.</p>
+
+        <!-- 5.2.4 -->
+        <div class="sec-head"><span class="sec-tag">5.2.4</span><h2 class="sec-title">Fetch, Pull, Merge, and Rebase — The Confused Quartet</h2></div>
+
+        <p>These four operations are related but distinct, and the confusion between them causes more lost work and more Git anxiety than almost anything else. A clear mental model of each resolves the confusion permanently.</p>
+
+        <h3 class="subsec">Fetch</h3>
+        <p>Downloads changes from the remote to your local repository without incorporating them into any branch. Your working directory and local branches are unchanged. After fetch, you can inspect remote changes with <code>git log origin/main</code> before deciding to merge. Think of fetch as "show me what's out there without touching my work." Use it when you want to look before you leap.</p>
+
+        <h3 class="subsec">Pull</h3>
+        <p>Fetch + merge in one step. Downloads remote changes and immediately merges them into your current branch. The most convenient option for routine updates on branches with no local conflicts. Risk: if there are conflicts between remote and local changes, pull drops you into conflict resolution immediately with no chance to inspect first. On a branch with significant local work, fetch then inspect then merge is safer than pull.</p>
+
+        <h3 class="subsec">Merge</h3>
+        <p>Combines two branch histories into one. Creates a "merge commit" that has two parents, preserving the fact that two parallel lines of work were combined at a specific point. <code>git merge feature/dim-product</code> merges the feature branch into your current branch. Merge is safe for shared branches — it doesn't rewrite history, just adds to it.</p>
+
+        <!-- Figure 5.4 — Branching and merge diagram -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <marker id="m54" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <polygon points="0 0,6 3,0 6" fill="#0076CC"/>
+                </marker>
+                <marker id="m54g" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <polygon points="0 0,6 3,0 6" fill="#1A7A4A"/>
+                </marker>
+                <marker id="m54r" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <polygon points="0 0,6 3,0 6" fill="#B07D2A"/>
+                </marker>
+              </defs>
+              <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">GitHub Flow &mdash; Merge vs Rebase</text>
+
+              <!-- MERGE (top half) -->
+              <text x="12" y="42" fill="#0F2447" font-family="Inter,sans-serif" font-size="9" font-weight="700">MERGE</text>
+              <text x="12" y="54" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">Preserves history</text>
+
+              <!-- main branch -->
+              <line x1="80" y1="72" x2="660" y2="72" stroke="rgba(27,58,107,.15)" stroke-width="1.5"/>
+              <text x="68" y="77" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="end">main</text>
+              <!-- commits on main -->
+              <circle cx="100" cy="72" r="8" fill="#0F2447" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="100" y="76" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">A</text>
+              <circle cx="180" cy="72" r="8" fill="#0F2447" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="180" y="76" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">B</text>
+              <circle cx="580" cy="72" r="8" fill="#0F2447" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="580" y="76" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">C</text>
+
+              <!-- feature branch -->
+              <line x1="180" y1="72" x2="200" y2="100" stroke="#1A7A4A" stroke-width="1.5"/>
+              <line x1="200" y1="100" x2="480" y2="100" stroke="rgba(26,122,74,.2)" stroke-width="1.5"/>
+              <text x="68" y="105" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="end" font-weight="600">feature</text>
+              <!-- feature commits -->
+              <circle cx="260" cy="100" r="8" fill="#1A7A4A" stroke="#1A7A4A" stroke-width="1.5"/>
+              <text x="260" y="104" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">D</text>
+              <circle cx="380" cy="100" r="8" fill="#1A7A4A" stroke="#1A7A4A" stroke-width="1.5"/>
+              <text x="380" y="104" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">E</text>
+              <circle cx="480" cy="100" r="8" fill="#1A7A4A" stroke="#1A7A4A" stroke-width="1.5"/>
+              <text x="480" y="104" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">F</text>
+
+              <!-- PR + merge commit -->
+              <line x1="480" y1="100" x2="560" y2="72" stroke="#1A7A4A" stroke-width="1.5" stroke-dasharray="4,2"/>
+              <line x1="180" y1="72" x2="560" y2="72" stroke="#0076CC" stroke-width="1.5"/>
+              <circle cx="560" cy="72" r="10" fill="#B07D2A" stroke="#C8892A" stroke-width="1.5"/>
+              <text x="560" y="76" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle" font-weight="700">PR</text>
+              <text x="560" y="90" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">merge commit</text>
+              <text x="560" y="60" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">2 parents</text>
+              <text x="350" y="122" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">History shows D, E, F came from a feature branch — full context preserved</text>
+
+              <!-- REBASE (bottom half) -->
+              <line x1="8" y1="136" x2="692" y2="136" stroke="rgba(27,58,107,.1)" stroke-width="1"/>
+              <text x="12" y="154" fill="#0F2447" font-family="Inter,sans-serif" font-size="9" font-weight="700">REBASE</text>
+              <text x="12" y="166" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">Rewrites history</text>
+
+              <!-- main branch -->
+              <line x1="80" y1="188" x2="660" y2="188" stroke="rgba(27,58,107,.15)" stroke-width="1.5"/>
+              <text x="68" y="193" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="end">main</text>
+              <circle cx="100" cy="188" r="8" fill="#0F2447" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="100" y="192" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">A</text>
+              <circle cx="180" cy="188" r="8" fill="#0F2447" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="180" y="192" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">B</text>
+              <!-- Rebased commits appear inline on main — linear history -->
+              <circle cx="280" cy="188" r="8" fill="#1A5A78" stroke="#3A9FE0" stroke-width="1.5"/>
+              <text x="280" y="192" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">D'</text>
+              <circle cx="380" cy="188" r="8" fill="#1A5A78" stroke="#3A9FE0" stroke-width="1.5"/>
+              <text x="380" y="192" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">E'</text>
+              <circle cx="480" cy="188" r="8" fill="#1A5A78" stroke="#3A9FE0" stroke-width="1.5"/>
+              <text x="480" y="192" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">F'</text>
+              <text x="380" y="210" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">&#9888; D, E, F are rewritten as D', E', F' — new hashes, linear history. Never rebase shared branches.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 5.4</strong><span>Merge vs rebase. Merge (top): feature commits D, E, F retain their original hashes; a merge commit with two parents is created, preserving the full branching history. Rebase (bottom): commits D, E, F are rewritten as D', E', F' with new hashes — replayed on top of main as if the feature branch had been started from the latest main commit. Rebase creates a clean linear history but rewrites commits, making it unsafe on any branch that other engineers have already pulled.</span></div>
+        </div>
+
+        <h3 class="subsec">Rebase</h3>
+        <p>Rebase replays your commits on top of another branch, rewriting their history in the process. The result is a clean linear log — it looks as if your feature was developed starting from the current tip of main, with no merge commit. The golden rule: <strong>never rebase a branch that other engineers have pulled.</strong> When you rebase, you rewrite commit hashes. Anyone who pulled the original commits now has a history that conflicts with yours in a way that is deeply confusing to resolve. Safe uses of rebase: tidying up your own local feature branch before opening a PR, squashing several small "fix typo" commits into one clean commit. Unsafe: rebasing main, rebasing a branch that the team has been pulling from.</p>
+
+        <!-- 5.2.5 -->
+        <div class="sec-head"><span class="sec-tag">5.2.5</span><h2 class="sec-title">Merge Conflicts</h2></div>
+
+        <p>A merge conflict occurs when two branches have modified the same lines of the same file in incompatible ways. Git cannot automatically decide which version is correct — it marks the conflict and waits for a human decision. Conflicts are not errors or failures. They are a normal part of collaborative development and take minutes to resolve once you know how to read them.</p>
+
+        <h3 class="subsec">Reading a Conflict Marker</h3>
+        <p>When a conflict occurs, Git inserts markers directly into the file:</p>
+        <p><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code> — the start of your current branch's version<br/>
+        <code>revenue = SUM(amount) WHERE currency = 'GBP'</code><br/>
+        <code>=======</code> — the divider between the two versions<br/>
+        <code>revenue = SUM(amount_gbp) WHERE is_settled = TRUE</code><br/>
+        <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt; feature/settlement-logic</code> — the end of the incoming branch's version</p>
+
+        <p>Your job: decide which version is correct (your version, their version, or a combined new version), remove all three marker lines, and save the file. Then <code>git add &lt;file&gt;</code> and <code>git commit</code> to complete the merge.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Merge conflicts in VS Code and preventing them upstream</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p><strong>VS Code conflict resolution:</strong> VS Code renders merge conflicts visually with four buttons above each conflict block: "Accept Current Change" (HEAD version), "Accept Incoming Change" (other branch), "Accept Both Changes" (concatenate both), and "Compare Changes" (diff view). For most data engineering conflicts — two engineers who both modified the same dbt model or pipeline config — "Compare Changes" first, then accept the correct version or write a combined solution manually.</p>
+              <p><strong>Preventing conflicts before they happen:</strong></p>
+              <p>The most effective prevention is short-lived branches. A feature branch open for three days has a much lower chance of conflicting than one open for two weeks. Pull from main into your feature branch regularly: <code>git pull origin main</code> while on your feature branch keeps you close to the current state of main and resolves small conflicts incrementally rather than accumulating a large one.</p>
+              <p>For dbt specifically: conflicts in <code>schema.yml</code> files are common when two engineers add tests or documentation to the same model simultaneously. Structure your schema.yml files by model — one file per directory or one file per model group — so that engineers working on different models are editing different files, eliminating the conflict surface entirely.</p>
+              <p><strong>Conflict resolution for data files:</strong> If the conflict is in a pipeline config or dbt model and both changes are semantically correct (both engineers added different business logic), the resolution often requires a conversation, not just a text merge. The conflict marker shows you what changed — understanding why it changed requires talking to the engineer who made the other change. For data work, a five-minute conversation before resolving a complex conflict is always faster than resolving the wrong version and discovering the data issue two weeks later.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Data Consultancy &nbsp;&middot;&nbsp; The final_v2_FINAL.sql Problem</span>
+          </div>
+          <div class="field-note-body">
+            <p>A data consultancy's client project had a shared network drive (not a Git repository) as its "version control" for SQL transformation scripts. The folder for the client's revenue model contained: <code>revenue_model.sql</code>, <code>revenue_model_v2.sql</code>, <code>revenue_model_v2_FIXED.sql</code>, <code>revenue_model_FINAL.sql</code>, <code>revenue_model_FINAL_CLIENT_APPROVED.sql</code>, and <code>revenue_model_FINAL_CLIENT_APPROVED_deployed.sql</code>. Six files representing one model. Nobody was certain which was actually running in production.</p>
+            <p>A discrepancy in the client's month-end revenue figures triggered an audit. The audit revealed that <code>revenue_model_FINAL_CLIENT_APPROVED.sql</code> (what everyone thought was live) differed from <code>revenue_model_FINAL_CLIENT_APPROVED_deployed.sql</code> by a single line — a currency conversion multiplier that had been added during a late-stage client approval session and applied only to the deployed copy, without updating the "approved" copy. The consultancy spent four days and significant goodwill explaining this to the client.</p>
+            <p>The project migrated to Git in the week that followed. One file per model, one source of truth. Every change tracked, every version recoverable, every deployment traceable to a commit with an author, a timestamp, and a message.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>File-naming as version control fails the moment two people work on the same file or two changes are made in close succession. Git replaces the filename with the commit history as the source of truth. There is one file, one name, infinite history.</p>
+          </div>
+        </div>
+
+        <!-- 5.2.6 -->
+        <div class="sec-head"><span class="sec-tag">5.2.6</span><h2 class="sec-title">Pull Requests and Branching Strategy</h2></div>
+
+        <p>A Pull Request (PR) — called a Merge Request in GitLab — is a formal proposal to merge a branch into main. It is the gate through which work passes from an engineer's branch to the shared codebase. For data engineering, PRs serve three purposes: code review (catching SQL logic errors, pipeline bugs, and schema issues before they reach production), documentation (the PR description captures why a change was made, not just what changed), and deployment trigger (CI/CD pipelines can run dbt tests or deploy Databricks notebooks when a PR is approved and merged).</p>
+
+        <h3 class="subsec">What to Include in a Data Engineering PR Description</h3>
+        <p>A PR description should answer four questions: What does this change do? Why was it needed (linked to a Jira/Linear ticket)? How was it tested? Are there any risks or caveats? For data changes specifically: include the row counts or sample output before and after the change, note any downstream impacts (other models that depend on this one), and flag any changes to grain, schema, or key columns that consuming reports depend on.</p>
+
+        <h3 class="subsec">GitHub Flow — The Right Strategy for Most Data Teams</h3>
+        <p>Three branching strategies are commonly discussed: GitFlow (main + develop + feature + release + hotfix branches — complex, heavyweight, better suited to versioned software releases), GitHub Flow (main + feature branches only — simple, fast, the right choice for most data teams), and Trunk-Based Development (everyone commits directly to main with feature flags — fastest iteration, requires high test coverage and CI confidence). GitHub Flow is the recommended default for data engineering teams:</p>
+        <p>One rule: <strong>main is always deployable.</strong> Feature branches are where work in progress lives. When a feature is complete and reviewed, it merges to main, and main is the source of truth for production. No develop branch, no release branch — just feature branches and main. This simplicity reduces cognitive overhead and removes the common confusion about which branch to branch from.</p>
+
+        <h3 class="subsec">Squash, Merge, and Rebase — PR Merge Strategies</h3>
+        <p>GitHub offers three ways to merge a PR: <strong>Merge commit</strong> (preserves all commits from the feature branch plus a merge commit — full history, messy log for branches with many small commits); <strong>Squash and merge</strong> (combines all feature branch commits into one commit on main — clean log, loses individual commit history); <strong>Rebase and merge</strong> (replays feature commits onto main individually — linear history, no merge commit, loses the branch topology). For data teams: squash and merge is usually the best choice. It keeps main's log clean (one commit per feature, not seventeen "fix typo" commits) while the PR itself preserves the full development history for anyone who needs it.</p>
+
+        <!-- 5.2.7 -->
+        <div class="sec-head"><span class="sec-tag">5.2.7</span><h2 class="sec-title">.gitignore for Data Projects</h2></div>
+
+        <p>The <code>.gitignore</code> file lists patterns for files and directories that Git should not track. For data engineering projects, the gitignore is both a security control (preventing credentials from being committed) and a repository hygiene tool (preventing large binary files and generated artefacts from bloating the repo).</p>
+
+        <h3 class="subsec">What to Exclude</h3>
+        <p>Security-critical: <code>.env</code>, <code>*.env</code>, <code>secrets.yaml</code>, <code>credentials.json</code>, <code>*.pem</code>, <code>*.key</code> — environment files and credential files must never enter the repository. Even in a private repo, credentials in Git history are a security debt that is expensive to clean up and carries real breach risk if the repo is ever made public or accessed by the wrong person.</p>
+        <p>Large data files: <code>*.csv</code>, <code>*.parquet</code>, <code>*.xlsx</code>, <code>*.feather</code> — data files belong in ADLS or object storage, not in Git. Even "small" CSVs used for testing accumulate quickly and make cloning slow.</p>
+        <p>Generated artefacts: <code>__pycache__/</code>, <code>*.pyc</code>, <code>target/</code> (dbt compilation output), <code>.databricks/</code>, <code>dist/</code>, <code>*.egg-info/</code> — these are generated from source files that are tracked, so tracking the generated versions creates redundancy and conflicts.</p>
+
+        <h3 class="subsec">What to Always Commit</h3>
+        <p>Everything that defines how the pipeline, model, or report is built: all <code>.sql</code> files (dbt models), all <code>.py</code> files (scripts, utilities), all <code>.yml</code>/<code>.yaml</code> files (dbt project config, schema tests, GitHub Actions workflows, Databricks bundle configs), all <code>.json</code> files that represent pipeline definitions (ADF pipeline JSON, ARM templates), <code>requirements.txt</code> and <code>pyproject.toml</code> (Python dependencies), <code>Makefile</code> and <code>Dockerfile</code> if present. If another engineer cannot reproduce your environment and pipeline from the repository alone, something is missing from version control.</p>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A SaaS Startup &nbsp;&middot;&nbsp; Credentials in GitHub</span>
+          </div>
+          <div class="field-note-body">
+            <p>A data engineer at a SaaS startup was connecting a new Databricks notebook to an Azure SQL Database. Rather than using environment variables or Azure Key Vault, they hardcoded the connection string — including username and password — directly in the notebook and committed it. The repository was private, but the company used a GitHub organization account that was accidentally set to public visibility during a settings change three weeks later.</p>
+            <p>Within 48 hours of the accidental public exposure, an automated credential-scanning bot had found the connection string. The Azure SQL Database received login attempts from six different geographic regions. The database was not breached — the SQL firewall limited access to known Azure IP ranges — but the credential had to be rotated immediately, triggering an emergency change window and a four-hour outage of the downstream reporting system that depended on that connection.</p>
+            <p>The fix took 15 minutes. The retrospective, the credential rotation, the stakeholder communication, and the code review process changes took three days. The engineer involved had not done anything unusual — many people commit credentials "just temporarily" — but temporary commits have a way of becoming permanent history.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Never commit credentials to any repository — private or public. Add <code>.env</code> to <code>.gitignore</code> before the first commit. Use Azure Key Vault, environment variables, or Databricks secrets. A credential in Git history is not easily removed — even after deletion, it remains in the history and must be explicitly purged with <code>git filter-branch</code> or BFG Repo-Cleaner.</p>
+          </div>
+        </div>
+
+        <!-- 5.2.8 -->
+        <div class="sec-head"><span class="sec-tag">5.2.8</span><h2 class="sec-title">Git in the Azure Data Stack</h2></div>
+
+        <p>Git integration works differently in each tool of the Azure stack. Understanding the specific integration pattern for each tool prevents the most common mistakes.</p>
+
+        <h3 class="subsec">dbt + Git</h3>
+        <p>dbt is Git-native by design. Every dbt model is a <code>.sql</code> file. Every test is a YAML entry. Every documentation string is a YAML field. The entire dbt project is a folder structure of text files, ready to be committed. The recommended workflow: one branch per feature or model change, PR to main triggers a CI run (<code>dbt build --select state:modified+</code> on the changed models only — the "slim CI" pattern), merge to main triggers deployment to production. This gives you code review, automated testing, and deployment traceability with no additional tooling.</p>
+
+        <h3 class="subsec">Databricks + Git</h3>
+        <p>Databricks has first-class Git integration built into the workspace. Under Workspace → Repos, you can connect a Databricks workspace directly to a GitHub or Azure DevOps repository. Changes made in Databricks notebooks are synced to the Git repository. Databricks Asset Bundles (DABs) extend this to full CI/CD: define jobs, clusters, and workflows in YAML (<code>bundle.yml</code>), commit to Git, and deploy via <code>databricks bundle deploy</code> from a GitHub Actions or Azure DevOps pipeline. This replaces the older pattern of manually creating jobs in the Databricks UI — DABs make the entire Databricks environment reproducible from code.</p>
+
+        <h3 class="subsec">ADF + Git — The Publish Button Trap</h3>
+        <p>ADF's Git integration is the most commonly misunderstood in the stack. When you connect ADF to a Git repository (Settings → Git configuration), ADF stores pipeline definitions as JSON files in the connected repository. Changes to pipelines are automatically saved as commits on a feature branch. This sounds straightforward — but there is a critical distinction between "saving to Git" and "deploying to production" in ADF Git mode.</p>
+
+        <p>In ADF Git mode, the pipeline definitions in your Git repository are <em>not</em> what runs in production. What runs in production is the "published" version — a separate copy maintained in the <code>adf_publish</code> branch, updated only when you click the blue "Publish" button in the ADF UI. This means: a pipeline committed to Git and merged to main is not yet live. You must also click Publish. Engineers who are used to "merge = deploy" patterns (as in dbt or Databricks) regularly make the mistake of merging a pipeline change and assuming it is live — only to find production is still running the old version.</p>
+
+        <p>The correct ADF CI/CD pattern bypasses the Publish button entirely: export ADF ARM (Azure Resource Manager — Microsoft's infrastructure-as-code format) templates from Git, use Azure DevOps Pipelines or GitHub Actions to deploy the ARM template to each environment (dev → test → prod) on PR merge. This makes ADF deployments as reproducible and controllable as any other infrastructure deployment. The Publish button should only be used in development — never as the deployment mechanism for test or production.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>dbt slim CI with GitHub Actions — the full pattern</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Slim CI is the dbt pattern for running only the models and tests affected by a PR, rather than rebuilding the entire project on every change. At scale (hundreds of dbt models), full project runs take 30–90 minutes — too slow for a PR gate. Slim CI brings that to under five minutes for most PRs.</p>
+              <p><strong>Prerequisites:</strong> dbt artifacts from the production run (specifically <code>manifest.json</code>) must be stored somewhere the CI runner can access. Common pattern: upload to Azure Blob Storage after each production run, download in CI before comparing state.</p>
+              <p><strong>GitHub Actions workflow (`.github/workflows/dbt-ci.yml`):</strong></p>
+              <p><code>name: dbt Slim CI</code><br/>
+              <code>on: [pull_request]</code><br/>
+              <code>jobs:</code><br/>
+              <code>&nbsp;&nbsp;dbt-check:</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;runs-on: ubuntu-latest</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;steps:</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- uses: actions/checkout@v3</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- run: pip install dbt-databricks</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- run: az storage blob download --account-name $STORAGE --container dbt-artifacts --name manifest.json --file target/manifest.json</code><br/>
+              <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- run: dbt build --select state:modified+ --defer --state target/</code></p>
+              <p><strong>What this does:</strong> <code>state:modified+</code> selects only models that changed in this PR, plus their downstream dependents. <code>--defer</code> uses the production run's compiled SQL for unmodified upstream models rather than re-running them. The result: a PR that changes <code>dim_product.sql</code> will run dim_product and any models that depend on it — not the entire warehouse. Fast feedback, targeted testing, automated gate before merge.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5.2.9 Platform Comparison -->
+        <div class="sec-head"><span class="sec-tag">5.2.9</span><h2 class="sec-title">Git Hosting Platforms</h2></div>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Platform</th>
+              <th>Market Position</th>
+              <th>Azure / M365 Integration</th>
+              <th>CI/CD (native)</th>
+              <th>Data Tool Ecosystem</th>
+              <th>Self-Hosted Option</th>
+              <th>Best For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>GitHub</strong></td>
+              <td>#1 globally by far — &gt;100M developers</td>
+              <td>Good (GitHub Actions + Azure connectors)</td>
+              <td>GitHub Actions — excellent, huge marketplace</td>
+              <td>Best — dbt, Databricks, ADF all have native GitHub connectors</td>
+              <td>GitHub Enterprise Server</td>
+              <td>Most teams; open source; engineering-first culture</td>
+            </tr>
+            <tr>
+              <td><strong>Azure DevOps Repos</strong></td>
+              <td>Enterprise #1 in Microsoft orgs</td>
+              <td>Native — deepest Azure integration possible</td>
+              <td>Azure Pipelines — mature, YAML-based</td>
+              <td>Good — ADF-native, Databricks connector, dbt adapter</td>
+              <td>Azure DevOps Server (on-prem)</td>
+              <td>Microsoft/Azure-first enterprises; regulated industries needing audit trail</td>
+            </tr>
+            <tr>
+              <td><strong>GitLab</strong></td>
+              <td>#2 globally; strong in Europe</td>
+              <td>Good — connectors available, not native</td>
+              <td>GitLab CI/CD — mature, comprehensive DevSecOps</td>
+              <td>Good — growing data tool integrations</td>
+              <td>GitLab Community/Enterprise — strong self-hosted option</td>
+              <td>Data sovereignty requirements; full DevSecOps; self-hosted preference</td>
+            </tr>
+            <tr>
+              <td><strong>Bitbucket</strong></td>
+              <td>#3–4; shrinking share</td>
+              <td>Limited — Atlassian connectors to Azure available</td>
+              <td>Bitbucket Pipelines — functional but less mature</td>
+              <td>Limited — fewer native data tool integrations</td>
+              <td>Bitbucket Data Center</td>
+              <td>Teams already in the Atlassian ecosystem (JIRA, Confluence)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>The ADF Git integration publish trap — full explanation and correct CI/CD pattern</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p><strong>Why the trap exists:</strong> ADF Git integration stores pipeline definitions in a repository branch you specify (usually <code>main</code> or a <code>collaboration</code> branch). ADF reads pipeline definitions from Git for development — you see the pipeline, you can edit it, it saves to Git. But ADF's <em>execution runtime</em> reads from a different source: the published ARM template, stored in the <code>adf_publish</code> branch. Clicking "Publish" compiles the Git-based pipeline definitions into ARM templates and overwrites the <code>adf_publish</code> branch. Production ADF reads only from <code>adf_publish</code>, never directly from your collaboration branch.</p>
+              <p><strong>The consequence:</strong> A pipeline change committed to <code>main</code> and merged via PR is visible in the ADF UI — but it is NOT running in production. The old published version is still live. Engineers who merge-and-assume-deployed create a silent divergence between what Git says should run and what production is actually running. This is particularly dangerous for data pipelines where the wrong version quietly produces incorrect results rather than failing visibly.</p>
+              <p><strong>The correct pattern — ARM template CI/CD:</strong></p>
+              <p>Step 1: In ADF Git mode, develop on feature branches, collaborate on main. Never click Publish in production ADF instances.</p>
+              <p>Step 2: In Azure DevOps Pipelines or GitHub Actions, create a release pipeline triggered on merge to main. The pipeline: checks out the ADF repository, generates ARM templates from the pipeline JSON (ADF provides a Node.js utility for this, or use the adf-ci-option from the ADF team), and deploys to dev, test, then prod using <code>az deployment group create</code> with the ARM template.</p>
+              <p>Step 3: Use ADF-specific parameters (linked service connection strings, etc.) per environment — the ARM template parameterises these automatically when ADF generates it.</p>
+              <p>This pattern makes ADF deployments reproducible, reviewable (all changes go through PR), and environment-consistent. The Publish button is used only in development ADF instances for initial testing before a PR is raised.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Version control exists to give teams history, collaboration, and rollback. Git has four areas: working directory (your edits), staging area (changes you intend to commit), local repository (committed history on your machine), remote (GitHub — what the team sees). Core workflow: branch → add → commit → push → PR → merge. git fetch downloads remote changes without merging (inspect first); git pull fetches and merges in one step (convenient but less controlled). Merge creates a merge commit and preserves history — safe for shared branches. Rebase rewrites commits for a clean log — never rebase shared branches. Merge conflicts are normal: read the markers, decide which version is correct, remove the markers, add and commit. GitHub Flow (main + feature branches only) is the right branching strategy for most data teams. .gitignore must exclude credentials, data files, and generated artefacts — never commit .env or any file containing a connection string or password. In the Azure stack: dbt is Git-native by design; Databricks uses Repos + DABs; ADF's publish button is a trap — use ARM template CI/CD instead.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 5.2 &nbsp;&middot;&nbsp; Git &amp; GitHub for Data Teams</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">What is the difference between <code>git fetch</code> and <code>git pull</code>?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">git fetch downloads files; git pull downloads commit history only</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">git fetch downloads remote changes to your local repository without merging them into your working branch; git pull performs fetch and then merges the remote changes into your current branch in one step</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">git fetch only works on the main branch; git pull works on any branch</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">They are identical — git fetch is just an older alias for git pull</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> git fetch is the "look before you leap" command — it downloads what's in the remote repository without changing anything in your working directory or current branch. After fetch, you can inspect remote changes with git log origin/main before deciding to merge. git pull is fetch + merge combined: it downloads remote changes and immediately merges them into your current branch. Pull is convenient but drops you straight into conflict resolution if there are incompatible changes, with no chance to inspect first. On branches with significant local work, fetch-then-inspect-then-merge is the safer pattern.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">A data engineer commits a change to a dbt model on a feature branch, pushes it, and opens a pull request. The PR is reviewed, approved, and merged to main. Has the change been deployed to production dbt in a standard CI/CD setup?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Yes — merging to main is the deployment in dbt; the model will run in the next scheduled dbt job</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">No — the engineer must also manually run dbt deploy from the command line</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">It depends on the CI/CD setup — merge to main can trigger an automated dbt build/deploy pipeline (e.g., via GitHub Actions), in which case yes; without CI/CD automation, the production job scheduler will pick it up on the next scheduled run</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">No — dbt models must be published manually via the dbt Cloud UI before they are active</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> dbt itself has no concept of "publish" separate from "run." The dbt model file in Git IS the definition of the model. Whether merging to main deploys it depends entirely on how the team's CI/CD is configured. With GitHub Actions triggering a dbt build on PR merge, the change is deployed within minutes of merge. Without CI/CD automation, the next scheduled dbt job run (daily, hourly, etc.) will pick up the change. This is fundamentally different from ADF, where merging to the collaboration branch does NOT deploy — you must separately click Publish or run an ARM template deployment. Understanding this distinction prevents the most common deployment confusion in mixed data stacks.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">Why is it dangerous to use git rebase on a branch that other engineers have already pulled?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Rebase cannot be run on branches with more than one contributor</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Rebase deletes the branch entirely once complete</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Rebase rewrites commit hashes — anyone who has already pulled the original commits now has a diverged history that conflicts with the rebased version in ways that are confusing to resolve and can result in duplicate or lost commits</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Rebase on shared branches is slow because it must re-run all CI checks on each replayed commit</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> When you rebase, Git takes your commits, temporarily removes them, moves the branch pointer to the new base, then replays the commits — creating new commits with new hashes (D becomes D', E becomes E'). Engineers who pulled the original D and E now have commits in their local history that no longer exist on the remote. When they next try to push or pull, Git sees completely different histories for the same branch and produces deeply confusing conflicts. The golden rule: rebase is safe only on commits you have not yet pushed, or on a personal branch that nobody else is pulling. Once commits are shared, use merge instead.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A data engineer connects Azure Data Factory to a GitHub repository and merges a pipeline change to the collaboration branch. They then check production ADF and the old pipeline is still running. What is the most likely explanation?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The GitHub Actions workflow failed to trigger on the merge event</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">In ADF Git mode, the collaboration branch contains the development version of pipelines; production ADF reads only from the published ARM templates in the adf_publish branch, which is only updated when the Publish button is clicked (or an ARM template deployment pipeline is run)</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">ADF requires a manual pipeline trigger after any Git merge before the new version takes effect</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The pipeline change was not committed correctly — ADF saves to Git only when the Save All button is explicitly clicked</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This is the ADF publish button trap. ADF Git integration creates a separation between development (collaboration branch in Git) and execution (published ARM templates in the adf_publish branch). Merging to the collaboration branch updates the development state visible in the ADF UI — but it does not update what production ADF runs. Production ADF reads only from the adf_publish branch, which is updated only when a human clicks Publish or when an automated ARM template deployment pipeline runs. This is the most common confusion for engineers moving from dbt or Databricks (where Git + run = deploy) to ADF (where Git ≠ deploy until published). The production CI/CD pattern bypasses the Publish button entirely, using ARM template deployments triggered by pipeline events instead.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">Which of the following should be added to a data engineering project's .gitignore?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">dbt model files (*.sql) — they contain business logic that should be version controlled separately</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">schema.yml — this is auto-generated and should not be committed</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">.env files, *.parquet, *.csv, __pycache__/, and target/ (dbt compilation output) — credentials must never be committed; data files belong in object storage; generated artefacts are rebuilt from tracked source files</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">requirements.txt — Python dependencies should be managed externally, not tracked in Git</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> .env files contain credentials — committing them, even once, is a security risk that persists in Git history even after deletion. Data files (*.csv, *.parquet) belong in ADLS or other object storage, not in Git repositories. __pycache__/ and *.pyc are Python compilation artefacts generated from tracked .py source files — tracking the generated versions creates unnecessary conflicts. target/ is dbt's compilation output directory, rebuilt on every dbt run — tracking it bloats the repository. dbt model files (A) are exactly what should be committed — they are the source of truth for transformations. schema.yml (B) is hand-authored configuration and test definitions, not auto-generated — it must be committed. requirements.txt (D) should absolutely be committed — without it, nobody can reproduce your Python environment.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="5-1-agile.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">5.1 Agile for Data Teams</span></span>
+          </a>
+          <a href="5-3-mvp-driven-delivery.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">5.3 MVP-Driven Delivery</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 5 &nbsp;&middot;&nbsp; Delivery &amp; Leadership</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">22</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">The Four Areas</div>
+          <p>Working directory → (git add) → Staging → (git commit) → Local repo → (git push) → Remote. Every Git command moves changes between these areas. The mental model is more important than memorizing flags.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Never Rebase Shared</div>
+          <p>Rebase rewrites commit hashes. Anyone who pulled the original commits now has a diverged history. Golden rule: rebase only commits you haven't pushed, or branches only you are working on.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">ADF Publish Trap</div>
+          <p>In ADF Git mode, merging to main does NOT deploy. Production ADF reads from the adf_publish branch only, updated by the Publish button or ARM template CI/CD. Merge ≠ deploy in ADF.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"Walk me through your Git workflow" is standard in senior interviews. Describe GitHub Flow: branch from main, commit with clear messages, open PR with description, squash merge. Mention dbt slim CI and the ADF publish distinction as evidence of production experience.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('5.2');</script>
+</body>
+</html>

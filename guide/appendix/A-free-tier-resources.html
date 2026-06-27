@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Appendix A — Free-Tier Resources &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="A">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Appendix &nbsp;&middot;&nbsp; Reference &amp; Resources</div>
+          <div class="chap-num">A</div>
+          <h1 class="chap-title">Free-Tier Resources &amp; Practice Environment Setup</h1>
+          <p class="chap-sub">Every tool and platform in this guide has a free tier, community edition, or sandbox. This appendix maps the guide's content to hands-on resources you can access today at no cost — and walks through a realistic end-to-end practice project path</p>
+        </header>
+
+        <!-- A.1 -->
+        <div class="sec-head"><span class="sec-tag">A.1</span><h2 class="sec-title">Philosophy — Learning by Building</h2></div>
+
+        <p>Reading about data engineering is not the same as doing data engineering. The field is fundamentally a craft: it is learned through building things, breaking them, diagnosing why they broke, and building them again with that knowledge. This guide is designed to give you the conceptual framework; the free-tier resources in this appendix are where you build the muscle memory.</p>
+
+        <p>The good news is that the cost to practice professional data engineering has collapsed. Azure gives you $200 of free credits on signup. Databricks Community Edition provides a managed Spark environment with no time limit. dbt Core is open-source. GitHub Actions gives you free CI/CD minutes. You can build and operate a complete modern data stack — ingestion, transformation, testing, orchestration, data quality, and basic ML — for zero dollars. The constraint is time and attention, not money.</p>
+
+        <div class="hl-block">The most valuable thing you can build as a learning project is one end-to-end pipeline on real, public data that goes all the way from raw source to a tested, documented, deployed dbt model serving a simple analytical question. One pipeline done properly is worth twenty tutorials half-finished.</div>
+
+        <!-- Figure A.1 — Free Tier Map -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 270" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <text x="350" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">Guide Content → Free-Tier Tool Mapping</text>
+
+              <!-- Column headers -->
+              <rect x="20" y="35" width="660" height="24" rx="4" fill="var(--accent)" opacity="0.12"/>
+              <text x="140" y="51" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">GUIDE SECTION</text>
+              <text x="370" y="51" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">FREE TOOL</text>
+              <text x="590" y="51" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">ACCESS</text>
+
+              <!-- Rows -->
+              <line x1="20" y1="59" x2="680" y2="59" stroke="var(--border)" stroke-width="1"/>
+              <text x="140" y="75" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Parts 1–2: Azure Fundamentals</text>
+              <text x="370" y="75" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Azure Free Account ($200 + always-free)</text>
+              <text x="590" y="75" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--accent)">azure.microsoft.com/free</text>
+              <line x1="20" y1="83" x2="680" y2="83" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="140" y="99" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Part 3: Spark &amp; Databricks (3.4, 3.5)</text>
+              <text x="370" y="99" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Databricks Community Edition</text>
+              <text x="590" y="99" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--accent)">community.cloud.databricks.com</text>
+              <line x1="20" y1="107" x2="680" y2="107" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="140" y="123" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Part 3: dbt (3.7)</text>
+              <text x="370" y="123" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">dbt Core (open-source) + DuckDB</text>
+              <text x="590" y="123" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--accent)">github.com/dbt-labs/dbt-core</text>
+              <line x1="20" y1="131" x2="680" y2="131" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="140" y="147" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Part 4: Orchestration (4.x)</text>
+              <text x="370" y="147" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Apache Airflow (local via Astro CLI)</text>
+              <text x="590" y="147" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--accent)">docs.astronomer.io/astro/cli</text>
+              <line x1="20" y1="155" x2="680" y2="155" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="140" y="171" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Part 6: LLMs &amp; Agents (6.1–6.5)</text>
+              <text x="370" y="171" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">OpenAI free tier / Anthropic free tier</text>
+              <text x="590" y="171" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--accent)">platform.openai.com</text>
+              <line x1="20" y1="179" x2="680" y2="179" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="140" y="195" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Part 6: RAG &amp; Vector DBs (6.3)</text>
+              <text x="370" y="195" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">ChromaDB (local, open-source)</text>
+              <text x="590" y="195" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--accent)">trychroma.com</text>
+              <line x1="20" y1="203" x2="680" y2="203" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="140" y="219" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">All parts: Version Control</text>
+              <text x="370" y="219" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">GitHub (free) + GitHub Actions</text>
+              <text x="590" y="219" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--accent)">github.com</text>
+              <line x1="20" y1="227" x2="680" y2="227" stroke="var(--border)" stroke-width="1"/>
+
+              <!-- Column dividers -->
+              <line x1="260" y1="35" x2="260" y2="227" stroke="var(--border)" stroke-width="0.5"/>
+              <line x1="480" y1="35" x2="480" y2="227" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="350" y="252" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-style="italic" fill="var(--muted-fg)">All free tiers current as of mid-2026. Verify limits at each provider before starting a project.</text>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure A.1.</strong> Guide section to free-tier tool mapping. Every major concept in this guide has a corresponding zero-cost environment where you can practice it.</div>
+        </div>
+
+        <!-- A.2 -->
+        <div class="sec-head"><span class="sec-tag">A.2</span><h2 class="sec-title">Azure Free Account — What You Get</h2></div>
+
+        <p>Azure's free account provides $200 in credits valid for 30 days plus a set of always-free services that don't expire. The $200 credit window is enough to stand up a realistic data platform for experimentation: a Storage Account, Azure Data Factory for ingestion, Azure Databricks (trial cluster), and some compute. Be careful with cluster sizing during the credit period — a large Databricks cluster left running can exhaust $200 in a day or two.</p>
+
+        <h3 class="subsec">Always-Free Services Relevant to This Guide</h3>
+
+        <div class="table-scroll"><table class="comp-table">
+          <thead><tr><th>Service</th><th>Always-Free Tier</th><th>Relevant To</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Azure Blob Storage</strong></td><td>5 GB LRS storage</td><td>Bronze/Silver/Gold lake, Delta Lake files</td></tr>
+            <tr><td><strong>Azure SQL Database</strong></td><td>100,000 vCore-seconds/month (serverless)</td><td>Staging database, practice SQL (Part 3.2)</td></tr>
+            <tr><td><strong>Azure Functions</strong></td><td>1 million executions/month</td><td>Lightweight ingestion triggers, event-driven pipelines</td></tr>
+            <tr><td><strong>Azure DevOps</strong></td><td>Free for 5 users, unlimited public repos</td><td>CI/CD pipelines for dbt, pipeline deployments</td></tr>
+            <tr><td><strong>Azure AI Search</strong></td><td>1 index, 50 MB storage (Basic tier)</td><td>RAG vector store practice (Section 6.3)</td></tr>
+            <tr><td><strong>Azure OpenAI</strong></td><td>Free credits on approval (apply separately)</td><td>LLM API calls, embedding generation (Part 6)</td></tr>
+          </tbody>
+        </table></div>
+
+        <p style="margin-top:0.8rem">One practical tip: use resource groups as experiment containers. Create a resource group for each learning project, and delete the whole group when you're done. This prevents orphaned resources silently consuming credits.</p>
+
+        <!-- A.3 -->
+        <div class="sec-head"><span class="sec-tag">A.3</span><h2 class="sec-title">Databricks Community Edition</h2></div>
+
+        <p>Databricks Community Edition (CE) is a free, persistent Databricks environment that provides a single-node cluster (not auto-scaling multi-node, but sufficient for learning), the full Databricks notebook interface, Unity Catalog access (limited), MLflow integration, and the ability to read and write Delta Lake tables. It has no time limit — your workspace persists indefinitely, though clusters shut down after inactivity.</p>
+
+        <p>CE is the right environment to practice everything in Sections 3.4 (Spark/Databricks), 3.5 (PySpark), and 3.6 (Delta Lake). You can ingest public datasets, write PySpark transformations, create Delta tables with time travel, run OPTIMIZE and ZORDER commands, and even experiment with Databricks workflows (job orchestration) — all at zero cost.</p>
+
+        <p>The main limitation of CE is that it does not support multi-node clusters, so very large-scale jobs that require genuine distributed compute will not work. For learning purposes this is rarely a constraint — the interesting data engineering patterns (schema enforcement, incremental loads, SCD handling) work on 10,000 rows just as well as on 10 billion.</p>
+
+        <!-- A.4 -->
+        <div class="sec-head"><span class="sec-tag">A.4</span><h2 class="sec-title">Learning Platforms — Structured Curricula</h2></div>
+
+        <p>Beyond hands-on tool environments, structured learning paths help you build depth on specific topics. The following are the highest-signal free or low-cost options as of mid-2026, mapped to guide sections:</p>
+
+        <div class="table-scroll"><table class="comp-table">
+          <thead><tr><th>Platform</th><th>Best For</th><th>Free Tier?</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Microsoft Learn</strong></td><td>Azure services (ADF, Synapse, Fabric, Databricks on Azure), DP-203/DP-700 exam prep</td><td>Yes — fully free, includes sandboxes</td></tr>
+            <tr><td><strong>dbt Learn</strong></td><td>dbt Core and dbt Cloud fundamentals, Jinja templating, testing, documentation</td><td>Yes — dbt Fundamentals course is free</td></tr>
+            <tr><td><strong>Databricks Academy</strong></td><td>Spark, Delta Lake, MLflow, Unity Catalog — aligned with Databricks certifications</td><td>Free introductory courses; paid for full catalog</td></tr>
+            <tr><td><strong>DataTalks.Club</strong></td><td>Full DE bootcamp (Kafka, Spark, dbt, Airflow, GCP) in cohort format</td><td>Yes — fully free, community-run</td></tr>
+            <tr><td><strong>DeepLearning.AI</strong></td><td>LLM application development, RAG, agents, prompt engineering (Part 6 content)</td><td>Most short courses free to audit</td></tr>
+            <tr><td><strong>Coursera / edX</strong></td><td>Breadth — IBM Data Engineering Professional Certificate, Google DE Certificate</td><td>Audit-only free; certificates require payment</td></tr>
+          </tbody>
+        </table></div>
+
+        <!-- Figure A.2 — Practice Project Path -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 290" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <marker id="arrA2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="var(--accent)"/>
+                </marker>
+              </defs>
+              <text x="350" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">End-to-End Practice Project Path</text>
+
+              <!-- Phase 1 -->
+              <rect x="20" y="40" width="150" height="60" rx="8" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1.5"/>
+              <text x="95" y="60" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Phase 1 — Ingest</text>
+              <text x="95" y="76" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Download public CSV</text>
+              <text x="95" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Upload to Azure Blob</text>
+              <text x="95" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="var(--muted-fg)">Sections 1.x, 2.x</text>
+
+              <line x1="170" y1="70" x2="200" y2="70" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrA2)"/>
+
+              <!-- Phase 2 -->
+              <rect x="200" y="40" width="150" height="60" rx="8" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1.5"/>
+              <text x="275" y="60" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Phase 2 — Transform</text>
+              <text x="275" y="76" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">PySpark cleaning</text>
+              <text x="275" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Delta Lake table</text>
+              <text x="275" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="var(--muted-fg)">Sections 3.4–3.6</text>
+
+              <line x1="350" y1="70" x2="380" y2="70" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrA2)"/>
+
+              <!-- Phase 3 -->
+              <rect x="380" y="40" width="150" height="60" rx="8" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1.5"/>
+              <text x="455" y="60" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Phase 3 — Model</text>
+              <text x="455" y="76" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">dbt models + tests</text>
+              <text x="455" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Documentation</text>
+              <text x="455" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="var(--muted-fg)">Section 3.7</text>
+
+              <line x1="530" y1="70" x2="560" y2="70" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arrA2)"/>
+
+              <!-- Phase 4 -->
+              <rect x="560" y="40" width="120" height="60" rx="8" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1.5"/>
+              <text x="620" y="60" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Phase 4 — Serve</text>
+              <text x="620" y="76" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Simple dashboard</text>
+              <text x="620" y="90" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">or SQL queries</text>
+              <text x="620" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="var(--muted-fg)">Sections 1.x, 4.x</text>
+
+              <!-- Phase 5 — Extensions row -->
+              <text x="350" y="135" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--heading)">Extension Phases (Pick Any)</text>
+
+              <rect x="20" y="150" width="145" height="55" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="92" y="170" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">+ Orchestration</text>
+              <text x="92" y="184" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Add Airflow DAG to</text>
+              <text x="92" y="198" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">schedule the pipeline</text>
+
+              <rect x="178" y="150" width="145" height="55" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="250" y="170" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">+ Data Quality</text>
+              <text x="250" y="184" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">dbt tests + Great</text>
+              <text x="250" y="198" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Expectations</text>
+
+              <rect x="336" y="150" width="145" height="55" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="408" y="170" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">+ CI/CD</text>
+              <text x="408" y="184" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">GitHub Actions to</text>
+              <text x="408" y="198" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">lint and test dbt</text>
+
+              <rect x="494" y="150" width="186" height="55" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="587" y="170" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">+ RAG Agent</text>
+              <text x="587" y="184" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Embed dbt docs, build</text>
+              <text x="587" y="198" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">NL query interface</text>
+
+              <!-- Data sources -->
+              <text x="350" y="235" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--heading)">Recommended Public Datasets</text>
+              <text x="350" y="255" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">NYC Taxi Trips (large, partitioned) &nbsp;·&nbsp; NYC Citibike (time-series) &nbsp;·&nbsp; US Bureau of Labor Statistics (multi-table joins) &nbsp;·&nbsp; OpenAlex (academic papers, good for RAG)</text>
+              <text x="350" y="272" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="var(--muted-fg)">All available via direct download or Kaggle · All public domain or CC0</text>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure A.2.</strong> Recommended practice project path. A complete Phase 1–4 pipeline on a single public dataset exercises more skills than twenty disconnected tutorials. Extension phases apply each additional guide section to the same project.</div>
+        </div>
+
+        <!-- A.5 -->
+        <div class="sec-head"><span class="sec-tag">A.5</span><h2 class="sec-title">The End-to-End Practice Project</h2></div>
+
+        <p>The most effective way to use the free resources above is to build a single cohesive project that you progressively extend as you advance through the guide. Here is a concrete project specification that exercises every major concept:</p>
+
+        <h3 class="subsec">Project: NYC Taxi Analytics Platform</h3>
+        <p><strong>Source data:</strong> NYC Taxi and Limousine Commission trip data (publicly available monthly CSVs at nyc.gov/tlc). The full historical dataset is hundreds of gigabytes — for practice, download 2–3 months. It has real schema evolution issues, nulls, outliers, and multiple fact tables (yellow cab, green cab, FHV) that require joins, making it more realistic than tidy Kaggle datasets.</p>
+
+        <p><strong>Phase 1 — Ingest:</strong> Write a Python script that downloads a monthly Parquet file from the TLC site and uploads it to Azure Blob Storage in a <code>raw/</code> container, partitioned by year/month. Practice Part 2 (file formats, Parquet structure) and Part 3.3 (Python for DE).</p>
+
+        <p><strong>Phase 2 — Transform:</strong> In Databricks CE, read the raw Parquet files into PySpark. Clean null values and outliers (trip distances &gt; 500 miles, negative fares). Write the cleaned data as a Delta Lake table in a <code>silver/</code> container. Enable time travel. Practice Parts 3.4, 3.5, 3.6.</p>
+
+        <p><strong>Phase 3 — Model:</strong> Install dbt Core with the dbt-spark adapter. Write dbt models that compute trip facts: daily revenue by borough, average trip duration by hour of day, tip percentage distribution. Add not-null and accepted-values tests. Generate dbt docs. Practice Section 3.7.</p>
+
+        <p><strong>Phase 4 — Serve:</strong> Run SQL queries against your dbt mart tables to answer "what hour of day generates the most revenue on weekdays vs weekends?" Document the answer as a simple README. You now have a complete pipeline.</p>
+
+        <p><strong>Extensions:</strong> Add an Airflow DAG (monthly ingestion trigger), GitHub Actions (dbt test on PR), Great Expectations (data quality checks on raw data), and finally: embed your dbt documentation into ChromaDB and build a simple Python script that answers questions about your data model using RAG. At that point, you have touched every major concept in this guide with hands-on code.</p>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Deep Dive — Azure Certification Paths Aligned With This Guide</strong>
+          </div>
+          <div class="dd-body">
+            <p>If you are pursuing certifications alongside this guide, the most relevant Azure certifications and their content overlap are:</p>
+            <div class="table-scroll"><table class="comp-table">
+              <thead><tr><th>Certification</th><th>Exam</th><th>Content Overlap With Guide</th><th>Time to Prepare</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Azure Data Engineer Associate</strong></td><td>DP-203</td><td>Parts 1–4: Storage, ADF, Databricks, Synapse, security</td><td>2–3 months</td></tr>
+                <tr><td><strong>Fabric Analytics Engineer</strong></td><td>DP-700</td><td>Parts 1–3: Fabric lakehouse, Spark, dbt patterns, Power BI</td><td>2–3 months</td></tr>
+                <tr><td><strong>Databricks Data Engineer Professional</strong></td><td>Databricks cert</td><td>Sections 3.4–3.7: Spark, Delta Lake, dbt, pipelines</td><td>1–2 months post-DP-203</td></tr>
+                <tr><td><strong>Azure AI Engineer Associate</strong></td><td>AI-102</td><td>Part 6: Azure OpenAI, AI Search, Cognitive Services, RAG</td><td>2 months</td></tr>
+              </tbody>
+            </table></div>
+            <p style="margin-top:0.8rem">Microsoft Learn provides free sandbox environments specifically for exam preparation — no Azure credits required. All exam skills outlines are on learn.microsoft.com and make excellent study checklists alongside this guide.</p>
+          </div>
+        </div>
+
+        <div class="mark-read-wrap">
+          <button class="mark-read-btn" onclick="markRead('A', this)">&#10003; Mark Appendix A as Read</button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="../09-supply-chain-analytics/9-2-inventory-optimization.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">9.2 Inventory Optimization</span></span>
+          </a>
+          <a href="B-quick-reference-cards.html" class="sec-nav-btn next">
+            <span class="sec-nav-label">Next</span>
+            <span class="sec-nav-title">Appendix B &mdash; Quick Reference Cards</span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Appendix &nbsp;&middot;&nbsp; Reference &amp; Resources</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">32</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">One Pipeline, Done Right</div>
+          <p>One end-to-end pipeline on real data, built properly with testing, documentation, and CI/CD, is worth more for your portfolio than twenty half-finished tutorials. Depth beats breadth when hiring managers review your GitHub.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Use Resource Groups</div>
+          <p>Create a separate Azure resource group for each learning project. Delete the entire group when done. This prevents orphaned resources consuming credits silently — a common beginner mistake that depletes the $200 free tier in days.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">CE Cluster Limits</div>
+          <p>Databricks Community Edition uses single-node clusters. Very large distributed jobs won't work — but learning doesn't require big data. Schema enforcement, Delta time travel, and SCD handling work identically on 10,000 rows as on 10 billion.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('A');</script>
+</body>
+</html>

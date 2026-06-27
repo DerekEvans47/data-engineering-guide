@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>7.4 The Software Development Lifecycle &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="7.4">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Seven &nbsp;&middot;&nbsp; Product Management Fundamentals</div>
+          <div class="chap-num">7.4</div>
+          <h1 class="chap-title">The Software Development Lifecycle</h1>
+          <p class="chap-sub">The umbrella process that everything in this Part and Part 5 sits inside, why "skip UAT, we're confident" is one of the most expensive sentences in data engineering, what shift-left testing actually means for a pipeline rather than an application, and how a clean Dev &#8594; Test &#8594; UAT &#8594; Prod promotion path prevents the 3am page</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Name the core SDLC phases and explain how Waterfall, Agile, and DevOps-integrated models structure them differently</li>
+            <li>Explain where data engineering work specifically fits inside a broader SDLC, and why it's frequently treated as an afterthought</li>
+            <li>Apply shift-left testing principles to catch data pipeline defects earlier and cheaper than production discovery</li>
+            <li>Design a basic environment promotion path (Dev, Test, UAT, Prod) for a data pipeline and explain what each stage protects against</li>
+            <li>Identify the risk of skipping UAT specifically for data products, distinct from the risk of skipping it for software features</li>
+            <li>Choose the right SDLC model for a given team's regulatory, risk, and delivery-speed context</li>
+          </ol>
+        </div>
+
+        <!-- 7.4.1 -->
+        <div class="sec-head"><span class="sec-tag">7.4.1</span><h2 class="sec-title">The Process That Contains Every Other Process</h2></div>
+
+        <p>Everything covered so far in this Part — writing a good story, tracking it in Jira, validating its design with the right users — happens inside a larger container: the <span class="df" data-term="SDLC">Software Development Lifecycle</span> (SDLC), the end-to-end process by which a piece of work moves from an idea to something running reliably in production and eventually retired. Section 5.1 covered Agile as a delivery philosophy; this section covers the broader structural question Agile is one possible answer to — how does work actually flow, end to end, from "someone has an idea" to "it's live, stable, and someone is on call for it"?</p>
+
+        <p>The SDLC has the same handful of phases regardless of which methodology wraps around them: <strong>Requirements</strong> (Section 7.1's territory), <strong>Design</strong> (Section 7.3's territory), <strong>Development</strong>, <strong>Testing</strong>, <strong>Deployment</strong>, and <strong>Maintenance</strong>. What differs between methodologies is whether these phases happen once, in strict sequence, for an entire project — or whether they happen repeatedly, in tight loops, for small slices of a project, with feedback flowing continuously back into earlier phases rather than only at the very end.</p>
+
+        <!-- Figure 7.7 — SDLC Models Compared -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f77sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m77g" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#3A9FE0"/>
+                </marker>
+              </defs>
+              <rect width="700" height="260" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Same Six Phases, Two Very Different Shapes</text>
+
+              <!-- Waterfall: linear -->
+              <text x="350" y="38" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">WATERFALL &mdash; ONE PASS, FULL PROJECT</text>
+              <g font-family="Inter,sans-serif" font-size="7" fill="white">
+                <rect x="20" y="48" width="100" height="32" rx="3" fill="#3A5A80"/><text x="70" y="68" text-anchor="middle">Requirements</text>
+                <rect x="128" y="48" width="100" height="32" rx="3" fill="#3A5A80"/><text x="178" y="68" text-anchor="middle">Design</text>
+                <rect x="236" y="48" width="100" height="32" rx="3" fill="#3A5A80"/><text x="286" y="68" text-anchor="middle">Development</text>
+                <rect x="344" y="48" width="100" height="32" rx="3" fill="#3A5A80"/><text x="394" y="68" text-anchor="middle">Testing</text>
+                <rect x="452" y="48" width="100" height="32" rx="3" fill="#3A5A80"/><text x="502" y="68" text-anchor="middle">Deployment</text>
+                <rect x="560" y="48" width="118" height="32" rx="3" fill="#3A5A80"/><text x="619" y="68" text-anchor="middle">Maintenance</text>
+              </g>
+              <line x1="120" y1="64" x2="126" y2="64" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m77g)"/>
+              <line x1="228" y1="64" x2="234" y2="64" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m77g)"/>
+              <line x1="336" y1="64" x2="342" y2="64" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m77g)"/>
+              <line x1="444" y1="64" x2="450" y2="64" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m77g)"/>
+              <line x1="552" y1="64" x2="558" y2="64" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m77g)"/>
+              <text x="350" y="94" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Feedback only discovered at the end &mdash; expensive to act on by then</text>
+
+              <!-- DevOps loop -->
+              <text x="350" y="128" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">AGILE / DEVOPS-INTEGRATED &mdash; SMALL, REPEATED LOOPS</text>
+
+              <circle cx="350" cy="195" r="62" fill="none" stroke="#1A7A4A" stroke-width="2" stroke-dasharray="2,2"/>
+              <g font-family="Inter,sans-serif" font-size="6.8" fill="white" text-anchor="middle">
+                <rect x="318" y="138" width="64" height="22" rx="3" fill="#1A7A4A" filter="url(#f77sh)"/><text x="350" y="152">Requirements</text>
+                <rect x="386" y="158" width="60" height="22" rx="3" fill="#1A7A4A" filter="url(#f77sh)"/><text x="416" y="172">Design</text>
+                <rect x="392" y="190" width="64" height="22" rx="3" fill="#1A7A4A" filter="url(#f77sh)"/><text x="424" y="204">Develop</text>
+                <rect x="368" y="220" width="58" height="22" rx="3" fill="#1A7A4A" filter="url(#f77sh)"/><text x="397" y="234">Test</text>
+                <rect x="298" y="232" width="64" height="22" rx="3" fill="#1A7A4A" filter="url(#f77sh)"/><text x="330" y="246">Deploy</text>
+                <rect x="244" y="200" width="64" height="22" rx="3" fill="#1A7A4A" filter="url(#f77sh)"/><text x="276" y="214">Maintain</text>
+                <rect x="254" y="160" width="64" height="22" rx="3" fill="#1A7A4A" filter="url(#f77sh)"/><text x="286" y="174">Monitor &amp; learn</text>
+              </g>
+              <text x="350" y="195" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="7" font-weight="700" text-anchor="middle">&#8635;</text>
+              <text x="350" y="206" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="7" font-weight="700" text-anchor="middle">repeat</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 7.7</strong><span>The same six phases, structured two ways. Waterfall runs them once, in sequence, for an entire project &mdash; feedback from testing only reaches requirements after the full build is done, when it's most expensive to act on. Agile and DevOps-integrated models run small, repeated loops, feeding monitoring and production learnings directly back into the next loop's requirements &mdash; the same continuous-improvement principle behind Section 5.1's sprint retrospectives and Section 5.4's CI/CD pipelines, applied at the level of the whole lifecycle rather than just the code deployment step.</span></div>
+        </div>
+
+        <h3 class="subsec">Where Data Engineering Actually Sits</h3>
+        <p>Data engineering work is frequently treated as an afterthought inside a broader SDLC designed primarily with application software in mind — "the app is done, now hook up the data" — which causes a predictable set of problems: pipelines built reactively under time pressure, data models that fight the application's existing schema rather than being designed deliberately, and testing that focuses entirely on the application layer while treating data correctness as someone else's problem to verify after the fact. A senior data practitioner's job inside an SDLC conversation is frequently to insist that data requirements, data design, and data testing get scheduled as first-class phases alongside (not after) the application work — exactly the kind of structural insistence Section 5.1's Agile principles and this Part's PM artifacts are meant to give a practitioner the vocabulary to make.</p>
+
+        <!-- 7.4.2 -->
+        <div class="sec-head"><span class="sec-tag">7.4.2</span><h2 class="sec-title">Shift-Left Testing</h2></div>
+
+        <p><span class="df" data-term="Shift-Left Testing">Shift-left testing</span> means moving testing activities earlier in the lifecycle — "left" on a diagram that flows left to right through the phases — rather than treating testing as a gate that happens only after development is "finished." For a data pipeline specifically, this means writing dbt tests alongside the transformation logic itself (not after), validating schema expectations against source systems before a single line of transformation code is written, and catching a data quality assumption that's wrong during design review rather than discovering it three weeks later when a stakeholder notices a number looks impossible.</p>
+
+        <p>The economic argument for shifting left is the same one that justifies Section 7.1's acceptance criteria and Definition of Ready: a defect caught during design costs a conversation; the same defect caught in production costs an incident, a root-cause investigation, a fix, a redeploy, and — if the bad data already reached a dashboard a stakeholder acted on — a much harder conversation about trust.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Shift-left testing for a real data pipeline, step by step</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Shift-left is a principle, but it only matters once it's turned into specific habits at specific points in a pipeline's build.</p>
+              <p><strong>At requirements time:</strong> write the negative-case acceptance criteria (Section 7.1) before development starts — "what should happen if this source field is null?" is a testing question disguised as a requirements question, and answering it now is far cheaper than discovering the gap in production.</p>
+              <p><strong>At design time:</strong> validate the source schema against assumptions before writing a single transformation. A quick exploratory query against the actual source data — checking for nulls, duplicate keys, unexpected value ranges — frequently surfaces a wrong assumption ("this field is always populated") that would otherwise have been baked silently into the transformation logic and discovered only when it broke something downstream.</p>
+              <p><strong>During development:</strong> write dbt tests (<code>not_null</code>, <code>unique</code>, <code>relationships</code>, custom business-rule tests) in the same pull request as the model itself, not as a follow-up ticket. A model and its tests reviewed together in one PR makes it structurally harder to ship untested logic, because the absence of tests is visible to the reviewer in the same diff.</p>
+              <p><strong>Before deployment:</strong> run the full test suite against a realistic-volume Test or UAT environment, not just a small local sample — a transformation that handles ten rows correctly can still fail at production volume due to a join that fans out unexpectedly or a window function that behaves differently against a much larger partition.</p>
+              <p>The common thread across all four points: each one moves a question that would otherwise surface as a production incident into a stage where it's a normal, low-stakes part of the existing workflow — a code review comment instead of a 3am page.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Healthcare Network &nbsp;&middot;&nbsp; The Shift-Left Habit That Paid for Itself in One Sprint</span>
+          </div>
+          <div class="field-note-body">
+            <p>A healthcare network's data team adopted a rule, after a string of production data quality incidents: no model gets merged without dbt tests in the same pull request, and no source table gets built against without a quick exploratory profiling query run first, documented in the story itself. The team expected this to slow delivery down — more upfront work per story, on paper.</p>
+            <p>During the very first sprint under the new rule, the exploratory profiling step on a new insurance claims source caught that a "claim status" field, assumed to have five clean values matching the source system's documentation, actually contained eleven distinct values in practice — including several legacy codes the documentation never mentioned, still actively in use for a subset of older claim types. Building the transformation logic against the documented five values, as originally planned, would have silently misclassified roughly 8% of claims in production.</p>
+            <p>The fix took twenty extra minutes during design — updating the transformation's case logic to handle all eleven values correctly. Had it shipped against the original five-value assumption, the data team estimated, based on a near-identical incident from the previous quarter, that the production discovery and correction cycle would have taken roughly two weeks, involved a stakeholder-facing data quality apology, and required a backfill of several months of misclassified historical claims.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Shift-left testing's upfront cost is real but small and predictable — minutes per story. The cost it prevents is unpredictable in timing but reliably large when it lands. The trade only looks unfavourable if you only count the visible upfront cost and ignore the (much larger, just less visible until it happens) cost being avoided.</p>
+          </div>
+        </div>
+
+        <!-- 7.4.3 -->
+        <div class="sec-head"><span class="sec-tag">7.4.3</span><h2 class="sec-title">Environment Promotion &mdash; Dev, Test, UAT, Prod</h2></div>
+
+        <p>A clean environment promotion path is the structural backbone that makes shift-left testing actually enforceable rather than aspirational. Each environment exists to catch a specific category of problem before it reaches the next, more consequential, stage.</p>
+
+        <!-- Figure 7.8 — Environment Promotion Pipeline -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f78sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m78g" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#3A9FE0"/>
+                </marker>
+              </defs>
+              <rect width="700" height="230" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Environment Promotion &mdash; What Each Stage Catches</text>
+
+              <rect x="20" y="46" width="148" height="100" rx="5" fill="#0F2447" filter="url(#f78sh)"/>
+              <text x="94" y="68" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">DEV</text>
+              <text x="94" y="86" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Engineer's own</text>
+              <text x="94" y="97" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">workspace / branch</text>
+              <text x="94" y="120" fill="rgba(200,220,255,.55)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Catches: basic logic</text>
+              <text x="94" y="131" fill="rgba(200,220,255,.55)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">errors, syntax issues</text>
+              <line x1="168" y1="96" x2="190" y2="96" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m78g)"/>
+
+              <rect x="192" y="46" width="148" height="100" rx="5" fill="#1A5A78" filter="url(#f78sh)"/>
+              <text x="266" y="68" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">TEST</text>
+              <text x="266" y="86" fill="rgba(200,240,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Shared, automated</text>
+              <text x="266" y="97" fill="rgba(200,240,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">dbt / CI test suite</text>
+              <text x="266" y="120" fill="rgba(200,240,255,.55)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Catches: regressions,</text>
+              <text x="266" y="131" fill="rgba(200,240,255,.55)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">broken assumptions</text>
+              <line x1="340" y1="96" x2="362" y2="96" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m78g)"/>
+
+              <rect x="364" y="46" width="148" height="100" rx="5" fill="#254F8F" filter="url(#f78sh)"/>
+              <text x="438" y="68" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">UAT</text>
+              <text x="438" y="86" fill="rgba(220,232,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Stakeholders verify</text>
+              <text x="438" y="97" fill="rgba(220,232,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">against real expectations</text>
+              <text x="438" y="120" fill="rgba(220,232,255,.55)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Catches: "technically</text>
+              <text x="438" y="131" fill="rgba(220,232,255,.55)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">correct, still wrong"</text>
+              <line x1="512" y1="96" x2="534" y2="96" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m78g)"/>
+
+              <rect x="536" y="46" width="148" height="100" rx="5" fill="#1A7A4A" filter="url(#f78sh)"/>
+              <text x="610" y="68" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">PROD</text>
+              <text x="610" y="86" fill="rgba(220,255,235,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Live, real stakeholders</text>
+              <text x="610" y="97" fill="rgba(220,255,235,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">making real decisions</text>
+              <text x="610" y="120" fill="rgba(220,255,235,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Every defect here is</text>
+              <text x="610" y="131" fill="rgba(220,255,235,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">visible &amp; consequential</text>
+
+              <text x="350" y="178" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Skipping UAT removes the only stage where the actual business audience verifies</text>
+              <text x="350" y="192" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">the output matches their real-world expectations &mdash; not just that the code runs</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 7.8</strong><span>Each environment catches a different class of problem. Dev and Test catch technical defects &mdash; bugs, broken tests, regressions &mdash; through automation and the original engineer. UAT is the only stage where someone outside the build team checks the output against their actual real-world expectations, the same check Section 7.3 argued automated tests structurally cannot perform. Skipping straight from Test to Prod removes that one human check entirely &mdash; everything that passed automated testing but still doesn't match what the business actually meant only gets discovered live.</span></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Structuring environment promotion for ADF, Databricks, and dbt specifically</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The Dev / Test / UAT / Prod concept is generic, but each tool in the Azure stack implements it slightly differently, and a senior practitioner needs to know the concrete mechanics, not just the abstract principle.</p>
+              <p><strong>Azure Data Factory:</strong> ADF supports separate factories (or separate folders within one factory, using ARM template parameterization) per environment, with linked services pointing at environment-specific connection strings. The standard pattern is Git-integrated development in a Dev factory, with ARM template export and deployment via Azure DevOps pipelines promoting the same pipeline definitions into Test and Prod factories — the pipeline logic itself doesn't change between environments, only the parameterized connection details it points at.</p>
+              <p><strong>Databricks:</strong> separate workspaces per environment is the cleanest pattern for genuine isolation, though smaller teams sometimes use a single workspace with environment-specific catalogs or schemas (Unity Catalog makes this considerably cleaner than older Hive metastore-based separation). Notebooks or Databricks Asset Bundles get deployed via CI/CD (Section 5.4) rather than manually copy-pasted between workspaces, for the same auditability reasons covered there.</p>
+              <p><strong>dbt:</strong> environment separation typically happens through dbt's built-in <code>target</code> configuration — the same models run against dev, test/staging, and prod targets, each pointing at a different database or schema, with environment-specific variables controlling things like sample-size limits in dev for faster iteration. dbt Cloud or a CI/CD pipeline runner triggers the test-environment run automatically on every pull request, which is what makes the Test stage in Figure 7.8 actually automatic rather than a manual step someone has to remember.</p>
+              <p><strong>The cross-cutting principle:</strong> in every case, the goal is that promoting to the next environment is a configuration and deployment change, never a rewrite of the underlying logic. If promoting from Test to UAT requires touching the actual transformation code rather than just the environment it points at, the environments aren't truly separated yet — and that gap is exactly where "it worked in Test" surprises happen in Prod.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">An Energy Utility &nbsp;&middot;&nbsp; "We're Confident, Skip UAT"</span>
+          </div>
+          <div class="field-note-body">
+            <p>An energy utility's data team rebuilt a customer billing reconciliation pipeline under deadline pressure ahead of a regulatory reporting date. The new logic passed every automated dbt test in the Test environment cleanly. With the deadline two days away and the team confident in the rebuild, the project lead made the call to skip the planned UAT cycle and promote directly to production — "the tests are green, we're confident, we don't have time."</p>
+            <p>The rebuilt logic was technically correct against every test the team had written — and every test the team had written reflected the team's own understanding of the business rules, not the finance team's. A change in how partial payments were allocated across multiple outstanding invoices, technically correct by the data team's interpretation of the specification, did not match how the finance team had actually been doing it manually for years — a nuance nobody on the data team had reason to know, because it had never been written down anywhere, including in the original requirements.</p>
+            <p>The discrepancy was discovered four days after go-live, when finance noticed reconciliation totals didn't match their own manual figures — after the regulatory submission had already gone out using the new pipeline's numbers. The correction required an amended regulatory filing, a multi-day reconciliation effort to identify every affected account, and a substantially more difficult conversation with the regulator than a standard submission would have required.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>"All tests pass" only proves the code matches the team's own understanding of the requirements — it cannot prove that understanding itself is correct. UAT exists precisely to catch the gap between "technically correct, by our interpretation" and "actually matches how the business has really been doing this." Skipping it under deadline pressure trades a known, bounded delay now for an unknown, frequently much larger cost later — and the cost lands disproportionately on a regulatory or financial deadline being the worst possible moment to discover the gap.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>The SDLC is a process, not a tool &mdash; tying 7.2's tooling back to this section</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>It is entirely possible to own every tool covered in Section 7.2 — a perfectly configured Jira workflow, a tidy Confluence space, polished Figma mockups — and still run a broken SDLC, because the tools track and document the process; they don't enforce it. A team can have a Jira board with a "UAT" column that every ticket dutifully passes through in name, while the actual sign-off step is a rubber stamp nobody takes seriously, because the organizational discipline behind the column, not the column itself, is what makes UAT meaningful.</p>
+              <p><strong>What actually enforces an SDLC stage, in practice:</strong> a Definition of Done (Section 7.1) that explicitly requires a named stakeholder's sign-off before a ticket can move out of UAT — not just a board column the ticket passes through. A CI/CD pipeline (Section 5.4) configured so that a production deployment is technically blocked without a passing Test-environment run, removing the option to skip it under pressure rather than relying on willpower. An on-call rotation and incident review process that explicitly asks, for any production data incident, "which SDLC stage should have caught this, and why didn't it?" — turning each incident into a structural improvement to the process itself rather than just a one-off fix.</p>
+              <p>The throughline across this entire Part: a story (7.1) becomes trackable, visible work (7.2), gets validated against the right humans before being built (7.3), and moves through a process with enforced checkpoints rather than honour-system ones (7.4). Each section closes a gap the previous one leaves open. Skipping any single one reopens a version of the same underlying failure — building the wrong thing, confidently, and finding out only after it's already live.</p>
+            </div>
+          </div>
+        </div>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Structure</th>
+              <th>Feedback Speed</th>
+              <th>Best Fit</th>
+              <th>Weak Point</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Waterfall</strong></td>
+              <td>Linear, single pass through all phases for the full project</td>
+              <td>Slow &mdash; feedback arrives only after the full build</td>
+              <td>Highly regulated, fixed-scope projects where requirements are genuinely stable and well understood upfront</td>
+              <td>Expensive to course-correct; a wrong assumption made early surfaces only at the end</td>
+            </tr>
+            <tr>
+              <td><strong>Agile</strong></td>
+              <td>Repeated short loops through the phases, sprint by sprint</td>
+              <td>Fast &mdash; feedback every sprint</td>
+              <td>Evolving requirements, iterative dashboard and pipeline work, most modern data team delivery (see Section 5.1)</td>
+              <td>Can drift without disciplined backlog grooming and a clear roadmap (Section 7.1, 7.2)</td>
+            </tr>
+            <tr>
+              <td><strong>DevOps-Integrated</strong></td>
+              <td>Agile loops extended to include automated build, test, and deployment as part of every cycle</td>
+              <td>Fastest &mdash; feedback within hours via CI/CD (Section 5.4)</td>
+              <td>Teams with mature automated testing and deployment infrastructure already in place</td>
+              <td>Requires real upfront investment in automation; weak test coverage undermines the entire model's safety net</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary &mdash; Part 7 Complete</div>
+          <p>The SDLC is the container every other process in this Part operates inside — Requirements, Design, Development, Testing, Deployment, and Maintenance, run once in strict sequence under Waterfall, or in small repeated loops under Agile and DevOps-integrated models, with continuous feedback flowing back into the next loop. Data engineering work is frequently treated as an afterthought inside SDLCs designed primarily around application software, and a senior practitioner's job is often to insist data requirements, design, and testing get scheduled as first-class phases. Shift-left testing moves defect discovery earlier — into requirements, design, and code review — where it's cheap, rather than into production, where it's expensive and visible. A clean Dev &#8594; Test &#8594; UAT &#8594; Prod promotion path matters because each stage catches a different class of problem, and UAT specifically is the only stage where a real stakeholder verifies output against their actual expectations rather than against the team's own interpretation of a specification — skipping it under deadline pressure trades a small known delay for an unknown, frequently much larger cost. Tools (Section 7.2) document and track a process; only explicit enforcement mechanisms — Definition of Done sign-offs, blocking CI/CD gates, incident reviews that ask which stage should have caught this — actually make the process real rather than aspirational. With this section, Part 7 closes the loop this guide opened in Section 7.1: turning a vague stakeholder wish into something built, validated, and shipped through a process that catches its own mistakes before they become expensive.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 7.4 &nbsp;&middot;&nbsp; The Software Development Lifecycle</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">What is the fundamental structural difference between Waterfall and Agile/DevOps-integrated SDLC models, given that both contain the same core phases (Requirements, Design, Development, Testing, Deployment, Maintenance)?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Waterfall includes a Testing phase and Agile does not</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Waterfall runs the phases once, in strict sequence, for the entire project, with feedback only available after the full build; Agile and DevOps-integrated models run small, repeated loops through the same phases, feeding feedback continuously back into the next loop much earlier</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Agile is only used for software, while Waterfall is the only model appropriate for data engineering work</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">DevOps-integrated models skip the Requirements phase entirely in favour of immediate development</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Both models contain identical phases — the difference is shape and feedback timing, not content. Waterfall's single-pass, full-project structure means a wrong assumption made during early requirements surfaces only once the entire build is complete and tested, by which point it's expensive to correct. Agile and DevOps-integrated models repeat the same phases in small loops, so a wrong assumption surfaces within days or weeks rather than months. A is factually wrong — Waterfall includes Testing as a phase, it just runs it once at the end. C is an oversimplification — both models are used in data engineering depending on context (see the comparison table). D is also incorrect — DevOps-integrated models still gather requirements, just in smaller, more frequent increments rather than skipping the phase.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">A data engineer discovers, during an exploratory profiling query run before writing any transformation code, that a source field assumed to have five clean values actually contains eleven, including undocumented legacy codes. What does this scenario best illustrate, and what would have happened if the same discovery had instead occurred after production deployment?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">This illustrates Definition of Ready specifically, and the cost would have been identical whether caught before or after deployment</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">This illustrates shift-left testing — catching the data quality issue during design, at the cost of a short profiling query, instead of in production, where the same gap would likely have caused silent data misclassification, a stakeholder-facing incident, and a costly backfill of historical data</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">This illustrates UAT, since the engineer is verifying the output matches stakeholder expectations</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">This illustrates a documentation failure only, with no broader implication for the testing process</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Profiling source data before writing transformation logic is a textbook shift-left habit — moving defect discovery as early as possible in the lifecycle. The cost asymmetry is the entire point: catching this pre-development costs minutes; catching it in production (as the related field note describes) costs a multi-week incident cycle and a historical data backfill — the costs are explicitly not identical (contradicting A). This is not UAT (C) — UAT involves a stakeholder verifying output against their expectations, whereas this is a technical data-profiling step done by the engineer alone, earlier in the process. Calling it purely a documentation failure (D) misses the actionable lesson — the fix wasn't better documentation, it was building the habit of verifying assumptions against real data before coding against them.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A pipeline rebuild passes every automated dbt test in the Test environment. Under deadline pressure, the team skips UAT and promotes directly to production. A discrepancy with how the business actually performs a calculation manually is discovered four days after go-live. What does this reveal about what automated tests can and cannot verify?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The automated tests were poorly written and should be rewritten to be more comprehensive before this kind of issue can be prevented</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Automated tests verify that code matches the team's own understanding of the requirements — they cannot verify that understanding itself is correct. UAT exists specifically to catch the gap between "technically correct by our interpretation" and "actually matches how the business has been doing this," a check no automated test, however comprehensive, can perform on its own</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">This proves automated testing is generally not worth the investment for data pipelines</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The issue was caused by insufficient Dev-environment testing, not a missing UAT stage</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> No amount of additional automated test coverage (A) fixes this specific gap, because the tests were written against the team's own (incorrect, in this case) interpretation of the business rule — more tests of the same flawed understanding just confirms the flawed understanding more thoroughly, it doesn't surface the flaw. This does not argue against automated testing generally (C) — Dev/Test-stage automation correctly caught everything it was designed to catch (genuine code defects); it simply was never designed to catch a requirements-interpretation gap, which is a fundamentally different problem requiring a different kind of check. D misattributes the failure — more Dev-stage testing wouldn't have surfaced a gap that only a business stakeholder, comparing the output to their own manual process, could catch; that's specifically UAT's job, which was skipped.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A team has a Jira board with a clearly labeled "UAT" column, and every ticket passes through it before being marked Done. However, no stakeholder is actually required to review or approve anything while a ticket sits in that column — it's treated as a formality. What is the most accurate description of this team's actual process, and what would fix it?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The team has a fully functioning UAT process, since the column exists and every ticket passes through it</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The team has the appearance of a UAT stage without its substance — the tool tracks that a column was passed through, but doesn't enforce the actual human verification step that gives UAT its value. The fix is a Definition of Done requiring an explicit, named stakeholder sign-off before a ticket can leave that column, not just the column's existence</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The team should remove the UAT column entirely, since it isn't being used meaningfully and its presence is misleading</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The team needs a more sophisticated tool than Jira, since Jira itself is the root cause of the weak UAT process</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This is precisely the "tools document the process, they don't enforce it" point — a board column that every ticket passes through by default, without a required human action attached, is theater rather than verification. The fix is organizational (a Definition of Done requiring named sign-off), not technical. Removing the column (C) would make the gap more honest but doesn't fix the underlying missing verification step — it just stops pretending one exists. A different tool (D) misdiagnoses the problem; the issue is process discipline, not Jira's capability — Jira can absolutely support a sign-off requirement if the team chooses to enforce one.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">Which organization is the better fit for a Waterfall SDLC model rather than Agile or DevOps-integrated, and why?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">A startup building an MVP dashboard with rapidly evolving stakeholder requirements week to week</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">A team building a fixed-scope, heavily regulated reporting system against requirements that are genuinely stable, well-documented, and unlikely to change mid-project — the kind of context where Waterfall's slower feedback loop is an acceptable tradeoff for its more rigorous upfront sign-off process</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">A data team iterating weekly on a Power BI dashboard based on ongoing user feedback</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">No real-world data engineering context ever justifies Waterfall; it should be considered obsolete in all cases</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Waterfall's core tradeoff — slower feedback in exchange for thorough, locked-down upfront specification and sign-off — actually pays off when requirements are genuinely stable and the cost of getting something wrong is high enough to justify extensive upfront validation, which describes many regulated reporting contexts well. A and C both describe situations with rapidly evolving requirements, exactly where Waterfall's slow feedback loop becomes a liability rather than an advantage — Agile fits both far better. D overstates the case — Waterfall is the wrong default for most modern data product work, but "wrong default" is different from "never appropriate"; dismissing it entirely ignores the genuine contexts (like B) where its tradeoffs are the right ones.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="7-3-ux-principles-data-products.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">7.3 UX Principles for Data Products</span></span>
+          </a>
+          <a href="../08-classical-ml-and-statistics/8-1-regression-classification.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">8.1 Regression &amp; Classification</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 7 &nbsp;&middot;&nbsp; Product Management Fundamentals</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">39</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:150px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Same Phases, Different Shape</div>
+          <p>Waterfall runs Requirements &#8594; Maintenance once, for the whole project. Agile and DevOps-integrated models run the same phases in small, repeated loops &mdash; the structure changes, the phases don't.</p>
+        </div>
+        <div class="ms" style="height:480px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Shift-Left Math</div>
+          <p>A defect caught at design time costs a conversation. The same defect caught in production costs an incident, a fix, a redeploy, and a harder conversation about trust. The earlier stage is always cheaper.</p>
+        </div>
+        <div class="ms" style="height:300px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Tests Verify Code, Not Understanding</div>
+          <p>"All tests pass" proves the code matches the team's interpretation of requirements &mdash; not that the interpretation is correct. Only UAT, with a real stakeholder, catches that gap.</p>
+        </div>
+        <div class="ms" style="height:240px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"Tell me about a time a process step you skipped caused a problem" is a near-universal senior interview question. A strong answer names the specific SDLC stage skipped and the structural fix applied afterward &mdash; not just "we were more careful next time."</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('7.4');</script>
+</body>
+</html>

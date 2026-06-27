@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5.3 MVP-Driven Delivery &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="5.3">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Five &nbsp;&middot;&nbsp; Delivery &amp; Leadership</div>
+          <div class="chap-num">5.3</div>
+          <h1 class="chap-title">MVP-Driven Delivery</h1>
+          <p class="chap-sub">The minimum viable product concept reshaped for data — why the software definition doesn't transfer, how to scope a data MVP correctly, and the anti-patterns that keep teams building for months without delivering value</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain precisely how a data MVP differs from a software MVP and why the distinction matters for scoping</li>
+            <li>Apply the "working backwards from the decision" technique to define a data MVP scope</li>
+            <li>Recognise and name the three most common data delivery anti-patterns and explain why each delays value</li>
+            <li>Frame iterative data delivery to a business stakeholder in a way that builds confidence rather than concern</li>
+            <li>Describe the "walking skeleton" approach and explain how it reduces integration risk in data projects</li>
+            <li>Identify scenarios where the MVP approach is inappropriate and explain what to use instead</li>
+          </ol>
+        </div>
+
+        <!-- 5.3.1 -->
+        <div class="sec-head"><span class="sec-tag">5.3.1</span><h2 class="sec-title">Software MVP vs Data MVP — A Critical Distinction</h2></div>
+
+        <p>The term MVP — Minimum Viable Product — originated in software product development. It describes the smallest version of a product that delivers enough value for real users to interact with and generate feedback from. A software MVP for a task management app might be: you can create a task, mark it complete, and see your list. No sharing, no reminders, no tagging. Enough to be used. Enough to learn from. Deliberately incomplete.</p>
+
+        <p>When data teams borrow this concept, they often apply it incorrectly — because the structure of data work is fundamentally different from the structure of software feature development. A software team can ship a rough feature and learn from user interactions over time. Data engineering does not work that way. The output of a data pipeline is not a feature that gets used iteratively — it is a number that either correctly answers a question or doesn't. Stakeholders can tolerate a rough UI. They cannot tolerate a wrong revenue figure.</p>
+
+        <p>The correct data analogue to MVP is not "a rough version of the full pipeline" — it is "the minimum data and logic needed to answer <em>one specific, clearly defined business question</em> correctly." The emphasis shifts from minimum quality to minimum scope. The question answered is fewer. The answer to that question must be right.</p>
+
+        <div class="hl-block">A data MVP is not a pipeline with known data quality issues that you plan to fix later. It is a pipeline with a deliberately narrow scope that answers a specific question accurately. Fewer questions, full accuracy — not all questions, partial accuracy.</div>
+
+        <!-- 5.3.2 -->
+        <div class="sec-head"><span class="sec-tag">5.3.2</span><h2 class="sec-title">Working Backwards from the Decision</h2></div>
+
+        <p>The most reliable technique for defining a data MVP scope is to start at the end — with the business decision the data is intended to support — and work backwards until you reach the minimum pipeline that makes that decision possible. This sounds straightforward but requires discipline, because the natural instinct of most data engineers is to start from the data and build towards some eventual downstream use.</p>
+
+        <h3 class="subsec">The Five Questions</h3>
+        <p>Ask these five questions in order. Resist moving to the next question before you have a clear, specific answer to the current one:</p>
+
+        <p><strong>1. What decision will this data support?</strong> Not "we want better sales visibility" — that is an aspiration, not a decision. The answer must be a specific choice a specific person makes at a specific cadence: "The regional sales director decides how to allocate the Q2 field sales budget across the four product lines, on the first Monday of each quarter."</p>
+
+        <p><strong>2. Who makes that decision, and when?</strong> Names and dates. If you cannot name the person and the specific date or recurring event when the decision is made, you do not have a real requirement — you have a wish list.</p>
+
+        <p><strong>3. What specific number or insight do they need?</strong> Not a dashboard. One metric, one comparison, one answer. "The revenue per product line for the last 90 days, broken down by region, compared against the same period last year." Everything else is scope creep until this is delivered.</p>
+
+        <p><strong>4. What is the minimum data that produces that number?</strong> Which source tables? Which fields? At what grain? This defines your pipeline scope. Everything not needed to produce the answer to question 3 is excluded from the MVP.</p>
+
+        <p><strong>5. What does "correct" look like for this number?</strong> How will you validate the answer? Who will sign off? This defines your Definition of Done (section 5.1) and your acceptance criteria.</p>
+
+        <!-- Figure 5.5 — Working Backwards Pyramid -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f55sh"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter>
+                <marker id="m55" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+                </marker>
+              </defs>
+              <rect width="700" height="260" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Working Backwards — From Decision to MVP Scope</text>
+
+              <!-- Inverted pyramid / funnel top-to-bottom -->
+              <!-- Layer 1: Decision (top, wide) -->
+              <polygon points="140,30 560,30 500,72 200,72" fill="#0F2447" filter="url(#f55sh)"/>
+              <text x="350" y="52" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">1. The Business Decision</text>
+              <text x="350" y="64" fill="rgba(200,220,255,.75)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Who decides? What do they decide? When?</text>
+
+              <!-- Layer 2: Required insight -->
+              <polygon points="200,76 500,76 448,116 252,116" fill="#1B3A6B" filter="url(#f55sh)"/>
+              <text x="350" y="98" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">2. The Required Insight</text>
+              <text x="350" y="110" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">One metric. One comparison. Specific and bounded.</text>
+
+              <!-- Layer 3: Data needed -->
+              <polygon points="252,120 448,120 404,158 296,158" fill="#254F8F" filter="url(#f55sh)"/>
+              <text x="350" y="141" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">3. Data Required</text>
+              <text x="350" y="153" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Which tables, fields, grain?</text>
+
+              <!-- Layer 4: Minimum pipeline -->
+              <polygon points="296,162 404,162 370,198 330,198" fill="#0060AA" filter="url(#f55sh)"/>
+              <text x="350" y="180" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">4. Minimum Pipeline</text>
+              <text x="350" y="192" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Scope defined</text>
+
+              <!-- Layer 5: MVP -->
+              <polygon points="330,202 370,202 350,236" fill="#1A7A4A" filter="url(#f55sh)"/>
+              <text x="350" y="222" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">MVP</text>
+
+              <!-- Arrow on left: direction of discovery -->
+              <line x1="110" y1="30" x2="110" y2="236" stroke="rgba(27,58,107,.2)" stroke-width="1.5" stroke-dasharray="4,3"/>
+              <line x1="100" y1="236" x2="120" y2="236" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="100" y="28" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Start</text>
+              <text x="100" y="240" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Scope</text>
+
+              <!-- Right side: what gets excluded -->
+              <rect x="580" y="36" width="108" height="200" rx="4" fill="rgba(107,63,160,.08)" stroke="rgba(107,63,160,.2)" stroke-width="1" stroke-dasharray="4,3"/>
+              <text x="634" y="55" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Excluded</text>
+              <text x="634" y="68" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">from MVP:</text>
+              <text x="634" y="90" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">All other data</text>
+              <text x="634" y="103" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">sources</text>
+              <text x="634" y="124" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Unrelated</text>
+              <text x="634" y="137" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">metrics</text>
+              <text x="634" y="158" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Nice-to-have</text>
+              <text x="634" y="171" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">dimensions</text>
+              <text x="634" y="192" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Full Bronze</text>
+              <text x="634" y="205" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">layer perfection</text>
+
+              <!-- Note at bottom -->
+              <text x="350" y="250" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-style="italic">Everything excluded from the MVP is legitimate future work — not abandoned. It becomes v2 scope.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 5.5</strong><span>Working backwards from the business decision to the MVP scope. Begin at the top with the most specific definition of the decision to be supported: who, what, when. Narrow through the required insight, the data needed, and the minimum pipeline — arriving at a tightly scoped MVP. Everything excluded (right) is deferred to subsequent iterations, not abandoned. Scope reduction is the mechanism; accuracy is non-negotiable.</span></div>
+        </div>
+
+        <!-- 5.3.3 -->
+        <div class="sec-head"><span class="sec-tag">5.3.3</span><h2 class="sec-title">The Three Data Delivery Anti-Patterns</h2></div>
+
+        <p>Three specific failure modes appear repeatedly in data engineering delivery — each rooted in good intentions but each reliably delaying business value. Naming them is useful because they can be identified and interrupted before they consume months of engineering time.</p>
+
+        <h3 class="subsec">Anti-Pattern 1: The Perfect Bronze Layer</h3>
+        <p>The team spends weeks or months building a highly engineered Bronze ingestion layer: exactly-once delivery semantics, configurable retry logic, full schema validation on ingestion, metadata tables tracking every load, automated schema evolution, and comprehensive monitoring — before a single report has been delivered to anyone.</p>
+
+        <p>The problem is not that good Bronze engineering is wrong — it is right. The problem is timing. A Bronze layer is infrastructure. Infrastructure serves consumers. Before you know what the consumers need, you cannot know what the Bronze layer must support. The team that builds perfect Bronze before any Gold has been consumed has bet six months on assumptions about what the business will eventually ask for — assumptions that are frequently wrong.</p>
+
+        <p>The MVP pattern: build a thin Bronze ingestion for the specific source tables that feed the first MVP. Get the first Gold table and first report delivered. Then expand and improve Bronze as you understand the actual consumption patterns. You will build better Bronze having seen how it is used than you will by speculating in advance.</p>
+
+        <h3 class="subsec">Anti-Pattern 2: The Premature Star Schema</h3>
+        <p>The team designs a complete dimensional model before confirming what questions the business needs to answer. Fifteen fact tables. Twenty-five dimension tables. An enterprise bus matrix mapping every combination. Beautiful on paper. Never shipped because the business changes what it wants halfway through, or the model is technically complete but does not support the analytical patterns the analysts actually use.</p>
+
+        <p>The MVP pattern: design one fact table at the correct grain for the first question. Add the dimensions it strictly requires. Ship it. Learn which dimensions analysts actually reach for, which attributes they need that you didn't include, and which parts of the model they ignore entirely. The second fact table will be better for having shipped the first.</p>
+
+        <h3 class="subsec">Anti-Pattern 3: The Clean-All-Data Trap</h3>
+        <p>The team discovers data quality issues in the source systems — duplicate customer records, inconsistent date formats, NULL values in key fields, referential integrity violations between order headers and lines. They refuse to deliver any report until these issues are resolved, blocking the data product on upstream system quality that they do not own and cannot fully control.</p>
+
+        <p>Data quality issues in source systems are the permanent condition of enterprise data engineering. They do not go away. Waiting for them to be resolved before delivering any value means waiting indefinitely. The MVP pattern: document the known issues, quantify their impact on specific metrics, build the pipeline with documented exclusions or transformations for the known problems, and deliver the report with explicit caveats about what is not yet handled. An imperfect report delivered is far more valuable than a perfect report never shipped.</p>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A UK Manufacturer &nbsp;&middot;&nbsp; Six Months, Zero Dashboards</span>
+          </div>
+          <div class="field-note-body">
+            <p>A UK manufacturer hired a data engineering team to modernize their reporting. The team spent the first six months building what they described as "the right foundation" — a fully automated Bronze ingestion layer covering all 47 tables from the ERP system, with audit logging, schema versioning, exactly-once semantics via Azure Service Bus, and a monitoring dashboard for the pipeline itself. The business received no reports during this period.</p>
+            <p>In month seven, the operations director who had sponsored the project met with the engineering manager. She asked to see the reports the team had been building. There were none. The team explained that they had been building the infrastructure that would make the reports possible. The director's question was direct: "I approved this project so I could see production throughput by line. Can I see that today?" The answer was no.</p>
+            <p>The project was restructured. A senior data engineer was asked to build one report — production throughput by line, last 30 days — using whatever approach was fastest. They connected Power BI directly to the ERP's reporting database (bypassing Bronze entirely), built the report in four days, and delivered it to the operations director in week eight. She used it that week to reallocate one production line, saving an estimated £80k in overtime costs.</p>
+            <p>The Bronze layer was eventually built properly — but over the following nine months, not before any value was delivered.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Infrastructure before insight is a choice, not a necessity. A production throughput report built directly on the ERP was not the right long-term architecture — but it was right for week eight. Iterating from a working answer to a well-architected answer is faster and cheaper than building the architecture first.</p>
+          </div>
+        </div>
+
+        <!-- 5.3.4 -->
+        <div class="sec-head"><span class="sec-tag">5.3.4</span><h2 class="sec-title">Framing Iterative Delivery for Business Stakeholders</h2></div>
+
+        <p>The word "MVP" should almost never appear in a conversation with a business stakeholder. To a non-technical audience, MVP sounds like "minimum" — unfinished, cut-down, something delivered at reduced quality to save time or money. Even if the stakeholder has encountered the term in a technology context, their instinct is often to push back: "I don't want a minimum version. I want a complete one."</p>
+
+        <p>The concept is sound. The vocabulary is wrong. Use different framing that delivers the same intent without triggering a quality anxiety response:</p>
+
+        <h3 class="subsec">The "Working Version We'll Learn From" Frame</h3>
+        <p>Instead of: "We'll deliver an MVP in four weeks." Try: "We'll deliver the first working version in four weeks. It will answer [specific question] by [specific date]. Based on what you learn from using it, we'll deliver version 2 in [timeframe] with [next capability]."</p>
+
+        <p>This framing does four things. It commits to a specific delivery date (not "we'll start delivering value soon"). It defines exactly what will work (the specific question answered). It invites the stakeholder into the iteration process (they are learning, not waiting). And it positions incomplete scope as a feature — you are not delivering less, you are delivering the most important thing first.</p>
+
+        <h3 class="subsec">The Iteration Conversation</h3>
+        <p>Set the iteration cadence explicitly from the first planning meeting. "We work in monthly releases. Version 1 answers the regional revenue question. Version 2 adds product category breakdown. Version 3 adds year-on-year comparisons." When stakeholders know what is coming and when, they are far more tolerant of what is missing from the current version. Scope they know is coming feels different from scope they fear has been forgotten.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Running a scoping session — the "one question" method</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The most effective data MVP scoping technique is forcing a single-question constraint at the beginning of a stakeholder session. The constraint feels artificial. It is useful precisely because it is artificial.</p>
+              <p><strong>The session format:</strong> Invite the senior business stakeholder (the person who requested the data product) and one or two subject-matter experts. State upfront: "Today we're going to agree on the one question this first version must answer. Just one — we'll capture everything else as future scope." The stakeholder's natural response is resistance: "I need many things, not just one." Hold the constraint. Ask: "If you could only have one question answered by this system in the next four weeks, which would it be?"</p>
+              <p><strong>Why it works:</strong> The constraint forces prioritization that stakeholders often cannot do when presented with unlimited scope. The resulting answer is almost always the thing the stakeholder most urgently needs — which is the thing most likely to deliver immediate value and justify continued investment.</p>
+              <p><strong>What to do with everything else:</strong> Capture every other requirement in a prioritized list. At the end of the session, read it back: "We've agreed version 1 answers X. The backlog for subsequent releases includes Y, Z, and A in that priority order. Does this match your expectations?" You now have scope-controlled v1, a documented v2+ backlog, and a stakeholder who understands what is coming and when.</p>
+              <p><strong>When stakeholders won't choose:</strong> Some business stakeholders genuinely cannot prioritize and will resist the single-question constraint. In this case, try a different approach: present three pre-defined options with effort estimates. "Option A: regional revenue breakdown — three weeks. Option B: product margin analysis — five weeks. Option C: customer churn risk — eight weeks. Which is worth delivering first?" Offering concrete options is much easier than asking for abstract prioritization from nothing.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5.3.5 -->
+        <div class="sec-head"><span class="sec-tag">5.3.5</span><h2 class="sec-title">The Walking Skeleton</h2></div>
+
+        <p>The walking skeleton is a software development concept (from Alistair Cockburn's Crystal methodology) that translates exceptionally well to data engineering. The idea: before building any vertical slice of functionality deeply, build a complete but thin horizontal slice through the entire system — end to end, from source to consumption — with just enough functionality to prove the integration works.</p>
+
+        <p>For a data pipeline, the walking skeleton looks like this: ingest one table from the source system (Bronze, rough, minimal transformation), load it to a Silver table (basic cleaning only), build one simple Gold model from it (one fact, the bare minimum grain), and connect it to one Power BI page showing one number. The number might not be meaningful yet. The pipeline might run manually rather than on a schedule. The data quality checks might not exist. But the entire chain — source to report — is operational and connected.</p>
+
+        <p>The walking skeleton de-risks the most dangerous phase of any data project: integration. Most data project failures do not occur because individual components (the ingestion job, the dbt model, the Power BI semantic model) fail to work in isolation. They fail because the components do not work together — because there is a schema mismatch between Bronze and Silver, or the semantic model's FK relationships don't match the Gold layer's surrogate key design, or the Power BI report's date filters don't work with the dim_date structure. These integration failures are invisible until the components are connected. The walking skeleton forces that connection in week one, not week twelve.</p>
+
+        <!-- Figure 5.6 — Iterative Delivery vs Big Bang -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <marker id="m56" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#1A7A4A"/>
+                </marker>
+                <marker id="m56r" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#B07D2A"/>
+                </marker>
+              </defs>
+              <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Business Value Delivered — Iterative vs Big Bang</text>
+
+              <!-- Axes -->
+              <line x1="60" y1="30" x2="60" y2="182" stroke="#4A6080" stroke-width="1.5"/>
+              <line x1="60" y1="182" x2="680" y2="182" stroke="#4A6080" stroke-width="1.5"/>
+              <text x="30" y="106" fill="#4A6080" font-family="Inter,sans-serif" font-size="9" font-weight="600" text-anchor="middle" transform="rotate(-90 30 106)">Business Value</text>
+              <text x="370" y="202" fill="#4A6080" font-family="Inter,sans-serif" font-size="9" font-weight="600" text-anchor="middle">Time Invested</text>
+
+              <!-- Y axis labels -->
+              <text x="55" y="182" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="end">None</text>
+              <text x="55" y="130" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="end">Some</text>
+              <text x="55" y="78" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="end">High</text>
+              <line x1="58" y1="130" x2="62" y2="130" stroke="#4A6080" stroke-width="1"/>
+              <line x1="58" y1="78" x2="62" y2="78" stroke="#4A6080" stroke-width="1"/>
+
+              <!-- X axis labels -->
+              <text x="155" y="194" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">4 weeks</text>
+              <text x="310" y="194" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">3 months</text>
+              <text x="490" y="194" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">6 months</text>
+              <text x="640" y="194" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">12 months</text>
+              <line x1="155" y1="180" x2="155" y2="184" stroke="#4A6080" stroke-width="1"/>
+              <line x1="310" y1="180" x2="310" y2="184" stroke="#4A6080" stroke-width="1"/>
+              <line x1="490" y1="180" x2="490" y2="184" stroke="#4A6080" stroke-width="1"/>
+              <line x1="640" y1="180" x2="640" y2="184" stroke="#4A6080" stroke-width="1"/>
+
+              <!-- ITERATIVE curve (green - starts early, grows steadily) -->
+              <path d="M 60,182 Q 140,175 155,148 Q 220,110 310,95 Q 410,78 490,65 Q 580,52 640,42"
+                    fill="none" stroke="#1A7A4A" stroke-width="2.5"/>
+              <!-- Iterative milestones -->
+              <circle cx="155" cy="148" r="5" fill="#1A7A4A"/>
+              <text x="165" y="144" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="7.5" font-weight="700">v1 live</text>
+              <circle cx="310" cy="95" r="5" fill="#1A7A4A"/>
+              <text x="320" y="91" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="7.5" font-weight="700">v2 live</text>
+              <circle cx="490" cy="65" r="5" fill="#1A7A4A"/>
+              <text x="500" y="61" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="7.5" font-weight="700">v3 live</text>
+
+              <!-- BIG BANG curve (orange - flat then spike) -->
+              <path d="M 60,182 L 430,182 Q 450,182 490,155 Q 560,110 640,75"
+                    fill="none" stroke="#B07D2A" stroke-width="2.5" stroke-dasharray="6,3"/>
+              <!-- Big bang pivot point -->
+              <circle cx="490" cy="155" r="5" fill="#B07D2A"/>
+              <text x="500" y="151" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7.5" font-weight="700">first launch</text>
+              <text x="500" y="163" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7" font-style="italic">(6 months)</text>
+
+              <!-- Zero value zone annotation -->
+              <rect x="62" y="166" width="366" height="14" rx="2" fill="rgba(180,120,42,.08)"/>
+              <text x="245" y="177" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-style="italic">No business value for 6 months</text>
+
+              <!-- Legend -->
+              <line x1="80" y1="210" x2="100" y2="210" stroke="#1A7A4A" stroke-width="2.5"/>
+              <text x="106" y="214" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">Iterative / MVP delivery</text>
+              <line x1="280" y1="210" x2="310" y2="210" stroke="#B07D2A" stroke-width="2.5" stroke-dasharray="6,3"/>
+              <text x="316" y="214" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">Big Bang delivery</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 5.6</strong><span>Business value delivered over time for iterative vs big-bang delivery approaches. The iterative approach (green) begins delivering value at four weeks with the first version live — even if narrow in scope. Value compounds across successive releases. The big-bang approach (orange dashed) delivers nothing for six months, then attempts to launch a complete product. The lost value in the flat section is not recovered — it represents six months of decisions made without data, problems undetected, and opportunity cost incurred. Both curves converge at twelve months, but the area under the iterative curve is substantially larger.</span></div>
+        </div>
+
+        <!-- 5.3.6 -->
+        <div class="sec-head"><span class="sec-tag">5.3.6</span><h2 class="sec-title">When NOT to Use the MVP Approach</h2></div>
+
+        <p>The MVP pattern is appropriate for most analytical data engineering work. It is not appropriate everywhere. Some contexts require completeness from the start — and recognizing them is as important as applying iterative delivery correctly elsewhere.</p>
+
+        <h3 class="subsec">Regulatory and Statutory Reporting</h3>
+        <p>Financial regulatory reports (IFRS financial statements, Solvency II insurance reporting, Basel III banking capital calculations) have a specific quality: an incomplete submission is worse than a late one. A partial regulatory report cannot be filed. If you are building the data pipeline that generates a statutory submission, the MVP concept applies to scope (which reports do we build first?) but not to completeness (the reports you do build must be 100% correct and complete before they are used). "Correct enough" does not exist for an HMRC submission or a PRA regulatory return.</p>
+
+        <h3 class="subsec">Legal and Audit Trails</h3>
+        <p>Pipelines that create immutable audit records — trade surveillance, claims history, contract audit logs — cannot be partially correct. A gap in an audit trail is legally the same as no audit trail. Do not build these iteratively in a way that leaves historical gaps you intend to backfill later. Backfill is technically complex, legally risky, and frequently never completed.</p>
+
+        <h3 class="subsec">Systems Where Partial Data Triggers Wrong Decisions</h3>
+        <p>Some operational dashboards are used to make time-sensitive decisions where acting on a partially-correct picture is worse than having no data at all. If a supply chain dashboard shows 60% of inventory correctly and 40% is missing, and the operations team uses it to place purchase orders — the missing 40% will cause over-ordering. In these cases, scope reduction (show inventory for one product family only) is appropriate, but partial coverage of the committed scope is not.</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Delivery Approach</th>
+              <th>First Value</th>
+              <th>Alignment Risk</th>
+              <th>Cost of Wrong Direction</th>
+              <th>Stakeholder Engagement</th>
+              <th>Best For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Iterative / MVP</strong></td>
+              <td>Weeks (narrow scope)</td>
+              <td>Low — feedback early</td>
+              <td>Low — small pivot</td>
+              <td>High — continuous</td>
+              <td>Most analytical data products; exploratory builds</td>
+            </tr>
+            <tr>
+              <td><strong>Walking Skeleton</strong></td>
+              <td>Days (thin end-to-end)</td>
+              <td>Very low — integration validated early</td>
+              <td>Very low — corrected before deep investment</td>
+              <td>Very high — stakeholder sees pipeline working</td>
+              <td>New capabilities; first delivery to a new domain</td>
+            </tr>
+            <tr>
+              <td><strong>Phase-gated delivery</strong></td>
+              <td>At phase boundaries</td>
+              <td>Medium — scope locked per phase</td>
+              <td>High — late-phase changes are expensive</td>
+              <td>Medium — at milestones</td>
+              <td>Regulatory builds; fixed-requirement systems</td>
+            </tr>
+            <tr>
+              <td><strong>Big Bang / Waterfall</strong></td>
+              <td>Months (at full delivery)</td>
+              <td>High — misalignment discovered at launch</td>
+              <td>Very high — late rework full scope</td>
+              <td>Low — review only at end</td>
+              <td>Avoid — almost always the wrong choice</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Managing technical debt in iterative data delivery</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Iterative delivery creates technical debt by design. The first version of a pipeline is rough by intent — built for speed, not maintainability. If the team never revisits it, the debt compounds until the system becomes difficult to extend, debug, or hand over. The question is not whether to accept technical debt during iterative delivery — you should — but how to manage it so that it never accumulates to a point where it blocks future velocity.</p>
+              <p><strong>Debt logging from day one:</strong> Every known shortcut taken during an MVP build should be logged immediately as a work item in the backlog — not "we'll remember to fix this later." A specific ticket: "Add retry logic to the ERP ingestion pipeline (currently fails hard on timeout)" is actionable. "Improve pipeline reliability" is not. If it is not written as a ticket, it will not be fixed.</p>
+              <p><strong>The 20% rule:</strong> Many engineering teams reserve 20% of sprint capacity for technical debt reduction — equivalent to one day per engineer per week. For data teams this maps naturally to: one sprint item per cycle dedicated to improving an existing pipeline rather than building new capability. This creates a consistent pace of improvement without ever allowing a "tech debt sprint" (a full sprint dedicated to debt) to become necessary.</p>
+              <p><strong>Debt that grows into risk:</strong> Not all technical debt is equal. Debt in a pipeline that processes £2M of transactions per day is more urgent than debt in a reporting pipeline used once a month. Triage your debt backlog: high-risk debt (failure would cause business impact) is addressed immediately regardless of the 20% rule. Low-risk debt (cosmetic, performance, documentation) is addressed as capacity allows. Knowing the difference requires understanding what each pipeline is used for — which is why data engineers should know their consumers, not just their code.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">An Insurance Firm &nbsp;&middot;&nbsp; The Excel Bridge That Became Production</span>
+          </div>
+          <div class="field-note-body">
+            <p>An insurance data team was asked to deliver a claims performance dashboard for the actuarial team. The team's initial plan was a six-month build: full Medallion architecture on ADLS, SCD Type 2 claim dimension, automated ADF ingestion from the claims system, and a Power BI semantic model with RLS per actuarial lead. The right long-term architecture.</p>
+            <p>A new data engineer on the team suggested an alternative for the first version: extract the claim data to a CSV weekly using an existing scheduled report from the source system, load it to a SharePoint folder, build a Power BI report connected to the SharePoint CSV. Build time: three days. The actuarial lead had the claims performance dashboard in week two of the project.</p>
+            <p>She used it immediately. In the first week she identified three claim categories where settlement timelines were significantly outside SLA — something that had been invisible in the legacy reporting. Over the following month she provided detailed feedback on what additional breakdowns she needed, which dimensions were missing, and which metrics she had initially requested but turned out not to use. All of this informed the specification for the properly-engineered v2.</p>
+            <p>The engineered version took four months to build (not six, because the scope was better defined). The SharePoint/CSV approach ran in parallel for seven months until it was replaced. It was never called an MVP — it was called "the first version."</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>The right architecture for month seven is not the right architecture for week two. Speed to a working answer unlocks stakeholder engagement and generates the requirements you need to build the right thing. The Excel bridge is not a failure — it is data discovery with a user interface.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>The walking skeleton in practice — building thin end-to-end in day one</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The walking skeleton for a data project should be completable in one to two days, always. If it takes longer, the scope is too broad. The skeleton proves connectivity — it does not need to be useful data.</p>
+              <p><strong>A concrete example — new Azure data warehouse:</strong></p>
+              <p>Day 1 goal: one row of real data visible in a Power BI report, end to end.</p>
+              <p>Step 1 (1 hour): Identify the single most important source table. Extract one day's worth of rows using a manual query or export. Load to ADLS Bronze manually as a Parquet file.</p>
+              <p>Step 2 (2 hours): Create a simple Databricks notebook that reads the Bronze Parquet, applies no transformations (except casting the date column), and writes a Delta table to a Silver schema.</p>
+              <p>Step 3 (1 hour): Create a minimal dbt model (or SQL file) that reads the Silver Delta table and writes a single-column, single-row Gold table: total_records INTEGER.</p>
+              <p>Step 4 (1 hour): Connect Power BI to the Gold Delta table via Databricks SQL endpoint. Create a card visual showing total_records.</p>
+              <p>End of day 1: you can see a number in Power BI that came from your source system. The number is not meaningful (it is a row count). But the entire integration chain is validated: ADLS paths are correct, Databricks can read from ADLS, dbt can read from Databricks, Power BI can connect to the endpoint, relationships are navigable. Every component that could silently fail has been proved working.</p>
+              <p>From this skeleton, vertical depth is added iteratively. The Bronze ingestion is automated. The Silver transformation adds cleaning logic. The Gold model grows into a proper fact table. Each addition builds on proven connectivity rather than assuming it.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>A data MVP is not a rough version of the full pipeline — it is the minimum data and logic to answer one specific question correctly. Scope is narrow; accuracy is non-negotiable. Work backwards from the decision (who decides what, when, with what specific insight) to define MVP scope. The three anti-patterns to avoid: perfect Bronze before any Gold (infrastructure without consumers), premature star schema (designing before validating), clean-all-data trap (waiting for source quality that never arrives). Frame iterative delivery as "the first working version we'll learn from" rather than "MVP" to avoid stakeholder anxiety. The walking skeleton — thin end-to-end connectivity proven in day one — de-risks integration before deep investment. Technical debt from iterative delivery must be logged as tickets immediately and addressed at a steady rate (20% capacity rule). Exceptions: regulatory reporting, audit trails, and operational systems where partial data triggers wrong decisions require completeness from the start — scope reduction is appropriate, partial coverage is not.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Coming in Section 5.4 &mdash; DataOps &amp; CI/CD</div>
+          <p>Section 5.4 covers DataOps — the application of DevOps principles to data pipelines. Once you have iterative delivery running (this section) and version control in place (section 5.2), the next layer is automation: automated testing, automated deployment, and automated monitoring. DataOps answers the question: "How do we know our pipeline is healthy without checking it manually?"</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 5.3 &nbsp;&middot;&nbsp; MVP-Driven Delivery</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A data engineering team is scoping a new data product. The business has provided 40 requirements across revenue, operations, HR, and finance. The data engineer wants to define a data MVP. What is the most important first question to ask?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Which data source has the best data quality and is easiest to ingest?</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">How many of the 40 requirements can be delivered in the first sprint?</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">What specific decision does the most senior stakeholder need to make, and what is the single number or insight they need to make it?</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Which business area has the most requirements, as that indicates highest demand?</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The MVP scoping process starts at the end — with the decision, not the data. The question "what decision does the most senior stakeholder need to make, and what single insight do they need?" forces you to identify the highest-value output first, rather than reasoning from the easiest-to-deliver input. The answer defines the minimum scope — you then work backwards to identify exactly which data and logic is required to produce that insight. Starting from data quality (A) builds infrastructure for unknown consumers. Partitioning 40 requirements across sprints (B) is sprint planning, not MVP scoping — it doesn't reduce scope, it sequences it. Highest requirement count (D) reflects political noise more than business value.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">Which of the three data delivery anti-patterns does the following scenario represent? "A data team has completed a full star schema design with 12 facts and 20 dimensions, an enterprise bus matrix, and surrogate key conventions — but has not yet ingested any data or delivered any report to the business."</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The Clean-All-Data Trap — the team is waiting for data quality before proceeding</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The Perfect Bronze Layer — the team is over-engineering ingestion infrastructure</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">The Premature Star Schema — the team has designed a complete dimensional model before validating what questions the business actually needs answered first</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">None of the above — thorough upfront design is good practice</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The premature star schema anti-pattern is designing a complete dimensional model before any delivery — before you have validated which facts and dimensions are actually used by analysts, which questions they turn out to need that weren't in the original requirements, and which parts of the model they ignore. The risk: significant modeling effort that must be reworked when requirements evolve, which they always do. The correct approach: design one fact table at the grain required for the first question, add only the dimensions it strictly needs, ship it, and use the analysts' actual behavior to inform the next model. A 12-fact, 20-dimension model designed before any consumption is a best guess. One fact table based on validated requirements is a known value.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A data engineer plans to tell the finance director: "We'll deliver an MVP of the revenue reporting system in six weeks." What is wrong with this framing, and what should be said instead?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Six weeks is too long — MVP delivery should always be within two weeks</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">"MVP" signals incompleteness to non-technical stakeholders and triggers quality anxiety. Better: "We'll deliver the first working version in six weeks — it will show revenue by region vs. prior year. Based on your feedback, we'll add product breakdown in version 2."</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The engineer should not give a timeline until all requirements are gathered and estimated</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Nothing is wrong — business stakeholders understand MVP in the technology context</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> To a non-technical executive, "MVP" suggests "minimum quality" or "unfinished product." The finance director's instinct may be to ask for the full version rather than accept something described as minimum. The reframe does three things: it specifies what exactly will work (revenue by region vs. prior year), it sets a concrete delivery date, and it positions iteration as a collaborative learning process rather than a delivery shortfall. The director becomes a participant in building version 2 rather than a customer who received something incomplete. This framing difference has no impact on what gets built — only on how it is perceived and whether the stakeholder remains invested in the iterative process.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">What is the purpose of a "walking skeleton" at the start of a data engineering project, and what does it validate that individual component testing cannot?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">It delivers a rough version of the full pipeline for stakeholder review before proper build begins</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">It proves end-to-end integration connectivity — ADLS paths, Databricks-to-Gold, Gold-to-Power BI — before deep investment in any component. Individual component tests cannot find integration failures between components.</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">It tests data quality in the source systems before the team commits to the project scope</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It provides a performance benchmark for the final pipeline before any code is written</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Integration failures — the wrong ADLS container path, a mismatched schema between Silver and Gold, a Databricks SQL endpoint that Power BI cannot connect to with the current service principal permissions — are invisible when components are tested in isolation. The walking skeleton forces every component to communicate with every adjacent component on day one, when the cost of discovering and fixing a misconfiguration is an hour, not a week of rework after deep investment. The skeleton does not need to produce meaningful data — a single row count visible end-to-end in Power BI proves connectivity. Everything else is built on a foundation that is known to work together, not assumed to work together.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A data engineering team is building the pipeline for a UK insurance company's Solvency II regulatory capital return. Is the iterative/MVP approach appropriate here?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Yes — deliver the first few capital calculations as a v1, then add remaining calculations in v2</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Scope reduction is appropriate (build the Solvency II return before other reporting), but completeness is non-negotiable within that scope — a partial regulatory return cannot be filed, and incorrect capital figures carry regulatory and legal consequences</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">No — waterfall delivery is always required for regulatory projects</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Yes — even regulatory data products benefit from iterative delivery; regulators accept provisional figures</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This is the key nuance: MVP scope reduction (build the Solvency II pipeline before building other analytics) is entirely appropriate. But within the scope of the Solvency II return itself, completeness is mandatory — not because of technical preference, but because an incomplete or incorrect regulatory capital submission carries legal and supervisory consequences for the insurer. The principle is: scope what you build (fewer questions, fewer reports) but never compromise accuracy or completeness within the scope you commit to. "Correct enough" exists for internal analytics. It does not exist for statutory submissions. This distinction separates iterative delivery from iterative accuracy — the former is a delivery strategy, the latter is never acceptable.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="5-2-git-and-github.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">5.2 Git &amp; GitHub for Data Teams</span></span>
+          </a>
+          <a href="5-4-dataops-and-cicd.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">5.4 DataOps &amp; CI/CD</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 5 &nbsp;&middot;&nbsp; Delivery &amp; Leadership</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">23</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Data MVP ≠ Software MVP</div>
+          <p>Software MVP = rough feature. Data MVP = narrow scope, full accuracy. Fewer questions answered correctly — never more questions answered roughly.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Three Anti-Patterns</div>
+          <p>Perfect Bronze (infra before consumers), Premature Star Schema (model before validated questions), Clean-All-Data Trap (waiting for quality that never fully arrives). Name them when you see them.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Never Say MVP</div>
+          <p>With business stakeholders: "the first working version we'll learn from — it answers [X] by [date]. Version 2 adds [Y] in [timeframe]." Same concept, framing that builds confidence instead of concern.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"How do you approach a new data project?" Answer with working-backwards scoping: start with the decision → required insight → minimum data → pipeline scope. Then mention the walking skeleton to validate integration early. This signals delivery maturity beyond pure technical knowledge.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('5.3');</script>
+</body>
+</html>

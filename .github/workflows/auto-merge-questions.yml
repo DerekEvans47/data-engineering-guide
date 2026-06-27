@@ -1,0 +1,98 @@
+name: Auto-merge Question Generation PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-and-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch and changed files
+        id: changed
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const branch = pr.head.ref;
+            const isQuestionsBranch = branch.startsWith('questions/');
+
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            const ALLOWED = [
+              'content/question-bank.json',
+              'learn/drill/sw.js',
+              'CHANGELOG.md',
+            ];
+
+            const allInScope = files.every(f => ALLOWED.includes(f.filename));
+
+            console.log(`Branch: ${branch}`);
+            console.log(`Is questions/* branch: ${isQuestionsBranch}`);
+            console.log(`Changed files (${files.length}):`);
+            files.forEach(f => console.log(`  ${f.filename}`));
+            console.log(`All changes within allowed scope: ${allInScope}`);
+
+            const eligible = isQuestionsBranch && allInScope;
+            console.log(`Eligible for auto-merge: ${eligible}`);
+
+            core.setOutput('eligible', String(eligible));
+
+      - name: Strip session URLs and merge
+        if: steps.changed.outputs.eligible == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            // Strip any Claude session URLs or identifying links from PR body
+            const cleanBody = (pr.body || '')
+              .split('\n')
+              .filter(line => !line.match(/claude\.ai\/code\/session|Claude-Session:/i))
+              .join('\n')
+              .trim();
+
+            if (cleanBody !== (pr.body || '').trim()) {
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                body: cleanBody,
+              });
+              console.log('Removed session URL from PR body.');
+            }
+
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              event: 'APPROVE',
+              body: 'Auto-approved: questions/* branch within allowed file scope.',
+            });
+
+            await github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              merge_method: 'squash',
+              commit_title: pr.title,
+              commit_message: 'Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>',
+            });
+
+            console.log(`PR #${pr.number} approved and merged.`);
+
+      - name: Skip — not eligible for auto-merge
+        if: steps.changed.outputs.eligible == 'false'
+        run: |
+          echo "PR not eligible for auto-merge (must be a questions/* branch touching only content/question-bank.json, learn/drill/sw.js, or CHANGELOG.md)."
+          echo "Manual review required."

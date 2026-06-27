@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5.5 Stakeholder Communication &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="5.5">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Five &nbsp;&middot;&nbsp; Delivery &amp; Leadership</div>
+          <div class="chap-num">5.5</div>
+          <h1 class="chap-title">Stakeholder Communication</h1>
+          <p class="chap-sub">How to translate between business problems and data solutions, deliver the "so what" not just the numbers, structure incident communications that maintain trust, and make the right decision feel obvious</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Apply the "So What" framework to any data deliverable — converting raw information into insight and action</li>
+            <li>Translate in both directions: from vague business complaint to specific technical diagnosis, and from technical issue to business-language impact statement</li>
+            <li>Structure a data incident communication that informs stakeholders without eroding trust</li>
+            <li>Apply the Pyramid Principle to data presentations — leading with the recommendation, not the methodology</li>
+            <li>Match communication style, detail level, and format to the audience receiving it</li>
+            <li>Recognise the five most common data communication failures and how to avoid each</li>
+          </ol>
+        </div>
+
+        <!-- 5.5.1 -->
+        <div class="sec-head"><span class="sec-tag">5.5.1</span><h2 class="sec-title">Why Communication Is a Core Senior Skill</h2></div>
+
+        <p>A data engineer who can write flawless PySpark but cannot explain a pipeline failure to a business director in plain English will not be trusted with senior responsibilities. Communication is not a soft skill that sits alongside technical expertise — it is the mechanism by which technical expertise creates business value. A brilliant analysis that nobody acts on is worth nothing. A clear, specific recommendation that drives a decision is worth everything the analysis cost.</p>
+
+        <p>The communication challenges senior data engineers face are specific and recurring: explaining a data quality incident without triggering a crisis of confidence, conveying technical complexity to an audience that has no interest in complexity, delivering a report that shows something uncomfortable, and saying "I don't know yet" in a way that feels like competence rather than failure. Each of these has a learnable pattern.</p>
+
+        <div class="hl-block">The job is not to deliver data. The job is to deliver decisions. Data is the input. The right decision — supported by the right analysis, communicated in a way that makes it actionable — is the output. Everything else is infrastructure.</div>
+
+        <!-- 5.5.2 -->
+        <div class="sec-head"><span class="sec-tag">5.5.2</span><h2 class="sec-title">The "So What" Framework</h2></div>
+
+        <p>The most common failure in data communication is delivering information without context. A number in isolation is not useful — it becomes useful only when the audience understands what it means and what they should do about it. The "So What" framework structures any data communication into three mandatory layers:</p>
+
+        <p><strong>What it shows</strong> — the data fact, stated plainly. "Customer churn rate increased from 2.1% to 3.4% in Q3." No interpretation yet. Just the fact, precise and unambiguous.</p>
+
+        <p><strong>What it means</strong> — the implication for the business. "This is the highest churn rate in 18 months. At current customer volume, this represents approximately 1,400 additional customers lost per quarter compared to Q2, equivalent to £2.8M of annualised revenue at the current average contract value."</p>
+
+        <p><strong>What to do about it</strong> — a specific, actionable recommendation. "The data suggests churn is concentrated in the SME (Small and Medium Enterprise) segment in the North-West region. Recommend prioritising retention outreach in that segment before the end of October, when annual renewal cycles begin."</p>
+
+        <p>Without the third layer, data communication is journalism — it informs but does not enable. The data engineer's role at senior level is not to produce reports but to enable decisions. The "So What" forces that responsibility into every communication.</p>
+
+        <!-- Figure 5.9 — So What Framework -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f59sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m59" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#1A7A4A"/>
+                </marker>
+              </defs>
+              <rect width="700" height="200" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">The "So What" Framework — Three Layers of Every Communication</text>
+
+              <!-- Layer 1: WHAT IT SHOWS -->
+              <rect x="10" y="28" width="220" height="160" rx="5" fill="#0F2447" filter="url(#f59sh)"/>
+              <rect x="10" y="28" width="220" height="26" rx="5" fill="#254F8F"/>
+              <rect x="10" y="44" width="220" height="10" fill="#254F8F"/>
+              <text x="120" y="46" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">What It Shows</text>
+              <text x="120" y="60" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Layer 1</text>
+              <text x="120" y="80" fill="#88BEFF" font-family="Inter,sans-serif" font-size="9" font-weight="600" text-anchor="middle">The data fact</text>
+              <text x="120" y="95" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Stated plainly and precisely.</text>
+              <text x="120" y="107" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">No interpretation yet.</text>
+              <rect x="20" y="122" width="200" height="56" rx="3" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+              <text x="120" y="138" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">"Customer churn increased</text>
+              <text x="120" y="150" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">from 2.1% to 3.4% in Q3."</text>
+              <text x="120" y="170" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">&#10007; Not enough on its own</text>
+
+              <!-- Arrow 1→2 -->
+              <line x1="230" y1="108" x2="268" y2="108" stroke="#1A7A4A" stroke-width="2" marker-end="url(#m59)"/>
+              <text x="249" y="100" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">So what?</text>
+
+              <!-- Layer 2: WHAT IT MEANS -->
+              <rect x="270" y="28" width="220" height="160" rx="5" fill="#1B3A6B" filter="url(#f59sh)"/>
+              <rect x="270" y="28" width="220" height="26" rx="5" fill="#0060AA"/>
+              <rect x="270" y="44" width="220" height="10" fill="#0060AA"/>
+              <text x="380" y="46" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">What It Means</text>
+              <text x="380" y="60" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Layer 2</text>
+              <text x="380" y="80" fill="#88BEFF" font-family="Inter,sans-serif" font-size="9" font-weight="600" text-anchor="middle">The business implication</text>
+              <text x="380" y="95" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Quantified. In business language.</text>
+              <text x="380" y="107" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Not SQL or pipeline terms.</text>
+              <rect x="280" y="122" width="200" height="56" rx="3" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+              <text x="380" y="135" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">"~1,400 additional customers</text>
+              <text x="380" y="147" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">lost per quarter vs Q2.</text>
+              <text x="380" y="159" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">£2.8M annualised impact."</text>
+              <text x="380" y="176" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">&#10007; Still incomplete</text>
+
+              <!-- Arrow 2→3 -->
+              <line x1="490" y1="108" x2="528" y2="108" stroke="#1A7A4A" stroke-width="2" marker-end="url(#m59)"/>
+              <text x="509" y="100" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Now what?</text>
+
+              <!-- Layer 3: WHAT TO DO -->
+              <rect x="530" y="28" width="162" height="160" rx="5" fill="#1A5A78" filter="url(#f59sh)"/>
+              <rect x="530" y="28" width="162" height="26" rx="5" fill="#1A7A4A"/>
+              <rect x="530" y="44" width="162" height="10" fill="#1A7A4A"/>
+              <text x="611" y="46" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">What To Do</text>
+              <text x="611" y="60" fill="rgba(200,240,220,.5)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Layer 3</text>
+              <text x="611" y="80" fill="#88EEC8" font-family="Inter,sans-serif" font-size="9" font-weight="600" text-anchor="middle">The recommendation</text>
+              <text x="611" y="95" fill="rgba(200,240,220,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Specific. Owned. Timed.</text>
+              <rect x="540" y="110" width="142" height="64" rx="3" fill="rgba(255,255,255,.07)" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+              <text x="611" y="124" fill="rgba(200,240,220,.7)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">"Prioritise SME retention</text>
+              <text x="611" y="136" fill="rgba(200,240,220,.7)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">outreach in North-West</text>
+              <text x="611" y="148" fill="rgba(200,240,220,.7)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">before end of October."</text>
+              <text x="611" y="168" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">&#10003; Complete</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 5.9</strong><span>The "So What" framework applied to a churn finding. Layer 1 (What it shows) states the data fact precisely — no interpretation. Layer 2 (What it means) translates into business consequence, quantified in business terms the audience cares about. Layer 3 (What to do) provides a specific, time-bound recommendation. Without all three layers, the communication is incomplete. Layer 1 alone is a number. Layer 1 plus 2 is analysis. All three together is insight that enables a decision.</span></div>
+        </div>
+
+        <!-- 5.5.3 -->
+        <div class="sec-head"><span class="sec-tag">5.5.3</span><h2 class="sec-title">The Translator Role</h2></div>
+
+        <p>A senior data engineer operates as a translator between two languages — business language and data language — in both directions. The translation in each direction requires a different skill, and failing in either direction creates a different category of problem.</p>
+
+        <h3 class="subsec">Business → Technical: Decomposing Vague Complaints</h3>
+
+        <p>Business stakeholders rarely describe data problems with the precision a data engineer needs to diagnose them. "Our reports are wrong" is a common opening. It contains almost no actionable information — wrong in what way, which reports, how wrong, since when, compared to what reference? The translator role is to ask the right follow-up questions before any investigation begins:</p>
+
+        <p><strong>Which reports specifically?</strong> (not all reports; a specific named report, on a specific page, showing a specific visual)</p>
+        <p><strong>What value do you see, and what do you expect?</strong> (what number is in the report versus what number should be there, and how do you know what the correct number should be?)</p>
+        <p><strong>Since when has this been wrong?</strong> (first noticed today? last week? or was it noticed today but may have been wrong for months?)</p>
+        <p><strong>What decision depends on this number being correct?</strong> (this determines the urgency and the acceptable resolution time)</p>
+
+        <p>Answering these four questions transforms "our reports are wrong" into "the revenue figure on the Finance Overview page for October is showing £4.2M but Finance's system shows £4.7M — the discrepancy has existed since the 14th and the month-end board pack is due Friday." This is diagnosable. The original complaint was not.</p>
+
+        <h3 class="subsec">Technical → Business: Translating Without Jargon</h3>
+
+        <p>The inverse problem: data engineers who can diagnose the issue precisely but cannot communicate it in terms their audience can act on. "The pipeline has schema drift in the source table — the cost_centre_code column was dropped in the upstream ERP migration and the Silver transformation is now producing NULLs in the reporting layer" is technically precise. It is also completely opaque to a Finance director. The translation: "The cost centre data is missing from this week's reports because the ERP system update on Monday changed how that data is structured. We're rebuilding the affected reports now. The Finance Overview will be correct by Wednesday morning."</p>
+
+        <p>The discipline is: never use a technical term unless you can immediately define it in plain English if asked. Schema drift, ETL, pipeline, Silver layer, surrogate key — none of these belong in a stakeholder email unless the audience is a technical peer who uses those terms themselves.</p>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Manufacturing Firm &nbsp;&middot;&nbsp; "Schema Drift" in the Board Pack</span>
+          </div>
+          <div class="field-note-body">
+            <p>A data engineer at a manufacturing company sent the following update to the Operations Director: "Hi Sarah, just to let you know the production throughput dashboard has been impacted by a schema drift event in the source system. The ETL pipeline is failing due to a missing column in the upstream delta table. We're working on a fix and the lineage should be restored once the Silver layer reprocesses. ETA TBC." The Operations Director replied asking what a silver layer was and whether she needed to cancel the management meeting that had been scheduled around the dashboard data.</p>
+            <p>The engineer sent the identical technical explanation to the IT team, who fixed it within the hour. But the Operations Director had no idea whether the management meeting should proceed, whether to contact the CEO who was attending, or how long the problem would take to resolve — because the communication had given her technical detail she could not interpret and withheld operational detail she needed.</p>
+            <p>The translated version would have been: "Hi Sarah, the production throughput dashboard is showing incomplete data due to a technical issue with one of our data feeds. This won't affect last week's figures, but this week's line-by-line breakdown won't be available until tomorrow morning. I'd recommend proceeding with the management meeting using last week's data as context — I can attend to answer any data questions. I'll confirm when everything is fully updated."</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Business stakeholders do not need a technical explanation of what went wrong. They need to know what is affected, what they should do, and when it will be fixed. Everything else is for the engineering team.</p>
+          </div>
+        </div>
+
+        <!-- 5.5.4 -->
+        <div class="sec-head"><span class="sec-tag">5.5.4</span><h2 class="sec-title">Communicating Data Incidents</h2></div>
+
+        <p>A data incident is any event where production data is incorrect, missing, stale, or temporarily unavailable in a way that affects business users. How you communicate a data incident determines whether stakeholders trust your team more or less afterward — regardless of how quickly you fix it. Teams that communicate clearly during incidents rebuild trust. Teams that go silent and fix things quietly erode it, because stakeholders assume the incident is bigger than it is and wonder what else they don't know about.</p>
+
+        <h3 class="subsec">The Incident Communication Template</h3>
+        <p>Use a consistent structure for every data incident communication, regardless of severity. Consistency builds the expectation that you always communicate this way — which means stakeholders learn to wait for the update rather than speculating.</p>
+
+        <p><strong>Subject:</strong> [DATA] Reporting issue — [affected area] — [date] | Status: Investigating</p>
+        <p><strong>What happened:</strong> One sentence in plain English. "The daily sales dashboard is showing incomplete data for Wednesday."</p>
+        <p><strong>What is affected:</strong> Specific reports, specific metrics, specific date ranges. Not "some reports" — named reports with named metrics.</p>
+        <p><strong>What is not affected:</strong> Explicitly state what is working correctly. This prevents stakeholders from assuming everything is broken.</p>
+        <p><strong>Current status:</strong> Investigating / Fix in progress / Fixed, monitoring. One phrase. Keep it current.</p>
+        <p><strong>Next update:</strong> A specific time. "Next update by 14:00 today." Not "as soon as we know more."</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>The five communication failures data teams make most often</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p><strong>1. Going silent during an incident.</strong> The most damaging thing a data team can do during an outage is communicate nothing while they fix it. Silence signals that the team either doesn't know the problem exists or doesn't consider it important enough to communicate. Both are worse than any technical failure. Send an acknowledgement within 30 minutes of detection, even if you have no diagnosis yet: "We're aware the sales dashboard is showing incomplete data. We're investigating. Next update by 15:00."</p>
+              <p><strong>2. Explaining the cause before explaining the impact.</strong> Engineers naturally want to explain what happened technically. Business stakeholders want to know what it means for them. Lead with impact: "The Q3 regional sales figures in the Finance report are incorrect." Then, if asked, explain the cause. Never the other way around.</p>
+              <p><strong>3. Using relative time without anchoring it.</strong> "This started two days ago" in an email sent at 10am on Friday is ambiguous. "This started at approximately 08:00 on Wednesday 15 October" is not. Always use absolute dates and times in incident communications.</p>
+              <p><strong>4. Promising a fix time you can't keep.</strong> "We'll have this fixed by noon" said at 10am, then missed, destroys far more trust than "We're working on it and will update you at noon with a revised estimate." Under-promise completion times. Over-promise update frequency.</p>
+              <p><strong>5. Closing the incident without a post-mortem summary.</strong> After a significant data incident, send a brief "what happened and what we changed" summary within 48 hours of resolution. One paragraph. This demonstrates competence (you understand the root cause), accountability (you've documented it), and improvement (you've changed something to prevent recurrence). Most teams skip this step. Doing it sets you apart.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5.5.5 -->
+        <div class="sec-head"><span class="sec-tag">5.5.5</span><h2 class="sec-title">The Data Narrative and the Pyramid Principle</h2></div>
+
+        <p>Data storytelling is not about making charts attractive. It is about making the right decision feel obvious to the person who needs to make it. The structural challenge is that data engineers tend to present information in the order it was discovered — here is the data, here is the analysis, here is the finding, here is the recommendation. This is bottom-up communication. Business decision-makers read and listen top-down — tell me the headline, then justify it if I ask.</p>
+
+        <h3 class="subsec">The Pyramid Principle</h3>
+        <p>The Pyramid Principle (from Barbara Minto's 1987 book of the same name) structures any communication so that the most important point — the recommendation, the conclusion, the answer — comes first. Supporting arguments come second. Data and evidence come last. The pyramid is inverted from the way most data engineers naturally present: they start with data, build through analysis, and arrive at a recommendation at the end — which means the person reading may have disengaged before reaching the most important sentence.</p>
+
+        <!-- Figure 5.10 — Pyramid Principle vs Bottom-Up -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f510sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="230" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Pyramid Principle — Top-Down vs Engineer's Natural Bottom-Up</text>
+
+              <!-- LEFT: PYRAMID (correct — top-down) -->
+              <text x="172" y="38" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">&#10003; Pyramid Principle (Top-Down)</text>
+              <!-- Pyramid shape -->
+              <polygon points="172,50 290,180 54,180" fill="none" stroke="rgba(27,58,107,.1)" stroke-width="1"/>
+              <!-- Tier 1: Recommendation (wide at top) -->
+              <rect x="54" y="52" width="236" height="38" rx="3" fill="#1A7A4A" filter="url(#f510sh)"/>
+              <text x="172" y="67" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Recommendation</text>
+              <text x="172" y="82" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">"Increase SME retention spend in North-West"</text>
+              <!-- Tier 2: Supporting arguments -->
+              <rect x="74" y="96" width="196" height="38" rx="3" fill="#0060AA" filter="url(#f510sh)"/>
+              <text x="172" y="111" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Supporting Arguments</text>
+              <text x="172" y="126" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Churn up 62% · £2.8M revenue at risk · Q4 renewals peak</text>
+              <!-- Tier 3: Data evidence (narrow at bottom) -->
+              <rect x="98" y="140" width="148" height="34" rx="3" fill="#1B3A6B" filter="url(#f510sh)"/>
+              <text x="172" y="155" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Data &amp; Evidence</text>
+              <text x="172" y="167" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">CRM data · churn model · renewal pipeline</text>
+              <text x="172" y="192" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Decision-maker reads &amp; acts immediately &#10003;</text>
+              <text x="172" y="207" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Evidence available to those who want it</text>
+
+              <!-- Divider -->
+              <line x1="350" y1="30" x2="350" y2="220" stroke="rgba(27,58,107,.15)" stroke-width="1" stroke-dasharray="5,3"/>
+
+              <!-- RIGHT: BOTTOM-UP (engineer's instinct) -->
+              <text x="527" y="38" fill="#B07D2A" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">&#9888; Engineer's Instinct (Bottom-Up)</text>
+              <!-- Inverted pyramid shape — data wide at top, recommendation narrow at bottom -->
+              <rect x="376" y="52" width="302" height="30" rx="3" fill="#3A4A6A" filter="url(#f510sh)"/>
+              <text x="527" y="64" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Data &amp; Methodology (lengthy, technical)</text>
+              <text x="527" y="76" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">CRM export · 6-month churn model · confidence intervals · data caveats</text>
+              <rect x="396" y="88" width="262" height="30" rx="3" fill="#3A4A6A" filter="url(#f510sh)"/>
+              <text x="527" y="100" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Analysis Walkthrough</text>
+              <text x="527" y="112" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Seven slides of churn trend charts and segment breakdowns</text>
+              <rect x="436" y="124" width="182" height="30" rx="3" fill="#254F8F" filter="url(#f510sh)"/>
+              <text x="527" y="136" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Key Findings</text>
+              <text x="527" y="148" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Summarised statistics with caveats</text>
+              <rect x="462" y="160" width="130" height="24" rx="3" fill="#0060AA" filter="url(#f510sh)"/>
+              <text x="527" y="176" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">Recommendation (slide 11)</text>
+              <text x="527" y="200" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Decision-maker disengaged by slide 4 &#9888;</text>
+              <text x="527" y="213" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Recommendation never reached</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 5.10</strong><span>Pyramid Principle (left) vs the engineer's natural bottom-up approach (right). The pyramid leads with the recommendation — the business decision this whole analysis supports. Supporting arguments follow. Data and evidence come last, available for those who want to verify but not required reading. The bottom-up approach leads with data and methodology, builds through analysis, and arrives at the recommendation on slide 11 — by which point many decision-makers have disengaged. Flip the structure. Make the conclusion the headline.</span></div>
+        </div>
+
+        <h3 class="subsec">The One-Slide Principle for Data Presentations</h3>
+        <p>If you have one minute to present a finding to a senior executive, what is the one thing they need to leave the room knowing? That is the first slide. Every other slide is an appendix — available if someone wants to go deeper, but not required to act on the recommendation. Many data engineers build their presentations as a journey through the analysis. Senior audiences do not want to take the journey. They want the destination, with the journey available if they ask for it.</p>
+
+        <!-- 5.5.6 — Audience Matrix -->
+        <div class="sec-head"><span class="sec-tag">5.5.6</span><h2 class="sec-title">Matching Communication to Audience</h2></div>
+
+        <p>The same finding requires different communication depending on who receives it. The content — the underlying fact and recommendation — does not change. The format, level of detail, terminology, and framing do. Getting this calibration wrong is common: data engineers who send executive-level summaries to technical peers (insufficient detail for them to act) and technical deep-dives to executive sponsors (so much detail they cannot find the headline).</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Audience</th>
+              <th>Lead With</th>
+              <th>Detail Level</th>
+              <th>Jargon</th>
+              <th>Format</th>
+              <th>What They Need to Leave With</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Board / Executive</strong></td>
+              <td>The recommendation and its financial or strategic impact</td>
+              <td>Minimal — 1-2 supporting facts maximum</td>
+              <td>None — zero technical terms</td>
+              <td>One slide; one-paragraph email; verbal briefing</td>
+              <td>The decision they need to make and the data supporting it</td>
+            </tr>
+            <tr>
+              <td><strong>Senior Manager / Director</strong></td>
+              <td>The business impact, then the recommendation</td>
+              <td>Medium — 3-5 supporting metrics, trend context</td>
+              <td>Business terms only — no pipeline or SQL terms</td>
+              <td>Short deck (5 slides max); structured email with bullets</td>
+              <td>What is happening, why it matters, what to do</td>
+            </tr>
+            <tr>
+              <td><strong>Data Analyst / BI User</strong></td>
+              <td>The finding, then methodology summary</td>
+              <td>High — data sources, caveats, confidence levels</td>
+              <td>SQL, model, dimension — but not pipeline internals</td>
+              <td>Detailed report or notebook with annotations</td>
+              <td>How to reproduce and extend the analysis themselves</td>
+            </tr>
+            <tr>
+              <td><strong>Technical Peer (DE/ML)</strong></td>
+              <td>The technical problem or design decision</td>
+              <td>Full — architecture, code, performance metrics</td>
+              <td>All technical terms accepted</td>
+              <td>PR description; design doc; Slack thread with code</td>
+              <td>Enough context to review, contribute, or implement</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Delivering bad news — data quality issues to a business stakeholder</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>At some point, every data engineer has to tell a business stakeholder that the data the stakeholder has been making decisions on for the past three months is wrong. This is one of the highest-stakes communication scenarios in the profession. Done poorly, it destroys trust and suggests systemic incompetence. Done well, it demonstrates transparency, accountability, and competence in diagnosis.</p>
+              <p><strong>The structure for delivering bad news about data:</strong></p>
+              <p><strong>State the problem directly, upfront.</strong> Do not soften the opening with context: "I wanted to reach out because we've been doing some data quality work and we found something that we think is worth discussing with you..." leads the stakeholder to brace for unknown horror. Direct is kinder: "We've identified an error in the customer revenue figures that has been affecting the regional reports since 14 October."</p>
+              <p><strong>Quantify the impact immediately.</strong> Decision-makers need to know: how wrong? Which reports? What time period? What decisions might have been made on wrong data? Give them the scope before they ask. Leaving them to wonder if everything is wrong is worse than the reality.</p>
+              <p><strong>Explain what you've already done.</strong> By the time you deliver bad news, you should already have: identified the root cause, corrected the data, and confirmed the fix. "We identified the issue this morning, isolated the cause, corrected the affected records, and the reports are now showing correct figures. We've added an automated check to detect this type of issue in future." This turns bad news into a competence demonstration.</p>
+              <p><strong>Offer a specific path to reconciliation.</strong> If decisions were made on wrong data, offer to work through the implications. "If you'd find it useful, I can run through the correct figures alongside the ones that were used to identify any decisions that may need revisiting. Happy to do that this week if helpful."</p>
+              <p><strong>What not to do:</strong> Do not attribute blame to the source system, the upstream team, or anyone else in the first communication. Do not qualify with "we think" or "it appears" — be certain before you tell stakeholders. Do not estimate impact vaguely ("the figures may have been slightly off") — quantify or say you're still quantifying.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">An Investment Manager &nbsp;&middot;&nbsp; The 9pm Discovery, 9am Surprise</span>
+          </div>
+          <div class="field-note-body">
+            <p>A data engineer at an investment management firm discovered at 9pm on a Tuesday that a portfolio valuation report had been using incorrect FX (foreign exchange) rates for the prior three weeks. The error had affected seven reports used by the portfolio management team. She spent the night diagnosing and fixing the issue. By 6am the reports were corrected and showing accurate figures.</p>
+            <p>She sent a single email at 8am the next morning: "Good morning — wanted to let you know that the portfolio valuation reports are fully up to date and accurate as of this morning. We identified and corrected an FX rate issue overnight. Happy to walk through the details if useful."</p>
+            <p>The portfolio managers arrived at 9am to find accurate reports and a matter-of-fact note that something had been fixed. Two of them replied thanking her for the overnight work. The third — whose fund had the largest FX exposure — replied asking for a detailed breakdown of which valuations had been affected and by how much, since his team had been using those figures in client communications that week.</p>
+            <p>What had been a competent overnight fix became a significant incident: three weeks of potentially incorrect client-facing valuations that had gone undetected. The 9am communication style — resolving without informing — meant the scope of impact was only discovered when someone specifically asked. A proactive communication at 9pm when the issue was first identified would have surfaced the client communication concern immediately, when it was still manageable.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Detecting a problem and quietly fixing it without communication is not professionalism — it is a gamble that nobody needs to know. In data work, stakeholders often need to know even about problems you've already fixed, because they may have made decisions or communications based on the wrong data while you were fixing it.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Building a stakeholder communication map for your data products</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>A stakeholder communication map is a simple document that answers: who needs to know what, in what format, and within what timeframe, for each category of data event. Building this once saves significant time during incidents when you need to communicate quickly and correctly.</p>
+              <p><strong>The map has four columns:</strong></p>
+              <p><strong>Stakeholder:</strong> Named individual or role. "Finance Director (J. Williams)" not "Finance team."</p>
+              <p><strong>What they care about:</strong> Specific reports, metrics, or decisions this person is responsible for. "Month-end P&amp;L, board pack revenue figures, daily flash report."</p>
+              <p><strong>Communication format:</strong> How they prefer to receive information. Some executives want a text message for anything urgent. Some managers want a formal email. Some analysts want a Slack message. Ask directly rather than assuming.</p>
+              <p><strong>Escalation threshold:</strong> At what severity level should this person be contacted? "Contact immediately if: any error in the board pack, any issue affecting regulatory reports. Contact same-day if: any error in the daily flash report. Contact within 48 hours if: any other reporting issue."</p>
+              <p>Build this map during the project onboarding phase, not during an incident. Review and update it quarterly. Share it with the whole data team so that any team member can communicate correctly during an incident, not just the engineer who built the pipeline.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Communication is a core senior skill because it is the mechanism by which technical expertise becomes business value. The "So What" framework structures every data communication into three mandatory layers: what the data shows (the fact), what it means (the business implication, quantified), and what to do about it (a specific recommendation). The translator role runs in both directions: decompose vague business complaints into diagnosable technical descriptions, and translate technical issues into business-language impact statements. Data incident communications should follow a consistent template: what happened, what is affected, what is not affected, current status, next update time. Go silent during an incident at your peril — acknowledgement within 30 minutes is more important than a diagnosis. The Pyramid Principle inverts the engineer's natural bottom-up presentation style: recommendation first, supporting arguments second, evidence available but not required. Match communication format, detail level, and terminology to the audience — executives need one paragraph, analysts need the full methodology, technical peers need the code. Build a stakeholder communication map proactively, not during an incident.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Coming in Section 5.6 &mdash; Change Management</div>
+          <p>The final section of Part 5 covers what happens after delivery: why most data products end up in the dashboard graveyard, how to prevent it at design time rather than trying to fix it at adoption time, the difference between training and enablement, and how to build a champions network that drives adoption without data engineering involvement.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 5.5 &nbsp;&middot;&nbsp; Stakeholder Communication</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A data engineer discovers at 9pm that a key report has been showing incorrect revenue figures for the past two weeks. She fixes the issue overnight and sends a brief "all resolved" email at 8am. What communication failure has she made?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">None — fixing the issue overnight and communicating in the morning is correct professional behaviour</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">She communicated a resolution without surfacing the scope of potential impact — stakeholders may have used incorrect figures in decisions or communications during the two-week window, which requires immediate surfacing, not burying in a brief "all resolved" note</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">She should have fixed the issue during business hours so stakeholders could monitor progress</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">She should have escalated to her manager before attempting the fix overnight</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The overnight fix was excellent. The communication failure was resolving without surfacing the impact window. A two-week error in revenue figures means business users may have made decisions, written reports, or created client communications using wrong data during that period. They need to know this — not to apportion blame, but to assess whether any decisions or communications need revisiting. A proactive communication at 9pm when the issue was discovered ("we've identified an error in the revenue report and are fixing it overnight — wanted to flag in case the figures have been used in any time-sensitive communications today") surfaces this concern when it is still manageable. The 8am "all resolved" communication creates the impression the issue was just discovered and just fixed — not that it affected two weeks of work.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">Which of the following best demonstrates the "So What" framework applied to a data finding?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">"The customer retention rate is 87.3% for Q3, calculated from the CRM data using a 90-day rolling window methodology with customers active in the prior quarter as the denominator."</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">"Retention has dropped. We should look into this further."</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">"Retention dropped from 92% to 87% in Q3 — that's approximately 800 additional customers lost, representing £1.6M of annualised revenue. The drop is concentrated in the SME segment; I recommend reviewing the onboarding experience for SME customers before the Q4 renewal cycle begins in November."</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">"Here is a 12-slide deck showing the retention trend data, cohort analysis, and comparison to industry benchmarks, with a recommendation on slide 11."</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> This answer contains all three layers: the data fact ("dropped from 92% to 87%"), the business meaning ("800 additional customers lost, £1.6M annualised impact"), and a specific actionable recommendation with a time frame ("review SME onboarding before November"). Option A contains only Layer 1 (the data fact) with unnecessary methodology detail that the audience doesn't need. Option B is so vague it communicates nothing. Option D is structure, not content — and burying the recommendation on slide 11 is the anti-pattern the Pyramid Principle addresses.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A data pipeline fails and causes the sales dashboard to show incomplete data. The data engineer sends this message to the Commercial Director: "Hi Mark, the pipeline has an upstream schema drift issue affecting the Silver layer. The ETL is failing and the data isn't flowing through to the Gold tables. We're fixing the dbt models now." What is wrong with this communication?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">It was sent too quickly — the engineer should wait until the fix is ready before communicating</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">It doesn't include enough technical detail for the director to understand the root cause</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">It uses technical jargon (schema drift, ETL, Silver layer, Gold tables, dbt models) that the Commercial Director cannot interpret, and fails to state the business impact (which report, what is missing, what decisions are affected) or next steps (when will it be fixed)</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It is too long — incidents should be communicated in one sentence</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> A Commercial Director reading this message has no idea: which report is affected, what is wrong with it, whether they should cancel meetings or decisions that depend on it, or when it will be fixed. The technical explanation (schema drift, ETL, Silver/Gold layers, dbt) conveys nothing actionable to a non-technical audience. The translated version: "Hi Mark — the sales dashboard is showing incomplete data for today. We identified the cause this morning and are fixing it now. The dashboard will be fully updated by 2pm. Last confirmed correct figures are from yesterday — happy to share those if you need data before 2pm." Same communication effort. Completely different utility.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">What does the Pyramid Principle say about how to structure a data presentation for a senior business audience?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Present data first to establish credibility before making recommendations</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Use three levels of pyramid charts to visualise hierarchical data</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Lead with the recommendation or conclusion, follow with the key supporting arguments, put the data and methodology last — making the most important point immediately accessible to decision-makers who may not read the whole document</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Structure presentations as a pyramid of three sections: context, complication, resolution</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The Pyramid Principle (Barbara Minto) inverts the engineer's natural presentation order. Engineers build to a conclusion through data and analysis. Executives read top-down — they need the headline first, then the justification if they want it. A presentation that buries the recommendation on slide 11 risks losing the decision-maker's attention before the most important slide appears. The pyramid structure: Slide 1 is the recommendation ("increase SME retention spend by 20%"). Slides 2–4 are the supporting arguments (churn data, revenue at risk, competitive context). Slides 5+ are the evidence appendix — available to anyone who wants to verify, but not required reading for the decision. Option D describes the "situation-complication-resolution" (SCR) framework, which is related but distinct from the Pyramid Principle itself.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A data engineer needs to communicate the same finding about declining customer retention to three different people: the CEO, the Head of Customer Success, and a fellow data analyst who will build further analysis on the work. How should the communication differ?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The communication should be identical — consistent messaging avoids confusion</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Send full technical detail to all three and let them extract what they need</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">CEO: one-paragraph email — recommendation and financial impact only, no methodology. Head of Customer Success: structured email or short deck — the finding, supporting metrics, and recommended action relevant to their team. Data analyst: full technical write-up — data sources, methodology, caveats, and how to replicate the analysis</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The CEO and Head of Customer Success receive the same communication; the data analyst receives a separate technical version</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The same finding requires fundamentally different communication for each audience. The CEO needs one decision to make and the quantified reason to make it — methodology is noise. The Head of Customer Success needs to know what action their team should take, which requires more operational context than the CEO but less technical detail than the analyst. The data analyst needs complete technical transparency — data sources, sampling approach, any caveats, and how to reproduce and extend the work, because their next step is to build on it. Option D groups CEO and Head of Customer Success together, which undersells the operational detail the Head of Customer Success needs to act on the finding. Treating all business stakeholders as having the same information needs is a common mistake — seniority does not equate to information need.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="5-4-dataops-and-cicd.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">5.4 DataOps &amp; CI/CD</span></span>
+          </a>
+          <a href="5-6-change-management.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">5.6 Change Management</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 5 &nbsp;&middot;&nbsp; Delivery &amp; Leadership</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">25</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Three Layers, Always</div>
+          <p>What it shows → what it means → what to do. Never deliver just the data fact. Without the implication and the recommendation, a number is raw material, not insight.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Communicate Incidents Fast</div>
+          <p>Acknowledge within 30 minutes. State what is affected, what is not affected, current status, and when the next update comes. Going silent while fixing is worse than the incident itself.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Recommendation First</div>
+          <p>Pyramid Principle: lead with what they should do. Follow with why. Put the data last. Executives read top-down — if your recommendation is on slide 11, they may never see it.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"How do you communicate a data quality issue to a non-technical stakeholder?" Use the incident template: what happened (plain English), what is affected (specific), what is not affected, status, next update time. Showing this structure signals senior communication maturity.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('5.5');</script>
+</body>
+</html>

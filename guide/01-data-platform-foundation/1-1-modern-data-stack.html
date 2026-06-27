@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1.1 The Modern Data Stack · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="1.1">
+
+  <!-- ======================================================
+       SIDEBAR — populated by guide.js renderSidebar()
+  ====================================================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"><!-- guide.js fills this in --></div>
+    </div>
+  </aside>
+
+  <!-- Mobile overlay (tap to close sidebar) -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Mobile hamburger (hidden on desktop) -->
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+
+  <!-- Desktop reopen tab (shown only when sidebar collapsed) -->
+  <button class="sidebar-reopen" id="sidebarReopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <!-- ======================================================
+       MAIN CONTENT
+  ====================================================== -->
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+
+      <article class="content">
+
+        <!-- Chapter Header -->
+        <header class="chap-header">
+          <div class="part-tag">Part One &nbsp;·&nbsp; The Data Platform Foundation</div>
+          <div class="chap-num">1.1</div>
+          <h1 class="chap-title">The Modern Data Stack</h1>
+          <p class="chap-sub">How everything connects, why it exists, and what your role is within it</p>
+        </header>
+
+        <!-- Learning Outcomes -->
+        <div class="outcomes">
+          <div class="outcomes-head">
+            <div class="outcomes-badge">✓</div>
+            <h3>Expected Learning Outcomes</h3>
+          </div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain why the modern data stack emerged and what specific failure it solved</li>
+            <li>Identify and describe the four fundamental layers of any modern data platform</li>
+            <li>Map Azure's primary tools to each layer in the stack</li>
+            <li>Articulate the principle of storage/compute separation and why it matters</li>
+            <li>Connect the role of a data practitioner to architectural decision-making in this stack</li>
+          </ol>
+        </div>
+
+        <!-- 1.1.1 -->
+        <div class="sec-head">
+          <span class="sec-tag">1.1.1</span>
+          <h2 class="sec-title">The Problem That Created the Stack</h2>
+        </div>
+
+        <p>Every powerful idea in data engineering exists because someone had a painful problem and got creative about solving it. The modern data stack is no exception. To understand what it is — and more importantly, <em>why</em> it works the way it does — you need to understand what came before it and why that broke.</p>
+
+        <p>For much of the 2000s and early 2010s, a typical enterprise data setup looked like this: a <span class="kt" data-term="SQL Server">SQL Server</span> database sat at the center of everything. Tools like <span class="kt" data-term="SSIS">SSIS</span> — SQL Server Integration Services, Microsoft's legacy pipeline tool — pulled data from source systems, transformed it on the way in, and loaded it into the same server that later powered the reports your executives relied on. The entire operation was tightly <em>coupled</em>: one system did the storing, the computing, the transforming, and the serving, all at once. This pattern is called <span class="df" data-term="ETL">ETL (Extract, Transform, Load)</span>.</p>
+
+        <p>For modest data volumes, this worked. Then something changed. Systems of record — SAP, Salesforce, custom APIs, IoT sensors, web logs — started generating data at volumes nobody anticipated. Running a complex multi-million-row transformation job on the same server simultaneously serving a CFO's quarterly dashboard became a recipe for everything slowing to a crawl, or crashing at exactly the wrong moment.</p>
+
+        
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>ETL vs ELT — Does the order actually matter?</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p><strong>ETL (Extract → Transform → Load)</strong> was designed for a world where compute and storage were the same machine. You had to know the shape of your data before loading it. The transformation happened in a dedicated staging area, and only clean, structured data landed in the destination.</p>
+              <p><strong>ELT (Extract → Load → Transform)</strong> flips this. Raw data lands first — exactly as it arrived from the source, no transformations applied. Compute (Databricks) then reads that raw data and transforms it in place. This is the modern default for one key reason: cloud compute is cheap and elastic, so you no longer need to commit to a schema before you understand your data.</p>
+              <p><strong>When ELT wins:</strong> messy or unpredictable source data, evolving schemas, reprocessing historical data with new logic, or any situation where "we might want this data later" is true. <strong>When ETL still makes sense:</strong> strict compliance requirements where raw PII data must never touch your platform, or high-volume real-time streaming where transformation must happen before landing.</p>
+              <p>In the Azure stack, the default is ELT: ADF loads raw to ADLS Bronze, Databricks transforms toward Silver and Gold.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="hl-block">
+          The tightly coupled model assumed data volume was predictable and manageable. That assumption stopped being true around 2010, and it has gotten less true every year since.
+        </div>
+
+        
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow">
+              <span class="field-note-icon">🏢</span>
+              <span class="field-note-tag">Field Note</span>
+            </div>
+            <span class="field-note-company">eBay · Mid-2000s</span>
+          </div>
+          <div class="field-note-body">
+            <p>By the mid-2000s, eBay was processing hundreds of millions of transactions across its auction marketplace — and all of it ran through a central Oracle database cluster. The engineering team faced a problem that had no clean solution within the existing architecture: running analytical queries on that data required touching the same infrastructure that handled live bidding. Heavy reporting jobs would slow the marketplace. Overnight batch processes — meant to run while users slept — started extending into business hours as data volumes grew. The data team's ability to answer business questions was directly capped by their ability to avoid disrupting auctions.</p>
+            <p>eBay's engineering team eventually built a distributed data platform they called Singularity — an early precursor to what the industry would formalize as the modern data stack. It wasn't that Oracle was the wrong database. It was that the assumption underneath Oracle — that storage, compute, and serving could share one machine — had a ceiling. And eBay had hit it.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Tightly coupled architectures don't fail suddenly. They degrade slowly — batch jobs creep longer, query windows shrink, and eventually the data team starts making architectural concessions to avoid taking down the business.</p>
+          </div>
+        </div>
+
+        <p>The insight that changed everything was deceptively simple: <strong>storage and compute don't have to live in the same place.</strong> Cloud providers proved you could store virtually unlimited data in cheap <span class="kt" data-term="Object Storage">object storage</span> — think of it as an infinitely large, infinitely expandable filing cabinet that costs pennies per gigabyte — and spin up powerful compute clusters only when you actually needed to process something. When you were done, you shut them down and stopped paying. You weren't renting the filing cabinet and the forklift on one lease anymore. Each scales on its own terms.</p>
+
+        
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Block vs File vs Object Storage — three different philosophies</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Storage is not one thing. There are three fundamentally different architectures, and the choice between them determines what you can build on top:</p>
+              <table class="mini-table">
+                <thead><tr><th>Type</th><th>How it works</th><th>Best for</th><th>Azure example</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Block</strong></td><td>Raw disk presented to an OS. You format it yourself.</td><td>VM operating system disks, databases needing raw disk performance</td><td>Azure Managed Disks</td></tr>
+                  <tr><td><strong>File</strong></td><td>Familiar folder hierarchy over a network (NFS/SMB). Everyone sees the same directory.</td><td>Shared drives, lift-and-shift of on-prem file servers</td><td>Azure Files</td></tr>
+                  <tr><td><strong>Object</strong></td><td>Flat namespace. Each file is an independent object with a unique URL and metadata. No real directories.</td><td>Data lakes, backups, static web assets, anything at scale</td><td>Azure Blob Storage / ADLS</td></tr>
+                </tbody>
+              </table>
+              <p><strong>Why object storage won for data lakes:</strong> it scales infinitely, costs pennies per gigabyte, and separates storage cost from compute cost entirely. The trade-off: no native directory operations (listing a folder on pure Blob Storage requires iterating every object). ADLS Gen2 adds a hierarchical namespace on top of Blob Storage to fix this — making directory operations atomic and Databricks-compatible without losing the infinite scale of object storage.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>This decoupling of storage from compute is the philosophical foundation of the modern data stack. Worth noting: the same fundamental insight independently drove the rise of Databricks, Snowflake, and BigQuery in roughly the same five-year window. When a problem is painful enough, the industry converges on the solution almost simultaneously.</p>
+
+        <!-- FIGURE 1.1 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 310" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <linearGradient id="g-modern" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#0F2447"/>
+                  <stop offset="100%" stop-color="#0076CC"/>
+                </linearGradient>
+                <linearGradient id="g-warn" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#C8892A"/>
+                  <stop offset="100%" stop-color="#A06020"/>
+                </linearGradient>
+                <filter id="shadow" x="-5%" y="-5%" width="110%" height="120%">
+                  <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="rgba(0,0,0,0.15)"/>
+                </filter>
+                <marker id="arr-b" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+                  <polygon points="0 0, 7 3.5, 0 7" fill="#0076CC"/>
+                </marker>
+              </defs>
+
+              <rect width="700" height="310" fill="#F4F6FB" rx="6"/>
+
+              <!-- ── LEGACY (left) ── -->
+              <rect x="18" y="16" width="290" height="278" rx="8" fill="#FFF7EC" stroke="#C8892A" stroke-width="1.5" filter="url(#shadow)"/>
+              <rect x="18" y="16" width="290" height="46" rx="8" fill="url(#g-warn)"/>
+              <rect x="18" y="46" width="290" height="16" fill="#A06020"/>
+              <text x="163" y="42" fill="white" font-family="Inter,sans-serif" font-size="13" font-weight="700" text-anchor="middle">Legacy Architecture</text>
+              <text x="163" y="58" fill="#FDDDB8" font-family="Inter,sans-serif" font-size="10" text-anchor="middle">Tightly Coupled · One Server Does Everything</text>
+
+              <!-- monolith box -->
+              <rect x="40" y="78" width="246" height="176" rx="6" fill="white" stroke="#D8943A" stroke-width="1.5" stroke-dasharray="6,3"/>
+              <text x="163" y="100" fill="#B07020" font-family="Inter,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">SQL SERVER MONOLITH</text>
+
+              <!-- inner blocks -->
+              <rect x="56" y="108" width="214" height="32" rx="4" fill="#FFF0DA" stroke="#D8943A" stroke-width="1"/>
+              <text x="163" y="128" fill="#7A4400" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">📥 Storage &amp; ETL (SSIS)</text>
+
+              <rect x="56" y="146" width="214" height="32" rx="4" fill="#FFF0DA" stroke="#D8943A" stroke-width="1"/>
+              <text x="163" y="166" fill="#7A4400" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">⚙️ Compute &amp; Transforms</text>
+
+              <rect x="56" y="184" width="214" height="32" rx="4" fill="#FFF0DA" stroke="#D8943A" stroke-width="1"/>
+              <text x="163" y="204" fill="#7A4400" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">📊 Reporting &amp; Analytics</text>
+
+              <!-- stress warning -->
+              <text x="163" y="242" fill="#C06010" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">⚠️ All compete for one machine</text>
+              <text x="163" y="278" fill="#A06020" font-family="Inter,sans-serif" font-size="10" text-anchor="middle">Scale one thing → everything slows</text>
+
+              <!-- ── ARROW ── -->
+              <text x="352" y="165" fill="#8AAAC0" font-family="Inter,sans-serif" font-size="26" font-weight="200" text-anchor="middle">→</text>
+
+              <!-- ── MODERN (right) ── -->
+              <rect x="392" y="16" width="290" height="278" rx="8" fill="#EBF4FD" stroke="#0076CC" stroke-width="1.5" filter="url(#shadow)"/>
+              <rect x="392" y="16" width="290" height="46" rx="8" fill="url(#g-modern)"/>
+              <rect x="392" y="46" width="290" height="16" fill="#0060AA"/>
+              <text x="537" y="42" fill="white" font-family="Inter,sans-serif" font-size="13" font-weight="700" text-anchor="middle">Modern Data Stack</text>
+              <text x="537" y="58" fill="#A8D4F8" font-family="Inter,sans-serif" font-size="10" text-anchor="middle">Decoupled · Each Layer Scales Independently</text>
+
+              <!-- Layer 4: Consumption -->
+              <rect class="diagram-layer" x="408" y="74" width="258" height="38" rx="5" fill="#0F2447"/>
+              <text x="537" y="89" fill="#6AAEFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="2" text-anchor="middle">LAYER 4 · CONSUMPTION</text>
+              <text x="537" y="104" fill="white" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">📊 Power BI · Dashboards · Reports</text>
+
+              <!-- animated flow arrow down -->
+              <line class="flow-v" x1="537" y1="112" x2="537" y2="122" stroke="#0076CC" stroke-width="2" marker-end="url(#arr-b)"/>
+
+              <!-- Layer 3: Compute -->
+              <rect class="diagram-layer" x="408" y="124" width="258" height="38" rx="5" fill="#1B3A6B"/>
+              <text x="537" y="139" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="2" text-anchor="middle">LAYER 3 · COMPUTE &amp; TRANSFORM</text>
+              <text x="537" y="154" fill="white" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">⚙️ Databricks · Apache Spark</text>
+
+              <line class="flow-v" x1="537" y1="162" x2="537" y2="172" stroke="#0076CC" stroke-width="2" marker-end="url(#arr-b)"/>
+
+              <!-- Layer 2: Storage + Medallion -->
+              <rect class="diagram-layer" x="408" y="174" width="258" height="66" rx="5" fill="white" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="450" y="191" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="2">LAYER 2 · STORAGE (ADLS)</text>
+              <!-- Medallion tiers with gradients -->
+              <defs>
+                <linearGradient id="g-bronze" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#D4924A"/>
+                  <stop offset="100%" stop-color="#9A5C1A"/>
+                </linearGradient>
+                <linearGradient id="g-silver" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#B0B4BC"/>
+                  <stop offset="100%" stop-color="#6C7280"/>
+                </linearGradient>
+                <linearGradient id="g-gold" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#E8A840"/>
+                  <stop offset="100%" stop-color="#A06010"/>
+                </linearGradient>
+              </defs>
+              <rect x="414" y="198" width="72" height="34" rx="4" fill="url(#g-bronze)"/>
+              <text x="450" y="212" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">🥉 Bronze</text>
+              <text x="450" y="226" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Raw Data</text>
+              <rect x="492" y="198" width="72" height="34" rx="4" fill="url(#g-silver)"/>
+              <text x="528" y="212" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">🥈 Silver</text>
+              <text x="528" y="226" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Cleaned</text>
+              <rect x="570" y="198" width="88" height="34" rx="4" fill="url(#g-gold)"/>
+              <text x="614" y="212" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">🥇 Gold</text>
+              <text x="614" y="226" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Business-Ready</text>
+
+              <line class="flow-v" x1="537" y1="240" x2="537" y2="250" stroke="#0076CC" stroke-width="2" marker-end="url(#arr-b)"/>
+
+              <!-- Layer 1: Ingestion -->
+              <rect class="diagram-layer" x="408" y="252" width="258" height="34" rx="5" fill="#0076CC"/>
+              <text x="537" y="267" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="2" text-anchor="middle">LAYER 1 · INGESTION</text>
+              <text x="537" y="279" fill="white" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">📥 Azure Data Factory (ADF)</text>
+
+              <text x="537" y="303" fill="#4A80AA" font-family="Inter,sans-serif" font-size="10" text-anchor="middle">Each layer scales independently ✓</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 1.1</strong>
+            <span>The shift from monolithic to layered architecture. On the left, one SQL Server handles everything — all functions competing for the same resources. On the right, each concern occupies its own layer. Hover over any layer in the diagram to see it respond — a small reminder that these are live components, not static boxes.</span>
+          </div>
+        </div>
+
+        <!-- 1.1.2 -->
+        <div class="sec-head">
+          <span class="sec-tag">1.1.2</span>
+          <h2 class="sec-title">The Four Layers of Any Data Platform</h2>
+        </div>
+
+        <p>Regardless of which specific tools a company uses — whether it's Azure, AWS, Google Cloud, or Snowflake — every modern data platform organizes itself into the same four layers. This isn't convention for the sake of convention. It's a direct consequence of the decoupling principle: when you separate storage from compute, you naturally end up with distinct concerns that deserve distinct homes. Understanding these four layers means you can look at any unfamiliar architecture diagram and immediately orient yourself — every data platform you'll encounter in your career maps onto them, even when it doesn't call them by these names.</p>
+
+        <h3 class="subsec">Layer 1 &nbsp;—&nbsp; Sources</h3>
+        <p>Sources are where data originates: <span class="kt" data-term="ERP">ERP (Enterprise Resource Planning)</span> systems like SAP, <span class="kt" data-term="CRM">CRMs</span> like Salesforce, REST APIs, flat files dropped by vendors, IoT sensors, manufacturing line systems, web event logs. The critical thing about sources: <strong>you don't own them — you read from them.</strong> Your relationship with sources is one of careful extraction, not management. Everything downstream inherits the quality and latency of how cleanly you extract from Layer 1.</p>
+
+        <h3 class="subsec">Layer 2 &nbsp;—&nbsp; Ingestion</h3>
+        <p>Ingestion is the movement of data from sources into your platform. Think of it as a postal service: it doesn't rewrite your letters, it moves them from Point A to Point B reliably, on a schedule, at scale. <span class="df" data-term="ADF">Azure Data Factory (ADF)</span> is Microsoft's ingestion orchestrator. It connects to hundreds of source types, schedules pipeline runs, handles retry logic when something fails, and logs everything. What ADF does <em>not</em> do is complex transformation — and that boundary is intentional. The fact that ADF doesn't transform is seen as a limitation by beginners and a feature by architects.</p>
+
+        <h3 class="subsec">Layer 3 &nbsp;—&nbsp; Storage &amp; Transform</h3>
+        <p>This is the heart of the modern stack. <span class="df" data-term="ADLS">Azure Data Lake Storage (ADLS)</span> provides the storage: an infinitely large, cloud-based file system where data lives at every stage of its lifecycle. <span class="df" data-term="Databricks">Databricks</span>, running on Apache Spark, provides the compute that transforms data inside that lake. The two work together as a pair: ADLS holds data at rest, Databricks moves it forward.</p>
+        <p>This is also where the <span class="kt" data-term="Medallion Architecture">Medallion Architecture</span> pattern plays out — and it is worth being precise about this, because it spans both layers. The three tiers (Bronze → Silver → Gold) all physically reside in ADLS. But transitioning <em>between</em> them requires Databricks compute. ADF drops raw data into Bronze — no compute, just a landing zone. Databricks then reads Bronze, cleans and validates it, and writes the result to Silver. Databricks again reads Silver, applies business logic and aggregations, and writes Gold. The tiers are data states. The transitions between them are compute events. Both layers are always in play. Figure 1.3 maps this flow in detail.</p>
+
+        <h3 class="subsec">Layer 4 &nbsp;—&nbsp; Consumption</h3>
+        <p>Consumption is where business value is finally realized. Analysts query here. Executives view dashboards. Data scientists pull features for models. <span class="df" data-term="Power BI">Power BI</span> is the primary consumption tool in this stack, sitting atop the Gold layer. This is the only layer most of your stakeholders will ever see — which means it carries disproportionate weight in their perception of whether "data" is working. Everything upstream exists to make this layer fast, accurate, and trustworthy enough to act on.</p>
+
+        <!-- FIGURE 1.2 -->
+        <div class="figure" data-scroll-figure data-build-fig2>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <rect width="700" height="360" fill="#F4F6FB" rx="6"/>
+
+              <text x="350" y="28" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="13" font-weight="700" text-anchor="middle">The Four Layers — Data Flows Upward</text>
+
+              <defs>
+                <marker id="arr-up" markerWidth="8" markerHeight="8" refX="4" refY="7" orient="auto">
+                  <polygon points="0 8, 4 0, 8 8" fill="#0076CC" opacity="0.7"/>
+                </marker>
+                <linearGradient id="g-l4" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#0A1E3A"/>
+                  <stop offset="100%" stop-color="#142E5A"/>
+                </linearGradient>
+                <linearGradient id="g-l3" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#173060"/>
+                  <stop offset="100%" stop-color="#204278"/>
+                </linearGradient>
+                <linearGradient id="g-l1" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#005FAA"/>
+                  <stop offset="100%" stop-color="#0090E0"/>
+                </linearGradient>
+              </defs>
+
+              <!-- Animated vertical flow line -->
+              <line class="flow-v" x1="350" y1="50" x2="350" y2="320" stroke="#0076CC" stroke-width="2" opacity="0.25"/>
+
+              <!-- LAYER 1: INGESTION (bottom) -->
+              <rect class="diagram-layer" x="38" y="294" width="624" height="52" rx="6" fill="url(#g-l1)" filter="url(#shadow)"/>
+              <text x="210" y="314" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="2.5" text-anchor="middle">LAYER 1 · INGESTION</text>
+              <text x="210" y="330" fill="white" font-family="Inter,sans-serif" font-size="12" text-anchor="middle">Moves data from source systems into the platform</text>
+              <rect x="428" y="302" width="220" height="34" rx="4" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+              <text x="538" y="318" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">📥 Azure Data Factory</text>
+              <text x="538" y="331" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">Orchestration · Scheduling · Connectors</text>
+
+              <!-- up arrow -->
+              <polygon points="345,286 350,274 355,286" fill="#0076CC" opacity="0.8"/>
+              <text x="376" y="285" fill="#7A9AC0" font-family="Inter,sans-serif" font-size="10">loaded into ↑</text>
+
+              <!-- LAYER 2: STORAGE -->
+              <rect class="diagram-layer" x="38" y="200" width="624" height="72" rx="6" fill="white" stroke="#0076CC" stroke-width="1.5" filter="url(#shadow)"/>
+              <text x="210" y="220" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="2.5" text-anchor="middle">LAYER 2 · STORAGE (ADLS)</text>
+              <text x="210" y="236" fill="#4A6080" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">Holds data at every stage of refinement</text>
+              <text x="210" y="252" fill="#8AAAC0" font-family="Inter,sans-serif" font-size="9.5" text-anchor="middle">Cheap · Infinitely Scalable · Independent from compute</text>
+              <!-- Medallion trio with gradients -->
+              <rect x="432" y="208" width="66" height="54" rx="4" fill="url(#g-bronze)" filter="url(#shadow)"/>
+              <text x="465" y="227" fill="white" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">🥉</text>
+              <text x="465" y="241" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Bronze</text>
+              <text x="465" y="254" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Raw</text>
+              <rect x="504" y="208" width="66" height="54" rx="4" fill="url(#g-silver)" filter="url(#shadow)"/>
+              <text x="537" y="227" fill="white" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">🥈</text>
+              <text x="537" y="241" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Silver</text>
+              <text x="537" y="254" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Cleaned</text>
+              <rect x="576" y="208" width="78" height="54" rx="4" fill="url(#g-gold)" filter="url(#shadow)"/>
+              <text x="615" y="227" fill="white" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">🥇</text>
+              <text x="615" y="241" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Gold</text>
+              <text x="615" y="254" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Biz-Ready</text>
+
+              <!-- up arrow -->
+              <polygon points="345,192 350,180 355,192" fill="#0076CC" opacity="0.8"/>
+              <text x="376" y="191" fill="#7A9AC0" font-family="Inter,sans-serif" font-size="10">processed by ↑</text>
+
+              <!-- LAYER 3: COMPUTE -->
+              <rect class="diagram-layer" x="38" y="112" width="624" height="62" rx="6" fill="url(#g-l3)" filter="url(#shadow)"/>
+              <text x="210" y="132" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="2.5" text-anchor="middle">LAYER 3 · COMPUTE &amp; TRANSFORM</text>
+              <text x="210" y="148" fill="white" font-family="Inter,sans-serif" font-size="12" text-anchor="middle">Where raw data becomes meaningful data</text>
+              <text x="210" y="164" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="9.5" text-anchor="middle">Spins up when needed · Shuts down when done</text>
+              <rect x="432" y="120" width="220" height="46" rx="4" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+              <text x="542" y="139" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">⚙️ Databricks · Apache Spark</text>
+              <text x="542" y="153" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">PySpark · Delta Lake · dbt · Medallion transitions</text>
+
+              <!-- up arrow -->
+              <polygon points="345,104 350,92 355,104" fill="#0076CC" opacity="0.8"/>
+              <text x="376" y="103" fill="#7A9AC0" font-family="Inter,sans-serif" font-size="10">read by ↑</text>
+
+              <!-- LAYER 4: CONSUMPTION (top) -->
+              <rect class="diagram-layer" x="38" y="44" width="624" height="52" rx="6" fill="url(#g-l4)" filter="url(#shadow)"/>
+              <text x="210" y="64" fill="#5AAAEE" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="2.5" text-anchor="middle">LAYER 4 · CONSUMPTION</text>
+              <text x="210" y="80" fill="white" font-family="Inter,sans-serif" font-size="12" text-anchor="middle">Where the business lives, works, and decides</text>
+              <rect x="432" y="52" width="220" height="34" rx="4" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+              <text x="542" y="69" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">📊 Power BI · SQL · ML Models</text>
+              <text x="542" y="81" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="9.5" text-anchor="middle">Dashboards · Reports · Analytics</text>
+
+              <!-- Source systems beneath L1 -->
+              <text x="350" y="345" fill="#2A4870" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">↑ Data originates from source systems: ERP · CRM · APIs · Files · IoT</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 1.2</strong>
+            <span>The four layers of the modern data stack, with data flowing upward from sources. The right column of each layer names the Azure tools that live there. The Medallion tiers — Bronze, Silver, Gold — live inside the Storage layer and represent increasing levels of data quality. Section 1.3 covers them in full detail.</span>
+          </div>
+        </div>
+
+        <!-- FIGURE 1.3: Medallion Architecture -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <linearGradient id="mb" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#D4924A"/>
+                  <stop offset="100%" stop-color="#8A4A10"/>
+                </linearGradient>
+                <linearGradient id="ms" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#B8BCC4"/>
+                  <stop offset="100%" stop-color="#5C6270"/>
+                </linearGradient>
+                <linearGradient id="mg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#E8A840"/>
+                  <stop offset="100%" stop-color="#9A5A08"/>
+                </linearGradient>
+                <filter id="fsm" x="-5%" y="-5%" width="110%" height="120%">
+                  <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.18)"/>
+                </filter>
+                <marker id="ma" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+                  <polygon points="0 0, 7 3.5, 0 7" fill="#3A6AAA"/>
+                </marker>
+              </defs>
+
+              <rect width="700" height="230" fill="#F4F6FB" rx="6"/>
+
+              <!-- Title -->
+              <text x="350" y="22" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">The Medallion Architecture — From Raw to Ready</text>
+              <text x="350" y="38" fill="#5A7A9A" font-family="Inter,sans-serif" font-size="9.5" text-anchor="middle">All three tiers live in ADLS (Layer 2). Each transition between tiers is a Databricks compute event (Layer 3).</text>
+
+              <!-- BRONZE: x=18 w=152 -->
+              <rect x="18" y="48" width="152" height="116" rx="6" fill="url(#mb)" filter="url(#fsm)"/>
+              <text x="94" y="66" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="2" text-anchor="middle">🥉 BRONZE</text>
+              <text x="94" y="80" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">Raw · As-Ingested</text>
+              <line x1="28" y1="86" x2="160" y2="86" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="94" y="99" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Exact copy of source data</text>
+              <text x="94" y="112" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">No transformation applied</text>
+              <text x="94" y="125" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">ADF writes here directly</text>
+              <text x="94" y="152" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Think: the original receipt</text>
+
+              <!-- Databricks 1: x=175 w=90 -->
+              <rect x="175" y="66" width="90" height="80" rx="5" fill="#1B3A6B" filter="url(#fsm)"/>
+              <text x="220" y="82" fill="#88BEFF" font-family="Inter,sans-serif" font-size="7" font-weight="700" letter-spacing="1" text-anchor="middle">⚙️ DATABRICKS</text>
+              <text x="220" y="94" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">Cleans &amp; Validates</text>
+              <line x1="183" y1="100" x2="257" y2="100" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="220" y="112" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Removes nulls</text>
+              <text x="220" y="122" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Fixes data types</text>
+              <text x="220" y="132" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Deduplicates</text>
+              <text x="220" y="142" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Standardizes schema</text>
+              <!-- flow arrows -->
+              <line x1="170" y1="106" x2="175" y2="106" stroke="#6AAEFF" stroke-width="1.5" marker-end="url(#ma)"/>
+              <line x1="265" y1="106" x2="270" y2="106" stroke="#6AAEFF" stroke-width="1.5" marker-end="url(#ma)"/>
+
+              <!-- SILVER: x=271 w=152 -->
+              <rect x="271" y="48" width="152" height="116" rx="6" fill="url(#ms)" filter="url(#fsm)"/>
+              <text x="347" y="66" fill="#1A2332" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="2" text-anchor="middle">🥈 SILVER</text>
+              <text x="347" y="80" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">Cleaned · Validated</text>
+              <line x1="281" y1="86" x2="413" y2="86" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="347" y="99" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Business rules applied</text>
+              <text x="347" y="112" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Consistent data types</text>
+              <text x="347" y="125" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Trusted by analysts</text>
+              <text x="347" y="152" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Think: the itemized receipt</text>
+
+              <!-- Databricks 2: x=428 w=90 -->
+              <rect x="428" y="66" width="90" height="80" rx="5" fill="#1B3A6B" filter="url(#fsm)"/>
+              <text x="473" y="82" fill="#88BEFF" font-family="Inter,sans-serif" font-size="7" font-weight="700" letter-spacing="1" text-anchor="middle">⚙️ DATABRICKS</text>
+              <text x="473" y="94" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">Aggregates &amp; Models</text>
+              <line x1="436" y1="100" x2="510" y2="100" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="473" y="112" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Joins domains</text>
+              <text x="473" y="122" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Business logic</text>
+              <text x="473" y="132" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">KPI calculations</text>
+              <text x="473" y="142" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Query optimization</text>
+              <line x1="424" y1="106" x2="428" y2="106" stroke="#6AAEFF" stroke-width="1.5" marker-end="url(#ma)"/>
+              <line x1="518" y1="106" x2="523" y2="106" stroke="#6AAEFF" stroke-width="1.5" marker-end="url(#ma)"/>
+
+              <!-- GOLD: x=524 w=158 -->
+              <rect x="524" y="48" width="158" height="116" rx="6" fill="url(#mg)" filter="url(#fsm)"/>
+              <text x="603" y="66" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="2" text-anchor="middle">🥇 GOLD</text>
+              <text x="603" y="80" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">Business-Ready</text>
+              <line x1="534" y1="86" x2="672" y2="86" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="603" y="99" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Aggregated &amp; modeled</text>
+              <text x="603" y="112" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Serves Power BI directly</text>
+              <text x="603" y="125" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Business-trusted KPIs</text>
+              <text x="603" y="152" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Think: the expense report</text>
+
+              <!-- ADLS bracket (bottom, spanning all 3 tiers) -->
+              <line x1="18" y1="172" x2="18" y2="185" stroke="#0076CC" stroke-width="1.5"/>
+              <line x1="18" y1="185" x2="682" y2="185" stroke="#0076CC" stroke-width="1.5"/>
+              <line x1="682" y1="185" x2="682" y2="172" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="350" y="200" fill="#0060AA" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">All three tiers live in Azure Data Lake Storage (ADLS · Layer 2)</text>
+
+              <!-- Databricks label (top, spanning both transform boxes) -->
+              <line x1="175" y1="48" x2="175" y2="42" stroke="#1B3A6B" stroke-width="1"/>
+              <line x1="265" y1="48" x2="265" y2="42" stroke="#1B3A6B" stroke-width="1"/>
+              <line x1="428" y1="48" x2="428" y2="42" stroke="#1B3A6B" stroke-width="1"/>
+              <line x1="518" y1="48" x2="518" y2="42" stroke="#1B3A6B" stroke-width="1"/>
+              <line x1="175" y1="42" x2="518" y2="42" stroke="#1B3A6B" stroke-width="1.5"/>
+              <text x="347" y="37" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Databricks (Layer 3) — powers both transitions</text>
+
+              <!-- Key insight bottom -->
+              <text x="350" y="218" fill="#4A6080" font-family="Inter,sans-serif" font-size="9" font-style="italic" text-anchor="middle">Bronze has no compute cost. Silver and Gold consume Layer 3 compute every time they refresh.</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 1.3</strong>
+            <span>The Medallion Architecture as a data refinery. Bronze is a pure landing zone — ADF drops data there with no transformation. Each subsequent tier requires Databricks compute to produce. All three states live in ADLS, but only Bronze is "free" — Silver and Gold carry a compute cost every time they're rebuilt.</span>
+          </div>
+        </div>
+
+        <!-- 1.1.3 -->
+        <div class="sec-head">
+          <span class="sec-tag">1.1.3</span>
+          <h2 class="sec-title">Why Azure? Why This Particular Stack?</h2>
+        </div>
+
+        <p>The natural question at this point: why not Snowflake? Why not AWS Redshift or Google BigQuery? The architectural answer is that the principles are identical across all of them — storage/compute separation, layered refinement, centralized consumption. The tools differ; the layers don't.</p>
+
+        <p>Snowflake's clever move, for instance, was collapsing Layers 2 and 3 into a single managed service — compelling until you need to do something it wasn't designed for. That's a useful pattern to understand: vendors often differentiate by collapsing or specializing layers, but the underlying layer model is always there, whether visible or not.</p>
+
+        <p>In most enterprise environments, the stack was already decided before you arrived. What matters is that concepts transfer regardless of the vendor. An engineer who understands Medallion Architecture in Azure can orient themselves in a Snowflake or Databricks-on-AWS design in an afternoon, because the thinking underneath is the same.</p>
+
+        <p>That said, the Azure + Databricks combination is one of the most prevalent in mid-to-large enterprise environments — particularly organizations already running on the Microsoft ecosystem. <span class="df" data-term="Power BI">Power BI</span>'s deep integration with Azure Active Directory, Microsoft Teams, and Office 365 makes it a natural fit wherever Microsoft infrastructure already exists. If you're in a manufacturing, logistics, or <span class="kt" data-term="ERP">ERP</span>-heavy environment — which the role you're targeting signals — you are very likely in an Azure-first world.</p>
+
+        
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow">
+              <span class="field-note-icon">🏢</span>
+              <span class="field-note-tag">Field Note</span>
+            </div>
+            <span class="field-note-company">Moderna · 2020</span>
+          </div>
+          <div class="field-note-body">
+            <p>When COVID-19 emerged, Moderna was a relatively small biotech company that had never brought a drug to market. One of the factors that enabled them to design their mRNA vaccine sequence in 48 hours and move to clinical trials faster than any vaccine in recorded history was an investment they had made years earlier: a cloud-based data infrastructure where genomic data, clinical trial results, manufacturing quality metrics, and regulatory documentation all lived in one unified platform — with compute that could scale to any workload on demand.</p>
+            <p>Traditional pharmaceutical data infrastructure, by contrast, was built on on-premise systems where biology teams, clinical teams, and manufacturing teams each had their own siloed data stores. Moving data between them required formal extraction jobs, format conversions, and reconciliation processes that could take days or weeks. Moderna's leadership has been publicly explicit in calling their digital infrastructure a strategic advantage. Their chief digital officer described it as the difference between being able to ask a question and get an answer versus submitting a request and waiting for a report.</p>
+            <p>The architecture was built on AWS rather than Azure — the specific cloud provider matters less than the principle. Storage and compute were decoupled. Data was accessible across teams. Workloads could scale to meet the moment.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>The value of a properly decoupled data platform is often invisible until the moment when speed matters and legacy infrastructure is what stands between you and being able to move. You don't build this infrastructure for the normal days.</p>
+          </div>
+        </div>
+
+        <div class="info-box">
+          <div class="info-label">⚡ The Tool vs. The Principle</div>
+          <p>Throughout this guide, we separate the tool from the principle it embodies. Tools evolve, get replaced, and fall out of favor. Principles don't. When you understand <em>why</em> ADF exists — to decouple data movement from transformation — you can evaluate any competing ingestion tool against the same criteria. That judgment is what separates a practitioner from someone who only knows a product.</p>
+        </div>
+
+        <!-- 1.1.4 -->
+        <div class="sec-head">
+          <span class="sec-tag">1.1.4</span>
+          <h2 class="sec-title">Azure's Stack vs. Common Alternatives</h2>
+        </div>
+
+        <p>To ground the Azure stack in the broader landscape, consider how its components map to tools you'll encounter in the wild. This isn't about which stack is better — it's a pattern recognition exercise. When you encounter an unfamiliar tool name, the first question is always: <em>which layer does it belong to?</em></p>
+        <p class="table-hint">Tap any column header to sort.</p>
+
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Azure &nbsp;(This Guide)</th>
+              <th>AWS Equivalent</th>
+              <th>Snowflake World</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="l-badge l1">1 · Ingestion</span></td>
+              <td>Azure Data Factory</td>
+              <td>AWS Glue / Kinesis</td>
+              <td>Fivetran / Airbyte</td>
+            </tr>
+            <tr>
+              <td><span class="l-badge l2">2 · Storage</span></td>
+              <td>Azure Data Lake Storage</td>
+              <td>Amazon S3</td>
+              <td>Snowflake Storage</td>
+            </tr>
+            <tr>
+              <td><span class="l-badge l3">3 · Compute</span></td>
+              <td>Databricks (Spark)</td>
+              <td>EMR / Databricks</td>
+              <td>Snowflake Warehouses</td>
+            </tr>
+            <tr>
+              <td><span class="l-badge l3">3 · Transform</span></td>
+              <td>PySpark / dbt</td>
+              <td>PySpark / dbt</td>
+              <td>dbt / Snowpark</td>
+            </tr>
+            <tr>
+              <td><span class="l-badge l4">4 · Consumption</span></td>
+              <td>Power BI</td>
+              <td>QuickSight / Tableau</td>
+              <td>Tableau / Looker</td>
+            </tr>
+          </tbody>
+        </table>
+
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>When Snowflake wins — an honest comparison</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The Azure + Databricks stack is powerful but carries real complexity: cluster management, Delta Lake tuning, Unity Catalog governance, ADF pipeline design. Snowflake is a legitimate alternative — and in some situations, the better choice.</p>
+              <p><strong>Snowflake wins when:</strong> the team is primarily SQL analysts rather than Python engineers, the workload is ad-hoc queries and BI dashboards rather than complex pipeline engineering, simplicity and managed infrastructure are valued over flexibility, and there is no existing Microsoft ecosystem lock-in (no Azure AD, no Office 365, no Power BI investment).</p>
+              <p><strong>Azure + Databricks wins when:</strong> workloads include large-scale Python and ML work, Delta Lake's open format and time travel features matter, the organization is already invested in Azure services and wants tight integration, or the team needs full control over compute configuration and cost.</p>
+              <p><strong>The pattern in the market:</strong> analytics-first companies (e-commerce, SaaS, media) often choose Snowflake. Engineering-heavy enterprises (manufacturing, finance, healthcare, logistics) more often land on Azure + Databricks. Neither is wrong. The job description you're targeting signals an Azure + Databricks environment — which is why that's the focus of this guide.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1.1.5 -->
+        <div class="sec-head">
+          <span class="sec-tag">1.1.5</span>
+          <h2 class="sec-title">Your Role in This Architecture</h2>
+        </div>
+
+        <p>Understanding architecture isn't just technical credibility — it's the practical mechanism by which you move from "the business has a problem" to "here's exactly what we build and where." Without it, you're reacting. With it, you're directing.</p>
+
+        <p>Consider a real scenario: a finance team reports that their inventory report is three days out of date. A junior analyst escalates it as "the report is broken." Someone with architectural fluency translates that immediately: three days of latency is almost certainly an ingestion problem. The data isn't reaching the platform on time, which means the issue lives in Layer 1 — not in the Power BI dashboard. That diagnosis narrows the investigation from "anything could be wrong" to "let's examine ADF pipeline scheduling and whether we're doing full table loads when incremental loads would be faster." That's a conversation that takes hours, not weeks.</p>
+
+        <div class="hl-block">
+          The practitioner's core job is translation: from business symptom → to architectural layer → to specific tool → to actionable solution. The four-layer model is the translation key.
+        </div>
+
+        <p>Every section that follows in this guide builds on this mental model. When you learn Databricks in Part 2, you'll know it lives in Layer 3 and its job is to transform data already sitting in ADLS. When you learn Power BI in Part 3, you'll know it reads from the Gold layer. When something breaks — and in data engineering, something always eventually breaks — you'll know which layer to examine first, and why.</p>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">✓ Section Summary</div>
+          <p>The modern data stack emerged from the failure of tightly coupled architectures to scale with data volume. Its core innovation — separating storage from compute — allows each layer to scale independently. Azure implements this through ADF (ingestion), ADLS (storage), Databricks (compute/transform), and Power BI (consumption). The four-layer mental model is how you diagnose problems, evaluate solutions, and direct teams — regardless of which tools are on the table.</p>
+        </div>
+
+        <!-- Preview -->
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Coming in Section 1.2 — Data Mesh</div>
+          <p>The modern data stack you just learned is a <em>centralized</em> model — one platform, one team responsible for everything. Data Mesh is a direct philosophical challenge to that idea. What if each business domain owned and operated its own data? Understanding both perspectives is essential for anyone leading data strategy in a large organization.</p>
+        </div>
+
+
+
+        <!-- ======================================================
+             LEARNING CHECK — Section 1.1
+             Five questions covering the core concepts.
+             Add similar blocks to every section going forward.
+        ====================================================== -->
+        <section class="quiz-section" id="learningCheck">
+
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 1.1 &nbsp;·&nbsp; The Modern Data Stack</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <!-- Q1 ───────────────────────────────────────────── -->
+          <div class="quiz-question">
+            <div class="q-num-row">
+              <span class="q-num">Question 1 of 5</span>
+            </div>
+            <p class="q-text">What was the core architectural failure of legacy monolithic data platforms that led to the modern data stack?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">A</div>
+                <div class="option-text">They were prohibitively expensive to license and maintain</div>
+              </div>
+              <div class="quiz-option" data-correct="true">
+                <div class="option-letter">B</div>
+                <div class="option-text">Storage and compute were tightly coupled — scaling one meant scaling both, and all functions competed for the same machine</div>
+              </div>
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">C</div>
+                <div class="option-text">They were unable to run SQL queries at scale</div>
+              </div>
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">D</div>
+                <div class="option-text">They stored data in only one geographic location, creating availability risk</div>
+              </div>
+            </div>
+            <div class="quiz-explanation">
+              <div class="quiz-explanation-inner">
+                <p><strong>B is correct.</strong> The legacy model had one server doing everything — storing, computing, transforming, and serving reports — all competing for the same resources. The defining innovation of the modern data stack is <strong>decoupling storage from compute</strong>, so each can scale independently. When a transformation job was making a CFO's dashboard slow, it was because they shared the same machine. That problem disappears when compute spins up on demand and shuts down when done.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Q2 ───────────────────────────────────────────── -->
+          <div class="quiz-question">
+            <div class="q-num-row">
+              <span class="q-num">Question 2 of 5</span>
+            </div>
+            <p class="q-text">Which of the following is NOT a responsibility of Azure Data Factory (ADF)?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">A</div>
+                <div class="option-text">Scheduling pipeline runs on a defined cadence</div>
+              </div>
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">B</div>
+                <div class="option-text">Connecting to hundreds of source system types</div>
+              </div>
+              <div class="quiz-option" data-correct="true">
+                <div class="option-letter">C</div>
+                <div class="option-text">Applying complex business logic and aggregation transformations to data</div>
+              </div>
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">D</div>
+                <div class="option-text">Handling retry logic when a source connection fails</div>
+              </div>
+            </div>
+            <div class="quiz-explanation">
+              <div class="quiz-explanation-inner">
+                <p><strong>C is correct.</strong> ADF's job is to <strong>move</strong> data, not transform it. Complex business logic and aggregations belong in Databricks (Layer 3). This is a deliberate architectural boundary — and one of the most common mistakes practitioners make when first learning ADF. The phrase worth remembering: <em>"ADF moves. Databricks transforms."</em> Beginners see ADF's Data Flow feature and try to do everything there. Experienced practitioners do light-touch transformations in ADF at most, and push anything meaningful to Databricks.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Q3 ───────────────────────────────────────────── -->
+          <div class="quiz-question">
+            <div class="q-num-row">
+              <span class="q-num">Question 3 of 5</span>
+            </div>
+            <p class="q-text">Your team needs to calculate monthly revenue by region, joining sales transactions with a customer dimension table. Where in the Medallion Architecture does this aggregation belong?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">A</div>
+                <div class="option-text">Bronze — process it immediately on arrival to avoid doing it twice later</div>
+              </div>
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">B</div>
+                <div class="option-text">Silver — alongside the cleaning and validation work</div>
+              </div>
+              <div class="quiz-option" data-correct="true">
+                <div class="option-letter">C</div>
+                <div class="option-text">Gold — this is business-aggregated, query-optimized data ready for Power BI</div>
+              </div>
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">D</div>
+                <div class="option-text">Directly in Power BI using DAX measures, keeping the lake simple</div>
+              </div>
+            </div>
+            <div class="quiz-explanation">
+              <div class="quiz-explanation-inner">
+                <p><strong>C is correct.</strong> Gold is purpose-built for business-ready aggregates — joined, modeled, and optimized for the specific questions the business asks. Silver is for cleaning and standardizing individual source datasets. Bronze is raw and untouched. While Power BI can perform joins using DAX, doing them in Gold means the computation runs once at pipeline refresh time rather than on every dashboard load by every user — which is significantly more efficient at scale.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Q4 ───────────────────────────────────────────── -->
+          <div class="quiz-question">
+            <div class="q-num-row">
+              <span class="q-num">Question 4 of 5</span>
+            </div>
+            <p class="q-text">A finance team's Power BI dashboard shows correct numbers, but the data is always exactly 24 hours stale. Your Databricks jobs show successful runs overnight. Using the four-layer model, where do you look first?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">A</div>
+                <div class="option-text">Layer 4 — the Power BI refresh schedule may be set to run weekly instead of daily</div>
+              </div>
+              <div class="quiz-option" data-correct="true">
+                <div class="option-letter">B</div>
+                <div class="option-text">Layer 1 — the ADF ingestion pipeline is likely running once daily, so data always arrives 24 hours late</div>
+              </div>
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">C</div>
+                <div class="option-text">Layer 2 — the data may be sitting in the Archive tier of ADLS with high retrieval latency</div>
+              </div>
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">D</div>
+                <div class="option-text">Layer 3 — the Databricks transformation logic may have an off-by-one error in the date filter</div>
+              </div>
+            </div>
+            <div class="quiz-explanation">
+              <div class="quiz-explanation-inner">
+                <p><strong>B is correct.</strong> If Databricks (Layer 3) ran successfully overnight, the transformation layer is healthy. The 24-hour lag is upstream — in ingestion. ADF pipeline scheduling determines when source data arrives in Bronze. A pipeline set to run once per day at midnight means the data is always yesterday's by the time it reaches Power BI. The four-layer mental model narrows your investigation from "anything could be wrong" to "check ADF scheduling." This is the diagnostic value of understanding architecture before looking at individual components.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Q5 ───────────────────────────────────────────── -->
+          <div class="quiz-question">
+            <div class="q-num-row">
+              <span class="q-num">Question 5 of 5</span>
+            </div>
+            <p class="q-text">A 5-person startup with primarily SQL analysts wants to build a data platform for e-commerce analytics. They have no existing Microsoft infrastructure. Which is most likely the right architectural choice?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">A</div>
+                <div class="option-text">Azure + Databricks + Power BI — the stack covered in this guide, and the enterprise standard</div>
+              </div>
+              <div class="quiz-option" data-correct="true">
+                <div class="option-letter">B</div>
+                <div class="option-text">Snowflake + a BI tool like Looker or Tableau — simpler, SQL-first, no Microsoft lock-in</div>
+              </div>
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">C</div>
+                <div class="option-text">On-premises SQL Server — maximum control over data without cloud dependency</div>
+              </div>
+              <div class="quiz-option" data-correct="false">
+                <div class="option-letter">D</div>
+                <div class="option-text">Build a custom data pipeline in Python — avoids vendor lock-in entirely</div>
+              </div>
+            </div>
+            <div class="quiz-explanation">
+              <div class="quiz-explanation-inner">
+                <p><strong>B is correct</strong> — and this question is designed to make a point: knowing when <em>not</em> to use a stack is part of being a genuine practitioner. A small, SQL-first team with no Microsoft dependencies has no reason to take on the operational complexity of Databricks cluster management, Delta Lake tuning, and ADF pipeline design. Snowflake is managed, SQL-first, and much easier to operate at small scale. <strong>This guide focuses on Azure + Databricks</strong> because that's the right pattern for enterprise environments — particularly manufacturing, logistics, and ERP-heavy organizations like the role you're targeting. But the best practitioners can also say "not here, not for this."</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Final result (shown after all 5 answered) -->
+          <div class="quiz-final">
+            <div class="quiz-final-score">—</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+
+        </section>
+
+        <!-- Progress tracking -->
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+
+
+
+        <nav class="sec-nav">
+          <a href="../index.html" class="sec-nav-btn sec-nav-prev"><span class="sec-nav-arrow">&#8592;</span><span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">Cover Page</span></span></a>
+          <a href="1-2-medallion-architecture.html" class="sec-nav-btn sec-nav-next"><span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">1.2 Medallion Architecture</span></span><span class="sec-nav-arrow">&#8594;</span></a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 1 &nbsp;·&nbsp; The Data Platform Foundation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">1</div>
+        </footer>
+
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:212px;"></div>
+
+        <div class="mnote key">
+          <div class="mnote-label">Key Term</div>
+          <p><strong>ETL vs ELT</strong> — ETL transforms data before loading. Modern stacks often flip to ELT: load raw first, transform after. ELT is generally faster to implement and easier to debug. Knowing which pattern your organization uses tells you a lot about platform maturity.</p>
+        </div>
+
+        <div class="ms" style="height:30px;"></div>
+
+        <div class="mnote warn">
+          <div class="mnote-label">Legacy Note</div>
+          <p><strong>SSIS still runs</strong> in many enterprises. Inheriting a legacy pipeline isn't automatically a problem — the right question is always: does migration add more value than it costs? Sometimes the answer is no.</p>
+        </div>
+
+        <div class="ms" style="height:38px;"></div>
+
+        <div class="mnote key">
+          <div class="mnote-label">Key Term</div>
+          <p><strong>Object Storage</strong> — Stores files as individual objects rather than in a folder hierarchy. Infinitely scalable and extremely cheap. Azure Blob Storage (which ADLS is built on) is the physical foundation the entire modern data lake rests on.</p>
+        </div>
+
+        <div class="ms" style="height:282px;"></div>
+
+        <div class="mnote tip">
+          <div class="mnote-label">Remember This</div>
+          <p><strong>ADF moves. Databricks transforms.</strong> Mixing their roles is one of the most common mistakes in architecture discussions. ADF is a logistics network. Databricks is the factory.</p>
+        </div>
+
+        <div class="ms" style="height:172px;"></div>
+
+        <div class="mnote key">
+          <div class="mnote-label">Pattern Recognition</div>
+          <p>When you encounter an unfamiliar tool — in an interview, a job description, or a design doc — the first question is always: <em>which layer does this live in?</em> That single question gives you its purpose before you know anything else about it.</p>
+        </div>
+
+        <div class="ms" style="height:210px;"></div>
+
+        <div class="mnote warn">
+          <div class="mnote-label">Interview Insight</div>
+          <p>When answering a data problem in an interview, structure your answer by layer first: "This is an ingestion issue" or "This lives in the consumption layer." It signals architectural thinking — which is exactly what senior roles are evaluating.</p>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+  <!-- Tooltip & Definition Card -->
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head">
+      <span id="def-term"></span>
+      <button class="def-close" id="defClose">&#10005;</button>
+    </div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 6.4 &mdash; Glossary (coming soon)</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('1.1');</script>
+
+</body>
+</html>

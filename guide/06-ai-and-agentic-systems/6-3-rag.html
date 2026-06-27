@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6.3 RAG &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="6.3">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Six &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="chap-num">6.3</div>
+          <h1 class="chap-title">RAG — Retrieval-Augmented Generation</h1>
+          <p class="chap-sub">Why LLMs need retrieval to work in enterprise, how the chunk-embed-store-retrieve pipeline works, when to choose RAG over fine-tuning, and how to pick a vector database for your Azure stack</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain why LLMs cannot answer questions about private or recent data without external retrieval</li>
+            <li>Describe each stage of the RAG pipeline: chunking, embedding, indexing, retrieval, augmentation, generation</li>
+            <li>Compare chunking strategies and explain the tradeoffs of chunk size for retrieval quality</li>
+            <li>Distinguish between dense (semantic) search, keyword search, and hybrid search — and explain why hybrid often wins in production</li>
+            <li>Select the appropriate vector database for a given scenario, and justify Azure AI Search for enterprise Azure workloads</li>
+            <li>Explain when RAG outperforms fine-tuning and few-shot prompting, and when it does not</li>
+          </ol>
+        </div>
+
+        <!-- 6.3.1 -->
+        <div class="sec-head"><span class="sec-tag">6.3.1</span><h2 class="sec-title">The Problem RAG Solves</h2></div>
+
+        <p>An <span data-term="LLM">LLM</span> is trained on a snapshot of the internet up to a specific date. It has no knowledge of your internal documentation, your data pipelines, your business rules, your product catalog, or the incident that happened last Thursday. Ask it about any of these things and it will either decline to answer, guess plausibly, or — most dangerously — confabulate confidently.</p>
+
+        <p>This is not a temporary limitation that better models will resolve. It is structural. Training is expensive and slow. Even if a model is updated quarterly, it will always lag. And it will never have access to proprietary organizational knowledge that was never published on the internet.</p>
+
+        <div class="hl-block"><span data-term="RAG">Retrieval-Augmented Generation (RAG)</span> sidesteps the training gap entirely. Instead of asking "what did the model memorize about X?", RAG asks "what do our documents say about X?" — retrieves those documents at query time, and feeds them to the model as context. The model does not need to know the answer in advance; it needs to read and synthesize the answer from what you give it.</div>
+
+        <p>The insight is elegant: LLMs are extraordinarily good at reading, understanding, and synthesizing text that is put in front of them. RAG exploits that capability by doing the retrieval work separately, then handing the result to the model. The model contributes comprehension and synthesis; a search system contributes relevance and recency.</p>
+
+        <p>This architecture has three important implications for data engineers. First, the quality of your retrieval system directly determines the quality of your answers — garbage in, garbage out applies to RAG at least as much as it does to pipelines. Second, the documents in your vector store must be maintained and kept current, which is a data engineering problem, not an AI problem. Third, the chunking, embedding, and indexing pipeline that feeds the vector store is a data pipeline — it needs the same care (idempotency, schema management, monitoring) as any other pipeline you build.</p>
+
+        <!-- 6.3.2 -->
+        <div class="sec-head"><span class="sec-tag">6.3.2</span><h2 class="sec-title">The RAG Pipeline</h2></div>
+
+        <p>RAG consists of two distinct phases: an offline ingestion phase that runs once (or on schedule), and an online query phase that runs at request time.</p>
+
+        <h3 class="subsec">Phase 1 — Ingestion</h3>
+        <p>During ingestion you prepare your documents for retrieval. The steps are: <strong>load</strong> the source documents (PDFs, Word files, web pages, database records, Confluence pages), <strong>chunk</strong> them into smaller segments, <strong>embed</strong> each chunk into a dense vector using an embedding model, and <strong>index</strong> those vectors in a <span data-term="Vector Database">vector database</span>. This phase typically runs as a scheduled pipeline — daily or on document change events.</p>
+
+        <h3 class="subsec">Phase 2 — Query</h3>
+        <p>At query time: take the user's question, <strong>embed</strong> it using the same embedding model used during ingestion, <strong>search</strong> the vector database for the top-k most similar document chunks, <strong>assemble</strong> those chunks into a context block, <strong>augment</strong> the original prompt with that context, and pass the whole thing to the <span data-term="LLM">LLM</span> for <strong>generation</strong>. The LLM reads the retrieved context and generates a grounded answer.</p>
+
+        <!-- Figure 6.5 — RAG Pipeline Architecture -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f65sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.13)"/></filter>
+                <marker id="arr65" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+                </marker>
+                <marker id="arr65g" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#1A7A4A"/>
+                </marker>
+              </defs>
+              <rect width="700" height="260" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">RAG Pipeline — Ingestion (top) and Query (bottom)</text>
+
+              <!-- INGESTION ROW -->
+              <text x="10" y="38" fill="#7A90A8" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="1">INGESTION</text>
+
+              <!-- Documents -->
+              <rect x="8" y="44" width="80" height="46" rx="4" fill="#0F2447" filter="url(#f65sh)"/>
+              <text x="48" y="62" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Source</text>
+              <text x="48" y="74" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Docs</text>
+              <text x="48" y="84" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">PDF · DOCX · DB</text>
+              <line x1="88" y1="67" x2="106" y2="67" stroke="#0076CC" stroke-width="1.5" marker-end="url(#arr65)"/>
+
+              <!-- Chunk -->
+              <rect x="108" y="44" width="80" height="46" rx="4" fill="#1B3A6B" filter="url(#f65sh)"/>
+              <text x="148" y="62" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Chunk</text>
+              <text x="148" y="76" fill="rgba(200,220,255,.55)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">512 tokens</text>
+              <text x="148" y="86" fill="rgba(200,220,255,.4)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">overlap 50</text>
+              <line x1="188" y1="67" x2="206" y2="67" stroke="#0076CC" stroke-width="1.5" marker-end="url(#arr65)"/>
+
+              <!-- Embed -->
+              <rect x="208" y="44" width="80" height="46" rx="4" fill="#1B3A6B" filter="url(#f65sh)"/>
+              <text x="248" y="62" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Embed</text>
+              <text x="248" y="76" fill="rgba(200,220,255,.55)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">text-embedding</text>
+              <text x="248" y="86" fill="rgba(200,220,255,.4)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">-3-large</text>
+              <line x1="288" y1="67" x2="306" y2="67" stroke="#0076CC" stroke-width="1.5" marker-end="url(#arr65)"/>
+
+              <!-- Vector DB -->
+              <rect x="308" y="36" width="100" height="62" rx="4" fill="#254F8F" filter="url(#f65sh)"/>
+              <text x="358" y="56" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Vector</text>
+              <text x="358" y="68" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Database</text>
+              <text x="358" y="81" fill="rgba(200,220,255,.55)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Azure AI Search</text>
+              <text x="358" y="91" fill="rgba(200,220,255,.4)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Pinecone · Qdrant</text>
+
+              <!-- Divider -->
+              <line x1="8" y1="128" x2="692" y2="128" stroke="rgba(27,58,107,.12)" stroke-width="1" stroke-dasharray="4,3"/>
+
+              <!-- QUERY ROW -->
+              <text x="10" y="147" fill="#7A90A8" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="1">QUERY (runtime)</text>
+
+              <!-- User Query -->
+              <rect x="8" y="153" width="80" height="46" rx="4" fill="#0F2447" filter="url(#f65sh)"/>
+              <text x="48" y="171" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">User</text>
+              <text x="48" y="183" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Query</text>
+              <text x="48" y="193" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">"What is our SLA?"</text>
+              <line x1="88" y1="176" x2="106" y2="176" stroke="#1A7A4A" stroke-width="1.5" marker-end="url(#arr65g)"/>
+
+              <!-- Embed query -->
+              <rect x="108" y="153" width="80" height="46" rx="4" fill="#1B3A6B" filter="url(#f65sh)"/>
+              <text x="148" y="171" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Embed</text>
+              <text x="148" y="183" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Query</text>
+              <text x="148" y="193" fill="rgba(200,220,255,.45)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">same model</text>
+              <line x1="188" y1="176" x2="206" y2="176" stroke="#1A7A4A" stroke-width="1.5" marker-end="url(#arr65g)"/>
+
+              <!-- Search -->
+              <rect x="208" y="153" width="80" height="46" rx="4" fill="#1B3A6B" filter="url(#f65sh)"/>
+              <text x="248" y="171" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Search</text>
+              <text x="248" y="183" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">top-k</text>
+              <text x="248" y="193" fill="rgba(200,220,255,.45)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">cosine similarity</text>
+              <!-- Arrow from Vector DB down to Search -->
+              <line x1="358" y1="98" x2="358" y2="140" stroke="#0076CC" stroke-width="1.2" stroke-dasharray="3,2"/>
+              <line x1="358" y1="140" x2="290" y2="176" stroke="#0076CC" stroke-width="1.2" marker-end="url(#arr65)"/>
+              <line x1="288" y1="176" x2="306" y2="176" stroke="#1A7A4A" stroke-width="1.5" marker-end="url(#arr65g)"/>
+
+              <!-- Augment -->
+              <rect x="308" y="153" width="80" height="46" rx="4" fill="#1B3A6B" filter="url(#f65sh)"/>
+              <text x="348" y="171" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Augment</text>
+              <text x="348" y="183" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Prompt</text>
+              <text x="348" y="193" fill="rgba(200,220,255,.45)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">context + question</text>
+              <line x1="388" y1="176" x2="406" y2="176" stroke="#1A7A4A" stroke-width="1.5" marker-end="url(#arr65g)"/>
+
+              <!-- LLM -->
+              <rect x="408" y="145" width="80" height="62" rx="4" fill="#254F8F" filter="url(#f65sh)"/>
+              <text x="448" y="167" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">LLM</text>
+              <text x="448" y="181" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">GPT-4o</text>
+              <text x="448" y="193" fill="rgba(200,220,255,.45)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Claude · Gemini</text>
+              <line x1="488" y1="176" x2="506" y2="176" stroke="#1A7A4A" stroke-width="1.5" marker-end="url(#arr65g)"/>
+
+              <!-- Answer -->
+              <rect x="508" y="153" width="80" height="46" rx="4" fill="#1A7A4A" filter="url(#f65sh)"/>
+              <text x="548" y="171" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Grounded</text>
+              <text x="548" y="183" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Answer</text>
+              <text x="548" y="193" fill="rgba(200,255,220,.5)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">with citations</text>
+
+              <!-- Notes -->
+              <text x="350" y="242" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Ingestion runs offline (scheduled). Query phase runs at request time, typically in &lt;2 seconds.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 6.5</strong><span>The RAG pipeline in two phases. Ingestion (top) is an offline batch process: source documents are chunked, embedded into dense vectors, and stored in a vector database. This runs once per document and is updated when documents change. The query phase (bottom) is the real-time path: the user's question is embedded using the same model, the nearest matching chunks are retrieved, and the resulting context is appended to the prompt before the LLM generates a grounded response.</span></div>
+        </div>
+
+        <!-- 6.3.3 -->
+        <div class="sec-head"><span class="sec-tag">6.3.3</span><h2 class="sec-title">Chunking Strategies</h2></div>
+
+        <p><span data-term="Chunking">Chunking</span> is deceptively important. The quality of your RAG system is strongly determined by your chunking strategy, yet it is the step teams most often do carelessly. The fundamental tension is this: small chunks are precise but may lack the context needed to answer a question; large chunks carry more context but dilute the signal when used as retrieved context, consuming expensive tokens and potentially drowning the relevant detail.</p>
+
+        <h3 class="subsec">The Main Strategies</h3>
+        <p><strong>Fixed-size chunking</strong> splits text into segments of N tokens (typically 256–512) with an optional overlap of 10–15% to prevent cutting sentences mid-thought. It is the simplest approach and works well for uniformly structured documents. The weakness: it can split a heading from its content, or a question from its answer.</p>
+
+        <p><strong>Sliding window chunking</strong> generates overlapping chunks — e.g., chunks of 512 tokens with 100 tokens of overlap between consecutive chunks. This ensures that context spanning a chunk boundary is captured by at least one chunk. The tradeoff is redundancy: the same sentence appears in multiple chunks, which increases storage and may cause duplicated context in retrieval.</p>
+
+        <p><strong>Semantic chunking</strong> splits on natural document boundaries — paragraphs, sections, or sentence groups with high semantic coherence. It requires more preprocessing (parsing document structure) but produces chunks that are complete, coherent thoughts. For internal documentation, policy documents, and technical specifications, semantic chunking reliably outperforms fixed-size.</p>
+
+        <p><strong>Recursive / hierarchical chunking</strong> uses a hierarchy of splitters: try to split on double newlines first; if the chunk is still too large, split on single newlines; if still too large, split on sentences; if still too large, split on tokens. This is the approach used by LangChain's RecursiveCharacterTextSplitter and is a solid default for mixed document types.</p>
+
+        <!-- Figure 6.6 — Chunking Strategies -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs><filter id="f66sh"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="rgba(0,0,0,0.1)"/></filter></defs>
+              <rect width="700" height="200" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">Chunking Strategy Comparison</text>
+
+              <!-- Source doc representation -->
+              <text x="350" y="36" fill="#7A90A8" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Source document (each block = 100 tokens)</text>
+              <rect x="60" y="42" width="580" height="16" rx="2" fill="#0F2447" opacity=".85"/>
+              <line x1="176" y1="42" x2="176" y2="58" stroke="rgba(255,255,255,.2)" stroke-width="0.8"/>
+              <line x1="292" y1="42" x2="292" y2="58" stroke="rgba(255,255,255,.2)" stroke-width="0.8"/>
+              <line x1="408" y1="42" x2="408" y2="58" stroke="rgba(255,255,255,.2)" stroke-width="0.8"/>
+              <line x1="524" y1="42" x2="524" y2="58" stroke="rgba(255,255,255,.2)" stroke-width="0.8"/>
+              <text x="118" y="53" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Sect 1</text>
+              <text x="234" y="53" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Sect 2</text>
+              <text x="350" y="53" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Sect 3</text>
+              <text x="466" y="53" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Sect 4</text>
+              <text x="582" y="53" fill="rgba(200,220,255,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Sect 5</text>
+
+              <!-- Fixed-size -->
+              <text x="10" y="82" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">Fixed-size (300 tok)</text>
+              <rect x="60" y="87" width="174" height="14" rx="2" fill="#1B3A6B" filter="url(#f66sh)"/>
+              <rect x="240" y="87" width="174" height="14" rx="2" fill="#1B3A6B" filter="url(#f66sh)"/>
+              <rect x="420" y="87" width="174" height="14" rx="2" fill="#1B3A6B" filter="url(#f66sh)"/>
+              <text x="147" y="97" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Chunk 1</text>
+              <text x="327" y="97" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Chunk 2</text>
+              <text x="507" y="97" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Chunk 3 (cuts mid-section)</text>
+
+              <!-- Sliding window -->
+              <text x="10" y="123" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">Sliding window (+overlap)</text>
+              <rect x="60" y="128" width="174" height="14" rx="2" fill="#254F8F" filter="url(#f66sh)"/>
+              <rect x="190" y="128" width="174" height="14" rx="2" fill="#254F8F" filter="url(#f66sh)" opacity=".8"/>
+              <rect x="320" y="128" width="174" height="14" rx="2" fill="#254F8F" filter="url(#f66sh)" opacity=".6"/>
+              <text x="147" y="138" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Chunk 1</text>
+              <text x="277" y="138" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Chunk 2 (overlaps)</text>
+              <text x="407" y="138" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Chunk 3 (overlaps)</text>
+
+              <!-- Semantic -->
+              <text x="10" y="163" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">Semantic (section-boundary)</text>
+              <rect x="60" y="168" width="116" height="14" rx="2" fill="#1A5A78" filter="url(#f66sh)"/>
+              <rect x="182" y="168" width="116" height="14" rx="2" fill="#1A5A78" filter="url(#f66sh)"/>
+              <rect x="304" y="168" width="116" height="14" rx="2" fill="#1A5A78" filter="url(#f66sh)"/>
+              <rect x="426" y="168" width="116" height="14" rx="2" fill="#1A5A78" filter="url(#f66sh)"/>
+              <rect x="548" y="168" width="92" height="14" rx="2" fill="#1A5A78" filter="url(#f66sh)"/>
+              <text x="118" y="178" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">S1</text>
+              <text x="240" y="178" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">S2</text>
+              <text x="362" y="178" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">S3</text>
+              <text x="484" y="178" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">S4</text>
+              <text x="594" y="178" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">S5</text>
+              <text x="350" y="197" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Semantic chunks respect natural boundaries — each is a complete thought. Preferred for structured documents.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 6.6</strong><span>Three chunking strategies applied to the same source document. Fixed-size chunking (top) is simple but may split concepts mid-sentence. Sliding window (middle) adds overlap to prevent boundary misses, at the cost of redundancy. Semantic chunking (bottom) respects the document's own structure — each chunk is a complete section. The right choice depends on the document type: semantic chunking wins for structured documents; sliding window is a safer default for heterogeneous corpora.</span></div>
+        </div>
+
+        <!-- 6.3.4 -->
+        <div class="sec-head"><span class="sec-tag">6.3.4</span><h2 class="sec-title">Embeddings and Vector Search</h2></div>
+
+        <p>An <span data-term="Embedding">embedding</span> is the mathematical engine behind RAG retrieval. When text is passed to an embedding model, it returns a dense vector — typically 1,536 or 3,072 floating-point numbers for current OpenAI models — that encodes the semantic meaning of the text. The key property: texts with similar meanings produce vectors that are numerically close in high-dimensional space.</p>
+
+        <p>Similarity between two vectors is measured using <strong>cosine similarity</strong> — the cosine of the angle between them. Two identical texts have a cosine similarity of 1.0. Two completely unrelated texts might have a similarity near 0. In practice, a score above 0.85 typically indicates strong semantic relevance for retrieval purposes.</p>
+
+        <p>The critical rule: <strong>the embedding model used during ingestion must be the same model used at query time</strong>. Changing embedding models means re-embedding every document in your vector store — there is no way to compare vectors from different models.</p>
+
+        <h3 class="subsec">Hybrid Search</h3>
+        <p>Pure semantic search (dense vector retrieval) has a weakness: it can miss documents that contain the exact keywords in the query, because keyword matching is not what it optimizes for. A query for "GDPR Article 17 right to erasure" may retrieve documents about data privacy in general rather than the specific article.</p>
+        <p>Hybrid search combines dense vector search with sparse keyword search (BM25, the algorithm behind traditional full-text search). The two scores are merged — typically using Reciprocal Rank Fusion (RRF) — before returning results. Hybrid search consistently outperforms either method alone in production benchmarks. <strong>Azure AI Search implements hybrid search natively</strong>, making it the most pragmatic choice for enterprise Azure RAG implementations.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Embedding models compared — ada-002 vs text-embedding-3-large vs Azure OpenAI</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p><strong>text-embedding-ada-002</strong> was OpenAI's standard embedding model for two years. It produces 1,536-dimensional vectors and performs well for general-purpose retrieval. Cost: $0.0001 per 1,000 tokens.</p>
+              <p><strong>text-embedding-3-small</strong> (2024) outperforms ada-002 on most benchmarks while costing 5x less ($0.00002/1K tokens). It is the recommended default for cost-sensitive applications.</p>
+              <p><strong>text-embedding-3-large</strong> produces 3,072-dimensional vectors and achieves the best retrieval quality for complex documents. Cost: $0.00013/1K tokens — about 30% more than ada-002 but with materially better multilingual and technical document performance.</p>
+              <p><strong>Azure OpenAI embedding endpoints</strong> expose the same models (ada-002 and text-embedding-3) but within your Azure subscription — meaning the same RBAC, private endpoints, and compliance posture as your other Azure services. For enterprise workloads where data sovereignty matters, this is the required choice over the public OpenAI API.</p>
+              <p><strong>Open-source alternatives</strong>: BAAI/bge-large-en-v1.5 and sentence-transformers/all-MiniLM-L6-v2 are strong self-hostable options for organizations that cannot send data to external APIs. bge-large consistently ranks near the top of MTEB (Massive Text Embedding Benchmark) leaderboards at zero API cost.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6.3.5 — Vector Database Comparison -->
+        <div class="sec-head"><span class="sec-tag">6.3.5</span><h2 class="sec-title">Choosing a Vector Database</h2></div>
+
+        <p>The vector database is where your embedded chunks live. The choice of vector store affects latency, cost, operational complexity, and — critically for enterprise Azure workloads — compliance, access control, and network security. The following table covers the main contenders in order of increasing operational maturity.</p>
+
+        <div class="table-wrap">
+          <table class="data-table sortable">
+            <thead>
+              <tr>
+                <th>Store</th>
+                <th>Hosting</th>
+                <th>Hybrid Search</th>
+                <th>Azure Native</th>
+                <th>Best For</th>
+                <th>Watch Out For</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Chroma</strong></td>
+                <td>Local / self-hosted</td>
+                <td>No</td>
+                <td>No</td>
+                <td>Local dev, prototyping, notebook experiments</td>
+                <td>Not production-grade; no persistence guarantees at scale</td>
+              </tr>
+              <tr>
+                <td><strong>Pinecone</strong></td>
+                <td>Fully managed SaaS</td>
+                <td>Sparse+dense (serverless)</td>
+                <td>No (AWS/GCP)</td>
+                <td>Fast time-to-value, teams without infra overhead</td>
+                <td>Expensive at scale; no Azure data residency; vendor lock-in</td>
+              </tr>
+              <tr>
+                <td><strong>Weaviate</strong></td>
+                <td>Self-hosted or managed</td>
+                <td>Yes (BM25 + vectors)</td>
+                <td>No (own cloud)</td>
+                <td>Complex semantic + keyword use cases; multi-modal</td>
+                <td>More complex to operate self-hosted; schema management overhead</td>
+              </tr>
+              <tr>
+                <td><strong>Qdrant</strong></td>
+                <td>Self-hosted or managed</td>
+                <td>Yes (sparse + dense)</td>
+                <td>No (own cloud)</td>
+                <td>High-throughput production workloads; Rust performance</td>
+                <td>Newer managed tier; fewer Azure-native integrations than AI Search</td>
+              </tr>
+              <tr>
+                <td><strong>Azure AI Search</strong></td>
+                <td>Azure managed PaaS</td>
+                <td>Yes (RRF built-in)</td>
+                <td>Yes &#10003;</td>
+                <td>Enterprise Azure RAG; compliance; RBAC; private endpoints</td>
+                <td>Higher cost than open-source; less flexibility for custom ANN algorithms</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">Click column headers to sort. RRF = Reciprocal Rank Fusion (hybrid search merging algorithm). ANN = Approximate Nearest Neighbor.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Why Azure AI Search wins for enterprise Azure workloads — and how to set it up</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Azure AI Search (formerly Azure Cognitive Search) is not just a vector database — it is a full enterprise search platform that added vector capabilities. This heritage matters: it already has mature implementations of RBAC, private endpoints, customer-managed keys, and Azure Active Directory integration. When you are building RAG in an Azure environment where the compliance team requires data residency and audit logging, AI Search removes a significant number of compliance conversations that you would otherwise have to have about a third-party vector service.</p>
+              <p>The setup path for RAG: create an Azure AI Search resource → define an index with both vector (HNSW) and keyword (BM25) fields → use the Azure OpenAI embedding endpoint to generate vectors → push documents via the REST API or SDK → at query time, use the Retrieval Augmented Generation pattern in Azure AI Foundry or direct API calls. Microsoft's own reference architecture for RAG with Azure OpenAI uses AI Search as the retrieval layer.</p>
+              <p>Pricing: the Basic tier (~$75/month) supports up to 15GB of index storage and 3 replicas — sufficient for most internal documentation RAG applications. The Standard S1 tier scales to 160GB with higher query throughput. For very large corpora (&gt;1M documents), the Standard S3 HD tier supports higher density at lower per-document cost.</p>
+              <p>One gotcha: the vector dimensions must be specified at index creation time and cannot be changed without deleting and recreating the index. If you switch from ada-002 (1,536 dims) to text-embedding-3-large (3,072 dims), you must re-index everything. Define your embedding model before creating the index.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6.3.6 -->
+        <div class="sec-head"><span class="sec-tag">6.3.6</span><h2 class="sec-title">RAG vs Fine-Tuning vs Few-Shot</h2></div>
+
+        <p>Every team building with LLMs eventually faces the same question: "Should we fine-tune the model on our data?" The answer is almost always no — and understanding why requires being clear about what each approach actually does.</p>
+
+        <div class="table-wrap">
+          <table class="data-table sortable">
+            <thead>
+              <tr>
+                <th>Approach</th>
+                <th>What It Does</th>
+                <th>When It Wins</th>
+                <th>Cost</th>
+                <th>Maintenance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Few-shot prompting</strong></td>
+                <td>Includes examples directly in the prompt to demonstrate desired output format or style</td>
+                <td>Format/style calibration; classification tasks; when examples fit in the context window</td>
+                <td>Very low — no additional infra</td>
+                <td>Low — update examples in prompt text</td>
+              </tr>
+              <tr>
+                <td><strong>RAG</strong></td>
+                <td>Retrieves relevant documents at query time and injects them as context</td>
+                <td>Factual grounding on private/recent data; knowledge-intensive Q&amp;A; document search</td>
+                <td>Moderate — vector store + embedding API costs</td>
+                <td>Medium — keep document store current; monitor retrieval quality</td>
+              </tr>
+              <tr>
+                <td><strong>Fine-tuning</strong></td>
+                <td>Continues training the model's weights on domain-specific data</td>
+                <td>Specialized reasoning style; rare vocabulary; when latency and context cost must be minimized</td>
+                <td>High — GPU training + model hosting</td>
+                <td>High — re-train when data or requirements change</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The key insight: <strong>fine-tuning teaches style; RAG teaches facts.</strong> If your goal is for the model to answer questions accurately about your internal data, fine-tuning will not achieve that — fine-tuned models still hallucinate facts just as readily, because training embeds statistical patterns, not factual lookup tables. For factual grounding, RAG is the correct architecture. Fine-tuning is appropriate when the model must adopt a specific response style, perform a specialized task type (e.g., medical record coding), or operate in a latency-constrained environment where a large context window cannot be used.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>How to evaluate a RAG system — RAGAS, precision, recall, and what production monitoring looks like</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>RAG systems have two independent failure modes: bad retrieval (the right chunks are not returned) and bad generation (the LLM ignores or misinterprets the retrieved chunks). Evaluation must address both.</p>
+              <p><strong>Retrieval metrics:</strong> Precision@K measures what fraction of the top-K returned chunks are actually relevant. Recall@K measures what fraction of all relevant chunks are returned in the top-K. Mean Reciprocal Rank (MRR) rewards systems that put the most relevant chunk first. These require a labeled evaluation set (questions + ground-truth relevant documents) — which is often the most expensive part of RAG evaluation to build.</p>
+              <p><strong>Generation metrics:</strong> RAGAS (an open-source framework) automates evaluation using an LLM-as-judge approach. It measures: Faithfulness (does the answer stay within the retrieved context?), Answer Relevance (does the answer address the question?), Context Precision (are the retrieved chunks actually used?), and Context Recall (does the retrieved context contain everything needed to answer?). Faithfulness is the most important metric for production — an answer that strays beyond the context is a hallucination risk.</p>
+              <p><strong>Production monitoring:</strong> At minimum, log every query, the top-5 retrieved chunks, and the generated answer. Set up periodic manual review (sample 50 queries per week and grade them). Track user thumbs-down feedback rates if you have a UI. Sudden drops in average retrieval score often indicate that the source documents have changed in structure — a schema drift equivalent for your knowledge base.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Professional Services Firm &nbsp;&middot;&nbsp; Internal Knowledge Base RAG</span>
+          </div>
+          <div class="field-note-body">
+            <p>A global consulting firm had 11 years of internal delivery methodology documents, client templates, and post-project retrospectives — approximately 40,000 documents — stored in a SharePoint that nobody used because it was too slow to search and nobody knew what was in it. New project teams routinely recreated templates that already existed and ignored hard-won lessons from past engagements because they could not find them.</p>
+            <p>The firm built a RAG system using Azure AI Search as the vector store, Azure OpenAI text-embedding-3-large for embeddings, and GPT-4o for generation. The ingestion pipeline ran nightly, chunking new and updated SharePoint documents semantically (splitting on heading boundaries), generating embeddings, and upserting into AI Search. The query interface was a Teams bot that answered questions like "Do we have a template for a data governance framework?" or "What did we learn from our SAP migrations?"</p>
+            <p>The critical design decision was hybrid search: pure semantic search missed documents that used different terminology from the query. A query for "data quality framework" failed to retrieve a high-quality document titled "Information Asset Governance Standards" — they were semantically related but not synonymous. Hybrid search (RRF combining BM25 keyword match with vector similarity) reliably retrieved it. Enabling hybrid search improved precision@5 from 61% to 84% on the evaluation set.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Semantic search alone is not enough when domain vocabulary is inconsistent. Hybrid search is the production default. The ingestion pipeline is a real data engineering problem — it needs idempotency, monitoring, and freshness guarantees just like any other pipeline you build.</p>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Financial Services Team &nbsp;&middot;&nbsp; Regulatory Document Q&amp;A</span>
+          </div>
+          <div class="field-note-body">
+            <p>A risk team needed to answer questions against a corpus of 200+ regulatory documents — Basel III frameworks, FCA guidance papers, internal risk policies — that changed quarterly. A compliance analyst could spend half a day finding the specific clause that governed a particular transaction type. The ask was: can we ask a question in plain English and get the right regulatory citation in under 30 seconds?</p>
+            <p>The team built RAG with a critical constraint: every answer had to include the exact document name, section number, and page number it was sourced from. Pure RAG without citation enforcement failed this — the LLM would synthesize an answer from multiple chunks and lose the provenance. The solution was to include chunk metadata (document name, section, page) in every embedded chunk, and to instruct the LLM via system prompt to always cite sources using the metadata format. Answers that could not cite a source were flagged as "insufficient evidence" rather than generating an unsourced response.</p>
+            <p>The chunking strategy was deliberately conservative: 200-token fixed-size chunks with no overlap, to ensure that retrieved chunks mapped cleanly to specific paragraphs. Larger chunks made citations ambiguous (which part of the chunk was the source?). Precision over recall was the right tradeoff for a regulatory context.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>In regulated contexts, citation and provenance are not optional features — they are the product. Design your RAG chunking strategy and system prompt to enforce citation from the start, not as an afterthought. Smaller chunks improve citation precision at the cost of recall; know which direction to err in your use case.</p>
+          </div>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section">
+          <div class="quiz-header">
+            <h2 class="quiz-title">Learning Check &nbsp;&mdash;&nbsp; 6.3</h2>
+            <div class="quiz-score">Score: <span class="quiz-score-num">0/5</span></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">An LLM is trained on data up to October 2024. A user asks about a regulatory change published in March 2025. Which approach is most appropriate to ensure an accurate, grounded answer?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Fine-tune the model on the March 2025 regulatory document</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Implement RAG: embed the regulatory document, store it in a vector database, retrieve the relevant chunks at query time, and augment the prompt</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Increase the model's temperature to encourage more creative reasoning about recent changes</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Include a note in the system prompt stating that the model should reason about regulatory changes after its training cutoff</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> RAG is specifically designed for this scenario: grounding LLM responses in external documents that post-date its training. Fine-tuning (A) would update the model's weights but is prohibitively expensive for a single document, and fine-tuned models still hallucinate rather than lookup facts. Temperature (C) controls randomness, not knowledge access — increasing it would produce more varied but not more accurate responses. A system prompt instruction (D) cannot give the model access to information it was not trained on; it can only encourage the model to acknowledge uncertainty.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">A team builds a RAG system and finds that retrieval quality is poor for queries using different terminology than the source documents (e.g., "leave entitlement" vs "annual vacation policy"). What change would most directly address this?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Reduce chunk size to 128 tokens to improve semantic precision</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Switch to a larger embedding model with more dimensions</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Enable hybrid search (semantic vector search combined with BM25 keyword search via RRF)</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Add a query expansion step that rephrases the user's question before embedding</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The problem described is a classic vocabulary mismatch — semantic search alone handles paraphrases well but struggles when domain-specific terms diverge (leave vs vacation). Hybrid search combines dense vector similarity with BM25 keyword matching; BM25 will score highly on exact keyword matches even when the semantic similarity is lower. This consistently improves retrieval recall for specialized domains. Reducing chunk size (A) would not help with vocabulary mismatch. A larger embedding model (B) might marginally improve semantic similarity but would not resolve a fundamental terminology gap. Query expansion (D) is a valid supplementary technique but adds latency and complexity, and the simpler hybrid search approach should be tried first.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A team embeds their document corpus using text-embedding-3-large (3,072 dimensions) and stores the vectors in Azure AI Search. Six months later, they decide to switch to a more cost-effective model, text-embedding-3-small (1,536 dimensions). What must happen?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Update the query-time embedding only — the existing index remains valid at a reduced dimension count</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Add a mapping layer that converts 3,072-dimensional vectors to 1,536 at query time</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Delete and recreate the index with the new dimension count, then re-embed and re-index all documents with the new model</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Nothing — Azure AI Search automatically handles dimension mismatches between models</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Vector similarity search requires all vectors in the index to have the same dimensionality as the query vector — comparing a 3,072-dimensional query vector to 1,536-dimensional document vectors produces no valid result. Azure AI Search enforces the vector dimension at index definition time and will not accept documents with different dimensions. You must delete the index, create a new one specifying 1,536 dimensions, and re-embed and re-index every document. This is the "embedding model migration tax" — it's why you should make the embedding model choice carefully before creating the index, as the Deep Dive noted. Dimension-reducing mappings (B) exist academically (PCA, Matryoshka), but Azure AI Search does not apply them automatically and using them would require custom preprocessing.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">For an enterprise Azure RAG system handling sensitive HR policy documents, which vector store is most appropriate and why?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Chroma — because it is free and runs locally, keeping all data on-premise</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Pinecone — because it is fully managed and has the highest query performance</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Azure AI Search — because it provides RBAC, private endpoints, data residency within Azure, built-in hybrid search, and native integration with Azure OpenAI and Entra ID</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Qdrant — because it is open-source, high-performance, and can be self-hosted on Azure VMs</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> For sensitive enterprise data in an Azure environment, the compliance and governance requirements narrow the choice significantly. Azure AI Search provides: Azure RBAC for access control, private endpoints to prevent public internet exposure, data residency within your Azure region, native integration with Azure OpenAI (for embeddings and generation) and Azure Entra ID (for authentication), and built-in hybrid search (RRF). Chroma (A) is not production-grade and not appropriate for enterprise workloads. Pinecone (B) runs on AWS or GCP infrastructure — for data governed by Azure compliance policies, this is typically a blocker. Qdrant self-hosted on VMs (D) is viable but requires operational overhead (VM management, backup, HA configuration) that AI Search abstracts. For teams without dedicated infrastructure engineers, Azure AI Search removes this complexity.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A team is building a RAG system and debating between fine-tuning GPT-4o on their legal document corpus vs using RAG with AI Search. The legal documents change quarterly and require citation-level traceability. Which approach is correct and for what reason?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Fine-tune, because a fine-tuned model will memorize the legal documents and retrieve specific citations accurately</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">RAG, because fine-tuning embeds statistical patterns not factual lookup — it still hallucinates, cannot cite sources, requires re-training when documents change, and is far more expensive</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Fine-tune once now, then switch to RAG when the documents update quarterly</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Fine-tune for the legal vocabulary, then add RAG on top for citations</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This question tests the core mental model for when each approach applies. Fine-tuning does not make a model able to retrieve specific citations — it trains the model to produce outputs that statistically resemble the training data. A fine-tuned model presented with a legal question will not "look up" the answer; it will generate the most plausible-sounding response, which may be wrong. When documents change quarterly, re-fine-tuning quarterly costs tens of thousands of dollars in GPU compute and requires labeled training data. RAG, by contrast, requires only re-running the ingestion pipeline (chunk → embed → index) when documents change — a scheduled data engineering job. Source metadata in chunks enables citation out of the box. The combination of factual accuracy, traceability, low maintenance cost, and update frequency all point to RAG.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="6-2-mcp.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">6.2 MCP</span></span>
+          </a>
+          <a href="6-4-ai-agents.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">6.4 AI Agents &amp; Sub-Agents</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 6 &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">29</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">RAG in One Sentence</div>
+          <p>Retrieve relevant chunks from your own documents → inject into the prompt → let the LLM synthesize an answer. The model provides comprehension; your search system provides relevance and recency.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Same Embedding Model</div>
+          <p>The embedding model used at ingestion must be identical to the model used at query time. Different models produce incomparable vector spaces. Changing models means re-embedding everything.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Fine-tune ≠ Factual Recall</div>
+          <p>Fine-tuning teaches style, not facts. A fine-tuned model still hallucinates answers to factual questions — it produces plausible-sounding completions, not verified lookups. Use RAG for factual grounding.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"How would you build a system that answers questions about our internal documentation?" — answer with RAG architecture: chunking strategy, embedding model choice (Azure OpenAI), vector store (AI Search for enterprise), hybrid search, prompt augmentation pattern, and evaluation via RAGAS faithfulness score.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('6.3');</script>
+</body>
+</html>

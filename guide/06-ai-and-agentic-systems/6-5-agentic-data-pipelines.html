@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6.5 Agentic Data Pipelines &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="6.5">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Six &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="chap-num">6.5</div>
+          <h1 class="chap-title">Agentic Data Pipelines — Where DE and AI Converge</h1>
+          <p class="chap-sub">AI-augmented vs autonomous pipelines, LLM-generated SQL, AI-driven anomaly detection, feature stores as AI infrastructure, the blurring boundary between data engineer and AI engineer, and the current honest limits of agentic systems in production</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Distinguish between AI-augmented pipelines (AI assists a deterministic pipeline) and AI-autonomous pipelines (AI drives execution decisions)</li>
+            <li>Explain how LLM-generated SQL is used in practice, including its failure modes and the validation layers needed before production use</li>
+            <li>Compare statistical, ML-based, and LLM-based anomaly detection approaches — and explain when each is appropriate</li>
+            <li>Describe what a feature store does and why it is infrastructure shared between data engineering and ML teams</li>
+            <li>Articulate the convergence between data engineering and AI engineering, and describe skills that are becoming core DE competencies</li>
+            <li>Honestly characterize the current limits of agentic systems in data pipeline contexts</li>
+          </ol>
+        </div>
+
+        <!-- 6.5.1 -->
+        <div class="sec-head"><span class="sec-tag">6.5.1</span><h2 class="sec-title">A Spectrum, Not a Binary</h2></div>
+
+        <p>The question "is this an agentic pipeline?" is less useful than asking where on a spectrum it falls. At one end: fully deterministic pipelines with no AI involvement. At the other: fully autonomous pipelines where an AI agent decides what data to collect, how to transform it, when to trigger reruns, and how to handle anomalies — without human approval at each step. In practice, almost everything interesting in 2026 lives in the middle of that spectrum.</p>
+
+        <div class="hl-block">The useful distinction is between <strong>AI-augmented</strong> pipelines — where AI assists a human-designed deterministic flow — and <strong>AI-autonomous</strong> pipelines — where AI makes execution decisions that were previously made by engineers or static rules. Both are valuable. Autonomous pipelines require far more trust infrastructure before they belong in production.</div>
+
+        <h3 class="subsec">AI-Augmented (Current Mainstream)</h3>
+        <p>A deterministic pipeline runs on schedule. AI sits at specific intervention points: generating SQL for an analyst's query, classifying anomalies that statistical rules flagged, drafting documentation for a new pipeline, suggesting schema names during a data modeling session. The pipeline's structure, scheduling, and data flow remain engineer-controlled. AI improves throughput and quality at specific bottlenecks without taking control of the overall system.</p>
+
+        <h3 class="subsec">AI-Autonomous (Early Production)</h3>
+        <p>An agent decides dynamically: rerun this failed job using a corrected query it generated; skip this partition because an upstream source is known to be unreliable today; escalate this anomaly to the data quality team because the magnitude exceeds the model's confidence threshold. These systems exist in early production at sophisticated organizations, but they require significant investment in guardrails, observability, and human-in-the-loop review before anything consequential happens.</p>
+
+        <p class="hmm-moment">&#x1F4AD; <em>Hmm moment:</em> The right mental model for AI-autonomous pipelines is <em>progressive autonomy</em> — similar to self-driving car levels. Level 1: AI monitors and alerts. Level 2: AI suggests actions for human approval. Level 3: AI takes reversible actions autonomously. Level 4: AI takes consequential actions with post-hoc review. Level 5: full autonomy. Most production systems in 2026 are operating at levels 2–3 for data engineering use cases.</p>
+
+        <!-- 6.5.2 -->
+        <div class="sec-head"><span class="sec-tag">6.5.2</span><h2 class="sec-title">LLM-Generated SQL — Practical Reality</h2></div>
+
+        <p>Natural language to SQL ("text-to-SQL" or "NL2SQL") is one of the most mature and genuinely useful AI applications in data engineering. A business analyst asks "what was our revenue by region for the last three quarters, excluding returns?" and an LLM generates the correct SQL against your schema. This is not science fiction — it works, with caveats.</p>
+
+        <!-- Figure 6.9 — AI-Augmented Pipeline -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <marker id="arr65" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="var(--accent)"/>
+                </marker>
+              </defs>
+              <text x="350" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">AI-Augmented Data Pipeline — AI at Intervention Points</text>
+
+              <!-- Pipeline backbone -->
+              <!-- Ingest box -->
+              <rect x="20" y="80" width="100" height="50" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="70" y="102" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">INGEST</text>
+              <text x="70" y="118" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">Deterministic</text>
+              <line x1="120" y1="105" x2="155" y2="105" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arr65)"/>
+
+              <!-- Transform box -->
+              <rect x="155" y="80" width="100" height="50" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="205" y="102" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">TRANSFORM</text>
+              <text x="205" y="118" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">Deterministic</text>
+              <line x1="255" y1="105" x2="290" y2="105" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arr65)"/>
+
+              <!-- Quality box -->
+              <rect x="290" y="80" width="100" height="50" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="340" y="102" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">QUALITY</text>
+              <text x="340" y="118" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">Rules + AI</text>
+              <line x1="390" y1="105" x2="425" y2="105" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arr65)"/>
+
+              <!-- Serve box -->
+              <rect x="425" y="80" width="100" height="50" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="475" y="102" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">SERVE</text>
+              <text x="475" y="118" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">Deterministic</text>
+              <line x1="525" y1="105" x2="560" y2="105" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arr65)"/>
+
+              <!-- Query box -->
+              <rect x="560" y="80" width="120" height="50" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="620" y="102" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">QUERY</text>
+              <text x="620" y="118" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">NL → SQL (AI)</text>
+
+              <!-- AI intervention callouts -->
+              <!-- On QUALITY -->
+              <rect x="270" y="155" width="140" height="50" rx="6" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1.5"/>
+              <text x="340" y="175" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">AI Anomaly Classifier</text>
+              <text x="340" y="190" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Explains why rule fired</text>
+              <text x="340" y="203" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Root-cause hypothesis</text>
+              <line x1="340" y1="130" x2="340" y2="152" stroke="var(--callout-border)" stroke-width="1.2" stroke-dasharray="4,2"/>
+
+              <!-- On QUERY -->
+              <rect x="555" y="155" width="130" height="50" rx="6" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1.5"/>
+              <text x="620" y="175" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">Text-to-SQL (LLM)</text>
+              <text x="620" y="190" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Natural language → SQL</text>
+              <text x="620" y="203" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Schema-aware generation</text>
+              <line x1="620" y1="130" x2="620" y2="152" stroke="var(--callout-border)" stroke-width="1.2" stroke-dasharray="4,2"/>
+
+              <!-- Legend -->
+              <rect x="20" y="220" width="12" height="12" rx="2" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="38" y="231" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">Deterministic stage</text>
+              <rect x="145" y="220" width="12" height="12" rx="2" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1.5"/>
+              <text x="163" y="231" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">AI intervention point</text>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure 6.9.</strong> AI-augmented pipeline architecture. The pipeline's structure and scheduling remain deterministic; AI is inserted at specific intervention points where it adds the most value — anomaly explanation and natural language querying.</div>
+        </div>
+
+        <h3 class="subsec">What Works Well</h3>
+        <p>Text-to-SQL performs reliably when: the schema is well-documented and passed to the model as context, table and column names are self-explanatory and consistently named, the question maps clearly to a single query without ambiguous business logic, and the model is given explicit instructions about the SQL dialect (Spark SQL, T-SQL, BigQuery SQL). On well-structured schemas, GPT-4-class models regularly achieve 85–95% accuracy on standard SQL benchmarks.</p>
+
+        <h3 class="subsec">Where It Fails</h3>
+        <p>Text-to-SQL struggles with: ambiguous business terminology (does "revenue" include tax? refunds? inter-company transfers?), multi-hop joins across many tables, complex window functions with non-obvious frame boundaries, queries that require knowledge of business context not encoded in the schema, and schemas with poor naming conventions (column names like <code>col_a</code>, <code>val_1</code>, <code>fl_cd</code>). Every gap in schema documentation is a gap in query accuracy.</p>
+
+        <h3 class="subsec">Production Validation Layers</h3>
+        <p>Never trust LLM-generated SQL without validation. Production text-to-SQL systems use at minimum: SQL parsing validation (the generated string is syntactically valid), schema validation (every referenced table and column actually exists), a row-count plausibility check (does the result have a sensible number of rows?), and for sensitive data, a human-review step before the query executes. Some teams add automatic EXPLAIN plan analysis to catch accidental full-table scans on large tables.</p>
+
+        <!-- 6.5.3 -->
+        <div class="sec-head"><span class="sec-tag">6.5.3</span><h2 class="sec-title">AI-Driven Anomaly Detection</h2></div>
+
+        <p>Data quality anomaly detection has traditionally relied on statistical rules: if a metric falls outside N standard deviations of its 30-day trailing average, raise an alert. Statistical approaches are fast, interpretable, and cheap. They fail when distributions shift seasonally, when metrics have complex interdependencies, or when the anomaly pattern has never occurred before.</p>
+
+        <h3 class="subsec">Three-Tier Approach</h3>
+        <p>The most robust production systems use all three approaches in layers, each catching what the previous tier misses.</p>
+
+        <p><strong>Tier 1 — Statistical rules</strong> catch the obvious: null rate jumps, volume drops below 20% of expected, a metric that is always positive going negative. Zero infrastructure, instant, and well-understood by non-engineers. Should always be the first layer.</p>
+
+        <p><strong>Tier 2 — ML-based detection</strong> (time-series models like Facebook Prophet, Isolation Forest, or more recently LSTM-based approaches) learns the normal distribution of a metric including seasonality, weekly patterns, and long-run trends. It catches anomalies that statistical rules would miss because the baseline itself shifts. The cost is training time, model maintenance, and the need for labeled historical data to tune thresholds.</p>
+
+        <p><strong>Tier 3 — LLM-based reasoning</strong> takes the flagged anomaly from Tier 1 or 2 and reasons about it: is this a genuine data quality issue or a known business event? What is the probable root cause? What are the downstream consequences? What is the recommended action? The LLM adds explanation and context, not detection — it is the tier that tells you <em>why</em>, after the other tiers tell you <em>what</em>.</p>
+
+        <!-- 6.5.4 -->
+        <div class="sec-head"><span class="sec-tag">6.5.4</span><h2 class="sec-title">Feature Stores — AI Infrastructure for Data Engineers</h2></div>
+
+        <p>A <strong>feature store</strong> is a centralized repository for machine learning (ML) features — the engineered representations of raw data that ML models are trained on and served with. For data engineers, a feature store is infrastructure: a system that must be built, maintained, monitored, and evolved like any other data platform component.</p>
+
+        <p>The core problem a feature store solves is the <em>training-serving skew</em>. An ML team trains a model on historical data. When the model goes to production, it needs the same features computed in real time. Without a feature store, the historical feature computation logic and the real-time computation logic are built separately by different teams, and they gradually diverge. The model is trained on one definition of "customer 7-day spend" and served with a subtly different definition. Performance degrades in ways that are hard to diagnose.</p>
+
+        <div class="hl-block">A feature store solves training-serving skew by ensuring that the exact same computation logic runs during training and during serving. The feature definition is written once; the store executes it in both contexts. Data engineers own the pipeline that populates the store; ML engineers own the model that consumes it.</div>
+
+        <!-- Figure 6.10 — Feature Store Architecture -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <marker id="arr65b" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="var(--accent)"/>
+                </marker>
+                <marker id="arr65c" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="var(--muted-fg)"/>
+                </marker>
+              </defs>
+              <text x="350" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">Feature Store Architecture</text>
+
+              <!-- Raw Data -->
+              <rect x="20" y="50" width="110" height="44" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="75" y="69" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">RAW DATA</text>
+              <text x="75" y="84" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">DWH / Streams</text>
+
+              <!-- Feature Pipeline -->
+              <rect x="170" y="50" width="130" height="44" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="235" y="69" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">FEATURE PIPELINE</text>
+              <text x="235" y="84" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">DE-owned transforms</text>
+              <line x1="130" y1="72" x2="167" y2="72" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arr65b)"/>
+
+              <!-- Feature Store box -->
+              <rect x="340" y="36" width="130" height="180" rx="8" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="2"/>
+              <text x="405" y="57" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--heading)">FEATURE STORE</text>
+              <rect x="355" y="65" width="100" height="30" rx="4" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+              <text x="405" y="83" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Offline Store</text>
+              <text x="405" y="95" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="var(--muted-fg)">(historical, batch)</text>
+              <rect x="355" y="105" width="100" height="30" rx="4" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+              <text x="405" y="123" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Online Store</text>
+              <text x="405" y="135" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="var(--muted-fg)">(low-latency, serving)</text>
+              <rect x="355" y="145" width="100" height="30" rx="4" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+              <text x="405" y="163" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Feature Registry</text>
+              <text x="405" y="175" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="var(--muted-fg)">(catalog, lineage)</text>
+              <line x1="300" y1="72" x2="338" y2="72" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arr65b)"/>
+
+              <!-- Training path -->
+              <rect x="520" y="50" width="110" height="44" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="575" y="69" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">MODEL TRAINING</text>
+              <text x="575" y="84" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">Reads offline store</text>
+              <line x1="470" y1="80" x2="518" y2="80" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arr65b)"/>
+
+              <!-- Serving path -->
+              <rect x="520" y="150" width="110" height="44" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="575" y="169" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">MODEL SERVING</text>
+              <text x="575" y="184" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">Reads online store</text>
+              <line x1="470" y1="160" x2="518" y2="160" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arr65b)"/>
+
+              <!-- Same logic badge -->
+              <rect x="152" y="185" width="148" height="32" rx="6" fill="var(--surface)" stroke="var(--success,#388e3c)" stroke-width="1.5"/>
+              <text x="226" y="203" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--success,#388e3c)">Same computation logic</text>
+              <text x="226" y="215" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="var(--muted-fg)">No training-serving skew</text>
+
+              <text x="350" y="242" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-style="italic" fill="var(--muted-fg)">Key tooling: Databricks Feature Store, Feast (open-source), Tecton, Vertex AI Feature Store</text>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure 6.10.</strong> Feature store architecture. The same feature computation logic populates both the offline store (used for training) and the online store (used for real-time serving), eliminating training-serving skew. Data engineers own the pipeline; ML engineers consume the features.</div>
+        </div>
+
+        <h3 class="subsec">Key Tooling (Mid-2026)</h3>
+        <p>The dominant options are Databricks Feature Store (tightly integrated with the Databricks platform and Unity Catalog), Feast (open-source, cloud-agnostic), Tecton (managed SaaS with strong real-time capabilities), and Vertex AI Feature Store (Google Cloud native). On Azure, the most common pattern for teams on Databricks is the native Feature Store with MLflow integration. Teams not on Databricks typically use Feast with Azure Redis Cache as the online store.</p>
+
+        <!-- 6.5.5 -->
+        <div class="sec-head"><span class="sec-tag">6.5.5</span><h2 class="sec-title">The Converging Role — DE and AI Engineer</h2></div>
+
+        <p>The job boundary between data engineer and AI/ML engineer is blurring faster than any other boundary in the data profession. In 2020, a data engineer built pipelines; an ML engineer built models; a data scientist explored data. These roles are increasingly defined by shared ownership of overlapping infrastructure.</p>
+
+        <p>From the data engineer's side, the skills now becoming core — not optional extras — include: understanding LLM APIs and their cost/latency tradeoffs well enough to select the right model for an embedding or generation task; building and maintaining vector database ingestion pipelines; instrumenting agentic systems with observability the same way you would any other distributed system; understanding prompt engineering well enough to write effective system prompts for production tools; and evaluating AI component output quality as rigorously as you evaluate pipeline data quality.</p>
+
+        <p>The inverse is also true. AI engineers increasingly need to understand data engineering primitives: idempotent pipeline design, schema evolution, partition strategies for large document stores, the difference between append-only and overwrite write patterns for vector indices, and the infrastructure operations needed to keep a production RAG system performant over time as the document corpus grows.</p>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Deep Dive — Honest Assessment: Current Limits of Agentic Systems in Data Pipelines</strong>
+          </div>
+          <div class="dd-body">
+            <p>The field has a hype problem. Agentic systems are real, useful, and improving rapidly — and the production reality in 2026 is more constrained than the demos suggest. A senior data engineer needs to be able to separate signal from noise when evaluating vendor claims.</p>
+            <p><strong>What works reliably in production:</strong> Text-to-SQL on well-documented schemas with human review; RAG over internal documentation for knowledge retrieval; anomaly classification and explanation on top of statistical detection rules; automated root-cause investigation for narrow, well-defined anomaly types; draft generation (pipeline documentation, Slack summaries, PR descriptions).</p>
+            <p><strong>What is early-production with significant caveats:</strong> Autonomous pipeline repair (agents that rewrite failing queries or adjust transformation logic). These work when the failure modes are narrow and the agent's changes are reversible. They fail badly when the failure requires understanding business context the agent doesn't have access to.</p>
+            <p><strong>What is research / early demos:</strong> Agents that design data models from requirements; agents that autonomously build pipelines end-to-end from a business description; fully autonomous data quality remediation without human-in-the-loop review.</p>
+            <p><strong>The core reliability problem:</strong> Agents fail non-deterministically. The same prompt, the same tools, and the same state can produce different actions across runs. This is fundamentally different from deterministic pipeline failures, which are reproducible and debuggable. Building reliable systems on non-deterministic components requires substantial investment in evaluation frameworks, regression testing on agent behavior, and acceptance of a higher operational overhead than equivalent deterministic pipelines.</p>
+            <p><strong>Cost is real.</strong> An agent that runs 20 reasoning cycles per task at GPT-4 pricing, running hundreds of tasks per day, can produce LLM API bills that dwarf the cost of the underlying compute. Token budgeting and model selection (smaller/cheaper models for classification steps, larger models only for complex reasoning) are necessary production concerns, not premature optimization.</p>
+          </div>
+        </div>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="fn-head">&#128203; Field Note — LLM-Generated SQL in a Financial Analytics Platform</div>
+          <p>A financial analytics company with 3,000 business users and a data team of 12 engineers deployed a text-to-SQL interface backed by GPT-4o against their Snowflake warehouse. The interface showed business users the generated SQL before executing it, with a "looks right?" confirmation step. Engineers spent two months writing schema documentation specifically for the LLM — column descriptions, business term glossaries, example queries — rather than for human readers.</p>
+          <p>The result: 73% of analyst queries were answered correctly without any human SQL intervention. The remaining 27% fell into two categories roughly equally: genuinely ambiguous questions that required business clarification, and questions involving business logic encoded in no system the LLM had access to. The interface handled these by saying "I'm not confident about this — here's what I generated, but please have a data analyst verify." That transparency maintained user trust even when the system was wrong.</p>
+          <p>The counter-intuitive finding: the schema documentation investment benefited human analysts almost as much as the LLM. Well-documented columns reduced ad-hoc questions to the data team by 31% independently of the AI feature.</p>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="fn-head">&#128203; Field Note — Feature Store Adoption at a Logistics Company</div>
+          <p>A logistics company struggled with a common ML operations problem: their data science team was spending 60% of its time rebuilding features that had already been engineered for past models. Each new project started from raw data. Features for on-time delivery prediction, demand forecasting, and route optimization were computed three different ways across three different notebooks by three different data scientists. When any model went to production, a data engineer had to rebuild the feature computation in a production pipeline — a process that took 3–6 weeks per model and inevitably diverged from the notebook logic.</p>
+          <p>The team adopted Feast with the data engineering team owning the feature pipelines and the data science team consuming features via a Python SDK. The first six months were rocky — agreement on feature naming conventions, versioning policies, and deprecation processes required more organizational negotiation than technical work. By month eight, new model deployments that used existing features went from a six-week data engineering effort to a two-day integration, and training-serving skew incidents dropped from four per quarter to zero.</p>
+        </div>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Deep Dive — MCP in Data Engineering Workflows</strong>
+          </div>
+          <div class="dd-body">
+            <p>The <span data-term="MCP">Model Context Protocol (MCP)</span>, covered in depth in Section 6.2, has specific implications for data engineering tooling worth revisiting here.</p>
+            <p>Data engineering tools are well-suited to MCP integration because they have well-defined APIs and schemas, produce structured outputs, and their use cases (write a query, check a pipeline status, inspect a schema) map cleanly to tool definitions. Several integrations are now production-ready or available as open-source:</p>
+            <ul style="margin:0.4rem 0 0 1.2rem">
+              <li><strong>dbt MCP server</strong>: exposes dbt model definitions, lineage graph, test results, and run history. An AI assistant with dbt MCP access can answer "what are the upstream dependencies of this model?" or "did yesterday's run succeed?" without leaving the conversation.</li>
+              <li><strong>Databricks MCP server</strong>: queries Unity Catalog metadata, inspects cluster status, triggers jobs. The MCP protocol means the same tool definitions work with any MCP-compatible client.</li>
+              <li><strong>Data warehouse query tools</strong>: Snowflake, BigQuery, and Fabric all have community MCP servers that allow natural-language-to-SQL workflows inside IDE-integrated AI assistants.</li>
+            </ul>
+            <p>The data engineering use case for MCP is less about replacing pipelines and more about compressing the feedback loop during development. An engineer investigating a data quality issue can ask an AI assistant to run exploratory queries, inspect lineage, and summarize the issue — all via MCP tool calls — without manually switching between tools. The agent does the context-gathering; the engineer does the reasoning about what to do next.</p>
+          </div>
+        </div>
+
+        <!-- Quiz -->
+        <div class="quiz-block" id="quiz-6-5">
+          <div class="quiz-head">&#9998; Section 6.5 — Check Your Understanding</div>
+          <div class="quiz-intro">Five questions. Answers and explanations are revealed after you submit.</div>
+
+          <div class="q-item" data-q="0">
+            <div class="q-text">1. What is the primary difference between an AI-augmented pipeline and an AI-autonomous pipeline?</div>
+            <div class="q-opts">
+              <label><input type="radio" name="q6_5_0" value="0"> Augmented pipelines use smaller models; autonomous pipelines use larger frontier models</label>
+              <label><input type="radio" name="q6_5_0" value="1"> Augmented pipelines have AI at specific assistance points within a deterministic flow; autonomous pipelines have AI making execution decisions</label>
+              <label><input type="radio" name="q6_5_0" value="2"> Augmented pipelines run on cloud infrastructure; autonomous pipelines run on-premises</label>
+              <label><input type="radio" name="q6_5_0" value="3"> Augmented pipelines require human approval for every step; autonomous pipelines require none</label>
+            </div>
+            <div class="q-exp" data-correct="1">In augmented pipelines, AI assists at specific bottlenecks (explaining anomalies, generating SQL) while the pipeline structure, scheduling, and flow remain deterministic. In autonomous pipelines, AI makes decisions about execution — reruns, skips, escalations — that were previously made by engineers or static rules.</div>
+          </div>
+
+          <div class="q-item" data-q="1">
+            <div class="q-text">2. A team is deploying text-to-SQL in production. Which validation layer is most important before executing any generated query?</div>
+            <div class="q-opts">
+              <label><input type="radio" name="q6_5_1" value="0"> Verify the query returns fewer than 1000 rows to prevent performance issues</label>
+              <label><input type="radio" name="q6_5_1" value="1"> Validate that all referenced tables and columns exist in the actual schema</label>
+              <label><input type="radio" name="q6_5_1" value="2"> Check that the SQL uses only SELECT statements, not INSERT or UPDATE</label>
+              <label><input type="radio" name="q6_5_1" value="3"> Confirm the query was generated in under 3 seconds</label>
+            </div>
+            <div class="q-exp" data-correct="1">Schema validation — confirming that every referenced table and column actually exists — is the most critical check. LLMs hallucinate column and table names that don't exist, especially on poorly documented schemas. Row-count and statement-type checks are also valuable but secondary to confirming the query references real objects.</div>
+          </div>
+
+          <div class="q-item" data-q="2">
+            <div class="q-text">3. What specific problem does a feature store solve that a data warehouse alone cannot?</div>
+            <div class="q-opts">
+              <label><input type="radio" name="q6_5_2" value="0"> It stores model weights alongside the data used to train them</label>
+              <label><input type="radio" name="q6_5_2" value="1"> It provides low-latency real-time feature serving that a data warehouse cannot match</label>
+              <label><input type="radio" name="q6_5_2" value="2"> It eliminates training-serving skew by ensuring the same computation logic runs during training and serving</label>
+              <label><input type="radio" name="q6_5_2" value="3"> It automatically retrains models when the underlying data distribution changes</label>
+            </div>
+            <div class="q-exp" data-correct="2">Training-serving skew — the divergence between how features are computed during model training (historical batch) and during inference (real-time) — is the core problem feature stores solve. While low-latency serving (B) is a benefit, it is the mechanism of the solution, not the problem being solved. The fundamental issue is the same-logic guarantee.</div>
+          </div>
+
+          <div class="q-item" data-q="3">
+            <div class="q-text">4. In the three-tier anomaly detection approach, what unique role does the LLM tier play that statistical and ML-based detection cannot?</div>
+            <div class="q-opts">
+              <label><input type="radio" name="q6_5_3" value="0"> It detects anomalies faster because it does not need to compute baseline statistics</label>
+              <label><input type="radio" name="q6_5_3" value="1"> It provides explanation and context — root cause hypothesis, business event classification, and recommended action — after the anomaly is detected</label>
+              <label><input type="radio" name="q6_5_3" value="2"> It eliminates false positives by running the full detection pipeline more accurately</label>
+              <label><input type="radio" name="q6_5_3" value="3"> It learns seasonality patterns that time-series statistical models cannot capture</label>
+            </div>
+            <div class="q-exp" data-correct="1">The LLM tier adds explanation and reasoning, not detection. Statistical and ML tiers tell you what is anomalous; the LLM tells you why — distinguishing a real data quality issue from a known business event (e.g. a promotion), identifying the probable root cause, and recommending a remediation path. It is a reasoning layer on top of detection, not a competing detection method.</div>
+          </div>
+
+          <div class="q-item" data-q="4">
+            <div class="q-text">5. Which of the following statements most accurately reflects the production reality of agentic data pipelines in mid-2026?</div>
+            <div class="q-opts">
+              <label><input type="radio" name="q6_5_4" value="0"> Fully autonomous agents that design, build, and maintain pipelines end-to-end are now widely deployed at enterprise scale</label>
+              <label><input type="radio" name="q6_5_4" value="1"> Agentic systems add no demonstrable value over deterministic pipelines and should not be adopted yet</label>
+              <label><input type="radio" name="q6_5_4" value="2"> Specific use cases like text-to-SQL, anomaly explanation, and autonomous investigation within narrow bounds are reliable in production; broad autonomous pipeline control remains research-stage</label>
+              <label><input type="radio" name="q6_5_4" value="3"> Agentic systems are reliable enough for production but are too expensive for most organizations to justify</label>
+            </div>
+            <div class="q-exp" data-correct="2">The honest mid-2026 picture is selective maturity. Text-to-SQL with validation, RAG-backed knowledge retrieval, anomaly explanation, and narrow autonomous investigation are reliably in production. Fully autonomous pipeline design and end-to-end pipeline management remain research or early-demo territory. Neither "widely deployed" (A) nor "no value" (B) is accurate.</div>
+          </div>
+
+          <button class="quiz-submit" onclick="submitQuiz('quiz-6-5', this)">Submit Answers</button>
+        </div>
+
+        <div class="mark-read-wrap">
+          <button class="mark-read-btn" onclick="markRead('6.5', this)">&#10003; Mark Section 6.5 as Read</button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="6-4-ai-agents.html" class="sec-nav-btn prev">
+            <span class="sec-nav-label">Previous</span>
+            <span class="sec-nav-title">6.4 &mdash; AI Agents</span>
+            <span class="sec-nav-arrow">&#8592;</span>
+          </a>
+          <a href="6-6-llm-fine-tuning-vs-prompting.html" class="sec-nav-btn next">
+            <span class="sec-nav-label">Next</span>
+            <span class="sec-nav-title">6.6 &mdash; LLM Fine-Tuning vs. Prompting</span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 6 &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">31</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Spectrum, Not Binary</div>
+          <p>AI-augmented vs autonomous is a spectrum. Most interesting 2026 production systems sit in the middle: deterministic structure, AI at specific intervention points. Full autonomy requires trust infrastructure that takes years to build.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Document for the LLM</div>
+          <p>Text-to-SQL quality is a function of schema documentation quality. Writing column descriptions, business glossaries, and example queries for the LLM context improves both AI accuracy and human analyst productivity.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">LLMs Explain; Stats Detect</div>
+          <p>In the three-tier anomaly detection stack, LLMs add explanation and context — not detection. The statistical and ML tiers tell you what is wrong; the LLM tier tells you why and what to do about it.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">The Boundary is Blurring</div>
+          <p>DE skills now converging with AI engineering: LLM API selection, vector database pipelines, prompt engineering for production tools, AI component evaluation. This is not optional — it is becoming core DE competency.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('6.5');</script>
+</body>
+</html>

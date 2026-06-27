@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>7.3 UX Principles for Data Products &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="7.3">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Seven &nbsp;&middot;&nbsp; Product Management Fundamentals</div>
+          <div class="chap-num">7.3</div>
+          <h1 class="chap-title">UX Principles for Data Products</h1>
+          <p class="chap-sub">Why a technically correct dashboard can still fail its audience, the five-second test executives actually apply whether they realize it or not, how cognitive load quietly determines whether a report gets used, and why testing a design only with the person who requested it is testing the wrong person</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Apply the Design Thinking double-diamond process (Discover, Define, Develop, Deliver) to a data product</li>
+            <li>Distinguish Design Thinking, Lean UX, and Jobs-to-be-Done, and choose the right framework for a given situation</li>
+            <li>Reduce cognitive load in a dashboard using information hierarchy and progressive disclosure</li>
+            <li>Apply the "five-second rule" to evaluate whether an executive dashboard communicates its key message fast enough</li>
+            <li>Build a basic user persona for a data product and explain why it changes design decisions</li>
+            <li>Identify the most common accessibility failures in dashboard design and apply practical fixes</li>
+          </ol>
+        </div>
+
+        <!-- 7.3.1 -->
+        <div class="sec-head"><span class="sec-tag">7.3.1</span><h2 class="sec-title">Correct Is Not the Same as Usable</h2></div>
+
+        <p>A dashboard can be data-accurate, performant, well-modeled, and fully tested against its acceptance criteria — and still fail completely, because the person looking at it can't find what they need, doesn't understand what they're looking at, or simply gives up before reaching the number that matters. This is a UX failure, not a data failure, and it is invisible to every quality check covered so far in this guide. dbt tests confirm the numbers are right. Power BI's refresh logs confirm the data is current. None of that confirms a busy regional manager can glance at the screen for five seconds and walk away knowing whether their team is on or off target.</p>
+
+        <p><span class="df" data-term="UX">UX</span> (User Experience) is the discipline of designing for how a real person actually perceives, understands, and acts on what's in front of them — not how the builder, who already knows exactly where every number comes from, perceives it. The gap between those two perspectives is usually invisible to the person who built the dashboard, precisely because they can't un-know what they already know. This is exactly why UX testing needs someone outside the build team, a thread this section returns to directly.</p>
+
+        <div class="hl-block">A dashboard's audience does not read it the way its builder does. The builder sees a finished, logical structure they assembled piece by piece. The audience sees an unfamiliar screen, once, usually for under ten seconds, usually while distracted by something else. Design for the second person, not the first.</div>
+
+        <!-- 7.3.2 -->
+        <div class="sec-head"><span class="sec-tag">7.3.2</span><h2 class="sec-title">Design Thinking &mdash; The Double Diamond</h2></div>
+
+        <p><span class="df" data-term="Design Thinking">Design Thinking</span> is a structured five-phase approach — Empathize, Define, Ideate, Prototype, Test — frequently visualized as a "double diamond": two cycles of diverging (exploring broadly) followed by converging (narrowing to a decision). The first diamond explores the problem space broadly before committing to a specific definition of the problem; the second diamond explores solution options broadly before committing to a specific design to build.</p>
+
+        <!-- Figure 7.5 — Double Diamond -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f75sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="240" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">The Double Diamond &mdash; Problem Space, Then Solution Space</text>
+
+              <!-- Diamond 1: Discover/Define -->
+              <polygon points="40,120 170,60 300,120 170,180" fill="#0F2447" filter="url(#f75sh)" opacity=".95"/>
+              <text x="105" y="100" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">DISCOVER</text>
+              <text x="105" y="112" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Empathize</text>
+              <text x="235" y="100" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">DEFINE</text>
+              <text x="235" y="112" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Define</text>
+              <text x="170" y="206" fill="#6080A0" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Diverge then converge &mdash; what's the real problem?</text>
+
+              <line x1="300" y1="120" x2="330" y2="120" stroke="#3A9FE0" stroke-width="2"/>
+
+              <!-- Diamond 2: Develop/Deliver -->
+              <polygon points="332,120 462,60 592,120 462,180" fill="#1A5A78" filter="url(#f75sh)" opacity=".95"/>
+              <text x="397" y="100" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">IDEATE</text>
+              <text x="397" y="112" fill="rgba(200,240,255,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Prototype</text>
+              <text x="527" y="100" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">DELIVER</text>
+              <text x="527" y="112" fill="rgba(200,240,255,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Test &amp; ship</text>
+              <text x="462" y="206" fill="#6080A0" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Diverge then converge &mdash; what's the right solution?</text>
+
+              <text x="170" y="38" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">PROBLEM SPACE</text>
+              <text x="462" y="38" fill="#3A9FE0" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">SOLUTION SPACE</text>
+
+              <text x="350" y="226" fill="#9A6818" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">Most data team failures happen because diamond one is skipped &mdash; the solution gets built before the problem is defined</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 7.5</strong><span>The double diamond. Each diamond widens before narrowing &mdash; resist the urge to converge early. The most common shortcut data teams take is skipping straight from a stakeholder's first sentence ("I want a sales dashboard") into the second diamond's prototyping, without ever genuinely exploring the first diamond's question of what problem the stakeholder is actually trying to solve. This is the same root failure described in Section 7.1's "broken telephone" framing, viewed through a design lens rather than a requirements lens.</span></div>
+        </div>
+
+        <h3 class="subsec">Empathize &mdash; Talking to the Actual User, Not Just the Requester</h3>
+        <p>The Empathize phase means observing or interviewing the people who will actually use the product — and critically, this is frequently <em>not</em> the same person who requested it. A VP requests a dashboard for "the regional managers" — but the VP is not the one who will open it every Monday morning. Designing entirely from the VP's stated requirements, without ever talking to a regional manager, routinely produces something the VP is satisfied with and the actual users quietly ignore.</p>
+
+        <!-- 7.3.3 -->
+        <div class="sec-head"><span class="sec-tag">7.3.3</span><h2 class="sec-title">Cognitive Load &amp; the Five-Second Rule</h2></div>
+
+        <p><span class="df" data-term="Cognitive Load">Cognitive load</span> is the mental effort required to process information. Every additional element on a dashboard — another colour, another chart type, another number without a clear label — adds load, and load is a finite, exhaustible resource for the person viewing it, especially when they're viewing it for the tenth time today between other tasks, not in a quiet room with full attention.</p>
+
+        <p>The practical test senior data practitioners apply is the <strong>five-second rule</strong>: can a first-time viewer look at this dashboard for five seconds and correctly answer "is this good news or bad news, and where should I look next?" If the answer requires reading multiple charts, cross-referencing two numbers mentally, or asking someone what a metric means, the dashboard has failed the test regardless of how accurate its underlying data is. This is not a suggestion to dumb down a dashboard — it is a statement about where the most important information needs to sit, and how clearly it needs to be labeled, relative to everything else on the page.</p>
+
+        <!-- Figure 7.6 — Information Hierarchy -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f76sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="250" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Progressive Disclosure &mdash; Three Layers of a Good Dashboard</text>
+
+              <!-- Layer 1: Headline -->
+              <rect x="30" y="40" width="640" height="50" rx="6" fill="#0F2447" filter="url(#f76sh)"/>
+              <text x="55" y="62" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700">LAYER 1 &mdash; HEADLINE</text>
+              <text x="55" y="78" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8">One number, one colour cue. Answers the 5-second test on its own.</text>
+              <text x="610" y="68" fill="#5EE885" font-family="Inter,sans-serif" font-size="16" font-weight="700" text-anchor="middle">94%</text>
+              <text x="610" y="80" fill="rgba(94,232,133,.7)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">of target</text>
+
+              <line x1="350" y1="90" x2="350" y2="104" stroke="#3A9FE0" stroke-width="1.5"/>
+
+              <!-- Layer 2: Trend / breakdown -->
+              <rect x="30" y="106" width="640" height="58" rx="6" fill="#1A5A78" filter="url(#f76sh)"/>
+              <text x="55" y="128" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700">LAYER 2 &mdash; TREND &amp; BREAKDOWN</text>
+              <text x="55" y="144" fill="rgba(200,240,255,.7)" font-family="Inter,sans-serif" font-size="8">Visible without scrolling. Answers "why" for someone who wants one more level.</text>
+              <rect x="480" y="118" width="14" height="32" fill="#3A9FE0" opacity=".6"/>
+              <rect x="500" y="128" width="14" height="22" fill="#3A9FE0" opacity=".75"/>
+              <rect x="520" y="112" width="14" height="38" fill="#3A9FE0"/>
+              <rect x="540" y="122" width="14" height="28" fill="#3A9FE0" opacity=".85"/>
+
+              <line x1="350" y1="164" x2="350" y2="178" stroke="#3A9FE0" stroke-width="1.5"/>
+
+              <!-- Layer 3: Detail table -->
+              <rect x="30" y="180" width="640" height="50" rx="6" fill="#3A5A80" opacity=".55" filter="url(#f76sh)"/>
+              <text x="55" y="202" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700">LAYER 3 &mdash; DETAIL TABLE</text>
+              <text x="55" y="218" fill="rgba(220,232,255,.75)" font-family="Inter,sans-serif" font-size="8">Row-level data. Reached by drill-through or a separate page &mdash; not the first thing seen.</text>
+
+              <text x="350" y="246" fill="#6080A0" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Each layer is reached deliberately &mdash; nothing forces the viewer past Layer 1 unless they choose to go further</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 7.6</strong><span>Progressive disclosure. The most important single fact sits where it can be absorbed in under five seconds, with everything else available but not forced on the viewer. A common anti-pattern is the opposite structure &mdash; a detail table at the top and the actual headline conclusion buried at the bottom, requiring the viewer to do the synthesis work the dashboard should be doing for them.</span></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>The five-second rule, run as an actual test rather than a guideline</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The five-second rule is most useful when it is run as a literal test, not just kept in mind while designing. Show the dashboard to someone unfamiliar with it for exactly five seconds, hide it, and ask two questions: "is this good news or bad news?" and "where would you click next?" The answers reveal exactly where the design is and isn't working, far more reliably than the designer's own intuition, because the designer can never fully replicate the experience of seeing it for the first time.</p>
+              <p><strong>Common five-second failures and their fixes:</strong> Too many KPIs competing for attention with equal visual weight — fix by establishing one clear visual hierarchy (size, position, colour intensity) so the eye knows where to land first. A KPI displayed without context for whether the number is good — "$2.4M" means nothing without a target, a prior period comparison, or a colour cue; fix by always pairing a raw number with a reference point. Colour used decoratively rather than meaningfully — if green and blue both appear just because they look nice, but only one of them means "good," the viewer has to read labels to figure out what's actually being communicated, defeating the entire purpose of using colour as a fast visual signal in the first place.</p>
+              <p><strong>The rule has a sensible limit.</strong> Not every page of every report needs to pass a five-second test — a detailed drill-through page that an analyst deliberately navigates to, expecting to spend several minutes, is a different context with different expectations. The rule applies most strictly to the landing page or summary view a busy executive glances at, not to every page in the entire report.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Pharmaceutical Distributor &nbsp;&middot;&nbsp; The Five-Second Fix</span>
+          </div>
+          <div class="field-note-body">
+            <p>A pharmaceutical distributor's executive dashboard had grown, over eighteen months of incremental requests, into a single page with eleven KPI cards of equal visual size, three colour schemes used inconsistently across them, and no clear indication of which number mattered most on any given day. Usage data showed executives opened it but spent under ten seconds on it before either closing it or asking an analyst directly for "the actual answer" — exactly the symptom the five-second rule is built to catch.</p>
+            <p>Running the literal five-second test with three executives who hadn't seen the redesign confirmed the diagnosis: none could reliably say, within five seconds, whether the company was tracking to target. The redesign applied progressive disclosure directly — one headline metric (days of inventory on hand against target, the single number the executive team had repeatedly said mattered most in interviews) at the top in isolation, a supporting trend strip below it, and the remaining nine metrics moved to a second page reached by a single click, organized by the same headline-then-detail logic.</p>
+            <p>Time-on-page for the redesigned front page actually <em>decreased</em> further, from roughly eight seconds to under five — but for the first time, that was the intended outcome rather than a symptom of failure. Exit surveys confirmed executives now left confident they knew the answer, rather than confused and reaching for a phone to call an analyst, which had been the previous pattern almost every single time.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Less time on a dashboard is not automatically bad — it depends entirely on whether the viewer leaves with the right answer. The five-second rule isn't about forcing brevity for its own sake; it's about making sure the time spent, however short, actually resolves the question the viewer came with.</p>
+          </div>
+        </div>
+
+        <!-- 7.3.4 -->
+        <div class="sec-head"><span class="sec-tag">7.3.4</span><h2 class="sec-title">Personas &mdash; Designing for a Specific Person, Not "the Business"</h2></div>
+
+        <p>A persona is a composite, research-grounded profile of a type of user — not a marketing exercise, but a practical design tool that forces specificity. "Sarah, Regional Sales Manager, checks the dashboard Monday mornings before her team standup, on a laptop, with five minutes available, primarily cares about which reps are behind pace" is a persona that materially changes design decisions: it justifies a fast-loading, mobile-and-laptop-friendly summary view over a dense, desktop-only analytical workbench, because that's genuinely how this specific person will encounter the product.</p>
+
+        <p>This connects directly back to Section 7.1's job stories — a persona answers "who," a job story answers "in what situation, wanting what outcome." Together, they replace the vague, ungrounded design decisions that happen when a team designs for an imagined, generic "business user" who doesn't actually correspond to anyone real.</p>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">An Insurance Provider &nbsp;&middot;&nbsp; Designed for the Requester, Used by Nobody Else</span>
+          </div>
+          <div class="field-note-body">
+            <p>An insurance provider's data team built a claims processing dashboard at the request of an operations director, who reviewed every wireframe personally and signed off enthusiastically at every stage. The director wanted dense, comprehensive detail — every claim status, every adjuster's full caseload, multiple filter panels — and the team delivered exactly that, tested it with the director, and shipped it confident the design was validated.</p>
+            <p>The actual day-to-day users were claims adjusters, not the director, and they found the dashboard nearly unusable — too dense, too many panels, no clear answer to the one question they actually needed answered each morning ("which of my claims are approaching their SLA deadline?"). Usage among adjusters stayed near zero for the first month, despite the director's complete satisfaction with what had been built for them specifically.</p>
+            <p>A second round of design, this time including thirty-minute observation sessions with three actual adjusters, revealed the mismatch immediately: adjusters needed a single, prioritized "what's urgent today" view, not a comprehensive workbench. A simplified front page, with the detailed view still available one click deeper for the rare occasion it was needed, drove adjuster usage from near-zero to daily habitual use within two weeks.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Testing a design with its requester confirms the requester is satisfied — it confirms nothing about whether the actual end users can use it, because the requester is frequently not the end user and has different needs, different context, and different available attention. Design validation requires testing with the people who will actually open the product, not just the person who asked for it.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Building a usable persona without a dedicated UX research budget</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Most data teams don't have a UX researcher on staff, and "we don't have budget for proper user research" is a real, common constraint — but it doesn't excuse skipping the Empathize phase, it just changes what's practical to do within it.</p>
+              <p><strong>Thirty minutes beats zero minutes.</strong> A single thirty-minute conversation with two or three actual end users — not the requester, the people who will actually open the product — surfaces most of the same critical insight a formal multi-week research engagement would, just with less polish and less statistical confidence. The field note above came from exactly this kind of lightweight session, not a formal UX research program.</p>
+              <p><strong>Ask about the moment, not the feature.</strong> Rather than "what features do you want," ask "walk me through the last time you needed this information — where were you, what triggered the need, what did you actually do?" This surfaces the real job-to-be-done (Section 7.1's job stories) far more reliably than asking someone to describe their ideal dashboard in the abstract, which tends to produce a wish list rather than a grounded need.</p>
+              <p><strong>Write the persona down, even informally.</strong> A single paragraph — name, role, device, available time, what they actually care about — pinned to the top of the Confluence requirements page (Section 7.2) takes ten minutes and prevents the single most common design drift: slowly designing for an imagined "everyone" instead of the specific person the research actually described.</p>
+              <p><strong>Re-use personas across related products.</strong> Once "Sarah, Regional Sales Manager" exists as a documented persona, the next sales-adjacent dashboard request doesn't need fresh research from scratch — it needs a quick check that this new request still matches the existing persona's situation, or whether it actually describes someone different who needs their own.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7.3.5 -->
+        <div class="sec-head"><span class="sec-tag">7.3.5</span><h2 class="sec-title">Accessibility &mdash; Designing for Everyone in the Room</h2></div>
+
+        <p>Accessibility in dashboard design is frequently treated as optional polish, but a meaningful share of any audience is affected by design choices that ignore it — most commonly colour vision deficiency, which affects roughly 1 in 12 men and 1 in 200 women, a population large enough that any dashboard relying solely on red/green to communicate good/bad will be genuinely unreadable to a predictable fraction of its actual viewers, not a hypothetical edge case.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Practical accessibility fixes for Power BI dashboards</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p><strong>Never rely on colour alone.</strong> Pair colour with a redundant cue — an icon (up/down arrow), a text label, or a pattern — so the meaning survives even for a viewer who can't distinguish the colours. Power BI's conditional formatting supports icons alongside colour for exactly this reason; using both costs almost nothing and closes a real accessibility gap.</p>
+              <p><strong>Choose colourblind-safe palettes deliberately.</strong> Blue/orange palettes are distinguishable across the most common forms of colour vision deficiency in a way red/green is not. Several published colourblind-safe palettes (ColorBrewer is a commonly referenced source) can be applied directly as a Power BI theme rather than designed from scratch each time.</p>
+              <p><strong>Maintain sufficient contrast.</strong> Light grey text on a white background looks clean in a design mockup and is frequently unreadable on an older monitor, in a brightly lit office, or for a viewer with low vision. WCAG (Web Content Accessibility Guidelines) contrast ratio standards exist for exactly this reason and are checkable with free contrast-checker tools during design, not after a complaint arrives.</p>
+              <p><strong>Add alt text to visuals.</strong> Power BI supports alt text on visuals, read by screen readers — a small habit that matters disproportionately for any organization with a genuine commitment to accessible tooling, and increasingly a compliance requirement in regulated sectors and public-sector contracts.</p>
+              <p><strong>Don't rely on hover-only information.</strong> A tooltip that only appears on mouse hover is invisible on touch devices and to anyone navigating by keyboard — critical information should have a visible, non-hover-dependent path to being seen.</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="subsec">Lean UX and Jobs-to-be-Done &mdash; Lighter-Weight Alternatives</h3>
+        <p><span class="df" data-term="Lean UX">Lean UX</span> compresses Design Thinking's structured phases into faster build-measure-learn cycles, deliberately favouring a rough prototype tested quickly over extensive upfront research — well-suited to a small data team that can't justify a multi-week discovery phase for every dashboard request, where speed of iteration substitutes for upfront certainty.</p>
+        <p><span class="df" data-term="Jobs-to-be-Done">Jobs-to-be-Done</span> (JTBD), introduced as job stories in Section 7.1, reframes the whole design question around the situation triggering the need rather than the persona or the process — useful specifically when a product serves people in genuinely different roles who nonetheless share an identical underlying need in a specific moment, where persona-based design would otherwise produce redundant, role-specific variants of the same actual solution.</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Framework</th>
+              <th>Core Question</th>
+              <th>Speed</th>
+              <th>Best Fit</th>
+              <th>Weak Point</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Design Thinking</strong></td>
+              <td>What is the underlying problem, explored broadly before any solution is chosen?</td>
+              <td>Slower &mdash; structured, multi-phase</td>
+              <td>Novel, high-stakes, or poorly-understood problems worth genuine upfront investigation</td>
+              <td>Overkill for small, well-understood, low-risk requests</td>
+            </tr>
+            <tr>
+              <td><strong>Lean UX</strong></td>
+              <td>What's the fastest way to test a hypothesis about what will work?</td>
+              <td>Fast &mdash; build-measure-learn loops</td>
+              <td>Small teams, frequent requests, lower-stakes iterative dashboard work</td>
+              <td>Can skip genuine problem exploration if rushed, leading to fast iteration on the wrong thing</td>
+            </tr>
+            <tr>
+              <td><strong>Jobs-to-be-Done</strong></td>
+              <td>What situation triggers the need, regardless of who the person is?</td>
+              <td>Moderate &mdash; requires upfront situational research</td>
+              <td>Products serving varied personas with one shared underlying need</td>
+              <td>Less actionable than a persona for designing the specific visual experience itself</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>A technically correct dashboard can still fail completely if the person looking at it can't quickly find or understand what they need &mdash; this is a UX failure invisible to every data-quality check. The double diamond (Discover, Define, Ideate, Deliver) widens before narrowing in both the problem space and the solution space; most data team failures skip the first diamond entirely, jumping straight from a vague request into building. Cognitive load is a finite resource, and the five-second rule &mdash; can a first-time viewer correctly read good/bad news and know where to look next within five seconds &mdash; is a concrete, testable design bar, supported by progressive disclosure that puts the headline conclusion at the top and detail underneath, reached deliberately rather than forced on every viewer. Personas force design specificity by grounding decisions in a real type of person rather than an imagined generic "business user" &mdash; and testing a design only with the person who requested it validates nothing about whether the actual end users, who are frequently a different group entirely, can use it. Accessibility &mdash; colourblind-safe palettes, sufficient contrast, alt text, redundant non-colour cues &mdash; affects a real, predictable share of any audience, not a hypothetical edge case. Design Thinking, Lean UX, and Jobs-to-be-Done are not competing dogmas but different tools for different levels of problem novelty and team speed.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 7.3 &nbsp;&middot;&nbsp; UX Principles for Data Products</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A dashboard passes every dbt test, refreshes on schedule, and matches its acceptance criteria exactly. Stakeholders still rarely use it. What does this most likely indicate?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The acceptance criteria must have been written incorrectly, since a dashboard meeting them should guarantee adoption</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">A UX failure separate from data correctness — the dashboard may be accurate and well-modeled while still being hard to read, poorly prioritized visually, or unclear about what action to take, none of which a data-quality test can detect</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The dashboard needs more features and more detail to give stakeholders a reason to keep coming back</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">This is purely an adoption/change-management problem, unrelated to anything about the dashboard's actual design</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Data quality checks and acceptance criteria verify correctness, not usability — they are different axes entirely. A dashboard can be 100% correct and still fail the five-second test because of cognitive overload, poor information hierarchy, or a missing reference point for whether a number is good or bad. Faulty acceptance criteria (A) is possible but not the most likely explanation given everything else checks out — usability simply isn't what acceptance criteria are designed to test in the first place. Adding more features (C) typically increases cognitive load and makes a usability problem worse, not better. While change management (D, covered in Section 5.6) is a real and related factor, dismissing the design itself ignores a frequently very fixable root cause.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">A data team receives a request, immediately opens Figma, and starts prototyping a solution without first investigating what problem the stakeholder is actually trying to solve. Using the double diamond framework, what step has been skipped, and what is the typical consequence?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The Deliver phase has been skipped, meaning the prototype will never actually ship</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The entire first diamond (Discover and Define) has been skipped; the team has jumped straight into the second diamond's solution exploration without confirming the problem itself is correctly understood, risking a well-built solution to the wrong problem</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Nothing significant — Ideate and Prototype are the most important phases, and the earlier phases are largely ceremonial</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The Test phase has been skipped, which only matters after the product has already shipped</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Jumping straight to prototyping is specifically the failure mode the double diamond is structured to prevent — exploring and confirming the actual problem (Discover, Define) before exploring solutions (Ideate, Prototype, Deliver). Skipping the first diamond risks building something well-crafted that solves the wrong problem, because the stakeholder's first sentence was taken as the full problem definition rather than a starting point for investigation. A and D misidentify which phase was actually skipped. C inverts the framework's actual logic — the early phases exist precisely because skipping them is what causes expensive solution-stage rework later.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">What does the "five-second rule" specifically test, and which design choice would most directly cause a dashboard to fail it?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Whether the dashboard's Power BI report loads within five seconds on a standard connection</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Whether a first-time viewer can correctly judge good/bad news and identify where to look next within five seconds of looking at the page; a dashboard with many competing KPIs at equal visual weight and no clear reference point for whether a number is good would fail this test</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Whether the dashboard contains at least five distinct visuals to justify its development effort</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Whether a user can complete a full data export within five seconds of opening the report</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The five-second rule is specifically about comprehension speed for a first-time or returning-but-distracted viewer — can they extract the key takeaway and next action almost immediately. Technical load time (A) is a real and separate performance concern, not what this rule measures. Visual count (C) is unrelated and, if anything, working against the goal — more competing visuals typically increases cognitive load and makes the test harder to pass, not easier. Data export speed (D) is an unrelated technical capability, not a comprehension measure.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A data team builds a dashboard exactly to a requesting director's specifications, gets the director's enthusiastic sign-off at every review, and ships it — but the actual daily users, a different group entirely, barely use it. What does this scenario demonstrate, and what should have been done differently during design?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Nothing was done wrong — the director's sign-off is sufficient validation, and low usage by others reflects an unrelated adoption or training gap</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Testing and gathering feedback only from the requester validates the requester's satisfaction, not the design's actual usability for the people who will use it daily; observation or interviews with real end users (the adjusters, in the original field note) should have happened during the Empathize phase, before the design was finalized</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The team should have built a more feature-rich, comprehensive dashboard to satisfy every possible user need at once</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The director should be retrained on how to give better feedback during future design reviews</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The requester and the end users are frequently different people with different needs, contexts, and available attention — validating a design with only one of them tells you nothing about the other. The fix is structural: include real end users in the Empathize phase, through observation or interviews, before the design is locked in, not after low usage reveals the mismatch. Treating the director's sign-off as sufficient (A) is exactly the mistake that caused the problem. Adding more comprehensive features (C) generally increases cognitive load and would likely make the actual problem — too much density for what end users needed — worse. Retraining the director (D) misdiagnoses the issue as a feedback-quality problem rather than a who-was-asked problem.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A dashboard uses red and green exclusively to indicate underperforming versus on-target metrics, with no other visual cue. What accessibility issue does this create, and what is the most effective fix?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">No real issue — red/green is the most universally understood colour convention for good/bad and should be kept as the sole indicator</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Roughly 1 in 12 men (and a smaller share of women) have a form of colour vision deficiency that makes red/green difficult or impossible to distinguish; pairing colour with a redundant non-colour cue, such as an up/down icon or a text label, preserves the meaning for everyone regardless of colour vision</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The fix is to remove colour entirely and rely only on numeric values, since colour itself is inherently inaccessible</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">This only matters for public-facing consumer products, not internal enterprise dashboards</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Colour vision deficiency affects a real, predictable, non-trivial share of any audience — roughly 1 in 12 men — making red/green-only encoding a genuine accessibility failure rather than a hypothetical edge case. The fix that preserves colour's fast-scanning benefit while closing the gap is adding a redundant cue (icon, label, pattern) rather than removing colour altogether (C), which would lose the speed advantage colour provides for everyone else. This is not a consumer-only concern (D) — internal enterprise dashboards have the same demographic reality among their viewers as any other audience.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="7-2-jira-confluence-figma.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">7.2 Jira, Confluence &amp; Figma</span></span>
+          </a>
+          <a href="7-4-software-development-lifecycle.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">7.4 The Software Development Lifecycle</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 7 &nbsp;&middot;&nbsp; Product Management Fundamentals</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">38</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:130px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Correct &#8800; Usable</div>
+          <p>dbt tests and acceptance criteria verify correctness. Neither one tests whether a real person can glance at the result for five seconds and know what to do next. They are different axes, both necessary.</p>
+        </div>
+        <div class="ms" style="height:420px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Test the User, Not the Requester</div>
+          <p>The person who asked for a dashboard is frequently not the person who will use it daily. Validate with both, or you've only confirmed the requester is happy &mdash; not that the design actually works.</p>
+        </div>
+        <div class="ms" style="height:280px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Colour Is Not Universal</div>
+          <p>~1 in 12 men have a colour vision deficiency. Red/green alone communicates nothing to a real, predictable share of any audience. Always pair colour with an icon or label.</p>
+        </div>
+        <div class="ms" style="height:220px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"How do you decide what goes 'above the fold' on a dashboard?" tests this section directly. Naming progressive disclosure and the five-second rule by name signals real UX fluency, not just intuition.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('7.3');</script>
+</body>
+</html>

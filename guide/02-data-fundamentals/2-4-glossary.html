@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2.4 Glossary · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .gloss-search-wrap { position: sticky; top: 0; z-index: 10; background: var(--bg, #FAF8F4); padding: 10px 0 6px; margin-bottom: 4px; }
+    .gloss-search { width: 100%; box-sizing: border-box; padding: 10px 14px; border: 1.5px solid #C8D8E8; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px; background: white; color: #1B3A6B; outline: none; transition: border-color 0.15s; }
+    .gloss-search:focus { border-color: #0076CC; }
+    .gloss-count { font-family: 'Inter', sans-serif; font-size: 11px; color: #8090A8; margin: 4px 0 12px; }
+    .gloss-alpha-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 20px; }
+    .gloss-alpha-nav a { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; color: #0076CC; text-decoration: none; padding: 3px 7px; border-radius: 4px; border: 1px solid #D0E4F4; background: white; transition: background 0.12s; }
+    .gloss-alpha-nav a:hover { background: #E8F4FF; }
+    .gloss-alpha-nav a.inactive { color: #C0C8D0; border-color: #E8EEF4; pointer-events: none; }
+    .gloss-letter-group { margin: 24px 0 0; }
+    .gloss-letter-head { font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 800; color: #0076CC; border-bottom: 2px solid #D0E4F4; padding-bottom: 4px; margin-bottom: 14px; }
+    .gloss-entry { border-left: 3px solid #0076CC; padding: 0 0 4px 16px; margin-bottom: 18px; }
+    .gloss-entry.hidden { display: none; }
+    .gloss-term { font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700; color: #1B3A6B; margin: 0 0 3px; }
+    .gloss-short { font-size: 13.5px; font-weight: 500; color: #2A3A50; margin: 0 0 4px; font-style: italic; }
+    .gloss-full { font-size: 13px; line-height: 1.7; color: #4A5A6A; margin: 0; }
+    .gloss-full-wrap { overflow: hidden; max-height: 0; transition: max-height 0.25s ease; }
+    .gloss-full-wrap.open { max-height: 400px; }
+    .gloss-expand { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: #0076CC; cursor: pointer; margin-top: 4px; display: inline-block; }
+    .gloss-expand:hover { text-decoration: underline; }
+    .no-results { color: #8090A8; font-style: italic; padding: 20px 0; }
+  </style>
+</head>
+<body data-section="2.4">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Two &nbsp;&middot;&nbsp; Data Fundamentals</div>
+          <div class="chap-num">2.4</div>
+          <h1 class="chap-title">Glossary</h1>
+          <p class="chap-sub">All terms defined across the guide &mdash; searchable, alphabetical, and updated as new sections are published</p>
+        </header>
+
+        <p>This glossary collects every term defined with a tooltip or deep entry throughout the guide. Terms are drawn directly from the guide's shared vocabulary object and are kept in sync as new sections are published. Use the search box to filter by keyword, or jump to a letter using the alphabet navigation.</p>
+
+        <div class="gloss-search-wrap">
+          <input type="text" class="gloss-search" id="glossSearch" placeholder="Search terms&hellip;" autocomplete="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="gloss-count" id="glossCount"></div>
+        <div class="gloss-alpha-nav" id="glossAlpha"></div>
+
+        <div id="glossContainer"></div>
+
+        <div class="info-box gold" style="margin-top:32px;">
+          <div class="info-label">This glossary is living</div>
+          <p>New terms are added as each section of the guide is published. If you encounter a term in the guide that is not listed here, it will be added when the section that introduces it is published. Terms marked with a tooltip (yellow underline) in the guide link back to this glossary.</p>
+        </div>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="2-3-data-terminology.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">2.3 Data Terminology</span></span>
+          </a>
+          <span class="sec-nav-btn sec-nav-next sec-nav-disabled">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Coming Next</span><span class="sec-nav-name">Part 3 &mdash; Compute &amp; Transform</span></span>
+          </span>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 2 &nbsp;&middot;&nbsp; Data Fundamentals</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">9</div>
+        </footer>
+
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Using This Glossary</div>
+          <p>Terms underlined in yellow throughout the guide link here on click. The glossary is alphabetical and searchable. Tap any term to expand its full definition.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Interview Tip</div>
+          <p>Before any data engineering interview, read through this glossary and identify any term you can't confidently define and distinguish from its nearest neighbour (SLA vs SLO, CDC vs watermark, surrogate vs natural key).</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; You are currently in the Glossary (Section 2.4)</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>
+    initGuide('2.4');
+
+    // Build the glossary from the shared GLOSSARY object in guide.js
+    (function () {
+      const container  = document.getElementById('glossContainer');
+      const searchBox  = document.getElementById('glossSearch');
+      const countEl    = document.getElementById('glossCount');
+      const alphaNav   = document.getElementById('glossAlpha');
+
+      const terms = Object.keys(GLOSSARY).sort((a, b) => a.localeCompare(b));
+      const totalTerms = terms.length;
+
+      // Build alpha nav
+      const letters = [...new Set(terms.map(t => t[0].toUpperCase()))];
+      const allLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+      alphaNav.innerHTML = allLetters.map(l =>
+        letters.includes(l)
+          ? `<a href="#letter-${l}">${l}</a>`
+          : `<a class="inactive">${l}</a>`
+      ).join('');
+
+      // Group terms by first letter
+      const groups = {};
+      terms.forEach(t => {
+        const l = t[0].toUpperCase();
+        if (!groups[l]) groups[l] = [];
+        groups[l].push(t);
+      });
+
+      // Render
+      let html = '';
+      Object.keys(groups).sort().forEach(letter => {
+        html += `<div class="gloss-letter-group" id="letter-${letter}">`;
+        html += `<div class="gloss-letter-head">${letter}</div>`;
+        groups[letter].forEach(term => {
+          const entry = GLOSSARY[term];
+          html += `<div class="gloss-entry" data-term="${term.toLowerCase()}">`;
+          html += `<div class="gloss-term">${term}</div>`;
+          html += `<div class="gloss-short">${entry.short}</div>`;
+          html += `<div class="gloss-full-wrap"><p class="gloss-full">${entry.full}</p></div>`;
+          html += `<span class="gloss-expand">+ Show full definition</span>`;
+          html += `</div>`;
+        });
+        html += `</div>`;
+      });
+      container.innerHTML = html;
+      updateCount();
+
+      // Expand toggle
+      container.addEventListener('click', e => {
+        const btn = e.target.closest('.gloss-expand');
+        if (!btn) return;
+        const entry = btn.closest('.gloss-entry');
+        const wrap  = entry.querySelector('.gloss-full-wrap');
+        const open  = wrap.classList.toggle('open');
+        btn.textContent = open ? '− Hide full definition' : '+ Show full definition';
+      });
+
+      // Search / filter
+      searchBox.addEventListener('input', () => {
+        const q = searchBox.value.trim().toLowerCase();
+        document.querySelectorAll('.gloss-entry').forEach(el => {
+          const termText = el.dataset.term || '';
+          const shortText = el.querySelector('.gloss-short')?.textContent.toLowerCase() || '';
+          const fullText  = el.querySelector('.gloss-full')?.textContent.toLowerCase() || '';
+          el.classList.toggle('hidden', q.length > 0 && !termText.includes(q) && !shortText.includes(q) && !fullText.includes(q));
+        });
+        document.querySelectorAll('.gloss-letter-group').forEach(grp => {
+          const visible = grp.querySelectorAll('.gloss-entry:not(.hidden)').length;
+          grp.style.display = visible === 0 ? 'none' : '';
+        });
+        updateCount();
+      });
+
+      function updateCount() {
+        const visible = document.querySelectorAll('.gloss-entry:not(.hidden)').length;
+        countEl.textContent = visible === totalTerms
+          ? `${totalTerms} terms`
+          : `${visible} of ${totalTerms} terms match`;
+      }
+    })();
+  </script>
+</body>
+</html>

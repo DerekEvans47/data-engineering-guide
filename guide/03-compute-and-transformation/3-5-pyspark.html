@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3.5 PySpark · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="3.5">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+        <header class="chap-header">
+          <div class="part-tag">Part Three &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="chap-num">3.5</div>
+          <h1 class="chap-title">PySpark</h1>
+          <p class="chap-sub">Writing Spark code in Python &mdash; DataFrames, transformations vs actions, common operations, and Delta Lake patterns</p>
+        </header>
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Initialise a SparkSession and understand what it provides</li>
+            <li>Distinguish transformations (lazy) from actions (trigger execution) with real examples</li>
+            <li>Apply common DataFrame operations: select, filter, join, groupBy, withColumn, window functions</li>
+            <li>Define an explicit schema when reading data instead of relying on schema inference</li>
+            <li>Write a Delta Lake MERGE upsert from PySpark code</li>
+            <li>Use broadcast joins to eliminate shuffle for small-table lookups</li>
+          </ol>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.5.1</span><h2 class="sec-title">PySpark: The Python Interface to Spark</h2></div>
+
+        <p>PySpark is the Python API for Apache Spark. Everything in Section 3.4 &mdash; the Driver, Executors, DAG, shuffle &mdash; is the engine. PySpark is how you program that engine in Python. Most data engineers on Databricks write PySpark rather than Scala (Spark&rsquo;s native language) because Python&rsquo;s ecosystem, hiring pool, and ML library compatibility outweigh Scala&rsquo;s modest speed advantage for the vast majority of production workloads.</p>
+        <p>In Databricks notebooks, <code>spark</code> is pre-initialised &mdash; no setup needed. In standalone scripts or unit tests, you create it explicitly:</p>
+        <div class="code-wrap">
+          <div class="code-label">PySpark &nbsp;&middot;&nbsp; SparkSession<button class="copy-btn">Copy</button></div>
+          <pre><code>from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .appName("SilverTransform") \
+    .config("spark.sql.shuffle.partitions", "200") \
+    .config("spark.sql.adaptive.enabled", "true") \
+    .getOrCreate()
+
+# In Databricks notebooks, spark is already available
+print(spark.version)</code></pre>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.5.2</span><h2 class="sec-title">DataFrames and Schema</h2></div>
+
+        <p>A Spark DataFrame is a distributed, immutable dataset organised into named columns. Operations return new DataFrames rather than modifying the original. Reading with schema inference is convenient but fragile in production &mdash; it reads data twice and can infer wrong types. Explicit schemas are the production best practice.</p>
+        <div class="code-wrap">
+          <div class="code-label">PySpark &nbsp;&middot;&nbsp; Reading data with explicit schema<button class="copy-btn">Copy</button></div>
+          <pre><code>from pyspark.sql.types import (StructType, StructField, LongType,
+                                StringType, DecimalType, DateType)
+from pyspark.sql import functions as F
+
+order_schema = StructType([
+    StructField("order_id",    LongType(),        nullable=False),
+    StructField("customer_id", LongType(),        nullable=False),
+    StructField("order_date",  DateType(),        nullable=False),
+    StructField("amount",      DecimalType(12,2), nullable=True),
+    StructField("status",      StringType(),      nullable=True),
+    StructField("region",      StringType(),      nullable=True),
+])
+
+# Read from ADLS with explicit schema
+df = spark.read.schema(order_schema).format("parquet") \
+         .load("abfss://bronze@lake.dfs.core.windows.net/orders/")
+
+# Read from Delta via Unity Catalog (preferred in production)
+df = spark.table("prod.silver.orders")</code></pre>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.5.3</span><h2 class="sec-title">Transformations vs Actions: Lazy Evaluation in Practice</h2></div>
+<p>Every PySpark method is either a <strong>transformation</strong> (lazy &mdash; adds a node to the DAG) or an <strong>action</strong> (triggers the DAG to execute). This is the most important distinction in PySpark and the source of most debugging confusion for newcomers.</p>
+        <div class="code-wrap">
+          <div class="code-label">PySpark &nbsp;&middot;&nbsp; Transformations and Actions<button class="copy-btn">Copy</button></div>
+          <pre><code># ── Transformations: nothing executes ────────────────────
+df2 = df.filter(F.col("status") == "completed")           # lazy
+df3 = df2.withColumn("year", F.year(F.col("order_date"))) # lazy
+df4 = df3.groupBy("region","year").agg(                   # lazy
+    F.sum("amount").alias("total_revenue"),
+    F.count("*").alias("order_count")
+)
+# At this point: zero bytes have been read. A DAG exists.
+
+# ── Actions: trigger full DAG execution ──────────────────
+df4.count()                    # executes, returns integer
+df4.show(5)                    # executes, prints rows
+df4.collect()                  # executes, returns list to Driver (careful!)
+
+# Write is the most common production action
+df4.write.format("delta") \
+   .mode("overwrite") \
+   .save("abfss://gold@lake.dfs.core.windows.net/revenue/")</code></pre>
+        </div>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body"><svg viewBox="0 0 700 186" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs>
+    <filter id="fs39"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.15)"/></filter>
+    <marker id="ma39" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+    </marker>
+  </defs>
+  <rect width="700" height="186" fill="#0F1B2D" rx="6"/>
+  <text x="350" y="22" fill="#88BEFF" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">PySpark Lazy Evaluation — Build the Plan, Then Execute</text>
+  <rect x="12" y="36" width="94" height="40" rx="5" fill="#1B3A6B" filter="url(#fs39)"/>
+  <text x="59" y="53" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">spark.read</text>
+  <text x="59" y="67" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">transformation</text>
+  <line x1="106" y1="56" x2="114" y2="56" stroke="#3A6AAA" stroke-width="1.5" marker-end="url(#ma39)"/>
+  <rect x="116" y="36" width="84" height="40" rx="5" fill="#1B3A6B" filter="url(#fs39)"/>
+  <text x="158" y="53" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">.filter()</text>
+  <text x="158" y="67" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">transformation</text>
+  <line x1="200" y1="56" x2="208" y2="56" stroke="#3A6AAA" stroke-width="1.5" marker-end="url(#ma39)"/>
+  <rect x="210" y="36" width="100" height="40" rx="5" fill="#1B3A6B" filter="url(#fs39)"/>
+  <text x="260" y="53" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">.groupBy()</text>
+  <text x="260" y="67" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">transformation</text>
+  <line x1="310" y1="56" x2="318" y2="56" stroke="#3A6AAA" stroke-width="1.5" marker-end="url(#ma39)"/>
+  <rect x="320" y="36" width="80" height="40" rx="5" fill="#1B3A6B" filter="url(#fs39)"/>
+  <text x="360" y="53" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">.agg()</text>
+  <text x="360" y="67" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">transformation</text>
+  <line x1="400" y1="56" x2="408" y2="56" stroke="#C8892A" stroke-width="2.5" marker-end="url(#ma39)"/>
+  <rect x="410" y="28" width="100" height="56" rx="5" fill="#C8892A" filter="url(#fs39)"/>
+  <text x="460" y="50" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">.write()</text>
+  <text x="460" y="64" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">ACTION &#9889;</text>
+  <text x="460" y="76" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">DAG executes NOW</text>
+  <rect x="12" y="90" width="390" height="22" rx="3" fill="rgba(59,130,200,.1)" stroke="rgba(59,130,200,.3)" stroke-width="1"/>
+  <text x="207" y="104" fill="#6AABDD" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">&#9675; No data read here — Spark builds a logical plan only</text>
+  <rect x="410" y="90" width="100" height="22" rx="3" fill="rgba(200,137,42,.2)" stroke="rgba(200,137,42,.5)" stroke-width="1"/>
+  <text x="460" y="104" fill="#C8892A" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Optimise + Run</text>
+  <text x="20" y="135" fill="#6AABDD" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">TRANSFORMATIONS (lazy):</text>
+  <text x="20" y="150" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8.5">filter() · select() · withColumn() · join() · groupBy() · orderBy() · distinct() · union() · cache()</text>
+  <text x="20" y="168" fill="#C8892A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700">ACTIONS (trigger execution):</text>
+  <text x="20" y="182" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8.5">write() · count() · show() · collect() · first() · take(n) · toPandas() · saveAsTable()</text>
+</svg></div>
+          <div class="fig-caption"><strong>Figure 3.9</strong><span>PySpark lazy evaluation. Every transformation adds a node to the DAG without executing. The action (.write, .count, .show) triggers Spark to optimise and execute the full accumulated plan. Time Spark pipelines at the action — not at individual transformation calls, which appear instantaneous because they do nothing yet.</span></div>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.5.4</span><h2 class="sec-title">Common DataFrame Operations</h2></div>
+
+        <div class="code-wrap">
+          <div class="code-label">PySpark &nbsp;&middot;&nbsp; Core operations reference<button class="copy-btn">Copy</button></div>
+          <pre><code>from pyspark.sql import functions as F
+from pyspark.sql.window import Window
+
+# ── Selection and column work ─────────────────────────────
+df.select("order_id", "customer_id", "amount")
+df.withColumn("year",  F.year("order_date"))
+df.withColumn("month", F.month("order_date"))
+df.drop("internal_flag")
+df.withColumnRenamed("cust_id", "customer_id")
+
+# ── Filtering ──────────────────────────────────────────────
+df.filter(F.col("status") == "completed")
+df.filter(F.col("amount") &gt; 100)
+df.filter(F.col("region").isin(["EMEA", "AMER"]))
+df.filter(F.col("email").isNotNull())
+
+# ── Joins ──────────────────────────────────────────────────
+df_orders.join(df_customers, on="customer_id", how="inner")
+df_orders.join(df_customers, on="customer_id", how="left")
+
+# Broadcast join — small lookup table to every executor (no shuffle)
+from pyspark.sql.functions import broadcast
+df_orders.join(broadcast(df_country_codes), on="country_code")
+
+# ── Aggregation ────────────────────────────────────────────
+df.groupBy("region").agg(
+    F.sum("amount").alias("total_revenue"),
+    F.count("*").alias("order_count"),
+    F.countDistinct("customer_id").alias("unique_customers"),
+    F.max("order_date").alias("latest_order"),
+)
+
+# ── Window functions ───────────────────────────────────────
+w = Window.partitionBy("customer_id").orderBy("order_date")
+df.withColumn("row_num",     F.row_number().over(w)) \
+  .withColumn("prev_amount", F.lag("amount", 1).over(w)) \
+  .withColumn("running_total", F.sum("amount").over(
+      w.rowsBetween(Window.unboundedPreceding, Window.currentRow)))
+
+# ── Writing Delta ──────────────────────────────────────────
+df.write.format("delta").mode("append") \
+    .partitionBy("order_date") \
+    .save("abfss://silver@lake.dfs.core.windows.net/orders/")
+
+df.write.saveAsTable("prod.silver.orders")   # Unity Catalog</code></pre>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.5.5</span><h2 class="sec-title">Delta MERGE from PySpark</h2></div>
+
+        <div class="code-wrap">
+          <div class="code-label">PySpark &nbsp;&middot;&nbsp; Upsert with Delta MERGE<button class="copy-btn">Copy</button></div>
+          <pre><code>from delta.tables import DeltaTable
+
+target = DeltaTable.forPath(
+    spark, "abfss://silver@lake.dfs.core.windows.net/customers/")
+
+source = spark.table("prod.bronze.customers") \
+              .filter(F.col("ingestion_date") == F.current_date())
+
+target.alias("t") \
+    .merge(source.alias("s"), "t.customer_id = s.customer_id") \
+    .whenMatchedUpdate(set={
+        "t.name":       "s.name",
+        "t.email":      "s.email",
+        "t.region":     "s.region",
+        "t.updated_at": "s.updated_at",
+    }) \
+    .whenNotMatchedInsertAll() \
+    .execute()</code></pre>
+        </div>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body"><svg viewBox="0 0 700 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs><filter id="fs310"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter></defs>
+  <rect width="700" height="160" fill="#F4F6FB" rx="6"/>
+  <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">PySpark Join Types</text>
+  <rect x="10" y="30" width="120" height="118" rx="6" fill="#0076CC" filter="url(#fs310)"/>
+  <text x="70" y="52" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">inner</text>
+  <text x="70" y="67" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Rows in both tables</text>
+  <text x="70" y="95" fill="#AADDFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Dimension lookups</text>
+  <rect x="140" y="30" width="120" height="118" rx="6" fill="#1B3A6B" filter="url(#fs310)"/>
+  <text x="200" y="52" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">left</text>
+  <text x="200" y="67" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">All left + matching right</text>
+  <text x="200" y="82" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">NULLs for no match</text>
+  <text x="200" y="95" fill="#AADDFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Most common after inner</text>
+  <rect x="270" y="30" width="120" height="118" rx="6" fill="#254F8F" filter="url(#fs310)"/>
+  <text x="330" y="52" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">full / outer</text>
+  <text x="330" y="67" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">All rows from both</text>
+  <text x="330" y="95" fill="#AADDFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Reconciliation joins</text>
+  <rect x="400" y="30" width="120" height="118" rx="6" fill="#0050AA" filter="url(#fs310)"/>
+  <text x="460" y="52" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">left_anti</text>
+  <text x="460" y="67" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Left rows with NO</text>
+  <text x="460" y="80" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">match in right</text>
+  <text x="460" y="95" fill="#AADDFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Finding orphaned records</text>
+  <rect x="530" y="22" width="158" height="126" rx="6" fill="#C8892A" filter="url(#fs310)"/>
+  <text x="609" y="44" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">broadcast (hint)</text>
+  <text x="609" y="60" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Small table to every</text>
+  <text x="609" y="73" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">executor &mdash; no shuffle</text>
+  <text x="609" y="90" fill="#FFDDA0" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">&#9733; Most impactful</text>
+  <text x="609" y="103" fill="#FFDDA0" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">perf optimisation</text>
+  <text x="609" y="116" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">join(broadcast(dim))</text>
+  <text x="609" y="138" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Auto &lt;10MB · manual hint above</text>
+</svg></div>
+          <div class="fig-caption"><strong>Figure 3.10</strong><span>PySpark join types. inner, left, full, and left_anti follow SQL semantics. The broadcast hint eliminates shuffle for small tables — the most impactful single-line performance optimisation in PySpark. Spark auto-broadcasts tables under 10MB; use the explicit hint for small dimension tables above that threshold.</span></div>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Manufacturing Team &nbsp;&middot;&nbsp; The Broadcast Join That Saved 4 Hours</span>
+          </div>
+          <div class="field-note-body">            <p>A data engineering team joined a 2.4-billion-row transaction fact table to a 40,000-row product dimension in their nightly Gold pipeline. The pipeline used a standard inner join with no hint. The resulting sort-merge join &mdash; where Spark sorted and shuffled the fact table across all Executors &mdash; took 4 hours 22 minutes. The Spark UI showed this one join stage consuming 78% of total runtime.</p>
+            <p>The fix was one line: wrapping the product dimension in <code>broadcast()</code>. Spark sent the 40,000-row table (around 12MB serialised) to every Executor, eliminating the 2.4-billion-row shuffle. Runtime dropped to 28 minutes. No schema changes, no infrastructure changes, no additional cost.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Always check the Spark UI for sort-merge joins where one side is orders of magnitude smaller. The fix is almost always a broadcast hint. It is the highest return-on-investment single-line change in PySpark.</p></div>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Retail Team &nbsp;&middot;&nbsp; Schema Inference Breaking Overnight Pipelines</span>
+          </div>
+          <div class="field-note-body">            <p>A retailer's Bronze-to-Silver pipeline used schema inference for all Parquet reads. The pipeline ran stably for six months. In November, a source system change added a column called <code>discount_pct</code> that was populated with integers in most rows but contained a string <code>"N/A"</code> for legacy product lines. Schema inference sampled the first rows, saw integers, inferred the column as LongType, and then failed with a type cast error when it encountered the string value mid-file.</p>
+            <p>The pipeline failed silently at 3am, was discovered at 8am by the Finance team when their daily revenue report was empty, and took two hours to diagnose because the error message pointed to a serialisation exception rather than the source column. The fix was an explicit schema definition where <code>discount_pct</code> was declared as StringType with downstream cleaning logic in Silver.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Schema inference is a development convenience, not a production pattern. Every Bronze read in a production pipeline should have an explicit schema. When source schemas change, you get a clear error at the schema definition rather than a cryptic serialisation failure mid-execution.</p></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Caching and persisting DataFrames</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>If you reference the same DataFrame multiple times in a pipeline (once for a count check, once for a write), Spark re-executes the full lineage from the source for each reference by default. <code>df.cache()</code> materialises the DataFrame in Executor memory after the first action, so subsequent actions use the cached version.</p>
+              <p><code>df.persist(StorageLevel.MEMORY_AND_DISK)</code> allows overflow to disk if the DataFrame is too large for Executor memory. <code>df.unpersist()</code> releases the cache explicitly. On Databricks, cached DataFrames persist across notebook cells until unpersisted or until the cluster restarts — accumulated caches silently consume Executor memory over a session.</p>
+              <p>Use caching when: the same expensive DataFrame (complex join, large read) is referenced in two or more downstream actions. Do not cache DataFrames that are used only once — caching adds overhead with no benefit.</p>
+          </div></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>repartition() vs coalesce() for DataFrames</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>Covered in detail in Section 2.2 for storage partitioning — the same principles apply to PySpark DataFrames in memory.</p>
+              <p><code>df.repartition(n)</code> performs a full shuffle: all data is redistributed across n new partitions. Use to increase partition count or to redistribute data by a specific column (<code>df.repartition(200, "customer_id")</code> ensures all rows for a customer land on the same partition before a groupBy or join).</p>
+              <p><code>df.coalesce(n)</code> reduces partition count without a full shuffle by merging partitions on the same Executor. Use after filtering a large DataFrame down to a small result. Coalesced partitions may be uneven in size.</p>
+              <p>The typical production pattern: after a large filter that reduces rows by 90%, coalesce before writing to avoid writing many tiny Parquet files. <code>df.filter(...).coalesce(20).write.format("delta")...</code></p>
+          </div></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>schema evolution in Delta writes</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>Delta Lake enforces schema-on-write by default: a write fails if the incoming DataFrame has columns not present in the existing table. Two options to allow evolution:</p>
+              <p><code>.option("mergeSchema", "true")</code> on the write: adds new columns to the Delta table schema, writes NULL for those columns in existing rows. Safe for additive changes. Use on Bronze tables to absorb source schema changes.</p>
+              <p><code>.option("overwriteSchema", "true")</code> with <code>.mode("overwrite")</code>: replaces the table schema entirely. Dangerous — destroys existing column definitions. Only appropriate when intentionally redesigning a table.</p>
+              <p>Production guidance: Bronze allows mergeSchema. Silver schema changes should be reviewed (they represent changes to the shared trusted data contract). Gold enforces strict schema because Power BI reports depend on column names and types remaining stable.</p>
+          </div></div>
+        </div>        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text"><h3>Learning Check</h3><p>Section 3.5 &nbsp;&middot;&nbsp; PySpark</p></div>
+            <div class="quiz-score-wrap"><div class="quiz-score-num">0/5</div><div class="quiz-score-label">Score</div></div>
+          </div>
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">You write df.filter(F.col("status") == "completed"). What happens when this line executes?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Spark scans the DataFrame and removes non-matching rows immediately</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Spark records this transformation in the DAG — no data is read or processed yet</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Spark validates that the "status" column exists and contains string values</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Spark reads a sample of rows to estimate filter selectivity</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> filter() is a transformation — it is lazy. Spark adds a filter node to the DAG and returns immediately. No data is read, no computation occurs. The transformation executes only when an action (write, count, show) is called. This is why transformation calls appear instantaneous in notebook timing.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">A 250MB customer dimension needs to be joined to a 2-billion-row fact table. What is the most effective PySpark optimisation?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Increase spark.sql.shuffle.partitions to 2000</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Use df_fact.join(broadcast(df_customers), on="customer_sk") to send the dimension to every Executor and eliminate the fact table shuffle</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Write the dimension to Delta first, then join using spark.table()</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Repartition the fact table by customer_sk before joining</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The broadcast hint sends the dimension (250MB) to every Executor, eliminating the need to shuffle the 2-billion-row fact table. The automatic broadcast threshold is 10MB — the hint explicitly tells Spark to broadcast above that threshold. This is the single highest-impact optimisation for large-to-small-table joins. Increasing shuffle partitions (option A) changes partition count but does not eliminate the shuffle itself.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">What does .option("mergeSchema", "true") do on a Delta write?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Merges duplicate rows by a specified key before writing</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Adds new columns from the source DataFrame to the Delta table schema; existing rows receive NULL for the new columns</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Overwrites the entire Delta table schema with the new DataFrame schema</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Prevents writing if the schema has changed since the last run</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> mergeSchema enables additive schema evolution: new columns are added to the Delta table, existing rows get NULL for those columns. It does not merge rows (that is MERGE INTO). It does not overwrite the schema (that is overwriteSchema). Without it, a write with new columns fails with a schema mismatch error. Use mergeSchema on Bronze to absorb source schema changes; use strict enforcement on Silver and Gold.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">You cache a DataFrame and use it in two write operations. The notebook finishes running. When is the cache released?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">When the notebook cell containing .cache() finishes</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">After 60 minutes of inactivity</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">When explicitly called with df.unpersist(), or when the cluster restarts</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">When the next notebook opens on the same cluster</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Spark caches persist in Executor memory until explicitly released with df.unpersist() or until the cluster restarts. They do not release when a cell or notebook completes. Over a long session, accumulated caches consume Executor memory and eventually cause out-of-memory errors or slow processing. Always call df.unpersist() when a cached DataFrame is no longer needed.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A PySpark pipeline reads Bronze Parquet without specifying a schema. A source system adds a new column containing mostly integers but "N/A" strings for legacy records. What happens?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Spark reads the column as StringType and the pipeline continues without error</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Spark infers LongType from early rows, fails with a type cast error when it encounters "N/A", producing a confusing runtime exception</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Spark skips rows containing "N/A" and processes the rest</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Spark automatically widens the type to StringType when it encounters the mixed values</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Schema inference samples early rows, sees integers, and infers LongType. When it later encounters "N/A" it attempts to cast it to Long, fails, and throws a serialisation exception — often with an error message that does not clearly identify the column. This is why explicit schemas are the production standard. With an explicit schema declaring the column as StringType, the pipeline accepts all values and the cleaning logic in Silver handles the "N/A" to NULL conversion.</p></div></div>
+          </div>
+
+          <div class="quiz-final"><div class="quiz-final-score">&mdash;</div><p class="quiz-final-msg"></p><button class="quiz-retry-btn">Try Again</button></div>
+        </section>
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>PySpark is Python's interface to Apache Spark. Transformations (filter, select, join, groupBy, withColumn) are lazy — they build a DAG. Actions (write, count, show) trigger DAG execution. Always define explicit schemas on Bronze reads rather than relying on inference. broadcast() on a small dimension table eliminates the shuffle of a large fact table — the single most impactful single-line PySpark optimisation. Delta MERGE handles upserts atomically. Cache DataFrames used multiple times; always call unpersist() when done. mergeSchema allows additive column additions to existing Delta tables.</p>
+        </div>
+        <div class="info-box gold">
+          <div class="info-label">Coming in the Next Section</div>
+          <p>Section 3.6 covers Delta Lake and file formats: why file format choice matters, Parquet vs Avro vs ORC, Delta Lake's transaction log, ACID guarantees, time travel, OPTIMIZE, VACUUM, and the Delta vs Iceberg landscape in 2026.</p>
+        </div>
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+        <nav class="sec-nav">
+          <a href="3-4-spark-databricks.html" class="sec-nav-btn sec-nav-prev"><span class="sec-nav-arrow">&#8592;</span><span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">3.4 Spark & Databricks</span></span></a>
+          <a href="3-6-delta-lake.html" class="sec-nav-btn sec-nav-next"><span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">3.6 Delta Lake & File Formats</span></span><span class="sec-nav-arrow">&#8594;</span></a>
+        </nav>
+        <footer class="page-foot">
+          <div class="fl">Part 3 &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">14</div>
+        </footer>
+      </article>
+      <aside class="margin-col">
+                <div class="ms" style="height:130px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Lazy Rule</div>
+          <p>Transformations build the DAG. Actions run it. If a Spark line appears instantaneous, it is a transformation. Time your pipeline at the write step.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Schema Inference</div>
+          <p>Never use schema inference in production. It reads data twice and infers wrong types on mixed-value columns. Always define an explicit StructType.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Broadcast First</div>
+          <p>Before adding cluster nodes to fix a slow join, check the Spark UI. A sort-merge join where one side is small is a broadcast candidate. One line fix, 10x speed improvement.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">unpersist()</div>
+          <p>df.cache() persists until df.unpersist() or cluster restart. Accumulated caches silently consume Executor memory. Release caches when done.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+
+      </aside>
+    </div>
+  </div>
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('3.5');</script>
+</body>
+</html>

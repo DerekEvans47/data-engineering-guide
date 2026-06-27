@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2.2 Partitions · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="2.2">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Two &nbsp;&middot;&nbsp; Data Fundamentals</div>
+          <div class="chap-num">2.2</div>
+          <h1 class="chap-title">Partitions</h1>
+          <p class="chap-sub">One word, three completely different concepts &mdash; and why confusing them causes real problems</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Name and distinguish the three distinct types of partitioning used in data engineering</li>
+            <li>Explain storage partitioning, partition pruning, and the small files problem</li>
+            <li>Describe SQL table partitioning and when it improves query performance</li>
+            <li>Explain Spark compute partitioning and how it affects parallel execution</li>
+            <li>Evaluate when to use Liquid Clustering instead of traditional storage partitioning in Databricks</li>
+          </ol>
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">2.2.1</span><h2 class="sec-title">Three Things Called "Partition"</h2></div>
+
+        <p>No word in data engineering causes more confusion than "partition." It is used freely in conversations, documentation, and job descriptions &mdash; and it means three completely different things depending on context. A senior data engineer discussing partitions in a storage context means something entirely different from one discussing partitions in a Spark context, and both mean something different from a DBA discussing SQL table partitions. All three concepts are important. Conflating them leads to misdiagnosed performance problems and mis-designed architectures.</p>
+
+        <div class="hl-block">
+          <strong>Storage partitioning</strong> is how files are organised in a data lake folder hierarchy. <strong>SQL table partitioning</strong> is a database-level feature that splits a table into physical segments for query performance. <strong>Spark compute partitioning</strong> is how Spark distributes data across executor cores for parallel processing. The word is the same. The mechanism, the purpose, and the optimisation levers are entirely different in each case.
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">2.2.2</span><h2 class="sec-title">Storage Partitioning: Organising Your Data Lake</h2></div>
+
+        <p>When you write data to a data lake (ADLS, S3, GCS), you can organise files in a folder hierarchy that reflects a key column&apos;s values. A table partitioned by date might be stored as:</p>
+
+        <pre style="background:#0F1B2D;color:#C8E0FF;padding:14px 18px;border-radius:6px;font-size:12px;line-height:1.6;overflow-x:auto;margin:16px 0;">/sales/
+  year=2024/
+    month=01/
+      day=01/  &#9500; part-00001.parquet
+               &#9492; part-00002.parquet
+      day=02/  &#9492; part-00001.parquet
+    month=02/
+      day=01/  &#9492; part-00001.parquet</pre>
+
+        <p>The benefit is <strong>partition pruning</strong>: when a query includes a filter on a partition column, the engine reads only the relevant folders. A query with <code>WHERE year = 2024 AND month = 01</code> reads only two files instead of the entire dataset. For large tables, this can reduce data scanned from terabytes to gigabytes &mdash; directly translating to faster queries and lower Databricks compute cost.</p>
+
+        <p>In Delta Lake, you declare the partition column at table creation:</p>
+
+        <div class="code-wrap">
+          <div class="code-label">Spark SQL (Databricks) &nbsp;&middot;&nbsp; Create a partitioned Delta table<button class="copy-btn">Copy</button></div>
+          <pre><code>CREATE TABLE silver.sales_transactions (
+    transaction_id   BIGINT,
+    customer_id      BIGINT,
+    amount           DECIMAL(12,2),
+    status           STRING,
+    transaction_date DATE
+)
+USING DELTA
+PARTITIONED BY (transaction_date)
+LOCATION 'abfss://silver@yourlake.dfs.core.windows.net/sales/';
+
+-- When writing with PySpark, partition columns go in partitionBy()
+df.write \
+  .format("delta") \
+  .mode("append") \
+  .partitionBy("transaction_date") \
+  .save("abfss://silver@yourlake.dfs.core.windows.net/sales/")</code></pre>
+        </div>
+        <p>Partition pruning only fires when the filter is on the <em>exact partition column</em>. A query filtering on <code>MONTH(transaction_date) = 1</code> does not trigger pruning because the engine cannot determine which partition folders satisfy a derived function without reading them all. This is a very common performance mistake: engineers assume a date function filter will prune partitions, and it does not.</p>
+
+        <h3 class="subsec">The Small Files Problem</h3>
+        <p>The most expensive partition mistake is partitioning by a column with high cardinality or by too many columns simultaneously. If you partition a sales table by <code>customer_id</code> and you have two million customers, you create two million partition folders &mdash; each potentially containing tiny files. Reading this table requires opening two million directory listings before a single data file is touched. Query planning time alone can exceed query execution time.</p>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A SaaS Analytics Platform &nbsp;&middot;&nbsp; Over-Partitioning</span>
+          </div>
+          <div class="field-note-body">            <p>A SaaS company building an analytics platform for their customers partitioned their event table by <code>customer_id</code>, reasoning that customers would always query their own data and partition pruning would make those queries fast. With 850,000 customer accounts, this created 850,000 partition directories. Each directory averaged three files of around 200KB.</p>
+            <p>Queries that filtered by a single customer_id were fast. Queries that aggregated across all customers &mdash; needed for platform-level reporting &mdash; were catastrophically slow. The query planner had to resolve 850,000 directory paths before reading any data. A full-table scan that should have taken 40 seconds took 18 minutes. The fix was to remove the customer_id partition and replace it with a date partition (which was the actual query pattern for most reports) plus Liquid Clustering on customer_id (covered in Section 2.2.5). Platform-wide queries dropped from 18 minutes to 55 seconds.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Partition columns should have low-to-moderate cardinality and should match your most common filter pattern. Date (year/month) is the canonical correct choice for most transactional data. Customer IDs, product IDs, and user IDs almost never make good partition columns.</p></div>
+        </div>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="fs22"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.14)"/></filter>
+                <marker id="ma22" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 7 3.5, 0 7" fill="#0076CC"/></marker>
+              </defs>
+              <rect width="700" height="280" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="22" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">Storage Partitioning &mdash; Partition Pruning in Action</text>
+
+              <!-- Full table files (left) -->
+              <rect x="14" y="34" width="196" height="220" rx="7" fill="#FFF4EF" stroke="#C06030" stroke-width="1.5" filter="url(#fs22)"/>
+              <rect x="14" y="34" width="196" height="26" rx="7" fill="#C06030"/>
+              <rect x="14" y="50" width="196" height="10" fill="#9A4020"/>
+              <text x="112" y="50" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Unpartitioned Table</text>
+              <text x="112" y="61" fill="rgba(255,200,180,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">WHERE transaction_date = '2024-03-15'</text>
+              <!-- file icons -->
+              <text x="30" y="84" fill="#C06030" font-family="monospace,sans-serif" font-size="8.5">&#128196; part-000001.parquet  (Jan)</text>
+              <text x="30" y="98" fill="#C06030" font-family="monospace,sans-serif" font-size="8.5">&#128196; part-000002.parquet  (Feb)</text>
+              <text x="30" y="112" fill="#C06030" font-family="monospace,sans-serif" font-size="8.5">&#128196; part-000003.parquet  (Mar)</text>
+              <text x="30" y="126" fill="#C06030" font-family="monospace,sans-serif" font-size="8.5">&#128196; part-000004.parquet  (Apr)</text>
+              <text x="30" y="140" fill="#C06030" font-family="monospace,sans-serif" font-size="8.5">&#128196; part-000005.parquet  (May)</text>
+              <text x="30" y="154" fill="#C06030" font-family="monospace,sans-serif" font-size="8.5">&#128196; part-000006.parquet  (Jun)</text>
+              <text x="30" y="168" fill="#A05020" font-family="monospace,sans-serif" font-size="8">&#8942; &nbsp;(12 files total)</text>
+              <rect x="22" y="182" width="180" height="24" rx="4" fill="#C06030" opacity=".15"/>
+              <text x="112" y="194" fill="#C06030" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">&#9888; Must scan ALL 12 files</text>
+              <text x="112" y="207" fill="#C06030" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">to find March records</text>
+              <text x="112" y="235" fill="#C06030" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">12 files read &middot; Full table scan</text>
+
+              <!-- Arrow -->
+              <text x="232" y="146" fill="#6080A0" font-family="Inter,sans-serif" font-size="18" text-anchor="middle">&#8644;</text>
+              <text x="232" y="162" fill="#6080A0" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">vs</text>
+
+              <!-- Partitioned (right) -->
+              <rect x="252" y="34" width="432" height="220" rx="7" fill="#F0F7FF" stroke="#0076CC" stroke-width="1.5" filter="url(#fs22)"/>
+              <rect x="252" y="34" width="432" height="26" rx="7" fill="#0F2447"/>
+              <rect x="252" y="50" width="432" height="10" fill="#0A1A30"/>
+              <text x="468" y="50" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Partitioned by transaction_date</text>
+              <text x="468" y="61" fill="rgba(160,200,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">WHERE transaction_date = '2024-03-15'</text>
+
+              <!-- folder structure -->
+              <text x="266" y="82" fill="#1B3A6B" font-family="monospace,sans-serif" font-size="8.5">&#128193; year=2024/</text>
+              <text x="278" y="97" fill="#4A6A9A" font-family="monospace,sans-serif" font-size="8.5">&#9500;&#9472; &#128193; month=01/ &nbsp;[2 files]</text>
+              <text x="278" y="112" fill="#4A6A9A" font-family="monospace,sans-serif" font-size="8.5">&#9500;&#9472; &#128193; month=02/ &nbsp;[2 files]</text>
+
+              <!-- Highlighted month=03 -->
+              <rect x="276" y="118" width="248" height="52" rx="5" fill="#0076CC" opacity=".12" stroke="#0076CC" stroke-width="1.5"/>
+              <text x="278" y="131" fill="#0076CC" font-family="monospace,sans-serif" font-size="8.5" font-weight="700">&#9500;&#9472; &#128193; month=03/  &#9664;&#9664; PRUNED TO HERE</text>
+              <text x="294" y="146" fill="#0076CC" font-family="monospace,sans-serif" font-size="8">&#9500;&#9472; &#128196; day=15/ &#9664; ONLY THIS FILE READ</text>
+              <text x="294" y="159" fill="#7AAABB" font-family="monospace,sans-serif" font-size="8">&#9492;&#9472; &#128196; day=16/  [skipped]</text>
+
+              <text x="278" y="176" fill="#4A6A9A" font-family="monospace,sans-serif" font-size="8.5">&#9500;&#9472; &#128193; month=04/ &nbsp;[2 files] &nbsp;&#128274; skipped</text>
+              <text x="278" y="190" fill="#7A9ACA" font-family="monospace,sans-serif" font-size="8">&#8942; &nbsp;(months 05–12 skipped entirely)</text>
+
+              <text x="468" y="235" fill="#0076CC" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">1 file read &middot; 11 skipped &mdash; Partition pruning active</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 2.3</strong>
+            <span>Partition pruning in action. An unpartitioned table requires scanning all 12 files to find records from a specific date. A table partitioned by date lets the engine skip directly to the relevant folder and read only the one matching file. The performance difference scales with table size &mdash; on petabyte-scale tables, partition pruning can reduce data scanned by 99%.</span>
+          </div>
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">2.2.3</span><h2 class="sec-title">SQL Table Partitioning: The Database-Level Feature</h2></div>
+
+        <p>SQL table partitioning (available in SQL Server, Azure SQL, PostgreSQL, and others) is a relational database feature where a single logical table is physically split into multiple storage segments called partitions. Unlike storage partitioning in a data lake, SQL table partitioning is invisible to the query writer &mdash; queries use the table name, the database engine decides which partitions to read.</p>
+
+        <p>The typical use case is a large transaction table partitioned by month. Each month is a separate physical segment. Rolling off old data is a metadata operation (switch the old partition out) rather than a row-by-row DELETE. Maintenance operations like index rebuilds can target one partition at a time. For very large SQL Server tables, this is a genuine performance and manageability win.</p>
+
+        <p>In Databricks and modern lakehouses, SQL table partitioning as a distinct concept is less relevant because the storage partitioning and Delta Lake together achieve the same query optimisation goal. The distinction matters most when you are working with SQL Server, Azure SQL Managed Instance, or Azure Synapse SQL pools.</p>
+
+        <p class="table-hint">Tap any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr><th>Dimension</th><th>Storage Partitioning (Data Lake)</th><th>SQL Table Partitioning (RDBMS)</th><th>Spark Compute Partitioning</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Where it lives</strong></td><td>ADLS / S3 folder hierarchy</td><td>Inside the database engine</td><td>In-memory across Spark executors</td></tr>
+            <tr><td><strong>Purpose</strong></td><td>Reduce files scanned (pruning)</td><td>Manageability, partition switching, pruning</td><td>Parallelise computation</td></tr>
+            <tr><td><strong>Who sets it</strong></td><td>Data engineer at table creation</td><td>DBA or data engineer at table design</td><td>Spark automatically; engineer can tune</td></tr>
+            <tr><td><strong>Visible to query writer?</strong></td><td>No (transparent)</td><td>No (transparent)</td><td>No (but configurable via spark.sql.shuffle.partitions)</td></tr>
+            <tr><td><strong>Common mistake</strong></td><td>High-cardinality column → small files</td><td>Wrong partition key for query patterns</td><td>Too few partitions → underutilised cores; too many → shuffle overhead</td></tr>
+            <tr><td><strong>Modern alternative</strong></td><td>Liquid Clustering (Databricks)</td><td>Columnstore indexes for analytics</td><td>Adaptive Query Execution (AQE)</td></tr>
+          </tbody>
+        </table>
+
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="fs22b"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.14)"/></filter>
+                <linearGradient id="g22a" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0076CC"/><stop offset="100%" stop-color="#0050AA"/></linearGradient>
+                <linearGradient id="g22b" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1B3A6B"/><stop offset="100%" stop-color="#0F2447"/></linearGradient>
+                <linearGradient id="g22c" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#C8892A"/><stop offset="100%" stop-color="#8A5010"/></linearGradient>
+              </defs>
+              <rect width="700" height="240" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="22" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">Three Types of Partition &mdash; Same Word, Different Systems</text>
+
+              <!-- Storage Partition -->
+              <rect x="12" y="34" width="212" height="186" rx="8" fill="url(#g22a)" filter="url(#fs22b)"/>
+              <text x="118" y="56" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="2" text-anchor="middle">STORAGE PARTITION</text>
+              <text x="118" y="70" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">Folder hierarchy in lake</text>
+              <line x1="22" y1="78" x2="212" y2="78" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="118" y="93" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&#128193; year=2024/month=01/</text>
+              <text x="118" y="108" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Files organised by column value</text>
+              <text x="118" y="123" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Query reads only matching folders</text>
+              <line x1="22" y1="135" x2="212" y2="135" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="118" y="151" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">System: ADLS · Delta Lake · S3</text>
+              <text x="118" y="165" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Set at: Table creation</text>
+              <text x="118" y="179" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Purpose: Reduce files scanned</text>
+              <text x="118" y="195" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">Modern alt: Liquid Clustering</text>
+              <text x="118" y="209" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Choose: date · region · category</text>
+
+              <!-- SQL Partition -->
+              <rect x="244" y="34" width="212" height="186" rx="8" fill="url(#g22b)" filter="url(#fs22b)"/>
+              <text x="350" y="56" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="2" text-anchor="middle">SQL TABLE PARTITION</text>
+              <text x="350" y="70" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">RDBMS physical segments</text>
+              <line x1="254" y1="78" x2="444" y2="78" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="350" y="93" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&#128196; Table split into physical parts</text>
+              <text x="350" y="108" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Transparent to the query writer</text>
+              <text x="350" y="123" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Enables partition switching</text>
+              <line x1="254" y1="135" x2="444" y2="135" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="350" y="151" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">System: SQL Server · Azure SQL</text>
+              <text x="350" y="165" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Set at: Table design</text>
+              <text x="350" y="179" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Purpose: Manageability &amp; pruning</text>
+              <text x="350" y="195" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">Modern alt: Columnstore indexes</text>
+              <text x="350" y="209" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Mostly a DBA / SQL Server concern</text>
+
+              <!-- Spark Partition -->
+              <rect x="476" y="34" width="212" height="186" rx="8" fill="url(#g22c)" filter="url(#fs22b)"/>
+              <text x="582" y="56" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="2" text-anchor="middle">SPARK PARTITION</text>
+              <text x="582" y="70" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">In-memory compute chunk</text>
+              <line x1="486" y1="78" x2="676" y2="78" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="582" y="93" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&#9211; Data split across executors</text>
+              <text x="582" y="108" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Each chunk = one parallel task</text>
+              <text x="582" y="123" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">No files reorganised</text>
+              <line x1="486" y1="135" x2="676" y2="135" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="582" y="151" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">System: Spark · Databricks</text>
+              <text x="582" y="165" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Set at: Runtime (auto or manual)</text>
+              <text x="582" y="179" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Purpose: Parallelise computation</text>
+              <text x="582" y="195" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">Tune: shuffle.partitions / AQE</text>
+              <text x="582" y="209" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Symptom: slow tasks = skew</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 2.4</strong>
+            <span>Three types of partition, side by side. Storage partitioning organises files in folder hierarchies for query pruning. SQL table partitioning splits a relational table into physical segments for manageability. Spark compute partitioning divides data across executor cores for parallelism. They coexist independently &mdash; a Spark job reading a storage-partitioned Delta table uses both storage partitions and Spark compute partitions simultaneously.</span>
+          </div>
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">2.2.4</span><h2 class="sec-title">Spark Compute Partitioning: Parallelism Under the Hood</h2></div>
+
+        <p>When Spark reads a dataset, it divides it into chunks called partitions and assigns each chunk to an executor core for processing. This is Spark compute partitioning &mdash; it has nothing to do with the physical file organisation in the lake, even though the term is the same. A Spark job on a dataset with 200 compute partitions runs 200 tasks in parallel (up to the number of available cores). The split happens in memory; no files are reorganised.</p>
+
+        <p>The default number of Spark shuffle partitions (created during operations like <code>GROUP BY</code>, <code>JOIN</code>, and <code>DISTINCT</code> that require redistributing data across executors) is controlled by <code>spark.sql.shuffle.partitions</code>. The default value is 200. For small datasets, 200 partitions means 200 tiny tasks &mdash; the overhead of launching each task exceeds the work it does. For very large datasets, 200 partitions may be too few, leaving cores idle while large tasks process slowly.</p>
+
+        <div class="code-wrap">
+          <div class="code-label">PySpark &nbsp;&middot;&nbsp; Tuning compute partitions<button class="copy-btn">Copy</button></div>
+          <pre><code># Check current partition count on a DataFrame
+print(df.rdd.getNumPartitions())   # e.g. 200
+
+# Increase partitions before a heavy shuffle (large dataset)
+df_repartitioned = df.repartition(800)
+
+# Decrease partitions after filtering (avoids many tiny tasks)
+df_small = df.filter(df.region == "UK").coalesce(10)
+# coalesce() reduces without a full shuffle (cheaper than repartition)
+# repartition() does a full shuffle — use when you also want to redistribute data
+
+# Set shuffle partitions for the whole session
+spark.conf.set("spark.sql.shuffle.partitions", "400")
+
+# Or let Adaptive Query Execution (AQE) decide automatically (Spark 3.0+)
+spark.conf.set("spark.sql.adaptive.enabled", "true")
+# AQE dynamically coalesces shuffle partitions at runtime
+# This is now the default in Databricks Runtime 7.3+</code></pre>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Data skew — when one partition ruins the whole job</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>A perfectly set partition count does not guarantee good performance if data is unevenly distributed. If one partition receives 80% of the data &mdash; a common result when partitioning by a column with a highly skewed distribution, like <code>country</code> when 90% of records are from one country &mdash; one executor task runs for minutes while all others finish in seconds. The job's total time is determined by the slowest task.</p>
+              <p>This is called <strong>data skew</strong>, and it is one of the most common causes of unexpectedly slow Spark jobs. Symptoms: the Spark UI shows tasks completing quickly except for one or two that drag on far longer than the rest.</p>
+              <p><strong>Common fixes:</strong> salting (adding a random suffix to skewed keys before joining, then removing it after), using Adaptive Query Execution's skew join optimisation (enabled by default in Databricks 7.3+), or pre-aggregating the skewed data before the problematic join.</p>
+              <p><strong>Broadcast joins</strong> are a separate but related optimisation: if one side of a join is small enough to fit in memory, Spark can broadcast it to every executor rather than shuffling the large table. Controlled with <code>spark.sql.autoBroadcastJoinThreshold</code> (default 10MB). For lookups against small dimension tables, broadcast joins can eliminate shuffle entirely.</p>
+          </div></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>repartition() vs coalesce() — which reorganises data and which does not</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p><code>repartition(n)</code> performs a full shuffle: every record is redistributed across the new <code>n</code> partitions. Use it when you want to increase partition count, or when you want to redistribute data by a specific column (e.g. <code>repartition(200, "customer_id")</code> ensures all records for a customer land on the same partition before a join).</p>
+              <p><code>coalesce(n)</code> reduces partition count without a full shuffle. It merges partitions on the same executor, avoiding the network transfer cost. Use it when you want to reduce partition count after filtering a large dataset down to a small result. The trade-off: coalesced partitions may be uneven in size because it avoids the equalising effect of a full shuffle.</p>
+              <p>The rule: use <code>coalesce()</code> to reduce, <code>repartition()</code> to increase or to redistribute by a key. Calling <code>repartition()</code> to reduce is wasteful but not incorrect.</p>
+          </div></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Choosing the right partition column &mdash; a decision framework</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>Choosing a partition column is a one-time decision with long-term consequences. The right framework has three questions:</p>
+              <p><strong>1. What column appears in WHERE clauses on 80%+ of queries?</strong> Partition pruning only benefits queries that filter on the partition column. If your analysts mostly filter by date, partition by date. If they filter by region, partition by region. A partition column that does not appear in common query filters provides no benefit and adds file overhead.</p>
+              <p><strong>2. What is the cardinality of that column?</strong> Low-to-moderate cardinality is ideal. Partition by year/month gives 12–120 partitions over a decade &mdash; manageable. Partition by day gives ~3,650 &mdash; still fine. Partition by hour gives ~87,600 &mdash; getting problematic. Partition by individual customer ID (millions of values) &mdash; always wrong.</p>
+              <p><strong>3. How will data be written?</strong> Partition columns that match your write pattern avoid rewriting across many partitions. If you write daily batches, partitioning by date means each write lands in one folder. If your writes span many dates (backfills, late-arriving data corrections), each write touches many partition folders, causing fragmentation and small files over time.</p>
+              <p><strong>The default recommendation for most transactional tables:</strong> partition by <code>year</code> and <code>month</code> at the top two levels, not by <code>date</code> alone. Querying a full month reads one folder. Querying a year reads twelve. Querying a specific day reads one. This gives efficient pruning at multiple granularities without folder explosion.</p>
+          </div></div>
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">2.2.5</span><h2 class="sec-title">Liquid Clustering: The Modern Databricks Alternative</h2></div>
+
+        <p>Traditional storage partitioning has a design flaw: you must commit to one partition column at table creation. If your primary query pattern changes &mdash; or if users query by multiple different columns &mdash; the partition scheme becomes a liability. Re-partitioning an existing large table means rewriting every file: an expensive, disruptive operation.</p>
+
+        <p>Databricks introduced <span class="kt" data-term="Liquid Clustering">Liquid Clustering</span> in Databricks Runtime 13.3 as a modern replacement. Instead of physically organising files into partition folders, Liquid Clustering uses Z-ordering and file-level statistics to cluster data by one or more columns while keeping the table in a flat, non-hierarchical layout. The clustered columns can be changed at any time without rewriting the data. The optimiser uses file statistics to skip irrelevant files at query time &mdash; achieving similar pruning benefits without the partition folder hierarchy.</p>
+
+        <div class="code-wrap">
+          <div class="code-label">SQL (Databricks) &nbsp;&middot;&nbsp; Liquid Clustering vs traditional partitioning<button class="copy-btn">Copy</button></div>
+          <pre><code>-- TRADITIONAL PARTITIONING (partition column fixed at creation)
+CREATE TABLE silver.orders
+USING DELTA
+PARTITIONED BY (order_date)          -- committed forever
+LOCATION 'abfss://...';
+
+-- Cannot easily change the partition column later.
+-- Querying by customer_id instead of order_date = full scan.
+
+-- ─────────────────────────────────────────────────────────────
+
+-- LIQUID CLUSTERING (Databricks 13.3+)
+CREATE TABLE silver.orders_clustered
+USING DELTA
+CLUSTER BY (order_date, customer_id)  -- multiple columns supported
+LOCATION 'abfss://...';
+
+-- Change clustering columns anytime (no data rewrite required):
+ALTER TABLE silver.orders_clustered
+CLUSTER BY (customer_id, product_id);
+
+-- Trigger clustering optimisation (runs incrementally):
+OPTIMIZE silver.orders_clustered;</code></pre>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Retail Analytics Team &nbsp;&middot;&nbsp; Re-partitioning Pain</span>
+          </div>
+          <div class="field-note-body">            <p>A retail company's data team partitioned their 5TB transactions table by <code>order_date</code> when it was first built. This was the right call &mdash; 90% of queries at the time filtered by date range. Two years later, the business changed: the data science team needed to query by <code>product_category</code>, the finance team by <code>store_id</code>, and marketing by <code>customer_segment</code>. None of these benefited from date partitioning. Full-table scans ran daily against a 5TB table.</p>
+            <p>The team evaluated re-partitioning by a composite key. The rewrite would take 14 hours of Databricks compute and require a maintenance window. They migrated to Liquid Clustering instead. The initial OPTIMIZE run took 6 hours. Subsequent incremental OPTIMIZE runs (triggered after each daily load) took under 15 minutes. Queries filtering by <code>product_category</code> that previously scanned the entire 5TB table now scanned an average of 200GB, achieved by file-level statistics skipping 96% of files.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Liquid Clustering is the right default for new Databricks tables where query patterns may evolve, multiple filter columns are common, or you want to avoid committing to a partition column permanently. Traditional partitioning by date remains valid for append-only tables where the filter pattern is extremely stable.</p></div>
+        </div>
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>"Partition" means three different things. <strong>Storage partitioning</strong> organises lake files in folder hierarchies by a column value, enabling partition pruning that skips irrelevant files at query time &mdash; choose low-cardinality columns, avoid high-cardinality columns that cause the small files problem. <strong>SQL table partitioning</strong> is a relational database feature for manageability and query optimisation on very large RDBMS tables. <strong>Spark compute partitioning</strong> divides data across executor cores for parallel processing &mdash; tune with <code>spark.sql.shuffle.partitions</code> or let Adaptive Query Execution manage it automatically. In Databricks, <strong>Liquid Clustering</strong> is the modern alternative to storage partitioning: clustering on multiple columns without a folder hierarchy, changeable without rewriting data, and well-suited to tables with multiple query patterns.</p>
+        </div>
+
+        <div class="info-box gold">
+          <div class="info-label">Coming in Section 2.3 &mdash; Data Terminology</div>
+          <p>Section 2.3 builds a shared vocabulary for the terms that appear constantly in data engineering conversations and documentation: idempotency, backfill, CDC, schema drift, data skew, upsert, SLA/SLO/SLI, data contracts, and thirty more. Understanding these terms precisely is what separates practitioners who communicate clearly from those who talk past each other.</p>
+        </div>
+
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text"><h3>Learning Check</h3><p>Section 2.2 &nbsp;&middot;&nbsp; Partitions</p></div>
+            <div class="quiz-score-wrap"><div class="quiz-score-num">0/5</div><div class="quiz-score-label">Score</div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A Databricks query filters with WHERE YEAR(transaction_date) = 2024. The table is partitioned by transaction_date. Does partition pruning fire?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Yes &mdash; the engine is smart enough to know YEAR(transaction_date) = 2024 maps to the year=2024 partition folder</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">No &mdash; partition pruning requires a direct filter on the exact partition column (e.g. WHERE transaction_date BETWEEN ...), not a derived function applied to it</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">It depends on whether the table uses Delta Lake or plain Parquet</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Yes, but only if the partition is on a date type rather than a timestamp</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Partition pruning requires the engine to resolve which partition folders satisfy a filter <em>without reading the data</em>. A derived function like <code>YEAR(transaction_date)</code> cannot be resolved to specific folder paths without evaluating every row. The engine falls back to a full scan. To use partition pruning with date ranges, use <code>WHERE transaction_date &gt;= '2024-01-01' AND transaction_date &lt; '2025-01-01'</code> &mdash; the engine can resolve this to the year=2024 folders directly.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">Your team is designing a Delta Lake table that will hold 500 million customer events. The primary query pattern filters by customer_id. There are 8 million unique customers. Should you partition by customer_id?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Yes &mdash; high-cardinality columns are ideal partition keys because they enable fine-grained pruning</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">No &mdash; 8 million partition folders creates the small files problem. Use Liquid Clustering on customer_id instead</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Yes, but only if each customer has at least 1GB of data</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Partition by customer_id and event_date together to reduce the number of folders per customer</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Partitioning by 8 million unique values creates 8 million partition folders, each containing tiny files. Query planning overhead dominates execution time. Liquid Clustering on <code>customer_id</code> achieves similar per-customer file skipping via Z-ordering and file statistics without creating a folder per customer. Option D (composite partition) reduces but does not eliminate the problem &mdash; 8 million &times; ~365 days = billions of partitions.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A Spark job runs 200 shuffle tasks. In the Spark UI you notice 198 tasks complete in 30 seconds, but 2 tasks take 8 minutes each. What is the most likely cause?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">200 is too low a partition count for this dataset &mdash; increase spark.sql.shuffle.partitions to 2000</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The two slow tasks are running on underpowered executor nodes</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Data skew &mdash; two partition keys contain a disproportionate share of the data, causing two tasks to process far more records than the others</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The Spark shuffle spilled to disk on those two tasks due to insufficient executor memory</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The pattern &mdash; almost all tasks fast, two tasks dramatically slow &mdash; is the textbook signature of data skew. A small number of partition keys have an outsized share of the data; the tasks assigned to those keys process significantly more work than all others. Solutions include salting, Spark's AQE skew join optimisation, or pre-aggregating the skewed key before the join. Option D (memory spill) would typically manifest as many slow tasks, not just two.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">What is the key advantage of coalesce() over repartition() when reducing the number of Spark partitions?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">coalesce() produces more evenly sized partitions than repartition()</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">coalesce() can increase partition count as well as decrease it</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">coalesce() avoids a full shuffle by merging partitions on the same executor, making it significantly cheaper than repartition() for reducing partition count</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">coalesce() is the only method that works on Delta Lake tables</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> <code>repartition()</code> performs a full shuffle &mdash; every record crosses the network to be redistributed. <code>coalesce()</code> merges partitions that are already on the same executor node, avoiding network traffic. The trade-off is that coalesced partitions may be uneven in size. Use <code>coalesce()</code> when reducing after filtering, and <code>repartition()</code> when you also need to redistribute data by a key or increase partition count.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">You are creating a new Delta Lake table in Databricks. The business currently queries primarily by order_date, but the data science team expects to query by customer_segment and product_category within six months. Which approach gives the most future flexibility?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Partition by order_date and add ZORDER BY customer_segment, product_category in OPTIMIZE runs</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Partition by a composite of all three columns to cover all query patterns</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Create separate copies of the table partitioned differently for each team</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">D</div><div class="option-text">Use Liquid Clustering on CLUSTER BY (order_date, customer_segment, product_category) &mdash; clustering columns can be changed at any time without rewriting data as query patterns evolve</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>D is correct.</strong> Liquid Clustering supports multiple cluster columns and, crucially, allows changing those columns with an <code>ALTER TABLE ... CLUSTER BY</code> statement without rewriting the data. Traditional partitioning commits you to one layout at creation. If query patterns evolve &mdash; which they almost always do &mdash; changing a traditional partition scheme requires a full table rewrite. Option A (ZORDER) on a traditionally-partitioned table is workable but still commits you to the partition column. Liquid Clustering is the right default for tables with evolving or multiple query patterns.</p></div></div>
+          </div>
+
+          <div class="quiz-final"><div class="quiz-final-score">&mdash;</div><p class="quiz-final-msg"></p><button class="quiz-retry-btn">Try Again</button></div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="2-1-ctes.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">2.1 CTEs</span></span>
+          </a>
+          <span class="sec-nav-btn sec-nav-next sec-nav-disabled">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Coming Next</span><span class="sec-nav-name">2.3 Data Terminology</span></span>
+          </span>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 2 &nbsp;&middot;&nbsp; Data Fundamentals</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">7</div>
+        </footer>
+
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:140px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Three Different Things</div>
+          <p><strong>Storage partition</strong>: folder hierarchy in ADLS. <strong>SQL partition</strong>: physical table segment in an RDBMS. <strong>Spark partition</strong>: data chunk on an executor core. Same word &mdash; completely different concepts.</p>
+        </div>
+        <div class="ms" style="height:240px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Pruning Rule</div>
+          <p>Pruning only fires on a <strong>direct filter</strong> on the partition column &mdash; not on a function applied to it. <code>WHERE date = '2024-01-01'</code> prunes. <code>WHERE YEAR(date) = 2024</code> does not.</p>
+        </div>
+        <div class="ms" style="height:220px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Never Partition By</div>
+          <p>High-cardinality columns: user IDs, product IDs, order IDs. Millions of folders means millions of directory lookups before a single file is read. Use Liquid Clustering instead.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Spark Tuning Default</div>
+          <p>Enable <strong>Adaptive Query Execution</strong> (<code>spark.sql.adaptive.enabled=true</code>) for most workloads. AQE dynamically coalesces shuffle partitions and handles skew automatically. It is on by default in Databricks Runtime 7.3+.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Liquid Clustering</div>
+          <p>Databricks 13.3+. Replaces traditional partitioning. Multiple cluster columns. Changeable without data rewrite. Best for tables with evolving query patterns. Run <code>OPTIMIZE</code> after each load.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"Why was your Spark job slow?" &mdash; first check the Spark UI for task duration distribution. All tasks similar = partition count problem. A few tasks much longer = data skew. Night-and-day different root causes.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('2.2');</script>
+</body>
+</html>

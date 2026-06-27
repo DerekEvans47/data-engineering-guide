@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2.1 CTEs · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="2.1">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Two &nbsp;&middot;&nbsp; Data Fundamentals</div>
+          <div class="chap-num">2.1</div>
+          <h1 class="chap-title">Common Table Expressions</h1>
+          <p class="chap-sub">Named, temporary, readable &mdash; how CTEs transform the way you structure complex queries</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Define a CTE and explain the problem it was designed to solve</li>
+            <li>Write basic and chained CTEs in both T-SQL and Spark SQL syntax</li>
+            <li>Build a recursive CTE to traverse an organisational hierarchy</li>
+            <li>Choose between CTEs, subqueries, temp tables, and views based on the scenario</li>
+            <li>Explain why CTEs are not always materialised and what that means for performance</li>
+          </ol>
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">2.1.1</span><h2 class="sec-title">The Problem: Nested Subquery Hell</h2></div>
+
+        <p>Before CTEs existed, SQL developers solved complex multi-step query problems by nesting subqueries inside subqueries. The logic was correct. The code was unreadable. A query that ranked customers by spend, filtered to the top decile, joined to a region table, and then aggregated by product category might be five levels deep &mdash; each subquery only interpretable by reading from the inside out, with no names for intermediate results, and no easy way to debug which level was producing unexpected output.</p>
+
+        <p>A <span class="kt" data-term="CTE">Common Table Expression (CTE)</span> is a named temporary result set defined at the beginning of a query with the <code>WITH</code> keyword. It exists only for the duration of that single query. You give a name to each intermediate step, define it clearly before using it, and then reference it by name in the main query or in subsequent CTEs. The output is identical to an equivalent nested subquery. The difference is entirely in readability, maintainability, and the ability to debug one step at a time.</p>
+
+        <div class="hl-block">
+          A CTE is not a performance optimisation. It is a readability and maintainability tool. The database engine may or may not execute a CTE differently from an equivalent subquery &mdash; that depends on the query optimiser. What CTEs reliably do is make complex SQL legible, testable in parts, and maintainable by someone who did not write it.
+        </div>
+
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 290" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="fs21"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.15)"/></filter>
+                <linearGradient id="g21n" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3A4A6A"/><stop offset="100%" stop-color="#1B2840"/></linearGradient>
+                <linearGradient id="g21b" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0076CC"/><stop offset="100%" stop-color="#0050AA"/></linearGradient>
+                <marker id="ma21" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 7 3.5, 0 7" fill="#0076CC"/></marker>
+              </defs>
+              <rect width="700" height="290" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="22" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">Nested Subqueries vs CTEs &mdash; Same Result, Radically Different Readability</text>
+
+              <!-- LEFT: Nested nightmare -->
+              <rect x="14" y="34" width="300" height="234" rx="7" fill="#FFF4F4" stroke="#D05050" stroke-width="1.5" filter="url(#fs21)"/>
+              <rect x="14" y="34" width="300" height="28" rx="7" fill="#C04040"/>
+              <rect x="14" y="52" width="300" height="10" fill="#A03030"/>
+              <text x="164" y="52" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">Nested Subqueries</text>
+              <text x="164" y="63" fill="rgba(255,180,180,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Read from inside out · No named steps</text>
+              <!-- nested boxes -->
+              <rect x="24" y="74" width="280" height="184" rx="5" fill="rgba(200,80,80,.08)" stroke="#D08080" stroke-width="1"/>
+              <text x="34" y="90" fill="#A03030" font-family="monospace,sans-serif" font-size="8.5">SELECT name, category, total</text>
+              <text x="34" y="103" fill="#A03030" font-family="monospace,sans-serif" font-size="8.5">FROM (</text>
+              <rect x="36" y="108" width="256" height="128" rx="4" fill="rgba(200,80,80,.06)" stroke="#D09090" stroke-width="1"/>
+              <text x="46" y="122" fill="#B03030" font-family="monospace,sans-serif" font-size="8">  SELECT c.name, p.category,</text>
+              <text x="46" y="134" fill="#B03030" font-family="monospace,sans-serif" font-size="8">  SUM(o.amount) as total FROM (</text>
+              <rect x="50" y="138" width="232" height="72" rx="3" fill="rgba(200,80,80,.06)" stroke="#D0A0A0" stroke-width="1"/>
+              <text x="58" y="152" fill="#C04040" font-family="monospace,sans-serif" font-size="7.5">    SELECT * FROM (</text>
+              <rect x="62" y="156" width="208" height="44" rx="3" fill="rgba(200,80,80,.04)" stroke="#D0B0B0" stroke-width="1"/>
+              <text x="70" y="170" fill="#D05050" font-family="monospace,sans-serif" font-size="7">      SELECT customer_id,</text>
+              <text x="70" y="181" fill="#D05050" font-family="monospace,sans-serif" font-size="7">      RANK() OVER (ORDER BY</text>
+              <text x="70" y="192" fill="#D05050" font-family="monospace,sans-serif" font-size="7">      SUM(amt)) AS rnk FROM orders</text>
+              <text x="58" y="207" fill="#C04040" font-family="monospace,sans-serif" font-size="7.5">    ) WHERE rnk &lt;= 100</text>
+              <text x="46" y="220" fill="#B03030" font-family="monospace,sans-serif" font-size="8">  ) JOIN customers ... JOIN products</text>
+              <text x="34" y="236" fill="#A03030" font-family="monospace,sans-serif" font-size="8.5">) GROUP BY name, category</text>
+              <text x="164" y="258" fill="#C04040" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">&#9888; Which level is wrong? Good luck.</text>
+
+              <!-- RIGHT: CTE clean -->
+              <rect x="386" y="34" width="300" height="234" rx="7" fill="#F0F7FF" stroke="#0076CC" stroke-width="1.5" filter="url(#fs21)"/>
+              <rect x="386" y="34" width="300" height="28" rx="7" fill="#0F2447"/>
+              <rect x="386" y="52" width="300" height="10" fill="#0A1A30"/>
+              <text x="536" y="52" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">CTEs</text>
+              <text x="536" y="63" fill="rgba(160,200,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Read top to bottom · Each step named</text>
+              <!-- CTE steps as clean named boxes -->
+              <rect x="396" y="74" width="280" height="38" rx="5" fill="#0076CC"/>
+              <text x="406" y="88" fill="rgba(255,255,255,.7)" font-family="monospace,sans-serif" font-size="8">WITH ranked_customers AS (</text>
+              <text x="406" y="100" fill="rgba(255,255,255,.85)" font-family="monospace,sans-serif" font-size="8">  SELECT ..., RANK() OVER (...) AS rnk</text>
+              <text x="536" y="120" fill="#6080A0" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">&#8595;</text>
+              <rect x="396" y="126" width="280" height="30" rx="5" fill="#1B3A6B"/>
+              <text x="406" y="140" fill="rgba(255,255,255,.7)" font-family="monospace,sans-serif" font-size="8">, top_customers AS (</text>
+              <text x="406" y="153" fill="rgba(255,255,255,.85)" font-family="monospace,sans-serif" font-size="8">  SELECT * FROM ranked_customers WHERE rnk &lt;= 100</text>
+              <text x="536" y="170" fill="#6080A0" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">&#8595;</text>
+              <rect x="396" y="176" width="280" height="30" rx="5" fill="#254F8F"/>
+              <text x="406" y="190" fill="rgba(255,255,255,.7)" font-family="monospace,sans-serif" font-size="8">, enriched AS (</text>
+              <text x="406" y="203" fill="rgba(255,255,255,.85)" font-family="monospace,sans-serif" font-size="8">  SELECT * FROM top_customers JOIN customers JOIN products</text>
+              <text x="536" y="220" fill="#6080A0" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">&#8595;</text>
+              <rect x="396" y="225" width="280" height="30" rx="5" fill="#0050AA"/>
+              <text x="406" y="239" fill="rgba(255,255,255,.7)" font-family="monospace,sans-serif" font-size="8">SELECT name, category, SUM(amount)</text>
+              <text x="406" y="252" fill="rgba(255,255,255,.85)" font-family="monospace,sans-serif" font-size="8">FROM enriched GROUP BY name, category</text>
+              <text x="536" y="277" fill="#0076CC" font-family="Inter,sans-serif" font-size="8" font-weight="600" font-style="italic" text-anchor="middle">&#10003; Debug step 2? Just run top_customers alone.</text>
+
+              <!-- vs label -->
+              <text x="350" y="158" fill="#6A8AAA" font-family="Inter,sans-serif" font-size="14" font-weight="700" text-anchor="middle">vs</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 2.1</strong>
+            <span>The same four-step query written as nested subqueries (left) versus CTEs (right). Both return identical results. The CTE version names each intermediate step, reads top-to-bottom, and lets you run any individual CTE in isolation to debug it. The subquery version requires reading inside-out with no named anchors.</span>
+          </div>
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">2.1.2</span><h2 class="sec-title">Basic Syntax and Chaining CTEs</h2></div>
+
+        <p>A CTE opens with the <code>WITH</code> keyword, followed by a name, the word <code>AS</code>, and the query in parentheses. The main query follows immediately after. Multiple CTEs are separated by commas &mdash; the <code>WITH</code> keyword appears only once, at the very beginning.</p>
+
+        <div class="code-wrap">
+          <div class="code-label">T-SQL &nbsp;&middot;&nbsp; Single CTE<button class="copy-btn">Copy</button></div>
+          <pre><code>WITH customer_totals AS (
+    SELECT
+        customer_id,
+        COUNT(*)       AS order_count,
+        SUM(amount)    AS total_spend
+    FROM orders
+    WHERE status = 'completed'
+    GROUP BY customer_id
+)
+SELECT
+    c.name,
+    ct.order_count,
+    ct.total_spend
+FROM customers AS c
+JOIN customer_totals AS ct ON c.id = ct.customer_id
+WHERE ct.total_spend > 1000
+ORDER BY ct.total_spend DESC;</code></pre>
+        </div>
+        <p>Chaining multiple CTEs is where the real power emerges. Each CTE can reference any CTE defined above it. This lets you break a complex transformation into a sequence of named, readable steps &mdash; each one building on the previous.</p>
+
+        <div class="code-wrap">
+          <div class="code-label">T-SQL &nbsp;&middot;&nbsp; Chained CTEs (three steps)<button class="copy-btn">Copy</button></div>
+          <pre><code>WITH
+-- Step 1: aggregate orders per customer
+order_summary AS (
+    SELECT customer_id,
+           SUM(amount)  AS total_spend,
+           COUNT(*)     AS order_count
+    FROM   orders
+    GROUP  BY customer_id
+),
+-- Step 2: rank customers by spend
+ranked AS (
+    SELECT customer_id,
+           total_spend,
+           order_count,
+           RANK() OVER (ORDER BY total_spend DESC) AS spend_rank
+    FROM   order_summary
+),
+-- Step 3: keep only top 10%
+top_decile AS (
+    SELECT *
+    FROM   ranked
+    WHERE  spend_rank <= (SELECT COUNT(*) * 0.1 FROM ranked)
+)
+-- Final query: join to customer names
+SELECT c.name, c.region, t.total_spend, t.spend_rank
+FROM   customers AS c
+JOIN   top_decile AS t ON c.id = t.customer_id
+ORDER  BY t.spend_rank;</code></pre>
+        </div>
+        <p>Spark SQL uses identical CTE syntax. If you are writing Databricks notebooks, the <code>WITH</code> clause works exactly as in T-SQL &mdash; no translation needed. The one practical difference: in Databricks SQL cells, each cell runs as a single statement, so a CTE defined in cell 3 is not available in cell 4. If you need a result to persist across cells, that is a case for a temp view or a Delta table, not a CTE.</p>
+
+        <div class="code-wrap">
+          <div class="code-label">Spark SQL (Databricks) &nbsp;&middot;&nbsp; Identical CTE syntax<button class="copy-btn">Copy</button></div>
+          <pre><code>-- Spark SQL: CTEs work exactly as in T-SQL
+WITH daily_revenue AS (
+    SELECT
+        TO_DATE(order_timestamp) AS order_date,
+        SUM(amount)              AS revenue
+    FROM   bronze.orders
+    WHERE  status = 'completed'
+    GROUP  BY 1
+),
+rolling_avg AS (
+    SELECT
+        order_date,
+        revenue,
+        AVG(revenue) OVER (
+            ORDER BY order_date
+            ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+        ) AS revenue_7d_avg
+    FROM   daily_revenue
+)
+SELECT  *
+FROM    rolling_avg
+ORDER   BY order_date;</code></pre>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>T-SQL vs Spark SQL &mdash; where CTE syntax actually diverges</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>For standard CTE definitions, T-SQL and Spark SQL are identical. The <code>WITH name AS (...)</code> syntax and multi-CTE chaining with commas work the same in both. The divergence appears in a few specific areas.</p>
+              <p><strong>Table Variables (T-SQL only):</strong> T-SQL has <code>DECLARE @tbl TABLE (...)</code> syntax that Spark SQL does not support at all. Table variables behave like single-session temp tables but have no equivalent in Spark. If you are porting T-SQL that uses table variables, the Spark equivalent is typically a CTE or a cached DataFrame.</p>
+              <p><strong>Recursive CTEs:</strong> Both T-SQL and Spark SQL 3.0+ support recursive CTEs with <code>WITH RECURSIVE</code>. T-SQL uses <code>WITH cte_name AS</code> (the RECURSIVE keyword is implied). Spark SQL requires the explicit <code>WITH RECURSIVE</code> keyword. One of the more common porting errors when migrating SSIS/T-SQL pipelines to Databricks.</p>
+              <p><strong>CTE inside DML (T-SQL):</strong> T-SQL allows CTEs inside <code>UPDATE</code>, <code>DELETE</code>, and <code>MERGE</code> statements. Spark SQL does not support this &mdash; in Spark, you perform the same logic with a MERGE INTO using a subquery or a CTE in the SELECT arm only.</p>
+          </div></div>
+        </div>
+        <div class="sec-head"><span class="sec-tag">2.1.3</span><h2 class="sec-title">Recursive CTEs: Traversing Hierarchies</h2></div>
+
+        <p>A recursive CTE calls itself. It consists of two parts joined by <code>UNION ALL</code>: an <strong>anchor member</strong> that defines the starting rows (base case), and a <strong>recursive member</strong> that references the CTE itself to traverse the hierarchy level by level. The recursion terminates automatically when the recursive member returns zero rows.</p>
+
+        <p>The canonical use case is an organisational hierarchy: each employee has a manager, who has a manager, who has a manager. A recursive CTE can traverse this structure to any depth &mdash; finding all direct and indirect reports of a given manager, calculating reporting chain length, or building a full org tree.</p>
+
+        <div class="code-wrap">
+          <div class="code-label">T-SQL &nbsp;&middot;&nbsp; Recursive CTE — Organisational Hierarchy<button class="copy-btn">Copy</button></div>
+          <pre><code>-- Find all direct and indirect reports under Manager ID 42
+WITH org_tree AS (
+
+    -- ANCHOR MEMBER: start with the manager themselves
+    SELECT
+        employee_id,
+        name,
+        manager_id,
+        job_title,
+        0    AS depth,           -- depth = 0 at root
+        CAST(name AS VARCHAR(500)) AS reporting_path
+    FROM   employees
+    WHERE  employee_id = 42      -- start node
+
+    UNION ALL
+
+    -- RECURSIVE MEMBER: join back to the CTE to go one level deeper
+    SELECT
+        e.employee_id,
+        e.name,
+        e.manager_id,
+        e.job_title,
+        ot.depth + 1,
+        CAST(ot.reporting_path + ' > ' + e.name AS VARCHAR(500))
+    FROM   employees   AS e
+    JOIN   org_tree    AS ot  ON e.manager_id = ot.employee_id
+    -- Termination: when no more employees report to anyone in the current set,
+    -- the JOIN returns zero rows and recursion stops automatically.
+
+)
+SELECT
+    REPLICATE('  ', depth) + name  AS indented_name,
+    job_title,
+    depth                           AS org_level,
+    reporting_path
+FROM   org_tree
+ORDER  BY reporting_path;</code></pre>
+        </div>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="fs21b"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.14)"/></filter>
+                <linearGradient id="g21a" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0076CC"/><stop offset="100%" stop-color="#0050AA"/></linearGradient>
+                <linearGradient id="g21r" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1B3A6B"/><stop offset="100%" stop-color="#0F2447"/></linearGradient>
+                <marker id="ma21b" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 7 3.5, 0 7" fill="#0076CC"/></marker>
+                <marker id="ma21r" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 7 3.5, 0 7" fill="#C8892A"/></marker>
+              </defs>
+              <rect width="700" height="260" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="22" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">Recursive CTE — Structure and Execution Flow</text>
+
+              <!-- CTE Box -->
+              <rect x="18" y="34" width="420" height="196" rx="8" fill="#F0F5FF" stroke="#0076CC" stroke-width="1.5" filter="url(#fs21b)"/>
+              <text x="228" y="54" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">WITH RECURSIVE org_tree AS (</text>
+
+              <!-- Anchor member -->
+              <rect x="32" y="64" width="192" height="84" rx="6" fill="url(#g21a)" filter="url(#fs21b)"/>
+              <text x="128" y="82" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="1.5" text-anchor="middle">ANCHOR MEMBER</text>
+              <text x="128" y="95" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="600" text-anchor="middle">Base case — no self-reference</text>
+              <line x1="44" y1="103" x2="212" y2="103" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="128" y="117" fill="rgba(255,255,255,.85)" font-family="monospace,sans-serif" font-size="8">SELECT id, name, 0 AS depth</text>
+              <text x="128" y="130" fill="rgba(255,255,255,.85)" font-family="monospace,sans-serif" font-size="8">FROM employees</text>
+              <text x="128" y="143" fill="rgba(255,255,255,.85)" font-family="monospace,sans-serif" font-size="8">WHERE manager_id IS NULL</text>
+
+              <!-- UNION ALL label -->
+              <text x="228" y="162" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">UNION ALL</text>
+
+              <!-- Recursive member -->
+              <rect x="234" y="64" width="192" height="84" rx="6" fill="url(#g21r)" filter="url(#fs21b)"/>
+              <text x="330" y="82" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="1.5" text-anchor="middle">RECURSIVE MEMBER</text>
+              <text x="330" y="95" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="600" text-anchor="middle">Joins back to itself</text>
+              <line x1="246" y1="103" x2="414" y2="103" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="330" y="117" fill="rgba(255,255,255,.85)" font-family="monospace,sans-serif" font-size="8">SELECT e.id, e.name, t.depth+1</text>
+              <text x="330" y="130" fill="rgba(255,255,255,.85)" font-family="monospace,sans-serif" font-size="8">FROM employees e</text>
+              <text x="330" y="143" fill="rgba(255,255,255,.85)" font-family="monospace,sans-serif" font-size="8">JOIN org_tree t ON e.manager_id=t.id</text>
+
+              <!-- Self-reference arrow -->
+              <path d="M 426 106 C 456 106 456 74 330 74" fill="none" stroke="#C8892A" stroke-width="2" marker-end="url(#ma21r)" stroke-dasharray="4,3"/>
+              <text x="452" y="96" fill="#C8892A" font-family="Inter,sans-serif" font-size="8.5" font-weight="600">self</text>
+              <text x="452" y="107" fill="#C8892A" font-family="Inter,sans-serif" font-size="8.5" font-weight="600">ref</text>
+
+              <!-- Closing paren -->
+              <text x="228" y="222" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">) — terminates when recursive member returns 0 rows</text>
+
+              <!-- RIGHT: Result tree -->
+              <rect x="458" y="34" width="228" height="196" rx="8" fill="#FFF9EF" stroke="#C8892A" stroke-width="1.5" filter="url(#fs21b)"/>
+              <rect x="458" y="34" width="228" height="28" rx="8" fill="#C8892A"/>
+              <rect x="458" y="52" width="228" height="10" fill="#9A6010"/>
+              <text x="572" y="51" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Result: Org Tree Traversal</text>
+              <text x="572" y="63" fill="#6A3800" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Iteration 0 (anchor) · Iteration 1 · Iteration 2 ···</text>
+
+              <text x="470" y="84" fill="#6A3800" font-family="monospace,sans-serif" font-size="8.5">&#128193; CEO (depth 0)</text>
+              <text x="482" y="100" fill="#6A3800" font-family="monospace,sans-serif" font-size="8.5">&#9492;&#9472; VP Eng (depth 1)</text>
+              <text x="496" y="116" fill="#6A3800" font-family="monospace,sans-serif" font-size="8.5">&#9492;&#9472; Eng Director (depth 2)</text>
+              <text x="510" y="132" fill="#8A5000" font-family="monospace,sans-serif" font-size="8">&#9492;&#9472; Sr Engineer (depth 3)</text>
+              <text x="510" y="146" fill="#8A5000" font-family="monospace,sans-serif" font-size="8">&#9492;&#9472; Engineer (depth 3)</text>
+              <text x="482" y="162" fill="#6A3800" font-family="monospace,sans-serif" font-size="8.5">&#9492;&#9472; VP Product (depth 1)</text>
+              <text x="496" y="178" fill="#6A3800" font-family="monospace,sans-serif" font-size="8.5">&#9492;&#9472; PM Lead (depth 2)</text>
+
+              <text x="572" y="218" fill="#8A6020" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">All levels · Any depth · One query</text>
+
+              <!-- Arrow from CTE to Result -->
+              <line x1="440" y1="130" x2="454" y2="130" stroke="#0076CC" stroke-width="2" marker-end="url(#ma21b)"/>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 2.2</strong>
+            <span>The structure of a recursive CTE. The anchor member selects the root nodes (no self-reference). The recursive member joins back to the CTE itself to go one level deeper on each iteration. Execution terminates when the recursive member returns zero rows &mdash; when no more children exist. The result is a flat table containing every node in the hierarchy with its depth and any accumulated columns.</span>
+          </div>
+        </div>
+
+        <p>The result is a flat table with every employee under Manager 42, at every level of depth, with their full reporting path. A structure that would require application code or multiple round trips to the database can be expressed as a single SQL statement.</p>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Professional Services Firm &nbsp;&middot;&nbsp; Budget Roll-Up</span>
+          </div>
+          <div class="field-note-body">            <p>A professional services firm needed to roll up project budgets through their management hierarchy for a quarterly review. Each project was assigned to a project manager, who reported to a practice lead, who reported to a regional director, who reported to a global head. The organisation had seven levels in some chains and three in others. The original implementation loaded the entire <code>employees</code> and <code>projects</code> tables into a Python script that traversed parent relationships in a loop, re-querying the database at each level. For 4,000 employees it took several minutes and required the Python environment to be running.</p>
+            <p>A single recursive CTE replaced the entire Python script. The query executed in under two seconds. The anchor member selected projects with no parent project (top-level initiatives). The recursive member joined each project to its children by matching <code>parent_project_id</code>. A <code>SUM(budget) OVER</code> in the final select rolled up values through each path. The Power BI report that read from this query went from a 4-minute refresh to a 6-second one.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>When you find yourself writing Python loops that make repeated database calls to traverse a hierarchy, a recursive CTE is almost always the right replacement. The database engine does the traversal far more efficiently than application code.</p></div>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">An FMCG Manufacturer &nbsp;&middot;&nbsp; Bill of Materials Explosion</span>
+          </div>
+          <div class="field-note-body">            <p>A fast-moving consumer goods manufacturer needed to calculate the total raw material cost for each finished product. Their bill of materials was recursive: a finished product contained sub-assemblies, each sub-assembly contained components, and some components were themselves assembled from raw materials. The depth varied by product and was not stored anywhere &mdash; it had to be discovered by traversal.</p>
+            <p>The data engineering team used a recursive CTE to "explode" the bill of materials. The anchor member selected all finished products. The recursive member joined each assembly to its child components, accumulating a quantity multiplier at each level. The final query multiplied each raw material's unit cost by the accumulated quantity multiplier and summed per finished product. A calculation that previously ran nightly as a stored procedure taking 45 minutes was replaced by a CTE-based query running in 90 seconds as part of a Databricks pipeline.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Recursive CTEs are not just for org charts. Any parent-child relationship with unknown depth &mdash; product hierarchies, geographic hierarchies, account roll-ups, network graphs &mdash; is a candidate.</p></div>
+        </div>
+        <div class="sec-head"><span class="sec-tag">2.1.4</span><h2 class="sec-title">CTEs vs Alternatives</h2></div>
+
+        <p class="table-hint">Tap any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr><th>Option</th><th>Scope</th><th>Materialised?</th><th>Reusable?</th><th>Performance</th><th>Best For</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>CTE</strong></td><td>Single query only</td><td>Maybe (optimiser decides)</td><td>Within that query</td><td>Depends on optimiser</td><td>Readability, multi-step logic, recursive traversal</td></tr>
+            <tr><td><strong>Subquery</strong></td><td>Single query only</td><td>Maybe</td><td>No &mdash; write it again</td><td>Equivalent to CTE</td><td>Simple one-off filtering; short inline logic</td></tr>
+            <tr><td><strong>Temp Table</strong></td><td>Session (T-SQL) / Spark context</td><td>Yes &mdash; always written to disk/memory</td><td>Within session</td><td>Better for large intermediate sets used multiple times</td><td>Large intermediate results reused across multiple queries</td></tr>
+            <tr><td><strong>View</strong></td><td>Database-wide, persistent</td><td>No (unless materialised view)</td><td>Yes &mdash; any query, any session</td><td>Equivalent to inline query</td><td>Shared business logic used by many consumers</td></tr>
+            <tr><td><strong>Table Variable (T-SQL)</strong></td><td>Batch scope</td><td>Yes &mdash; in tempdb</td><td>Within batch</td><td>Worse for large sets (no stats)</td><td>Small working sets in T-SQL stored procedures</td></tr>
+            <tr><td><strong>Materialised View</strong></td><td>Database-wide, persistent</td><td>Yes &mdash; pre-computed and stored</td><td>Yes &mdash; any query</td><td>Best read performance (pre-computed)</td><td>Expensive aggregations needed by many consumers</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sec-head"><span class="sec-tag">2.1.5</span><h2 class="sec-title">Performance: What the Optimiser Actually Does</h2></div>
+
+        <p>The most persistent CTE misconception among intermediate SQL writers is that a CTE is always materialised &mdash; computed once and cached. It is not. In most database engines, including SQL Server and Spark, a CTE is treated by the optimiser as a macro substitution. The engine replaces each CTE reference with its definition inline and optimises the whole query together. If a CTE is referenced three times, the engine may execute it three times.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>When to use a temp table instead of a CTE</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>The "CTE vs temp table" decision comes down to one question: will this intermediate result be referenced more than once, and is it large enough that recomputing it is expensive?</p>
+              <p>If a CTE is referenced three times in a single query and the query optimiser does not choose to materialise it, the underlying computation runs three times. For a CTE that reads one million rows and performs an expensive window function, three executions means three million rows processed. A temp table forces materialisation: the result is computed once, written to temporary storage, and all three references read from that stored copy.</p>
+              <p><strong>Use a CTE when:</strong> the intermediate result is used once or twice, the data volume is small-to-medium, or readability of a single query is the priority.</p>
+              <p><strong>Use a temp table when:</strong> the intermediate result is large, used more than twice in downstream logic, or when you need to add an index to the intermediate result to speed up subsequent joins.</p>
+              <p>In Databricks / PySpark, the equivalent of a temp table is <code>df.cache()</code> or writing to a Delta table and reading from it. The same principle applies: if you reference the same expensive computation repeatedly in a pipeline, materialise it.</p>
+          </div></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>CTEs and window functions &mdash; the most common pairing</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>The most frequent CTE pattern in production data engineering is using a CTE to first compute a window function, then filtering on its result in the outer query. This is necessary because you cannot reference a window function alias in a <code>WHERE</code> clause &mdash; the <code>WHERE</code> clause is evaluated before <code>SELECT</code> in SQL's logical execution order.</p>
+              <p>The pattern: define the window function inside a CTE, then <code>SELECT * FROM that_cte WHERE window_col = value</code>. The CTE makes this idiomatic and readable. The alternative &mdash; a subquery &mdash; works identically but buries the window logic inside an anonymous nested block.</p>
+              <p>A practical example: <code>ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date DESC)</code> gives the most recent order per customer. To keep only the most recent, you cannot <code>WHERE row_num = 1</code> in the same <code>SELECT</code>. You wrap it in a CTE and filter in the outer query. This pattern appears in virtually every SCD Type 2 implementation, deduplication pipeline, and "latest record per entity" query in the industry.</p>
+          </div></div>
+        </div>
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>A CTE (<code>WITH name AS (...)</code>) is a named temporary result set scoped to a single query. It solves the readability problem of nested subqueries by letting you name and sequence each logical step. Multiple CTEs chain with commas after the first. Recursive CTEs traverse parent-child hierarchies of unknown depth using an anchor member (base case) and a recursive member (self-reference via <code>UNION ALL</code>). CTEs are not always materialised &mdash; for large intermediate results used multiple times, a temp table forces materialisation and avoids repeated computation. In Spark SQL, syntax is identical to T-SQL with one exception: recursive CTEs require the explicit <code>WITH RECURSIVE</code> keyword.</p>
+        </div>
+
+        <div class="info-box gold">
+          <div class="info-label">Coming in Section 2.2 &mdash; Partitions</div>
+          <p>The word "partition" appears constantly in data engineering and means three completely different things depending on context: physical file organisation in a data lake, a database-level query optimisation feature, and how Spark splits data across executors. Section 2.2 disambiguates all three and explains when each matters.</p>
+        </div>
+
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text"><h3>Learning Check</h3><p>Section 2.1 &nbsp;&middot;&nbsp; Common Table Expressions</p></div>
+            <div class="quiz-score-wrap"><div class="quiz-score-num">0/5</div><div class="quiz-score-label">Score</div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">What does the WITH keyword signal at the start of a SQL statement?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The query will use a stored procedure</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">One or more CTEs are being defined &mdash; named temporary result sets that exist only for the duration of this query</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">A new permanent view is being created in the database</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The query will join to a temporary table created earlier in the session</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The <code>WITH</code> keyword introduces a CTE block. What follows is one or more named result sets (separated by commas) that exist only for the query that follows. Nothing is stored permanently. The query is complete when the final <code>SELECT</code> (or <code>INSERT</code>/<code>UPDATE</code>/<code>MERGE</code> in T-SQL) after the CTE block finishes executing.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">You write a CTE that computes an expensive window function over 10 million rows. The CTE is referenced four times in the main query. What should you consider?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Nothing &mdash; CTEs are always materialised, so the computation runs once regardless of reference count</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Renaming the CTE so the optimiser recognises it as a single object</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Replacing the CTE with a temp table, which forces materialisation and ensures the 10M-row computation runs once regardless of reference count</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Splitting it into four separate CTEs, one per reference</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> CTEs are not guaranteed to materialise. The query optimiser treats a CTE as a macro and may inline it at every reference point, running the underlying computation up to four times. A temp table writes the result once and all four references read from the stored copy. For large intermediate results referenced multiple times, a temp table is the appropriate tool. In Databricks, <code>df.cache()</code> or writing to a Delta table serves the same purpose.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">In a recursive CTE, what is the role of the anchor member?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">It defines the stopping condition that terminates the recursion</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">It defines the base case &mdash; the starting set of rows from which recursion begins (e.g. the root node of a hierarchy)</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">It references the CTE itself to traverse one level deeper in the hierarchy</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It defines the maximum recursion depth to prevent infinite loops</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> A recursive CTE has two parts joined by <code>UNION ALL</code>. The anchor member is the first part: it selects the starting rows with no self-reference (e.g. <code>WHERE employee_id = 42</code> for the root of an org tree). The recursive member is the second part: it joins back to the CTE itself to go one level deeper. The recursion terminates automatically when the recursive member returns zero rows &mdash; typically when no more children exist at the current level.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">Why can't you filter on a window function result in the same SELECT clause where you define it — e.g. WHERE row_num = 1 in the same query that defines ROW_NUMBER() AS row_num?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Window functions cannot be aliased in T-SQL</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The WHERE clause only accepts aggregate functions, not window functions</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">SQL's logical execution order evaluates WHERE before SELECT, so the alias defined in SELECT does not yet exist when WHERE runs</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Window functions cannot be used in queries that also contain a WHERE clause</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> SQL has a logical order of execution that differs from the written order: FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY. The alias defined in SELECT (<code>row_num</code>) does not exist yet when WHERE is evaluated. The solution is to wrap the window function in a CTE or subquery and filter in the outer query. This is one of the most common reasons to use a CTE in production SQL.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">You are porting a T-SQL pipeline to Databricks Spark SQL. The T-SQL uses a recursive CTE written as <code>WITH emp_tree AS (...)</code>. You run the same syntax in Databricks and get a parse error. What is the most likely fix?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Spark SQL does not support recursive CTEs — rewrite as a Python loop</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Change WITH to CREATE TEMP VIEW in Databricks</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Add the RECURSIVE keyword: change WITH emp_tree AS to WITH RECURSIVE emp_tree AS — Spark SQL requires the explicit keyword that T-SQL implies</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Recursive CTEs must use UNION instead of UNION ALL in Spark SQL</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Spark SQL 3.0+ supports recursive CTEs, but the <code>RECURSIVE</code> keyword is required, whereas T-SQL implies it. The syntax is otherwise identical. This is a common porting error when migrating T-SQL to Databricks. If you encounter parse errors on CTEs that worked fine in SQL Server, the <code>WITH RECURSIVE</code> fix is the first thing to check.</p></div></div>
+          </div>
+
+          <div class="quiz-final"><div class="quiz-final-score">&mdash;</div><p class="quiz-final-msg"></p><button class="quiz-retry-btn">Try Again</button></div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="../01-data-platform-foundation/1-5-data-mesh.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">1.5 Data Mesh</span></span>
+          </a>
+          <a href="2-2-partitions.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">2.2 Partitions</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 2 &nbsp;&middot;&nbsp; Data Fundamentals</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">6</div>
+        </footer>
+
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:140px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Definition</div>
+          <p>A <strong>CTE</strong> is a named temporary result set scoped to a single query. It exists only while that query runs. Nothing is stored permanently.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Common Misconception</div>
+          <p><strong>CTEs are not always materialised.</strong> The optimiser may execute a CTE multiple times if referenced multiple times. For large intermediate sets, use a temp table instead.</p>
+        </div>
+        <div class="ms" style="height:240px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Syntax Rule</div>
+          <p><code>WITH</code> appears <strong>once</strong> at the top. Multiple CTEs are separated by commas. Only the final SELECT/INSERT/MERGE comes after the last CTE.</p>
+        </div>
+        <div class="ms" style="height:260px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Recursive Structure</div>
+          <p>Anchor member (base case) <code>UNION ALL</code> recursive member (self-join). Terminates when recursive member returns zero rows. Use for org charts, BOM explosions, network graphs.</p>
+        </div>
+        <div class="ms" style="height:180px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Spark SQL Note</div>
+          <p>Spark SQL requires <strong><code>WITH RECURSIVE</code></strong> for recursive CTEs. T-SQL implies it. This is the #1 CTE porting error when migrating to Databricks.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"When would you use a view instead of a CTE?" — A view is persistent and shared across sessions; a CTE is ephemeral and query-scoped. Views encode shared business logic. CTEs encode query-local logic.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('2.1');</script>
+</body>
+</html>

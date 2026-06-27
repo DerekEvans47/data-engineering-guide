@@ -1,0 +1,144 @@
+# Claude Code — Project Rules
+
+## Branch Naming
+
+Every branch you create must have a short, human-readable description of its contents — **5 words or fewer**, hyphenated, appended after the type prefix.
+
+Format: `<type>/<5-word-max-description>`
+
+Examples:
+- `questions/parts-1-2-3`
+- `fix/adls-auth-broken-link`
+- `feat/study-mode-progress`
+- `chore/update-shared-css`
+
+Never use auto-generated slugs (e.g. `claude/blissful-darwin-zh0fkt`) as the final branch name for feature work.
+
+## Branch Verification — Start of Every Session
+
+At the start of every session (or before any commit), verify the intended branch still exists on the remote:
+
+```bash
+git fetch origin
+git branch -a | grep <branch-name>
+```
+
+If the harness has set a session-default branch (e.g. `claude/vigilant-bardeen-txibr3`) and that branch no longer exists on the remote (because it was merged and deleted), **do not push to it**. Instead:
+
+1. Check out `main` and pull latest: `git checkout main && git pull origin main`
+2. Create a properly named branch for the work at hand (see naming rules above)
+3. Do all work on that new branch and push there
+
+Never commit or push to a deleted or stale session branch.
+
+## Question Generation Branches
+
+When generating questions, use this branch format:
+
+```
+questions/parts-N-N-N-N
+e.g. questions/parts-1-2-3-4
+```
+
+**This branch name takes precedence over any session-default branch set by the harness.**
+Create the branch from `main` if it does not already exist, then develop and push all
+question work there.
+
+## Pull Requests — Question Generation
+
+After pushing any `questions/*` branch, always open a PR to `main` as the final step.
+
+PR title format: `Add questions: Parts N, N, N, N`
+
+PR body must include:
+- Which Parts and sections are covered
+- Total number of questions added by part
+- Question types used
+
+## Conflict Prevention
+
+Before creating any branch that modifies `content/question-bank.json`:
+
+```bash
+git fetch origin main && git pull origin main
+```
+
+Never branch from a stale commit when modifying shared files.
+
+## learn/drill — Service Worker Checklist
+
+Any time you modify files under `learn/drill/` (drill.js, drill.css, index.html, etc.),
+you **must** bump the cache version in `learn/drill/sw.js` before committing:
+
+```bash
+# Find the current version
+grep "const CACHE" learn/drill/sw.js
+# e.g. const CACHE = 'de-drill-v27';
+
+# Bump it by 1 in sw.js, then verify
+grep "const CACHE" learn/drill/sw.js
+# should now read v28, v29, etc.
+```
+
+If you skip this, browsers with a cached service worker will continue serving
+the old files even after GitHub Pages deploys the new ones.
+
+**Checklist for every learn/drill PR:**
+- [ ] `sw.js` cache version incremented (e.g. `v27` → `v28`)
+- [ ] All changed asset filenames are present in the `ASSETS` array in `sw.js`
+- [ ] Playwright verification passed (see Verification Gate below)
+- [ ] PR merged to `main` so GitHub Pages picks up the change
+
+---
+
+## Verification Gate — MANDATORY before every `git push`
+
+**Never push `learn/drill/` changes without running the browser verification first.**
+This applies to every commit that touches `drill.js`, `drill.css`, `index.html`, or `sw.js`.
+
+### How to run
+
+```bash
+bash .claude/skills/verifier-browser.sh
+```
+
+The script starts a local HTTP server, drives Chromium via Playwright through the
+full app flow (home → map → run node → TD battle), and checks:
+
+1. Home screen renders without JS errors
+2. `bindUI()` and `buildFilterDrawer()` execute without crashing
+3. TD canvas initialises (`initTDGame` runs)
+4. Wave preview card shows correct enemy composition
+5. Wave preview hides once the wave actually starts (after quiz)
+6. Service worker registers
+
+**Exit 0 = safe to push. Exit non-zero = fix before pushing.**
+
+### The verifier also runs automatically
+
+When you invoke `/verify` or the `verify` skill in this repo, it will
+find `.claude/skills/verifier-browser.sh` and use it as the evidence-
+capture protocol. Run it before opening any `learn/drill` PR.
+
+### Known non-fatal noise
+
+- `ERR_CONNECTION_CLOSED` on `fonts.googleapis.com` — no internet in
+  remote execution environments. Not a code bug.
+- SW state `installing` on first load — normal; becomes `activated`
+  after a second page load.
+
+### What the past broke (do not repeat)
+
+| Bug class | How it appeared | Root cause |
+|-----------|-----------------|------------|
+| `EL.xxx = EL.xxx` no-ops | App loaded blank, filter crashed | `replace_all` substitution hit assignment lines in `bindUI()` and `initTDGame()` |
+| Wrong call order | `buildFilterDrawer()` crashed on undefined `EL.filterDrawer` | Called before `bindUI()` populated EL refs |
+| `td.__run` on null | TD game never started | `td.__run = x` before `initTDGame()` set `td` |
+
+After any `replace_all` edit touching `document.getElementById` or `EL.*`,
+**grep the result** to confirm no assignment lines became self-referential:
+
+```bash
+grep -n "EL\.\w* = EL\." learn/drill/drill.js
+# must return empty — any match is a bug
+```

@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cp .claude/skills/pre-push-hook.sh .git/hooks/pre-push && chmod +x .git/hooks/pre-push"
+          }
+        ]
+      }
+    ]
+  }
+}

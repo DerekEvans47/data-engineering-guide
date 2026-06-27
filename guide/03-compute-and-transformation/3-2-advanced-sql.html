@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3.2 Advanced SQL · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="3.2">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+        <header class="chap-header">
+          <div class="part-tag">Part Three &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="chap-num">3.2</div>
+          <h1 class="chap-title">Advanced SQL</h1>
+          <p class="chap-sub">Window functions, performance patterns, and cross-platform differences &mdash; the SQL skills that separate analysts from engineers</p>
+        </header>
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Write window functions using ROW_NUMBER, RANK, LAG, LEAD, SUM OVER, and FIRST_VALUE</li>
+            <li>Explain SQL's logical execution order and why it affects what you can reference where</li>
+            <li>Read and interpret a basic EXPLAIN plan to identify performance bottlenecks</li>
+            <li>Identify the five most common SQL anti-patterns that silently destroy query performance</li>
+            <li>Write MERGE statements for upsert operations in T-SQL and Delta Lake</li>
+            <li>Describe key syntax differences between T-SQL, Spark SQL, and BigQuery SQL</li>
+          </ol>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.2.1</span><h2 class="sec-title">SQL's Role in the Modern Data Stack</h2></div>
+
+        <p>SQL is not going away. Despite the rise of Python and Spark, SQL remains the dominant language for data transformation &mdash; and for good reason. SQL executes set-based operations at the database or compute engine level. A <code>GROUP BY</code> in SQL pushes the aggregation work into Databricks' Photon engine or SQL Server's query processor, which applies vectorised computation across millions of rows simultaneously. The equivalent Python loop iterates row by row on a single thread. For data transformation on large datasets, SQL is almost always faster than the Python alternative.</p>
+        <p>In a Medallion architecture, SQL is the language of Silver and Gold layer transformations: in Databricks notebooks (<code>spark.sql()</code>), in dbt models (every model is a <code>.sql</code> file), and in Power BI calculated tables. Advanced SQL competency &mdash; specifically window functions, MERGE, and cross-platform awareness &mdash; is the single most transferable technical skill a data engineer can have.</p>
+        <div class="hl-block">The key insight about SQL: it has a <strong>logical execution order</strong> that differs from the written order. Understanding this order resolves most SQL confusion about what you can reference where. FROM and JOIN execute first. WHERE filters rows. GROUP BY aggregates. HAVING filters groups. SELECT defines the output columns. ORDER BY sorts. This is why you cannot reference a SELECT alias in a WHERE clause &mdash; WHERE runs before SELECT assigns the alias.</div>
+
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body"><svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs><filter id="fs33"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.14)"/></filter>
+  <marker id="ma33" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#0076CC"/></marker></defs>
+  <rect width="700" height="200" fill="#F4F6FB" rx="6"/>
+  <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">SQL Logical Execution Order &mdash; Not the Written Order</text>
+  <rect x="10" y="36" width="78" height="44" rx="5" fill="#0F2447" filter="url(#fs33)"/>
+  <text x="49" y="54" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">① FROM</text>
+  <text x="49" y="67" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">+  JOIN</text>
+  <text x="49" y="92" fill="#6080A0" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Build the</text>
+  <text x="49" y="104" fill="#6080A0" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">row set</text>
+  <line x1="88" y1="58" x2="98" y2="58" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma33)"/>
+  <rect x="100" y="36" width="78" height="44" rx="5" fill="#1B3A6B" filter="url(#fs33)"/>
+  <text x="139" y="54" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">② WHERE</text>
+  <text x="139" y="67" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Filter rows</text>
+  <text x="139" y="92" fill="#C04040" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">⚠ No SELECT</text>
+  <text x="139" y="104" fill="#C04040" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">aliases yet</text>
+  <line x1="178" y1="58" x2="188" y2="58" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma33)"/>
+  <rect x="190" y="36" width="78" height="44" rx="5" fill="#254F8F" filter="url(#fs33)"/>
+  <text x="229" y="54" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">③ GROUP BY</text>
+  <text x="229" y="67" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Aggregate</text>
+  <text x="229" y="92" fill="#6080A0" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Collapses</text>
+  <text x="229" y="104" fill="#6080A0" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">rows to groups</text>
+  <line x1="268" y1="58" x2="278" y2="58" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma33)"/>
+  <rect x="280" y="36" width="78" height="44" rx="5" fill="#3A5A8F" filter="url(#fs33)"/>
+  <text x="319" y="54" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">④ HAVING</text>
+  <text x="319" y="67" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Filter groups</text>
+  <text x="319" y="92" fill="#6080A0" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Post-aggregation</text>
+  <text x="319" y="104" fill="#6080A0" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">filter</text>
+  <line x1="358" y1="58" x2="368" y2="58" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma33)"/>
+  <rect x="370" y="36" width="78" height="44" rx="5" fill="#0076CC" filter="url(#fs33)"/>
+  <text x="409" y="54" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">⑤ SELECT</text>
+  <text x="409" y="67" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Output columns</text>
+  <text x="409" y="92" fill="#AADDFF" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">Aliases defined</text>
+  <text x="409" y="104" fill="#AADDFF" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">here &mdash; not before</text>
+  <line x1="448" y1="58" x2="458" y2="58" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma33)"/>
+  <rect x="460" y="36" width="78" height="44" rx="5" fill="#C8892A" filter="url(#fs33)"/>
+  <text x="499" y="54" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">⑥ DISTINCT</text>
+  <text x="499" y="67" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Deduplicate</text>
+  <line x1="538" y1="58" x2="548" y2="58" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma33)"/>
+  <rect x="550" y="36" width="78" height="44" rx="5" fill="#8A5010" filter="url(#fs33)"/>
+  <text x="589" y="54" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">⑦ ORDER BY</text>
+  <text x="589" y="67" fill="rgba(255,255,255,.85)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Sort output</text>
+  <text x="589" y="92" fill="#FFDDA0" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">Can use</text>
+  <text x="589" y="104" fill="#FFDDA0" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">SELECT aliases</text>
+  <!-- bottom explanation -->
+  <rect x="10" y="126" width="680" height="28" rx="4" fill="rgba(0,118,204,.07)" stroke="#B0CCE8" stroke-width="1"/>
+  <text x="350" y="137" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8.5" font-weight="600" text-anchor="middle">Written order: SELECT ... FROM ... WHERE ... GROUP BY ... HAVING ... ORDER BY</text>
+  <text x="350" y="149" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Logical order: FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY</text>
+  <text x="350" y="175" fill="#C04040" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">This is why: you cannot use a SELECT alias in WHERE · you cannot filter aggregate functions with WHERE · use CTEs to work around this</text>
+</svg></div>
+          <div class="fig-caption"><strong>Figure 3.3</strong><span>SQL's logical execution order. Written top-down but executed bottom-up from the data source. The most important practical implication: SELECT aliases are defined in step 5, which means WHERE (step 2), GROUP BY (step 3), and HAVING (step 4) cannot reference them. This is why filtering on a window function alias requires wrapping it in a CTE (Section 2.1) — the alias only exists after SELECT runs.</span></div>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.2.2</span><h2 class="sec-title">Window Functions: Computing Across Rows Without Losing Them</h2></div>
+
+        <p>A window function performs a calculation across a set of rows related to the current row, without collapsing those rows into a single output row. This is the fundamental distinction from <code>GROUP BY</code>: a GROUP BY produces one output row per group, discarding the individual rows. A window function preserves every input row and appends the computed value alongside each row.</p>
+        <p>All window functions share the same syntax structure: <code>FUNCTION_NAME() OVER (PARTITION BY ... ORDER BY ... ROWS BETWEEN ...)</code>. The <code>OVER</code> clause is what makes it a window function. Without <code>OVER</code>, the same function (e.g. <code>SUM</code>) is an aggregate.</p>
+        <div class="code-wrap">
+          <div class="code-label">T-SQL / Spark SQL &nbsp;&middot;&nbsp; Window function anatomy and common functions<button class="copy-btn">Copy</button></div>
+          <pre><code>-- The window function skeleton
+FUNCTION_NAME() OVER (
+    PARTITION BY partition_col    -- defines the group (the "window")
+    ORDER BY    order_col         -- defines row order within the group
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW  -- the frame
+)
+
+-- ── Ranking functions ─────────────────────────────────────
+SELECT
+    customer_id,
+    order_date,
+    amount,
+
+    -- Assigns a unique integer per row, no ties
+    ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date) AS row_num,
+
+    -- Ties get same rank, next rank skips (1, 1, 3)
+    RANK()       OVER (PARTITION BY customer_id ORDER BY amount DESC) AS spend_rank,
+
+    -- Ties get same rank, no skip (1, 1, 2)
+    DENSE_RANK() OVER (PARTITION BY customer_id ORDER BY amount DESC) AS spend_dense,
+
+    -- Divide into 4 buckets
+    NTILE(4)     OVER (ORDER BY amount DESC) AS spend_quartile
+
+FROM orders;
+
+-- ── Offset functions ──────────────────────────────────────
+SELECT
+    order_date,
+    amount,
+
+    -- Previous row's value (NULL for first row)
+    LAG(amount, 1, 0)  OVER (ORDER BY order_date) AS prev_amount,
+
+    -- Next row's value (NULL for last row)
+    LEAD(amount, 1, 0) OVER (ORDER BY order_date) AS next_amount,
+
+    -- First value in the window
+    FIRST_VALUE(amount) OVER (ORDER BY order_date
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS first_amount
+
+FROM orders;
+
+-- ── Running aggregates ────────────────────────────────────
+SELECT
+    order_date,
+    amount,
+
+    SUM(amount)   OVER (ORDER BY order_date
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total,
+
+    AVG(amount)   OVER (ORDER BY order_date
+        ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)         AS rolling_7_avg
+
+FROM orders;</code></pre>
+        </div>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body"><svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs><filter id="fs34"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter></defs>
+  <rect width="700" height="240" fill="#F4F6FB" rx="6"/>
+  <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Window Function — How PARTITION BY, ORDER BY, and FRAME Work Together</text>
+  <!-- Table data on left -->
+  <rect x="12" y="34" width="200" height="170" rx="6" fill="white" stroke="#C8D8E8" stroke-width="1.5" filter="url(#fs34)"/>
+  <rect x="12" y="34" width="200" height="28" rx="6" fill="#1B3A6B"/>
+  <rect x="12" y="52" width="200" height="10" fill="#0F2447"/>
+  <text x="112" y="50" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">orders table</text>
+  <text x="30" y="78" fill="#8090A0" font-family="Inter,sans-serif" font-size="8.5" font-weight="600">customer_id</text>
+  <text x="130" y="78" fill="#8090A0" font-family="Inter,sans-serif" font-size="8.5" font-weight="600">date</text>
+  <text x="188" y="78" fill="#8090A0" font-family="Inter,sans-serif" font-size="8.5" font-weight="600">amount</text>
+  <line x1="20" y1="82" x2="204" y2="82" stroke="#E8EEF4" stroke-width="1"/>
+  <!-- rows for customer A -->
+  <rect x="14" y="86" width="196" height="18" rx="2" fill="#EBF4FD"/>
+  <text x="30" y="98" fill="#1B3A6B" font-family="monospace" font-size="8.5">A</text>
+  <text x="130" y="98" fill="#1B3A6B" font-family="monospace" font-size="8.5">Jan 1</text>
+  <text x="188" y="98" fill="#1B3A6B" font-family="monospace" font-size="8.5">100</text>
+  <rect x="14" y="106" width="196" height="18" rx="2" fill="#D4EAFC"/>
+  <text x="30" y="118" fill="#1B3A6B" font-family="monospace" font-size="8.5">A</text>
+  <text x="130" y="118" fill="#1B3A6B" font-family="monospace" font-size="8.5">Jan 5</text>
+  <text x="188" y="118" fill="#1B3A6B" font-family="monospace" font-size="8.5">250</text>
+  <rect x="14" y="126" width="196" height="18" rx="2" fill="#EBF4FD"/>
+  <text x="30" y="138" fill="#1B3A6B" font-family="monospace" font-size="8.5">A</text>
+  <text x="130" y="138" fill="#1B3A6B" font-family="monospace" font-size="8.5">Jan 9</text>
+  <text x="188" y="138" fill="#1B3A6B" font-family="monospace" font-size="8.5">150</text>
+  <!-- rows for customer B -->
+  <rect x="14" y="146" width="196" height="18" rx="2" fill="#FFF4EF"/>
+  <text x="30" y="158" fill="#C06030" font-family="monospace" font-size="8.5">B</text>
+  <text x="130" y="158" fill="#1B3A6B" font-family="monospace" font-size="8.5">Jan 2</text>
+  <text x="188" y="158" fill="#1B3A6B" font-family="monospace" font-size="8.5">80</text>
+  <rect x="14" y="166" width="196" height="18" rx="2" fill="#FFEAE0"/>
+  <text x="30" y="178" fill="#C06030" font-family="monospace" font-size="8.5">B</text>
+  <text x="130" y="178" fill="#1B3A6B" font-family="monospace" font-size="8.5">Jan 8</text>
+  <text x="188" y="178" fill="#1B3A6B" font-family="monospace" font-size="8.5">200</text>
+  <!-- label: PARTITION BY groups -->
+  <rect x="12" y="86" width="4" height="56" fill="#0076CC" rx="2"/>
+  <text x="18" y="106" fill="#0076CC" font-family="Inter,sans-serif" font-size="7.5" transform="rotate(-90, 18, 106)">PARTITION A</text>
+  <rect x="12" y="144" width="4" height="40" fill="#C06030" rx="2"/>
+  <text x="18" y="164" fill="#C06030" font-family="Inter,sans-serif" font-size="7.5" transform="rotate(-90, 18, 164)">PART. B</text>
+  <!-- annotation block right -->
+  <rect x="224" y="34" width="464" height="170" rx="6" fill="#0F1B2D" filter="url(#fs34)"/>
+  <text x="456" y="54" fill="#88BEFF" font-family="monospace" font-size="11" font-weight="700" text-anchor="middle">ROW_NUMBER() OVER (</text>
+  <text x="456" y="72" fill="#FFD080" font-family="monospace" font-size="11" text-anchor="middle">  PARTITION BY customer_id</text>
+  <text x="456" y="90" fill="#88E0AA" font-family="monospace" font-size="11" text-anchor="middle">  ORDER BY date</text>
+  <text x="456" y="108" fill="#FFB0B0" font-family="monospace" font-size="11" text-anchor="middle">  ROWS BETWEEN UNBOUNDED</text>
+  <text x="456" y="122" fill="#FFB0B0" font-family="monospace" font-size="11" text-anchor="middle">  PRECEDING AND CURRENT ROW</text>
+  <text x="456" y="136" fill="#C8E0FF" font-family="monospace" font-size="11" text-anchor="middle">)</text>
+  <line x1="234" y1="148" x2="678" y2="148" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+  <text x="244" y="162" fill="#FFD080" font-family="Inter,sans-serif" font-size="8.5">PARTITION BY:</text>
+  <text x="340" y="162" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5">Defines the group (window). Restarts numbering for each group.</text>
+  <text x="244" y="176" fill="#88E0AA" font-family="Inter,sans-serif" font-size="8.5">ORDER BY:</text>
+  <text x="340" y="176" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5">Row order within the window. Determines rank/running total direction.</text>
+  <text x="244" y="190" fill="#FFB0B0" font-family="Inter,sans-serif" font-size="8.5">FRAME:</text>
+  <text x="340" y="190" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5">Which rows count for aggregates. UNBOUNDED PRECEDING = from first row in window.</text>
+</svg></div>
+          <div class="fig-caption"><strong>Figure 3.4</strong><span>Window function anatomy. PARTITION BY divides rows into groups (like GROUP BY but without collapsing them). ORDER BY defines row sequence within each partition. The FRAME clause (ROWS BETWEEN) defines which rows contribute to aggregate calculations. For ranking functions (ROW_NUMBER, RANK), no frame is needed. For running aggregates (SUM OVER, AVG OVER), the frame controls the rolling window size.</span></div>
+        </div>
+        <p>The most common practical application of ROW_NUMBER is deduplication and "latest record per entity" queries &mdash; two operations that appear constantly in Silver layer transformations:</p>
+        <div class="code-wrap">
+          <div class="code-label">T-SQL / Spark SQL &nbsp;&middot;&nbsp; Deduplication with ROW_NUMBER<button class="copy-btn">Copy</button></div>
+          <pre><code>-- Pattern: keep only the most recent record per customer
+-- (cannot use WHERE row_num = 1 in same SELECT — must use CTE or subquery)
+WITH ranked_customers AS (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (
+            PARTITION BY customer_id
+            ORDER BY updated_at DESC    -- most recent first
+        ) AS row_num
+    FROM bronze.crm_customers
+)
+SELECT * FROM ranked_customers WHERE row_num = 1;
+
+-- Pattern: detect changes between current and previous row (SCD change detection)
+WITH ordered AS (
+    SELECT
+        customer_id,
+        region,
+        updated_at,
+        LAG(region) OVER (PARTITION BY customer_id ORDER BY updated_at) AS prev_region
+    FROM bronze.crm_customers
+)
+SELECT * FROM ordered WHERE region != prev_region OR prev_region IS NULL;</code></pre>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.2.3</span><h2 class="sec-title">MERGE: The Upsert Statement</h2></div>
+
+        <p>A MERGE statement (cross-referenced from Section 2.3: Upsert) combines INSERT and UPDATE logic in a single atomic operation. It reads a source dataset and applies changes to a target: updating rows that exist in both (WHEN MATCHED), inserting rows that exist only in source (WHEN NOT MATCHED), and optionally deleting rows that exist only in target (WHEN NOT MATCHED BY SOURCE).</p>
+        <div class="code-wrap">
+          <div class="code-label">T-SQL &nbsp;&middot;&nbsp; MERGE for SCD Type 1 (overwrite)<button class="copy-btn">Copy</button></div>
+          <pre><code>-- Apply CRM updates to Silver customer dimension (SCD Type 1 — overwrite)
+MERGE INTO silver.dim_customer AS target
+USING (
+    -- source: latest record per customer from Bronze
+    SELECT customer_id, name, email, region, updated_at
+    FROM bronze.crm_customers
+    WHERE ingestion_date = CAST(GETDATE() AS DATE)
+) AS source
+ON target.customer_id = source.customer_id
+
+WHEN MATCHED AND (
+    target.email  != source.email  OR
+    target.region != source.region
+) THEN UPDATE SET
+    target.name       = source.name,
+    target.email      = source.email,
+    target.region     = source.region,
+    target.updated_at = source.updated_at
+
+WHEN NOT MATCHED BY TARGET THEN INSERT (
+    customer_id, name, email, region, updated_at
+) VALUES (
+    source.customer_id, source.name, source.email,
+    source.region, source.updated_at
+);</code></pre>
+        </div>
+        <div class="code-wrap">
+          <div class="code-label">Spark SQL (Delta Lake) &nbsp;&middot;&nbsp; MERGE INTO<button class="copy-btn">Copy</button></div>
+          <pre><code>-- Delta Lake MERGE (identical concept, slightly different syntax)
+MERGE INTO silver.dim_customer AS target
+USING (
+    SELECT customer_id, name, email, region, updated_at
+    FROM bronze.crm_customers
+    WHERE ingestion_date = current_date()
+) AS source
+ON target.customer_id = source.customer_id
+
+WHEN MATCHED THEN UPDATE SET *   -- update all matching columns
+
+WHEN NOT MATCHED THEN INSERT *;  -- insert all columns from source
+
+-- WHEN NOT MATCHED BY SOURCE (T-SQL only — not in Spark SQL):
+-- THEN DELETE  -- removes target rows with no source match</code></pre>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.2.4</span><h2 class="sec-title">Performance: Anti-Patterns and EXPLAIN Plans</h2></div>
+
+        <p>SQL performance problems are almost always caused by a small set of recurring mistakes. Knowing these patterns by name lets you identify them in unfamiliar code immediately.</p>
+        <p><strong>Functions on indexed/partition columns in WHERE.</strong> A filter like <code>WHERE YEAR(order_date) = 2024</code> prevents the engine from using the index or partition pruning on <code>order_date</code>. The function must be evaluated for every row before filtering can happen. Replace with range filters: <code>WHERE order_date &gt;= '2024-01-01' AND order_date &lt; '2025-01-01'</code>.</p>
+        <p><strong>SELECT *.</strong> Selects all columns, including those not needed. For wide tables in columnar formats (Parquet), SELECT * defeats column pruning &mdash; every column is read from disk. In analytical queries, specify only the columns you need.</p>
+        <p><strong>Implicit conversions.</strong> When a filter compares columns of different types (e.g. a string literal compared to an integer column), the engine must convert every value before comparing. This defeats indexes. Match types explicitly.</p>
+        <p><strong>Correlated subqueries.</strong> A subquery that references the outer query executes once per outer row. For a 10 million-row outer table, a correlated subquery runs 10 million times. Replace with a JOIN or a window function.</p>
+        <p><strong>OR in JOIN conditions.</strong> A <code>JOIN ON a.id = b.id OR a.id = b.alt_id</code> cannot use an index efficiently. Rewrite as a UNION of two simple joins.</p>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Reading EXPLAIN plans in T-SQL and Spark SQL</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>An EXPLAIN plan shows how the database engine will execute a query before running it. It is the first tool to reach for when a query is unexpectedly slow.</p>
+              <p><strong>In SQL Server / Azure SQL:</strong> run <code>SET SHOWPLAN_XML ON</code> before your query, or use SQL Server Management Studio (SSMS) to display the graphical execution plan. Key things to look for: any operator with a thick arrow (many rows flowing), an Index Scan instead of Index Seek (scanning the whole index vs looking up specific values), and the cost percentage next to each operator (the highest-cost operator is usually where to optimise).</p>
+              <p><strong>In Spark SQL / Databricks:</strong> run <code>EXPLAIN EXTENDED your_query</code> to see the logical plan and physical plan as text. More usefully, run the query and then click the "View" link next to the SQL command in the Databricks UI to see the Spark DAG visualisation. Look for: large shuffle stages (wide arrows between stages in the DAG), skewed tasks (one task much longer than others in the Spark UI task view), and Sort steps immediately before joins (can indicate missing broadcast hint).</p>
+              <p>The most valuable EXPLAIN pattern for data engineers: a full table scan where you expected partition pruning. If EXPLAIN shows every partition being read despite a date filter in your WHERE clause, the filter is on a derived expression and predicate pushdown is not firing. This is Section 2.2's partition pruning content applied in practice.</p>
+          </div></div>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Retail Analytics Team &nbsp;&middot;&nbsp; The Window Function Refactor</span>
+          </div>
+          <div class="field-note-body">            <p>A retail company's data team had a weekly sales report query that took 47 minutes to run. The query calculated each store's rank by weekly revenue, compared this week's revenue to last week's, and flagged stores whose revenue had dropped more than 10% week-over-week. The original implementation used multiple GROUP BY subqueries: one to calculate weekly revenue per store, joined to itself on the same store ID with a date offset for last week's figures, joined again to a separately calculated rank table.</p>
+            <p>A senior engineer rewrote the query using window functions: <code>SUM(amount) OVER (PARTITION BY store_id ORDER BY week)</code> for weekly totals, <code>LAG(weekly_revenue, 1)</code> over the same partition for prior week's figure, and <code>RANK() OVER (ORDER BY weekly_revenue DESC)</code> for the ranking. The four-subquery join became a single CTE with three window function columns. Runtime dropped from 47 minutes to 3 minutes. No schema changes, no indexing, no hardware upgrades &mdash; just correct use of window functions where multiple self-joins had been.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Window functions are not just a syntactic convenience. They enable the query engine to make a single pass through the data for what previously required multiple passes and joins. When you find yourself joining a table to itself for date offsets or ranks, reach for LAG/LEAD/RANK instead.</p></div>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Financial Services Team &nbsp;&middot;&nbsp; The Hidden Full Table Scan</span>
+          </div>
+          <div class="field-note-body">            <p>A financial services team had an overnight pipeline that processed transaction data for regulatory reporting. The main query filtered on <code>WHERE CONVERT(VARCHAR, transaction_date, 112) = '20240115'</code> &mdash; converting the date column to a string before comparing, a pattern common in legacy T-SQL that developers had been copying without questioning. The transactions table had 800 million rows partitioned by transaction_date. The query consistently took 4 hours.</p>
+            <p>An EXPLAIN plan review showed an Index Scan across all partitions rather than an Index Seek on the specific date. The CONVERT function on the indexed column prevented the engine from using partition elimination. Changing the filter to <code>WHERE transaction_date = '2024-01-15'</code> (a direct date comparison) reduced the query to 6 minutes by reading only the 20 million rows in the January 15th partition.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Functions applied to columns in WHERE clauses defeat indexes and partition pruning. This is the single most common SQL performance mistake in legacy pipelines migrated from on-premise. EXPLAIN before you optimise. The fix is usually a one-line change.</p></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>PIVOT and UNPIVOT &mdash; rotating rows into columns and back</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>PIVOT rotates rows into columns: useful when source data has one row per metric per entity but the report needs one column per metric per entity. UNPIVOT does the reverse. Both appear commonly when integrating data from systems that store data in "long format" (many rows, few columns) but analysts need "wide format" (few rows, many columns).</p>
+              <p>In T-SQL, PIVOT is a native operator: <code>SELECT * FROM (SELECT customer_id, month, revenue FROM orders) AS src PIVOT (SUM(revenue) FOR month IN ([Jan],[Feb],[Mar])) AS pvt</code>. The limitation: column list in FOR must be static at query write time &mdash; dynamic PIVOT requires dynamic SQL string construction.</p>
+              <p>In Spark SQL, there is no native PIVOT keyword (though PySpark DataFrames have a <code>.pivot()</code> method). The SQL equivalent uses <code>CASE WHEN month = 'Jan' THEN revenue END</code> repeated for each pivot column &mdash; verbose but explicit. For data engineering transformations, the PySpark <code>.pivot()</code> method with an explicit values list is cleaner and allows runtime-determined column names.</p>
+          </div></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>ROWS BETWEEN vs RANGE BETWEEN &mdash; the subtle frame difference</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>The frame clause (<code>ROWS BETWEEN</code> or <code>RANGE BETWEEN</code>) controls which rows contribute to a window aggregate. The difference between ROWS and RANGE matters when there are ties in the ORDER BY column.</p>
+              <p><code>ROWS BETWEEN</code> defines the frame by physical row position &mdash; exactly N rows before and after the current row, regardless of whether those rows have the same ORDER BY value. Predictable, deterministic, usually what you want for running totals.</p>
+              <p><code>RANGE BETWEEN</code> defines the frame by logical value range &mdash; all rows with ORDER BY values within the specified range of the current row's value. With duplicate ORDER BY values, RANGE includes ALL rows with the same value in the frame, even if that means including more rows than expected. The default for most window functions when you omit the frame clause is <code>RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code> &mdash; which for a running total with ties will sum to the same value as the last tied row for all tied rows.</p>
+              <p><strong>Practical guidance:</strong> when writing running totals or running averages, always specify <code>ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code> explicitly. This gives deterministic, tie-insensitive results. Never rely on the default RANGE behaviour unless you specifically want tie-inclusive frames.</p>
+          </div></div>
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">3.2.5</span><h2 class="sec-title">Cross-Platform SQL: T-SQL vs Spark SQL vs BigQuery</h2></div>
+
+        <p class="table-hint">Tap any column header to sort.</p>
+
+        <table class="data-table sortable">
+          <thead><tr><th>Feature</th><th>T-SQL (SQL Server / Azure SQL)</th><th>Spark SQL (Databricks)</th><th>BigQuery SQL (Google Cloud)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Date arithmetic</strong></td><td><code>DATEADD(day, 7, date_col)</code></td><td><code>DATE_ADD(date_col, 7)</code></td><td><code>DATE_ADD(date_col, INTERVAL 7 DAY)</code></td></tr>
+            <tr><td><strong>String concat</strong></td><td><code>col1 + col2</code> or <code>CONCAT()</code></td><td><code>CONCAT()</code> or <code>||</code></td><td><code>CONCAT()</code> or <code>||</code></td></tr>
+            <tr><td><strong>NULL-safe equals</strong></td><td><code>IS NOT DISTINCT FROM</code> (2022+)</td><td><code>&lt;=&gt;</code> (NULL-safe equal)</td><td><code>IS NOT DISTINCT FROM</code></td></tr>
+            <tr><td><strong>Window ROWS vs RANGE</strong></td><td>Both supported</td><td>Both supported</td><td>Both supported</td></tr>
+            <tr><td><strong>TOP N rows</strong></td><td><code>SELECT TOP 10</code></td><td><code>LIMIT 10</code></td><td><code>LIMIT 10</code></td></tr>
+            <tr><td><strong>Recursive CTEs</strong></td><td><code>WITH cte AS (...)</code></td><td><code>WITH RECURSIVE cte AS (...)</code></td><td><code>WITH RECURSIVE cte AS (...)</code></td></tr>
+            <tr><td><strong>PIVOT</strong></td><td>Native <code>PIVOT</code> syntax</td><td>Manual <code>CASE WHEN</code> pivot</td><td><code>PIVOT</code> available (recent)</td></tr>
+            <tr><td><strong>JSON handling</strong></td><td><code>JSON_VALUE()</code>, <code>OPENJSON()</code></td><td><code>get_json_object()</code>, <code>from_json()</code></td><td><code>JSON_VALUE()</code>, <code>JSON_QUERY()</code></td></tr>
+            <tr><td><strong>Semi-structured</strong></td><td>JSON functions only</td><td>Native struct/array types, <code>LATERAL VIEW EXPLODE</code></td><td>Native ARRAY/STRUCT/JSON types</td></tr>
+            <tr><td><strong>Temp tables</strong></td><td><code>CREATE TABLE #tmp</code></td><td><code>CREATE OR REPLACE TEMP VIEW</code></td><td><code>CREATE TEMP TABLE</code></td></tr>
+          </tbody>
+        </table>        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text"><h3>Learning Check</h3><p>Section 3.2 &nbsp;&middot;&nbsp; Advanced SQL</p></div>
+            <div class="quiz-score-wrap"><div class="quiz-score-num">0/5</div><div class="quiz-score-label">Score</div></div>
+          </div>
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">You write <code>SELECT customer_id, SUM(amount) AS total, ROW_NUMBER() OVER (ORDER BY total DESC) AS rn FROM orders GROUP BY customer_id</code>. What happens?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">It works — total is computed by GROUP BY and then used in the window function</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">It fails — the window function alias <code>total</code> is referenced in ORDER BY before SELECT defines it, violating SQL logical execution order</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">It works in Spark SQL but fails in T-SQL</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It fails only if the table has NULL values</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> SQL logical execution order: GROUP BY runs before SELECT. The alias <code>total</code> is defined in SELECT (step 5) and the window function's ORDER BY runs as part of SELECT (step 5) — but the issue is that <code>ROW_NUMBER() OVER (ORDER BY total)</code> references the alias <code>total</code> which doesn't exist at the point the window function is being computed. The engine raises a column not found error. The fix: wrap in a CTE. <code>WITH agg AS (SELECT customer_id, SUM(amount) AS total FROM orders GROUP BY customer_id) SELECT *, ROW_NUMBER() OVER (ORDER BY total DESC) AS rn FROM agg</code>.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">What is the difference between RANK() and DENSE_RANK() when two rows have the same value?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">RANK() and DENSE_RANK() are identical — different names for the same function</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">RANK() assigns the same number to ties and skips the next rank (1,1,3). DENSE_RANK() assigns the same number to ties and does not skip (1,1,2)</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">DENSE_RANK() assigns the same number to ties and skips the next rank. RANK() does not skip</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">RANK() works row by row. DENSE_RANK() collapses tied rows into one</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> With values [100, 100, 80]: RANK() produces [1, 1, 3] (two rows tied at first, next rank is 3). DENSE_RANK() produces [1, 1, 2] (two rows tied at first, next rank is 2 with no gap). RANK() reflects true ordinal position (if two people tie for gold, the next person is bronze — no silver). DENSE_RANK() reflects tier position (if two people tie for first, the next person is second — no gap). Choose based on which business definition of "rank" applies.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A MERGE statement's WHEN NOT MATCHED BY SOURCE THEN DELETE clause deletes rows from the target that have no match in the source. What is a critical risk of this clause?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">It only works in Spark SQL, not T-SQL</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">If the source query returns an incomplete dataset (e.g. only today's changed records, not all records), rows not in today's source are incorrectly deleted from target even though they are valid historical records</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">It is limited to deleting 1,000 rows per execution</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It deletes target rows before the WHEN MATCHED UPDATE runs, causing referential integrity errors</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> WHEN NOT MATCHED BY SOURCE deletes target rows with no source match. This is correct when source is a full extract of all current records. It is dangerously wrong when source is an incremental extract (only changed records). In that case, unchanged records are simply absent from today's source &mdash; and would all be deleted. This is a very common production bug. Note: this clause is T-SQL only; Delta Lake's MERGE INTO does not support it.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">What does LAG(amount, 1, 0) OVER (PARTITION BY customer_id ORDER BY order_date) return for the first order of a customer?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">NULL, because there is no previous row</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">0, because the third argument to LAG is the default value returned when there is no previous row</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The value from the last row of the previous customer's partition</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">An error, because LAG requires at least two rows in the partition</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> <code>LAG(column, offset, default)</code> takes three arguments: the column, the number of rows to look back, and the default value to return when there is no previous row (the offset goes before the first row of the partition). Without the third argument, LAG returns NULL for the first row. With <code>0</code> as the third argument, it returns 0 instead. This is useful for running difference calculations where NULL would propagate incorrectly.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">You are migrating a T-SQL query to Spark SQL in Databricks. The query includes <code>WITH history AS (...)</code> using a recursive CTE. What change is required?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">No change — Spark SQL supports the same recursive CTE syntax as T-SQL</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Change to <code>WITH RECURSIVE history AS (...)</code> — Spark SQL requires the explicit RECURSIVE keyword</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Recursive CTEs are not supported in Spark SQL — rewrite as a Python loop</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Change <code>UNION ALL</code> to <code>UNION</code> in the recursive member</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Spark SQL 3.0+ supports recursive CTEs, but requires the explicit <code>RECURSIVE</code> keyword: <code>WITH RECURSIVE cte_name AS (...)</code>. T-SQL implies recursion without the keyword. This is covered in Section 2.1 (CTEs) and is the most common CTE porting error when migrating T-SQL pipelines to Databricks.</p></div></div>
+          </div>
+
+          <div class="quiz-final"><div class="quiz-final-score">&mdash;</div><p class="quiz-final-msg"></p><button class="quiz-retry-btn">Try Again</button></div>
+        </section>
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>SQL remains the dominant language for data transformation. Window functions (ROW_NUMBER, RANK, DENSE_RANK, LAG, LEAD, SUM OVER) compute across row sets without collapsing them — the key distinction from GROUP BY. SQL's logical execution order (FROM → WHERE → GROUP → HAVING → SELECT → ORDER) explains why SELECT aliases are not available in WHERE. MERGE combines INSERT and UPDATE atomically; WHEN NOT MATCHED BY SOURCE is safe for full extracts but dangerous for incremental ones. The five major anti-patterns: functions on indexed columns, SELECT *, implicit conversions, correlated subqueries, OR in JOIN conditions. Key T-SQL vs Spark SQL differences: LIMIT vs TOP, WITH RECURSIVE, date function syntax.</p>
+        </div>
+        <div class="info-box gold">
+          <div class="info-label">Coming in the Next Section</div>
+          <p>Section 3.3 covers Python for data engineering: core libraries, pandas vs Polars (now the mainstream single-node DataFrame engine), REST API consumption, environment management, and logging patterns for pipeline scripts.</p>
+        </div>
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+        <nav class="sec-nav">
+          <a href="3-1-yaml.html" class="sec-nav-btn sec-nav-prev"><span class="sec-nav-arrow">&#8592;</span><span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">3.1 YAML & Config Languages</span></span></a>
+          <a href="3-3-python.html" class="sec-nav-btn sec-nav-next"><span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">3.3 Python for Data Engineering</span></span><span class="sec-nav-arrow">&#8594;</span></a>
+        </nav>
+        <footer class="page-foot">
+          <div class="fl">Part 3 &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">11</div>
+        </footer>
+      </article>
+      <aside class="margin-col">
+                <div class="ms" style="height:130px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Execution Order</div>
+          <p>SQL written order ≠ SQL execution order. FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY. This is why you cannot reference a SELECT alias in WHERE.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Function on Column</div>
+          <p><code>WHERE YEAR(date_col) = 2024</code> defeats partition pruning and indexes. Always use range filters: <code>WHERE date_col &gt;= '2024-01-01'</code>.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Window vs GROUP BY</div>
+          <p>GROUP BY collapses rows. Window functions preserve them and append the computed value. When you need both the row detail AND a rank/running total, window functions are always the right tool.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">MERGE Risk</div>
+          <p>WHEN NOT MATCHED BY SOURCE deletes unmatched target rows. Safe for full extracts; catastrophic for incremental ones.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+
+      </aside>
+    </div>
+  </div>
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('3.2');</script>
+</body>
+</html>

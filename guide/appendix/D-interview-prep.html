@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Appendix D — Interview Preparation &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="D">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Appendix &nbsp;&middot;&nbsp; Reference &amp; Resources</div>
+          <div class="chap-num">D</div>
+          <h1 class="chap-title">Interview Preparation — Senior Data Engineering Roles</h1>
+          <p class="chap-sub">How senior DE interviews are structured, what interviewers are actually testing, sample questions mapped to guide sections with model answers, the "tell me about yourself" framework, and a 30-60-90 day plan template to close the conversation strong</p>
+        </header>
+
+        <!-- D.1 -->
+        <div class="sec-head"><span class="sec-tag">D.1</span><h2 class="sec-title">How Senior DE Interviews Are Structured</h2></div>
+
+        <p>Senior data engineering interviews differ from mid-level ones primarily in what they test beyond technical knowledge. At mid-level, interviewers verify that you can write PySpark, understand Delta Lake, and build a dbt model. At senior level, they assume you can do those things — they are testing whether you make good decisions about <em>when</em> and <em>why</em> to use each tool, how you handle trade-offs, how you influence technical direction, and whether you can be trusted to lead a project that others depend on.</p>
+
+        <p>A typical senior DE interview process at a UK or US tech company in 2026 consists of four to six rounds: an initial screening call (30 min, recruiter or hiring manager), a technical phone screen (45–60 min, system design or SQL/Python), a take-home technical exercise (optional, 2–4 hrs), a system design interview (60 min), a behavioural panel (45–60 min), and a hiring manager final (30 min, culture and expectations).</p>
+
+        <div class="hl-block">The system design interview is the most differentiating round at senior level. Interviewers are not looking for a perfect answer — they are evaluating your thought process. Start with requirements clarification, work top-down from architecture to components, talk through trade-offs explicitly, and always arrive at a concrete recommendation rather than leaving it open.</div>
+
+        <!-- Figure D.1 — Interview Types Map -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 270" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <text x="350" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">Senior DE Interview — Round Types &amp; What They Test</text>
+
+              <!-- Column headers -->
+              <rect x="20" y="35" width="660" height="24" rx="4" fill="var(--accent)" opacity="0.12"/>
+              <text x="115" y="51" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">ROUND</text>
+              <text x="280" y="51" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">FORMAT</text>
+              <text x="460" y="51" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">WHAT THEY'RE TESTING</text>
+              <text x="625" y="51" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">GUIDE SECTIONS</text>
+
+              <!-- Rows -->
+              <line x1="20" y1="59" x2="680" y2="59" stroke="var(--border)" stroke-width="1"/>
+              <text x="115" y="75" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Technical Screen</text>
+              <text x="280" y="75" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Live SQL / Python coding</text>
+              <text x="460" y="75" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Core fluency, debugging speed</text>
+              <text x="625" y="75" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">3.1, 3.2, 3.3, App. B</text>
+              <line x1="20" y1="83" x2="680" y2="83" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="115" y="99" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">System Design</text>
+              <text x="280" y="99" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Whiteboard / verbal design</text>
+              <text x="460" y="99" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Architecture decisions, trade-offs</text>
+              <text x="625" y="99" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">1.1–1.3, 3.4–3.7, 2.x</text>
+              <line x1="20" y1="107" x2="680" y2="107" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="115" y="123" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Take-Home Task</text>
+              <text x="280" y="123" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Build a mini-pipeline or dbt project</text>
+              <text x="460" y="123" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Code quality, testing, documentation</text>
+              <text x="625" y="123" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">3.3, 3.7, 5.2–5.4</text>
+              <line x1="20" y1="131" x2="680" y2="131" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="115" y="147" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Behavioural Panel</text>
+              <text x="280" y="147" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">STAR-format questions</text>
+              <text x="460" y="147" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Leadership, conflict, influence</text>
+              <text x="625" y="147" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Part 5 (Delivery)</text>
+              <line x1="20" y1="155" x2="680" y2="155" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="115" y="171" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">AI / ML Awareness</text>
+              <text x="280" y="171" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Discussion / scenario</text>
+              <text x="460" y="171" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">RAG, agents, LLM integration</text>
+              <text x="625" y="171" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Part 6 (AI)</text>
+              <line x1="20" y1="179" x2="680" y2="179" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="115" y="195" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Hiring Manager Final</text>
+              <text x="280" y="195" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Conversation / culture</text>
+              <text x="460" y="195" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">Alignment, growth, 30-60-90</text>
+              <text x="625" y="195" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--body-fg)">App. D.5</text>
+              <line x1="20" y1="203" x2="680" y2="203" stroke="var(--border)" stroke-width="1"/>
+
+              <!-- Column dividers -->
+              <line x1="190" y1="35" x2="190" y2="203" stroke="var(--border)" stroke-width="0.5"/>
+              <line x1="360" y1="35" x2="360" y2="203" stroke="var(--border)" stroke-width="0.5"/>
+              <line x1="560" y1="35" x2="560" y2="203" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="350" y="232" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-style="italic" fill="var(--muted-fg)">Not all companies run all rounds. The system design interview is the most differentiating at senior level.</text>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure D.1.</strong> Senior DE interview round types and what each tests. Technical screens assess fluency; system design assesses architectural judgment; behavioural panels assess seniority of impact and influence.</div>
+        </div>
+
+        <!-- D.2 -->
+        <div class="sec-head"><span class="sec-tag">D.2</span><h2 class="sec-title">Tell Me About Yourself — The Framework</h2></div>
+
+        <p>This question opens almost every interview and is routinely answered badly. Most candidates either recite their CV chronologically ("I started at Company A in 2018, then moved to Company B...") or undersell themselves with a vague summary that could apply to anyone. Neither works.</p>
+
+        <p>A strong answer to "tell me about yourself" has three components: <strong>where you are now</strong> (current role, scope, scale), <strong>the through-line</strong> (what you have become expert at across your career, the pattern that makes you distinctive), and <strong>why this role</strong> (specific, honest, forward-looking). It should take 90–120 seconds and end on something that naturally invites the interviewer to ask a follow-up about an area of strength.</p>
+
+        <h3 class="subsec">Example Framework — Targeting Senior Azure DE</h3>
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6">"I'm currently a data engineer at [Company], where I'm the technical lead
+on our Azure data platform — which serves about [X] teams and processes
+[Y scale] of data daily. My day-to-day is split between building and
+maintaining our Databricks + dbt transformation layer and the platform
+work: Unity Catalog governance, pipeline reliability, and increasingly
+integrating LLM components for data quality and internal tooling.
+
+The through-line in my career is [X]. Every role I've had has pushed
+deeper into [pattern — e.g. 'building the data infrastructure layer
+that analytics and ML teams depend on, with a real focus on making it
+reliable and governable, not just functional'].
+
+What drew me to this role specifically is [concrete, specific reason —
+team size / problem domain / tech stack / something from the JD that
+genuinely resonates]. I think my experience with [specific thing] maps
+directly to [specific challenge mentioned in JD or research]."</pre>
+
+        <!-- D.3 -->
+        <div class="sec-head"><span class="sec-tag">D.3</span><h2 class="sec-title">Technical Questions by Section — With Model Answers</h2></div>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Data Platform &amp; Architecture (Parts 1–2)</strong>
+          </div>
+          <div class="dd-body">
+            <p><strong>Q: Walk me through how you'd design a data platform for a company that currently has everything in a single SQL Server database.</strong></p>
+            <p><em>What they're testing:</em> Architectural thinking, ability to break a broad problem into concrete layers, knowledge of Azure services.</p>
+            <p><em>Model answer structure:</em> Start with requirements (data volume, query patterns, consumer types, latency requirements). Propose a medallion architecture: raw ingestion to ADLS Gen2 Bronze via ADF or Event Hubs depending on batch vs streaming. PySpark or dbt transforms to Silver (cleaned, conformed). Aggregated Gold for analytics. Surface via Databricks SQL or Synapse for analytical queries, Power BI for dashboards. Mention Unity Catalog for governance. Call out the key decisions: what format (Parquet/Delta), what partitioning strategy, what SLA do we need. End with trade-offs: this adds operational complexity vs the single SQL Server; worth it when data volume exceeds ~1TB or team count exceeds ~5 consumers with different access patterns.</p>
+
+            <p style="margin-top:1rem"><strong>Q: What is the difference between a star schema and a data vault, and when would you choose each?</strong></p>
+            <p><em>Model answer:</em> Star schema: fact tables surrounded by denormalised dimension tables. Fast to query, easy for analysts, suited to known, stable business questions. Data vault: hub-satellite-link model designed for auditing, historisation, and agile source integration. More complex to query but handles change well — new sources plug in without restructuring existing tables. Choose star schema for mature domains with stable requirements and analyst-facing queries. Choose data vault when you have many source systems with frequent schema changes, strict audit requirements, or need to load data before knowing the final query patterns. In practice, many enterprise platforms use data vault in the staging layer and deliver star schema mart tables to end users.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Compute &amp; Transformation (Part 3)</strong>
+          </div>
+          <div class="dd-body">
+            <p><strong>Q: You have a Spark job that's running much slower than expected. Walk me through your debugging approach.</strong></p>
+            <p><em>Model answer:</em> Start with the Spark UI — look at stage durations and identify which stage is slowest. Check for data skew: are some tasks taking 10x longer than others? If yes, the join key or partition key has high cardinality on a subset of values. Check for shuffles: how many stages? Each shuffle boundary is expensive. Check the DAG for accidental cartesian joins. Look at executor memory and whether there are spills to disk (visible in task metrics). Common fixes: add a salt to skewed join keys, broadcast the smaller side of a join, repartition before expensive operations, push filters earlier in the DAG (filter before join). Then check the data: are you reading 100x more data than you need because there's no partition pruning? Check the EXPLAIN plan for partition filters being applied.</p>
+
+            <p style="margin-top:1rem"><strong>Q: What is the difference between dbt's incremental materialization strategies — append, merge, insert_overwrite, and delete_insert?</strong></p>
+            <p><em>Model answer:</em> Append: just inserts new rows, no dedup. Use only for event streams where each row is genuinely new and unique. Merge: upsert — match on unique_key, update if exists, insert if not. The most correct strategy for slowly changing data but requires the target to support MERGE (Delta Lake, Snowflake, BigQuery). Insert_overwrite: replaces entire partitions. Fast, idempotent, no MERGE needed — good for Hive/Spark environments. Delete_insert: explicitly deletes matching rows, then inserts new versions. More explicit than merge, useful when MERGE semantics are ambiguous. The most important thing to get right: always specify unique_key on merge, always test your incremental logic against a full-refresh to confirm it produces identical results.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>AI &amp; Agentic Systems (Part 6)</strong>
+          </div>
+          <div class="dd-body">
+            <p><strong>Q: How would you build a system that lets our analysts ask questions about our internal documentation in natural language?</strong></p>
+            <p><em>Model answer:</em> This is a RAG system. I'd build it in three layers: ingestion, retrieval, and generation. Ingestion: crawl the documentation sources (Confluence, SharePoint, internal wikis), chunk documents into ~500-token segments with overlap, embed each chunk using Azure OpenAI's text-embedding-3-small model, store vectors and metadata in Azure AI Search with hybrid indexing (semantic + keyword). Retrieval: on each user query, embed the query with the same model, run a hybrid search (RRF — Reciprocal Rank Fusion — combining semantic similarity and BM25 keyword match) to retrieve top-5 chunks. Generation: construct a prompt with the retrieved chunks as context, call GPT-4o, return the response with citations. Key design decisions: chunk size (too small loses context, too large exceeds model attention), embedding model consistency (must match ingestion and query), hybrid vs pure semantic search (hybrid almost always wins in enterprise because documentation has specific terminology that semantic search misses). Production additions: evaluation with RAGAS faithfulness and answer relevance metrics, staleness detection to re-embed updated documents, PII filtering before content goes to the LLM.</p>
+
+            <p style="margin-top:1rem"><strong>Q: What are the main risks of deploying an AI agent in a production data pipeline?</strong></p>
+            <p><em>Model answer:</em> Four categories: reliability (agents fail non-deterministically — same input, different output across runs), cost (an agent that loops unexpectedly can consume orders of magnitude more tokens than planned), safety (an agent with write-capable tools can take irreversible actions if it hallucinates a tool call or misinterprets a task), and debuggability (multi-step reasoning sequences are much harder to diagnose than deterministic pipeline failures). Mitigations: structural constraints (only provide the minimum tool set needed; no data-modifying tools unless strictly required and gated by human-in-the-loop approval), token budgeting with hard limits per run, full trace-level observability (Langfuse or LangSmith), regression test suites on agent behavior, and progressive autonomy — start with the agent suggesting actions, then escalate to autonomous execution only after building confidence in the behavior envelope.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Applied AI — Fine-Tuning &amp; NLP (Sections 6.6–6.7)</strong>
+          </div>
+          <div class="dd-body">
+            <p><strong>Q: A product manager wants to fine-tune an LLM on our internal support tickets so it answers customer queries in our brand voice. When would you agree that fine-tuning is the right call, and when would you push back?</strong></p>
+            <p><em>What they're testing:</em> Ability to distinguish between AI approaches, cost-benefit thinking, and willingness to challenge a technically-framed requirement when a simpler path exists.</p>
+            <p><em>Model answer:</em> I'd push back in most cases — fine-tuning is expensive to run and to maintain, and the majority of "brand voice" problems are solved by a well-crafted system prompt and a few representative examples (few-shot prompting). I'd ask three questions first: does the model currently produce factually wrong answers about our product (if yes, RAG is the fix — fine-tuning doesn't reliably inject factual knowledge), is the style problem persistent even after explicit system prompt instructions (if not, prompt engineering solves it), and do we have at least several hundred high-quality labelled examples (if not, fine-tuning will overfit or degrade capability). Fine-tuning genuinely wins when you need consistent style adherence that prompting can't achieve, when you want a smaller, faster, cheaper model that matches a larger one on a specific task, or when you're working in a domain so specialised the base model has weak coverage. The decision tree I'd apply: try prompt engineering → then few-shot → then RAG if it's a knowledge problem → fine-tuning only as a last resort with clear evaluation metrics defined before training starts.</p>
+
+            <p style="margin-top:1rem"><strong>Q: You're asked to classify 50,000 customer support messages into 15 categories. Walk me through how you'd approach this NLP task from model selection to production evaluation.</strong></p>
+            <p><em>What they're testing:</em> Practical NLP workflow knowledge, evaluation rigour, awareness of the zero-shot vs fine-tuned trade-off at scale.</p>
+            <p><em>Model answer:</em> I'd start by understanding the label quality before touching a model — who defined the 15 categories, how consistently can two humans agree on the same message, and is there a labelled ground truth set I can use for evaluation? Without a reliable eval set, any model choice is guesswork. Given 50k messages, I'd first attempt zero-shot classification with a capable LLM (GPT-4o or Claude) on a stratified sample of ~500 messages, score against ground truth, and see how close we are. For text classification, modern LLMs in zero-shot often reach 80–85% accuracy — enough to decide if the approach is viable before investing in labelling. If accuracy is insufficient, I'd label 1,000–2,000 examples per class and fine-tune a smaller encoder model (a classifier head on a sentence-transformer, or a distilled BERT-class model) — much cheaper to run at scale than inference-pricing a frontier LLM on 50k messages daily. Key evaluation: I'd track precision and recall per class separately (overall accuracy is misleading when classes are imbalanced), and specifically flag low-recall classes because those are the silent failures — support messages mis-routed without a rejection signal. Production additions: a confidence threshold below which messages go to a human review queue, a monitor for class distribution drift (if the proportion of "billing complaint" messages jumps suddenly, something changed upstream).</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Product Management Fundamentals (Part 7)</strong>
+          </div>
+          <div class="dd-body">
+            <p><strong>Q: How do you write a user story that a data engineer can actually build from, versus one that's too vague to estimate?</strong></p>
+            <p><em>What they're testing:</em> Cross-functional fluency — whether you can bridge the gap between business requirements and engineering execution, and whether you understand what makes work estimable.</p>
+            <p><em>Model answer:</em> A buildable user story has three things beyond the standard "As a / I want / So that" format: an acceptance criterion that is binary (either it passes or it doesn't, no judgment calls), a defined data scope (which tables, which date range, which entities — not "all customer data"), and explicit non-goals (what is intentionally out of scope for this story, which prevents scope creep mid-sprint). The most common failure mode I see is stories that describe an outcome without specifying the inputs — "As an analyst, I want a dashboard showing customer churn" is not buildable. "As an analyst, I want a Power BI report showing 30/60/90 day churn rates by customer segment, sourced from the `gold.customer_events` table, refreshed daily, with segment defined as the `customer_tier` column" gives an engineer enough to estimate, build, and write tests for. I also look for the INVEST criteria — specifically Independent (can this be delivered without depending on another in-progress story?) and Small (can it be completed in one sprint?) — because violations of those two are the root cause of most missed sprint commitments on data teams.</p>
+
+            <p style="margin-top:1rem"><strong>Q: You delivered a new analytics dashboard three months ago. Usage data shows it was opened consistently in week one, then dropped to near-zero. How do you diagnose and address this?</strong></p>
+            <p><em>What they're testing:</em> Product thinking, adoption vs delivery mindset, stakeholder management, awareness that shipping is not the same as success.</p>
+            <p><em>Model answer:</em> The first thing I'd do is distinguish between "abandoned" and "answered its question." Some dashboards succeed by becoming unnecessary — the decision gets made and the question is closed. I'd check with the original requestor whether that's the case. If not, I'd investigate four failure modes in order of likelihood: the data is stale or wrong (users checked it, found numbers they didn't trust, stopped returning — fix: data quality and freshness indicators in the UI), the question the dashboard answers is not the question the user actually has (fix: go back to discovery, watch a user try to answer their real question), the dashboard requires too much interpretation (fix: add written context, highlight the one number that matters, reduce cognitive load), or the user's workflow changed and the dashboard was never embedded in it (fix: push the insight to where the decision is made — a Teams message, a scheduled email summary, not a URL they have to remember to visit). The meta-lesson I'd take into the next build: schedule a 30-day review on every data product at delivery. Adoption is a design-time problem, not a post-launch problem. If the feedback loop isn't built into the process, dashboards die quietly.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Classical ML &amp; Statistics (Part 8)</strong>
+          </div>
+          <div class="dd-body">
+            <p><strong>Q: Your classification model has 97% accuracy, but the business says it's useless. What's likely going on, and how do you respond?</strong></p>
+            <p><em>What they're testing:</em> Statistical literacy, ability to diagnose imbalanced class problems, communication of model evaluation to non-technical stakeholders.</p>
+            <p><em>Model answer:</em> The most likely explanation is class imbalance. If 97% of cases are negative (non-fraud, non-churn, non-defect), a model that predicts "negative" for everything achieves 97% accuracy without learning anything. The business is useless because the model never catches the minority class — the thing they actually care about. My immediate response is to re-evaluate with precision, recall, and F1 on the positive class specifically. In most business scenarios, recall matters more than precision for the rare event: missing a fraud case (false negative) is more costly than flagging a legitimate transaction for review (false positive). I'd then ask: what is the actual business cost of a false negative versus a false positive? That cost ratio should drive the decision on the classification threshold — lowering the threshold increases recall at the expense of precision, and there is an optimal operating point that minimises business cost rather than maximises accuracy. I'd visualise the precision-recall curve and present the threshold options with their operational implications. Longer term, I'd consider resampling techniques (SMOTE for oversampling the minority class, or undersampling the majority), class-weight parameters in the model, or a two-stage model architecture where a recall-optimised first pass generates candidates and a precision-optimised second pass reduces false positives.</p>
+
+            <p style="margin-top:1rem"><strong>Q: A stakeholder wants to run an A/B test on a new checkout flow but needs results in one week. How do you advise them?</strong></p>
+            <p><em>What they're testing:</em> Statistical rigour, ability to manage business expectations, understanding of sample size and power, awareness of peeking and early stopping risks.</p>
+            <p><em>Model answer:</em> My first question is: what is the minimum effect size you care about detecting? If checkout conversion is currently 4% and they'd only act on a change of 1 percentage point or more, the required sample size to detect that at 80% power and 5% significance is approximately 6,000 visitors per variant. If the site gets 10,000 unique visitors per day, one week gives 70,000 total — plenty. If it gets 1,000 per day, one week gives 7,000 — marginal, and the test will be underpowered. I'd calculate sample size before the test starts, not after. The harder conversation is about peeking: I'd advise against checking results daily and stopping when p &lt; 0.05, which inflates the false positive rate significantly beyond 5% — this is one of the most common A/B testing mistakes. Either commit to a fixed sample size and look once at the end, or use a sequential testing framework (like a Bayesian approach or a sequential probability ratio test) if early stopping is genuinely necessary for business reasons. I'd also check for novelty effects — users who see the new flow in week one may behave differently than long-term users — and ensure randomisation is sticky (the same user always sees the same variant). Finally, I'd define success metrics and guardrail metrics before launch: primary metric (conversion rate), secondary metrics (order value, time-to-complete), and guardrail metrics (error rate, page load time) that would cause an automatic stop if degraded.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Supply Chain Analytics (Part 9)</strong>
+          </div>
+          <div class="dd-body">
+            <p><strong>Q: A supply chain director asks you to build a demand forecasting model for 5,000 SKUs. Walk me through how you'd approach this end to end.</strong></p>
+            <p><em>What they're testing:</em> Ability to scope and structure a complex analytical project, practical knowledge of forecasting methods, awareness of what makes supply chain problems hard (scale, intermittency, hierarchy).</p>
+            <p><em>Model answer:</em> I'd start by segmenting the 5,000 SKUs — not all of them need the same forecasting approach. I'd apply an ABC/XYZ analysis: ABC by revenue contribution (A = top 20% of SKUs contributing ~80% of revenue), XYZ by demand variability (X = stable, Y = moderate variation, Z = intermittent or erratic). A-X SKUs get the most sophisticated models because the accuracy improvement has the highest business impact. Z-class items with intermittent demand often perform best with a simple Croston method or a safety-stock buffer rather than a time series model — fitting an ARIMA to something that sells twice a month creates false precision. For the A and B class with regular demand patterns, I'd evaluate: a baseline (moving average or simple exponential smoothing), a statistical model (ARIMA or ETS, fitting automatically with auto_arima or statsforecast), and an ML model (LightGBM with lag features, rolling statistics, and calendar effects like day-of-week, promotions, seasonality index). I'd evaluate on a hold-out period — typically 8–13 weeks, matching the lead time of the supply chain — using MAPE for comparison across SKUs and weighted MAPE to account for SKU importance. In production: forecast at the lowest level of granularity the planning team actually uses (usually weekly, by SKU, by location), publish to a gold-layer Delta table, and build a bias-monitoring dashboard that tracks whether the model is consistently over or under-forecasting by category — systematic bias is more damaging than random error because it compounds in inventory decisions.</p>
+
+            <p style="margin-top:1rem"><strong>Q: Our warehouse frequently stocks out of high-velocity items but simultaneously holds excess inventory on slow movers. What analytical approaches would you use to diagnose and address this?</strong></p>
+            <p><em>What they're testing:</em> Supply chain domain knowledge, diagnostic thinking, ability to translate data analysis into operational recommendations.</p>
+            <p><em>Model answer:</em> The symptom — simultaneous stockouts and overstock — typically points to three root causes that I'd investigate in parallel. First, the reorder policy may not account for demand variability: if reorder points are calculated from average demand without adding safety stock for demand uncertainty and lead time variability, high-variability items will stockout while stable items (which the policy over-buffers) accumulate excess. I'd calculate the coefficient of variation (CV) for each SKU — CV = standard deviation / mean demand — and look at whether CV correlates with stockout rate. Second, the ABC/XYZ segmentation may be missing or ignored in the purchasing workflow: buyers may be ordering based on intuition or supplier minimums rather than data-driven replenishment signals, which breaks any analytically-derived policy at the point of execution. I'd audit whether recommended order quantities are being overridden and by how much. Third, lead times may be inaccurate or not variance-adjusted in the system: if the system shows a supplier lead time of 10 days but actual delivery has a standard deviation of 4 days, every reorder point calculated from that lead time will be wrong. Fix: build a lead time accuracy dashboard from PO creation to goods receipt, and feed actual lead time distributions into safety stock calculations rather than point estimates. The output I'd deliver is a prioritised remediation list: top-20 stockout SKUs with root cause tagged (demand spike, reorder point too low, lead time miss), and top-20 overstock SKUs with recommended disposition (markdown, return to supplier, reorder point reduction). Quick wins visible in four to six weeks, with systematic policy recalibration as the medium-term deliverable.</p>
+          </div>
+        </div>
+
+        <!-- D.4 Behavioural -->
+        <div class="sec-head"><span class="sec-tag">D.4</span><h2 class="sec-title">Behavioural Questions — STAR Framework</h2></div>
+
+        <p>Behavioural questions ("tell me about a time when...") are answered using the STAR framework: <strong>S</strong>ituation (brief context), <strong>T</strong>ask (what you specifically needed to do), <strong>A</strong>ction (what you did, in detail — this is where most of your answer should live), <strong>R</strong>esult (concrete outcome, ideally with a number). Senior-level STAR answers differ from mid-level ones: they emphasise decisions you made, stakeholders you influenced, and trade-offs you navigated — not just technical execution.</p>
+
+        <!-- Figure D.2 — STAR Framework -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <text x="350" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">STAR Answer Framework — Time Allocation</text>
+
+              <!-- Situation -->
+              <rect x="20" y="40" width="130" height="120" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="85" y="68" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--accent)">S</text>
+              <text x="85" y="86" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Situation</text>
+              <text x="85" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Brief context</text>
+              <text x="85" y="118" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">2–3 sentences</text>
+              <text x="85" y="148" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--muted-fg)">~10%</text>
+
+              <!-- Task -->
+              <rect x="163" y="40" width="130" height="120" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="228" y="68" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--accent)">T</text>
+              <text x="228" y="86" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Task</text>
+              <text x="228" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Your specific role</text>
+              <text x="228" y="118" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">What was at stake</text>
+              <text x="228" y="148" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--muted-fg)">~10%</text>
+
+              <!-- Action -->
+              <rect x="306" y="40" width="200" height="120" rx="8" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="2"/>
+              <text x="406" y="68" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--accent)">A</text>
+              <text x="406" y="86" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Action</text>
+              <text x="406" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Decisions you made</text>
+              <text x="406" y="118" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Trade-offs navigated</text>
+              <text x="406" y="132" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Stakeholders influenced</text>
+              <text x="406" y="148" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--accent)">~60%</text>
+
+              <!-- Result -->
+              <rect x="519" y="40" width="161" height="120" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="600" y="68" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--accent)">R</text>
+              <text x="600" y="86" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Result</text>
+              <text x="600" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Concrete outcome</text>
+              <text x="600" y="118" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Metric if possible</text>
+              <text x="600" y="132" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">What you learned</text>
+              <text x="600" y="148" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--muted-fg)">~20%</text>
+
+              <text x="350" y="187" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-style="italic" fill="var(--muted-fg)">Total target: 2–3 minutes. Action is where seniority is demonstrated — specificity, trade-offs, influence.</text>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure D.2.</strong> STAR framework time allocation. Action should dominate — this is where interviewers hear evidence of seniority. Vague actions ("I led the project") score poorly; specific decisions with stated rationale ("I chose merge over insert_overwrite because...") score well.</div>
+        </div>
+
+        <h3 class="subsec">Common Senior DE Behavioural Questions</h3>
+        <div class="table-scroll"><table class="comp-table">
+          <thead><tr><th>Question</th><th>What They're Assessing</th><th>Key Points to Hit</th></tr></thead>
+          <tbody>
+            <tr><td>"Tell me about a time you pushed back on a technical decision from a more senior person."</td><td>Technical confidence, communication, constructive disagreement</td><td>Data-driven pushback, proposed alternative, outcome not just "I won"</td></tr>
+            <tr><td>"Describe a pipeline you built that failed in production. What happened?"</td><td>Honesty, post-mortem thinking, learning orientation</td><td>Specific failure mode, root cause analysis, what changed afterward</td></tr>
+            <tr><td>"How have you influenced a team to adopt better engineering practices?"</td><td>Technical leadership, change management</td><td>Concrete practice, how you got buy-in, measurable improvement</td></tr>
+            <tr><td>"Tell me about a time you had to deliver something with incomplete requirements."</td><td>Ambiguity tolerance, stakeholder management</td><td>How you clarified, what assumptions you made explicit, how you de-risked</td></tr>
+            <tr><td>"Describe a situation where you had to balance technical debt against delivery speed."</td><td>Business awareness, engineering judgment</td><td>The actual trade-off made, how you communicated it, the consequence</td></tr>
+          </tbody>
+        </table></div>
+
+        <!-- D.5 -->
+        <div class="sec-head"><span class="sec-tag">D.5</span><h2 class="sec-title">The 30-60-90 Day Plan</h2></div>
+
+        <p>Bringing a 30-60-90 day plan to the final hiring manager conversation signals senior-level thinking. It demonstrates that you have thought seriously about the role, understand that impact takes time to build, and are prepared to be accountable. It often turns a closing formality into a genuine conversation that shifts the interviewer from evaluating you to planning with you.</p>
+
+        <p>Keep it high-level — one page maximum. Specific enough to show you've thought about it; flexible enough to acknowledge you don't know what you don't know yet. Frame it around three themes: understand, contribute, lead.</p>
+
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6">30 DAYS — UNDERSTAND
+▸ Complete onboarding; access all relevant systems and repos
+▸ Meet every person on the immediate team and key stakeholders
+▸ Read architecture docs; run the full pipeline end-to-end locally
+▸ Identify the top 3 pain points the team is living with right now
+▸ Ask questions — understand decisions already made and why
+
+60 DAYS — CONTRIBUTE
+▸ Take ownership of one well-scoped deliverable
+▸ Submit PRs; learn the team's code review and deployment standards
+▸ Identify one quick win: a reliability improvement, a slow query, a
+  missing test suite — something visible that demonstrates value
+▸ Deliver the first deliverable on time and to spec
+
+90 DAYS — LEAD
+▸ Propose a concrete medium-term improvement (based on 30-day learning)
+▸ Take on a project that requires coordinating across teams
+▸ Begin mentoring or pairing with a more junior team member
+▸ Have a frank conversation with the hiring manager: what's working,
+  what needs to adjust, what are the next 6-month priorities</pre>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Questions to Ask Your Interviewer — Showing Senior-Level Thinking</strong>
+          </div>
+          <div class="dd-body">
+            <p>The questions you ask reveal as much about your seniority as the answers you give. Avoid questions about salary, holidays, and benefits in technical rounds — those belong in the recruiter conversation. Ask questions that show you are thinking about impact, quality, and growth.</p>
+            <p><strong>About the technical environment:</strong></p>
+            <ul style="margin:0.4rem 0 0 1.2rem">
+              <li>"What does a typical on-call incident look like for the data platform? How are they triaged and resolved?"</li>
+              <li>"What is the current biggest source of technical debt in the data platform, and is there appetite to address it?"</li>
+              <li>"How do you currently handle schema evolution — what happens when an upstream source changes a column type?"</li>
+            </ul>
+            <p style="margin-top:0.6rem"><strong>About the team and culture:</strong></p>
+            <ul style="margin:0.4rem 0 0 1.2rem">
+              <li>"What does a successful first six months look like for the person in this role?"</li>
+              <li>"How does the data engineering team collaborate with data scientists and analysts — shared ownership, handoffs, or something else?"</li>
+              <li>"What is the thing that would most improve how the team works right now, that isn't purely technical?"</li>
+            </ul>
+            <p style="margin-top:0.6rem"><strong>About growth:</strong></p>
+            <ul style="margin:0.4rem 0 0 1.2rem">
+              <li>"Where do your best data engineers tend to go when they leave — and what do they say about what they got from working here?"</li>
+              <li>"Is there a defined path from senior engineer to staff or principal, and what does that transition typically look like here?"</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="field-note">
+          <div class="fn-head">&#128203; Closing Note — This Guide Is a Starting Point</div>
+          <p>The Data Engineering &amp; AI Practitioner's Guide covers the technical foundations of a senior data engineering role on the Azure stack. But a guide, however thorough, is not a substitute for building things, shipping them, breaking them, and fixing them. The concepts here become durable only through practice — real pipelines, real schema decisions, real incidents at 2am.</p>
+          <p>Use the free-tier resources in Appendix A to build the practice project in Appendix A.5. Refer to the quick reference cards in Appendix B when you need a syntax reminder. Study the security patterns in Appendix C before your next architecture review. And come back to Appendix D when an interview is approaching.</p>
+          <p>The field is moving fast — Part 6 will need updating within a year as the agentic systems landscape matures. The best career insurance is not encyclopaedic knowledge of current tools but the habit of building, breaking, and learning. That habit compounds. The guide gives you the map; the territory is yours to explore.</p>
+        </div>
+
+        <div class="mark-read-wrap">
+          <button class="mark-read-btn" onclick="markRead('D', this)">&#10003; Mark Appendix D as Read</button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="C-security-fundamentals.html" class="sec-nav-btn prev">
+            <span class="sec-nav-label">Previous</span>
+            <span class="sec-nav-title">Appendix C &mdash; Security Fundamentals</span>
+            <span class="sec-nav-arrow">&#8592;</span>
+          </a>
+          <a href="#" class="sec-nav-btn next sec-nav-disabled">
+            <span class="sec-nav-label">Guide Complete</span>
+            <span class="sec-nav-title">You've reached the end &#127881;</span>
+            <span class="sec-nav-arrow">&#10003;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Appendix &nbsp;&middot;&nbsp; Reference &amp; Resources</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">35</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">System Design Is Differentiating</div>
+          <p>At senior level, interviewers assume technical fluency. What they're testing in system design is your decision-making process — how you clarify requirements, what trade-offs you identify, and whether you arrive at a concrete recommendation rather than "it depends".</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Action Dominates STAR</div>
+          <p>In behavioural answers, 60% of your time should be on Action. "I led the project" scores poorly. "I decided to use merge over insert_overwrite because we had late-arriving data and needed idempotency" scores well. Specificity signals seniority.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">30-60-90 = Commitment</div>
+          <p>Bringing a 30-60-90 plan to the final round is a signal, not a script. It says: I have thought about this seriously, I am prepared to be accountable, and I am already thinking about impact. Interviewers notice.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('D');</script>
+</body>
+</html>

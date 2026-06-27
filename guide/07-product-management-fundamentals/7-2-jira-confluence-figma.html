@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>7.2 Jira, Confluence &amp; Figma in Practice &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="7.2">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Seven &nbsp;&middot;&nbsp; Product Management Fundamentals</div>
+          <div class="chap-num">7.2</div>
+          <h1 class="chap-title">Jira, Confluence &amp; Figma in Practice</h1>
+          <p class="chap-sub">Where a user story actually lives day to day, how to write a Jira query that finds the ticket you need in seconds instead of scrolling, why a Confluence page is only as good as the last time someone remembered to update it, and how a five-minute Figma mockup saves a week of rebuilding the wrong dashboard</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Map the requirements hierarchy from Section 7.1 onto Jira's issue types, boards, and sprints</li>
+            <li>Read and write basic JQL (Jira Query Language) to find and triage work relevant to a data team</li>
+            <li>Structure Confluence documentation so it stays trustworthy rather than decaying into a stale wiki</li>
+            <li>Use Figma at the right level of fidelity to get stakeholder sign-off on a dashboard layout before building it</li>
+            <li>Identify the failure modes of an unmanaged backlog and apply a basic grooming discipline to prevent them</li>
+            <li>Choose between Jira, Azure Boards, Linear, and Notion for a given team's context</li>
+          </ol>
+        </div>
+
+        <!-- 7.2.1 -->
+        <div class="sec-head"><span class="sec-tag">7.2.1</span><h2 class="sec-title">From Concept to Ticket</h2></div>
+
+        <p>Section 7.1 covered the shape of a good requirement. This section covers where that requirement actually lives once it exists — because a well-written user story sitting in someone's email or a Word document is functionally invisible to the rest of the team. It cannot be prioritized against other work, tracked through development, or reported on, because nothing in the organization knows it exists in a structured way. The tools in this section — Jira, Confluence, and Figma — are not optional bureaucracy layered on top of "real work." They are the infrastructure that makes a requirement visible, trackable, and collaborative at the scale of a real team rather than a single conversation.</p>
+
+        <p>Each tool earns a specific, narrow job. Jira tracks discrete units of work moving through a defined process — it answers "what state is this in, and who owns it next?" Confluence holds context too large or too durable to fit in a ticket — it answers "why are we doing this, and what did we decide and why?" Figma makes an abstract requirement visually concrete before a single hour of build time is spent — it answers "is this actually what you meant?" Using the wrong tool for the wrong job is one of the most common and avoidable sources of friction in a data team's delivery process: writing a three-paragraph requirements essay inside a Jira ticket description (which Confluence does better), or trying to track sprint status inside a Confluence page (which Jira does better).</p>
+
+        <!-- 7.2.2 -->
+        <div class="sec-head"><span class="sec-tag">7.2.2</span><h2 class="sec-title">Jira &mdash; Tracking Work Through a Process</h2></div>
+
+        <p>Jira's data model maps almost exactly onto the requirements hierarchy from Section 7.1. An <span class="kt" data-term="Theme">Theme</span> may be represented as an Initiative or simply a label. An <span class="kt" data-term="Epic">Epic</span> is a first-class Jira issue type that groups related stories. A Story is the standard unit of trackable, estimable work. A Task or Sub-task sits underneath a story for the individual technical steps. Bugs get their own issue type, tracked separately from new functionality but living in the same board and backlog.</p>
+
+        <p>A <span class="df" data-term="Sprint">Sprint</span> (covered in Section 5.1's Agile fundamentals) is a fixed time window during which a defined set of stories is committed to and worked. The <span class="df" data-term="Sprint Board">Sprint Board</span> visualizes that committed work as cards moving across columns — typically To Do, In Progress, In Review, and Done — giving anyone glancing at it an instant read on where the sprint stands without needing to ask. The <span class="df" data-term="Product Backlog">backlog</span> sits behind the active sprint: everything the team has agreed is worth doing eventually, in roughly descending priority order, not yet committed to a specific sprint.</p>
+
+        <!-- Figure 7.3 — Jira Workflow Lifecycle -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f73sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m73g" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#3A9FE0"/>
+                </marker>
+                <marker id="m73r" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#9B3A3A"/>
+                </marker>
+              </defs>
+              <rect width="700" height="230" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">A Jira Ticket's Life &mdash; Backlog to Done</text>
+
+              <rect x="20" y="80" width="110" height="48" rx="5" fill="#3A5A80" filter="url(#f73sh)"/>
+              <text x="75" y="100" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">BACKLOG</text>
+              <text x="75" y="114" fill="rgba(220,232,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Prioritized, not</text>
+              <text x="75" y="123" fill="rgba(220,232,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">yet committed</text>
+              <line x1="130" y1="104" x2="155" y2="104" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m73g)"/>
+
+              <rect x="157" y="80" width="110" height="48" rx="5" fill="#1A5A78" filter="url(#f73sh)"/>
+              <text x="212" y="100" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">TO DO</text>
+              <text x="212" y="114" fill="rgba(220,240,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">In active sprint,</text>
+              <text x="212" y="123" fill="rgba(220,240,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">not started</text>
+              <line x1="267" y1="104" x2="292" y2="104" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m73g)"/>
+
+              <rect x="294" y="80" width="110" height="48" rx="5" fill="#254F8F" filter="url(#f73sh)"/>
+              <text x="349" y="100" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">IN PROGRESS</text>
+              <text x="349" y="114" fill="rgba(220,232,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Assignee actively</text>
+              <text x="349" y="123" fill="rgba(220,232,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">building</text>
+              <line x1="404" y1="104" x2="429" y2="104" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m73g)"/>
+
+              <rect x="431" y="80" width="110" height="48" rx="5" fill="#1A5A78" filter="url(#f73sh)"/>
+              <text x="486" y="100" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">IN REVIEW</text>
+              <text x="486" y="114" fill="rgba(220,240,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">PR review / QA</text>
+              <text x="486" y="123" fill="rgba(220,240,255,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">against AC</text>
+              <line x1="541" y1="104" x2="566" y2="104" stroke="#1A7A4A" stroke-width="1.5" marker-end="url(#m73g)"/>
+
+              <rect x="568" y="80" width="110" height="48" rx="5" fill="#1A7A4A" filter="url(#f73sh)"/>
+              <text x="623" y="100" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">DONE</text>
+              <text x="623" y="114" fill="rgba(220,255,235,.75)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Meets Definition</text>
+              <text x="623" y="123" fill="rgba(220,255,235,.75)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">of Done</text>
+
+              <!-- Failed review loop -->
+              <line x1="486" y1="80" x2="349" y2="160" stroke="#9B3A3A" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#m73r)"/>
+              <rect x="290" y="162" width="118" height="34" rx="4" fill="rgba(155,58,58,.1)" stroke="#9B3A3A" stroke-width="1"/>
+              <text x="349" y="180" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">Fails review &#8594;</text>
+              <text x="349" y="191" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">back to In Progress</text>
+
+              <!-- Blocked branch -->
+              <rect x="294" y="36" width="110" height="28" rx="4" fill="rgba(200,137,42,.15)" stroke="#C8892A" stroke-width="1"/>
+              <text x="349" y="54" fill="#9A6818" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">BLOCKED &mdash; flag, don't hide</text>
+              <line x1="349" y1="80" x2="349" y2="64" stroke="#C8892A" stroke-width="1.2" stroke-dasharray="2,2"/>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 7.3</strong><span>A ticket's typical lifecycle on a Jira board. The dashed red loop &mdash; failing review and returning to In Progress &mdash; is normal and healthy; it means the Definition of Done is actually being enforced, not skipped. A Blocked state should be visible on the board itself, not buried in a comment, because a blocked ticket silently sitting In Progress hides the fact that the team is stalled, distorting everyone's read of sprint health.</span></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>JQL queries a data engineer actually uses</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p><span class="df" data-term="JQL">JQL</span> (Jira Query Language) is a structured query syntax for filtering issues — it is to Jira's issue database roughly what SQL's <code>WHERE</code> clause is to a table, and it is far more powerful than scrolling through a board hoping to spot what you need.</p>
+              <div class="code-wrap">
+                <button class="copy-btn">Copy</button>
+                <pre><code>-- Everything assigned to me, not yet done, ordered by priority
+assignee = currentUser() AND status != Done ORDER BY priority DESC
+
+-- Stories blocked for more than 2 days — the silent-stall check
+status = Blocked AND status changed to Blocked before -2d
+
+-- Bugs raised against a specific epic this sprint
+issuetype = Bug AND "Epic Link" = DE-481 AND sprint in openSprints()
+
+-- Everything that touched a specific Gold table, across all epics
+text ~ "gold.fct_sales_daily" ORDER BY updated DESC</code></pre>
+              </div>
+              <p>That last query pattern — searching ticket text for a specific table, pipeline, or dashboard name — is one of the most underused habits in data teams. Before making a breaking change to a table, a quick text search across historical tickets often surfaces context (a past incident, a stakeholder's specific edge-case request, a reason a column exists that looks redundant but isn't) that nobody currently on the team remembers, because it was only ever written down once, in a ticket, two years ago.</p>
+              <p>Saved filters built from queries like these, pinned to a personal or team dashboard, replace the daily ritual of manually scanning a board — a small habit that compounds into real time saved across a sprint.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7.2.3 -->
+        <div class="sec-head"><span class="sec-tag">7.2.3</span><h2 class="sec-title">Confluence &mdash; Documentation That Earns Trust</h2></div>
+
+        <p>Confluence organizes documentation into <strong>Spaces</strong> (typically one per team or product area) containing <strong>Pages</strong>, which can be nested into hierarchies and linked directly to Jira issues via macros — a requirements page can embed a live, auto-updating table of every Jira story underneath it, so the documentation and the tracked work never drift out of sync by accident.</p>
+
+        <p>The single biggest risk to any wiki — Confluence included — is the same risk a stale Power BI report carries (Section 5.6): once a reader is burned by out-of-date information once, they stop trusting the whole space, and stop checking it at all, which makes the problem self-perpetuating. A Confluence space with ninety pages, sixty of which describe a system that was decommissioned eighteen months ago, is worse than no documentation, because new team members can't distinguish the sixty stale pages from the thirty accurate ones without already knowing the answer — which defeats the entire purpose of writing it down.</p>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Telecoms Provider &nbsp;&middot;&nbsp; The Page That Lied</span>
+          </div>
+          <div class="field-note-body">
+            <p>A telecoms data team maintained a Confluence page titled "Customer Churn Pipeline — Architecture," written eighteen months earlier when the pipeline was first built on an older ADF-only design. The pipeline was substantially rebuilt nine months later to incorporate a Databricks transformation layer, but the architecture page was never updated — nobody owned it, and updating documentation rarely makes it into a sprint as a tracked story.</p>
+            <p>A new engineer, ramping up, read the page, trusted it completely (it looked authoritative — diagrams, dated, professionally formatted), and spent four days trying to debug a transformation step that, per the diagram, happened in ADF Data Flows. It had not happened there for nine months. The actual logic lived in a Databricks notebook the page never mentioned. The four days were not a knowledge gap — the engineer had done everything right by reading the documentation first. The documentation itself was the defect.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>A wiki page has no expiry warning the way a carton of milk does — it looks exactly as trustworthy on day 600 as it did on day one. Architecture documentation needs an explicit owner and a trigger (tied to the story that changes the architecture) to get updated, or it will silently become actively misleading rather than just incomplete.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Structuring a Confluence space so it stays current</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The fix for documentation rot is rarely "write more documentation" — it's making the existing documentation's accuracy somebody's explicit job, and reducing how much of it needs hand-maintenance in the first place.</p>
+              <p><strong>Separate the durable from the volatile.</strong> A page describing <em>why</em> a design decision was made (a decision log entry) rarely goes stale — the historical reasoning doesn't change even if the system later does. A page describing <em>current</em> system architecture goes stale constantly. Keep these as separate pages: link the decision log from the architecture page rather than merging them, so the volatile page can be safely rewritten wholesale without losing the durable reasoning underneath it.</p>
+              <p><strong>Auto-generate what can be auto-generated.</strong> A Jira macro embedding a live filtered list of in-flight stories for a system never goes stale, because Confluence queries Jira's live data rather than storing a snapshot. Manually maintained status tables ("current pipeline status: Stable") rot within weeks; live-query tables don't, because there's nothing to manually update.</p>
+              <p><strong>Assign an owner and a review trigger, not a review schedule.</strong> "Review this page every quarter" rarely survives contact with a busy sprint calendar. "This page must be updated as part of any story that changes this pipeline's architecture" ties the update to the event that makes it necessary, and — critically — can be written directly into that story's Definition of Done, making it actually enforceable rather than aspirational.</p>
+              <p><strong>Date-stamp and flag honestly.</strong> A simple "Last verified: [date]" banner at the top of architecture pages costs nothing and gives every reader the information they need to calibrate their trust — a page last verified three years ago should be read with appropriate skepticism, and a visible date stamp is what makes that possible.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7.2.4 -->
+        <div class="sec-head"><span class="sec-tag">7.2.4</span><h2 class="sec-title">Figma &mdash; Agreeing on the Layout Before Building It</h2></div>
+
+        <p>Figma is a collaborative design tool best known for software interface design, but its most valuable use for a data team has nothing to do with writing code — it is getting visual agreement on what a dashboard should look like <em>before</em> a single DAX measure or Power BI visual gets built. A wireframe is cheap and fast to change; a finished Power BI report is comparatively expensive to rework. Moving the disagreement earlier, into the wireframe stage, is one of the highest-leverage habits a data team can adopt, and it directly prevents the "dashboard graveyard" failure mode covered in Section 5.6 — a report nobody asked for in the shape it actually arrived in.</p>
+
+        <p>The right fidelity level matters more than the tool itself. A low-fidelity wireframe — grey boxes, placeholder labels, rough layout — is enough to settle "where does the KPI summary go, top or left rail?" and "do you need a region filter on this page or a separate page per region?" before any real data is connected. A high-fidelity mockup, with the actual colour palette, fonts, and sample numbers, is worth the extra time only once the layout question is already settled — building high-fidelity early often anchors stakeholders on cosmetic details (the exact shade of blue) before the structural question (does this page even answer the right business question) has been resolved.</p>
+
+        <!-- Figure 7.4 — Figma to Power BI Handoff -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f74sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m74g" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#3A9FE0"/>
+                </marker>
+              </defs>
+              <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">From Wireframe to Shipped Dashboard</text>
+
+              <rect x="20" y="44" width="130" height="100" rx="5" fill="#0F2447" filter="url(#f74sh)"/>
+              <text x="85" y="65" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Low-Fidelity</text>
+              <text x="85" y="78" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Wireframe</text>
+              <rect x="32" y="86" width="106" height="14" rx="2" fill="rgba(255,255,255,.15)"/>
+              <rect x="32" y="104" width="50" height="28" rx="2" fill="rgba(255,255,255,.15)"/>
+              <rect x="86" y="104" width="52" height="28" rx="2" fill="rgba(255,255,255,.15)"/>
+              <text x="85" y="138" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Layout questions</text>
+              <line x1="150" y1="94" x2="172" y2="94" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m74g)"/>
+
+              <rect x="174" y="44" width="130" height="100" rx="5" fill="#1A5A78" filter="url(#f74sh)"/>
+              <text x="239" y="65" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Stakeholder</text>
+              <text x="239" y="78" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Comment &amp; Sign-off</text>
+              <circle cx="200" cy="100" r="9" fill="#3A9FE0"/>
+              <text x="200" y="103" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">&#128172;</text>
+              <text x="239" y="128" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Cheap to change</text>
+              <text x="239" y="138" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">at this stage</text>
+              <line x1="304" y1="94" x2="326" y2="94" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m74g)"/>
+
+              <rect x="328" y="44" width="130" height="100" rx="5" fill="#254F8F" filter="url(#f74sh)"/>
+              <text x="393" y="65" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">High-Fidelity</text>
+              <text x="393" y="78" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Mockup</text>
+              <rect x="340" y="86" width="106" height="14" rx="2" fill="#3A9FE0" opacity=".5"/>
+              <rect x="340" y="104" width="50" height="28" rx="2" fill="#1A7A4A" opacity=".5"/>
+              <rect x="394" y="104" width="52" height="28" rx="2" fill="#C8892A" opacity=".5"/>
+              <text x="393" y="138" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Real palette, sample data</text>
+              <line x1="458" y1="94" x2="480" y2="94" stroke="#3A9FE0" stroke-width="1.5" marker-end="url(#m74g)"/>
+
+              <rect x="482" y="44" width="190" height="100" rx="5" fill="#1A7A4A" filter="url(#f74sh)"/>
+              <text x="577" y="65" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Power BI Build</text>
+              <text x="577" y="84" fill="rgba(220,255,235,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Engineer builds against</text>
+              <text x="577" y="95" fill="rgba(220,255,235,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">an already-agreed layout</text>
+              <text x="577" y="115" fill="rgba(220,255,235,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">&#10003; No surprise rework</text>
+              <text x="577" y="128" fill="rgba(220,255,235,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">&#10003; Stakeholder already saw it</text>
+
+              <text x="350" y="180" fill="#6080A0" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Disagreement is cheapest at the far left of this chain &mdash; and most expensive at the far right</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 7.4</strong><span>Moving stakeholder disagreement as far left as possible. A layout question raised against a grey-box wireframe costs minutes to resolve. The same question, raised after a finished Power BI report ships, costs a rebuild &mdash; and the credibility hit covered in Section 5.6's dashboard graveyard discussion. Figma's comment threads, tied directly to specific elements of the mockup, give stakeholders a precise way to flag exactly what they mean, rather than a vague "this doesn't look right" after the fact.</span></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>A Figma handoff that an engineer can actually build from</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>A mockup that looks finished is not the same as a mockup that's ready to hand off. The gap between the two is usually a missing spec, not a missing pixel.</p>
+              <p><strong>Annotate the data, not just the layout.</strong> A mockup showing "$2.4M" in a KPI card tells an engineer nothing about whether that's a hardcoded example or a real calculation, and if real, what it's actually measuring. A short annotation layer — "QTD revenue, closed-won only, excludes returns" — turns a picture into a specification.</p>
+              <p><strong>Show the edge-case states, not just the happy path.</strong> What does this card look like with no data yet (new sales rep, first week)? What does it look like with a negative number (a quarter where revenue genuinely declined)? Mocking up two or three states alongside the primary one prevents a whole category of "what was I supposed to build for this case?" questions during development — directly reinforcing the negative-case acceptance criteria habit from Section 7.1.</p>
+              <p><strong>Use Figma's Inspect mode actively, not as an afterthought.</strong> Inspect mode exposes exact spacing, colour hex codes, and font sizes to anyone with view access — useful for software UI, less critical for a Power BI report where the engineer isn't pixel-matching CSS, but still valuable for establishing a consistent visual language (consistent KPI card sizing, consistent colour-for-meaning conventions like red-for-decline) across a growing library of reports.</p>
+              <p><strong>Resolve comments, don't just collect them.</strong> A Figma file with forty unresolved comment threads from three different stakeholders, contradicting each other, is not feedback — it's an unmade decision. Someone (usually the most senior person on the data side, in consultation with the requester) needs explicit ownership of resolving conflicting feedback into one final answer before development starts, the same discipline covered for conflicting Now/Next/Later input in Section 7.1.</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="subsec">Keeping the Backlog Honest</h3>
+        <p>A backlog that grows without active grooming becomes a graveyard of its own — hundreds of stale, half-specified tickets that nobody trusts enough to actually pull from, so the team works from word-of-mouth instead, defeating the entire purpose of having a backlog. A regular grooming session (commonly weekly or biweekly) should do three things: re-prioritize based on what's changed since last time, refine the next few sprints' worth of stories against the Definition of Ready from Section 7.1, and explicitly close out or archive anything that's been sitting untouched long enough that it's clearly not actually going to happen — a backlog with three hundred items nobody intends to build is not "comprehensive," it's noise that makes the thirty items the team actually cares about harder to find.</p>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Retail Analytics Team &nbsp;&middot;&nbsp; Eleven Hundred Tickets, Zero Trust</span>
+          </div>
+          <div class="field-note-body">
+            <p>A retail analytics team's Jira backlog had grown to over eleven hundred open tickets across three years, with no regular grooming discipline. New stakeholder requests were dutifully logged as tickets and then, in practice, never looked at again unless someone happened to chase them directly over Slack — at which point the requester's actual expectation was usually "next sprint," not "somewhere in a backlog of eleven hundred items with no realistic path to ever being picked up."</p>
+            <p>The team's actual prioritization happened entirely informally, through Slack messages and verbal requests to whichever engineer happened to be free — meaning the backlog itself had become decorative. Anyone new joining the team who tried to use it as a real source of truth for "what does this team need to build" was actively misled, because the genuinely active and prioritized work bore almost no resemblance to what the backlog, taken at face value, suggested.</p>
+            <p>A two-week cleanup closed roughly seven hundred tickets — most stale beyond any realistic chance of being built, many duplicates of each other from repeated unlogged requests — leaving a backlog of around four hundred that the team could honestly stand behind. A standing biweekly thirty-minute grooming session kept it from regrowing. Within two months, stakeholders reported (unprompted) that they trusted the backlog enough to check it themselves rather than chasing engineers directly — the single clearest signal that the cleanup had worked.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>A backlog's value is inversely related to how dishonestly large it's allowed to grow. An ungroomed backlog doesn't just look messy — it actively pushes real prioritization into informal, untracked channels, which is precisely the visibility problem the tool was meant to solve in the first place.</p>
+          </div>
+        </div>
+
+        <h3 class="subsec">Choosing the Tool</h3>
+        <p>Jira, Confluence, and Figma are the dominant choice in most enterprise and Microsoft-adjacent environments, but they are not the only option, and a senior practitioner should be able to justify the choice rather than defaulting to "what we've always used." Section 5.3's MVP-Driven Delivery comparison already covers tooling choices through the lens of delivery speed for small teams — this table looks at the same landscape through the lens of issue tracking specifically.</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Strength</th>
+              <th>Learning Curve</th>
+              <th>Best Fit</th>
+              <th>Weak Point</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Jira</strong></td>
+              <td>Deep customization, mature reporting, huge plugin ecosystem</td>
+              <td>Moderate &mdash; admin-side configuration can get complex</td>
+              <td>Mid-to-large teams with established agile process and complex workflows</td>
+              <td>Can feel heavy and slow for a small team that just wants a simple board</td>
+            </tr>
+            <tr>
+              <td><strong>Azure Boards</strong></td>
+              <td>Native integration with Azure DevOps pipelines and repos</td>
+              <td>Moderate, easier for teams already in the Microsoft ecosystem</td>
+              <td>Microsoft-first organizations already using Azure DevOps for CI/CD</td>
+              <td>Weaker third-party integration ecosystem outside Microsoft tooling</td>
+            </tr>
+            <tr>
+              <td><strong>Linear</strong></td>
+              <td>Fast, opinionated, minimal-friction interface; strong keyboard-driven workflow</td>
+              <td>Low &mdash; intentionally simple by design</td>
+              <td>Small, fast-moving engineering teams who find Jira's flexibility a liability</td>
+              <td>Far less customizable; not built for complex enterprise governance needs</td>
+            </tr>
+            <tr>
+              <td><strong>Notion</strong></td>
+              <td>Flexible all-in-one workspace blending docs, light task tracking, and wikis</td>
+              <td>Low to start, but easy to build an unstructured mess at scale</td>
+              <td>Small teams or early-stage products wanting one tool instead of three</td>
+              <td>Task tracking and reporting are far less robust than a dedicated issue tracker</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Jira, Confluence, and Figma each earn a narrow, specific job rather than being interchangeable "PM tools." Jira tracks discrete work moving through a process — its issue hierarchy (Epic &#8594; Story &#8594; Task) mirrors Section 7.1's requirements hierarchy directly, and JQL turns the ticket database into something a data engineer can actually query rather than scroll through. Confluence holds the durable context a ticket can't — but only stays trustworthy with an explicit owner and an update trigger tied to the change that makes it stale, not a calendar review nobody honours. Figma moves disagreement about a dashboard's layout to the cheapest possible point in the process — before it's built — and a low-fidelity wireframe is usually the right fidelity level for settling structural questions, with high-fidelity mockups reserved for once those questions are already answered. An ungroomed backlog quietly defeats its own purpose by pushing real prioritization into informal, untracked channels — regular grooming is what keeps it a source of truth rather than decoration. Jira/Confluence/Figma dominate the Microsoft-adjacent enterprise landscape this guide focuses on, but Azure Boards, Linear, and Notion are legitimate choices for different team shapes and should be chosen deliberately, not by default.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 7.2 &nbsp;&middot;&nbsp; Jira, Confluence &amp; Figma in Practice</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A team member writes a three-paragraph explanation of why a pipeline architecture decision was made, directly inside a Jira ticket's description field, because "that's where the work is tracked." What is the more appropriate tool choice, and why?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Jira is correct — keeping all context in one place, including the ticket that triggered the decision, is the most efficient choice</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Confluence — durable reasoning that should outlive the ticket and remain discoverable independent of any single piece of tracked work belongs in documentation, with a link from the ticket to the Confluence page rather than the explanation buried inside the ticket itself</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Figma — architectural reasoning should always be communicated visually rather than in writing</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It doesn't matter which tool, as long as the explanation exists somewhere</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Jira tickets are designed to be tracked, closed, and eventually archived as completed work items — they are not built to be a durable, easily discoverable knowledge base, and a three-paragraph architectural rationale buried inside a closed ticket from eight months ago is effectively invisible to a new team member trying to understand current system design. Confluence is built specifically to hold this kind of durable, cross-referenced reasoning, linked from the ticket rather than duplicated inside it. Figma (C) is for visual mockups, not written rationale. "It doesn't matter" (D) ignores that discoverability is the entire point — buried context that technically "exists somewhere" provides no practical value if nobody can find it when they need it.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">Which JQL query would correctly surface tickets that have been sitting in a Blocked status for more than two days, so a team can proactively address silent stalls before standup?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text"><code>status = "In Progress" ORDER BY created ASC</code></div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text"><code>status = Blocked AND status changed to Blocked before -2d</code></div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text"><code>assignee = currentUser() AND status != Done</code></div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text"><code>issuetype = Bug ORDER BY priority DESC</code></div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This is the only query that filters specifically on the Blocked status and adds a time condition (status changed more than two days ago) — exactly what's needed to catch tickets that have silently stalled rather than just any ticket currently marked Blocked for any duration. A (In Progress, sorted by creation date) doesn't filter for blocked status at all. C finds a single user's open work regardless of status, useful for a different purpose (personal triage) but not this one. D finds bugs by priority, unrelated to blocked-state duration entirely.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A Confluence architecture page was accurate when written but has not been updated through two subsequent pipeline rebuilds. A new engineer trusts it completely and wastes four days debugging based on outdated information. What is the most effective structural fix, beyond simply telling someone to "update the docs more often"?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Delete all architecture documentation, since it inevitably goes stale and causes more harm than good</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Schedule a calendar reminder for the whole team to review all documentation once per quarter</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Tie the documentation update to the triggering event itself — make updating the relevant architecture page part of the Definition of Done for any story that changes that architecture, and add a visible "last verified" date so readers can calibrate their trust</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Restrict architecture documentation access to senior engineers only, so junior engineers can't be misled by it</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Calendar-based review schedules (B) reliably lose to sprint pressure in practice — there's rarely an enforcement mechanism. Tying the update to the actual triggering event, and embedding it in Definition of Done, makes it part of the work that's already being tracked and reviewed rather than a separate, easily-skipped chore. A visible "last verified" date doesn't prevent staleness but gives every future reader the information needed to judge how much to trust the page. Deleting documentation (A) throws away genuine value to avoid a fixable process problem. Restricting access (D) doesn't fix staleness, it just changes who gets misled — and denies junior engineers, who need it most, the context they're trying to ramp up on.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A data team is about to start designing a new executive dashboard. Should they begin with a high-fidelity Figma mockup (real colours, real sample data) or a low-fidelity wireframe (grey boxes, placeholder labels), and why?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">High-fidelity, because executives expect a polished, professional presentation and will disengage from anything that looks unfinished</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Low-fidelity first, because the structural questions (what goes where, what filters exist, what's on which page) need to be settled before cosmetic detail is added — high-fidelity work risks anchoring stakeholders on colour and styling feedback before the underlying layout is actually right</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">It doesn't matter which fidelity level, since Figma mockups don't actually affect what gets built in Power BI</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">High-fidelity, because low-fidelity wireframes can't be used to gather any stakeholder feedback at all</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Structural feedback ("the KPI summary should be top, not left") is cheap to act on at low fidelity and expensive to act on once a polished mockup — or worse, a built report — already exists. Jumping straight to high fidelity (A, D) risks stakeholders fixating on surface details (exact shades of blue, font choices) rather than the layout questions that actually matter and are harder to change later. Low-fidelity wireframes are explicitly built to gather structural feedback (D is factually wrong on this point) — that's their primary purpose. Mockup fidelity does affect downstream work (C is wrong) — agreeing on layout before building prevents the costly rework Figure 7.4 describes.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A team's Jira backlog has grown to over a thousand tickets with no regular grooming. Stakeholders report they no longer check the backlog and instead message engineers directly to ask for things. What does this behaviour pattern most directly indicate, and what is the correct fix?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The team needs a more powerful tool than Jira to handle the larger volume of tickets</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The ungroomed backlog has stopped functioning as a trustworthy source of truth, pushing real prioritization into informal, untracked channels; the fix is a grooming cleanup (closing stale items, removing duplicates) followed by a standing recurring grooming session, not a bigger or different tool</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Stakeholders messaging engineers directly is actually a healthy, fast communication pattern that the team should formalize and encourage further</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The team should make the backlog private so stakeholders can no longer see how large and disorganized it has become</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Stakeholders bypassing the backlog entirely is a direct symptom of having learned, through experience, that it doesn't reflect what will actually get built — exactly the trust failure described in the field note. The volume problem (A) is a tooling-capacity red herring; Jira handles thousands of tickets fine technically, the problem is process, not capacity. Direct Slack-based prioritization (C) feels fast but is invisible, unprioritized against other real work, and undermines the entire point of having a managed backlog — formalizing it would make the dysfunction worse, not better. Hiding the backlog (D) treats the symptom (stakeholders can see the mess) while leaving the actual cause (the mess itself, and the broken trust it caused) completely unaddressed.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="7-1-user-stories-roadmaps.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">7.1 User Stories &amp; Roadmaps</span></span>
+          </a>
+          <a href="7-3-ux-principles-data-products.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">7.3 UX Principles for Data Products</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 7 &nbsp;&middot;&nbsp; Product Management Fundamentals</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">37</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:160px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Right Tool, Right Job</div>
+          <p>Jira tracks state. Confluence holds durable reasoning. Figma settles layout before build. Using one tool for another's job (a three-paragraph rationale in a ticket description) is a common, avoidable friction point.</p>
+        </div>
+        <div class="ms" style="height:380px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">JQL Habit</div>
+          <p>Before changing a table or pipeline, search ticket text for its name. Past incidents and edge-case requests are often only recorded once, in a ticket nobody remembers existed.</p>
+        </div>
+        <div class="ms" style="height:280px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Docs Need a Trigger, Not a Calendar</div>
+          <p>"Review quarterly" loses to sprint pressure. Tie documentation updates to the story that changes the architecture, and put it in that story's Definition of Done.</p>
+        </div>
+        <div class="ms" style="height:260px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"How do you prevent stakeholder rework on a dashboard?" &mdash; a strong answer mentions low-fidelity wireframes before build, not just "I ask good questions upfront." Naming Figma's role specifically signals process maturity.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('7.2');</script>
+</body>
+</html>

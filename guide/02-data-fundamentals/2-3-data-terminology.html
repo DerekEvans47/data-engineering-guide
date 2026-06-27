@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2.3 Data Terminology · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+  <style>
+    .term-entry { border-left: 3px solid #0076CC; padding: 0 0 6px 18px; margin: 22px 0 0; }
+    .term-entry.term-xref { border-left-color: #B0BEC5; }
+    .term-name { font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700; color: #1B3A6B; margin: 0 0 4px; }
+    .term-def  { font-size: 14px; margin: 0 0 6px; color: #2A3A50; }
+    .term-entry p { font-size: 14px; line-height: 1.7; color: #3A4A5A; margin: 0 0 8px; }
+    .term-group-head { font-family: 'Inter',sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #6080A0; margin: 36px 0 4px; padding-bottom: 6px; border-bottom: 1px solid #D8E4F0; }
+  </style>
+</head>
+<body data-section="2.3">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Two &nbsp;&middot;&nbsp; Data Fundamentals</div>
+          <div class="chap-num">2.3</div>
+          <h1 class="chap-title">Data Terminology</h1>
+          <p class="chap-sub">The shared vocabulary of data engineering &mdash; 36 terms every practitioner must own</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Define and distinguish terms commonly confused with each other: SLA vs SLO, schema drift vs schema evolution, soft delete vs tombstone vs archive</li>
+            <li>Explain pipeline operational concepts: backfill, watermark, upsert, dead letter queue, late-arriving data</li>
+            <li>Describe governance and quality concepts: data contract, data lineage, data catalog, data observability</li>
+            <li>Apply modeling terminology correctly: grain, surrogate vs natural vs business key, cardinality</li>
+            <li>Recognise domain-specific terms: Fill and Kill, PII, hot path vs cold path</li>
+          </ol>
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">2.3.1</span><h2 class="sec-title">Why Vocabulary Is a Professional Edge</h2></div>
+
+        <p>Technical vocabulary is not jargon for its own sake. Shared terms compress complex concepts into single words that everyone in a conversation understands identically. When a team member says "the pipeline needs to handle late-arriving data," a practitioner with shared vocabulary immediately knows this refers to records whose event timestamps belong to a closed processing window, not simply records that arrived after a scheduled cut-off time. Without that shared understanding, the same conversation takes ten minutes of clarification.</p>
+
+        <p>This section covers 36 terms that appear regularly in data engineering conversations, documentation, and interviews. Terms covered in depth in earlier sections are cross-referenced rather than repeated. New terms are given full entries with definitions, practical context, and common points of confusion. Use this section as a reference: read it through once for broad familiarity, then return to individual entries when a term comes up in context.</p>
+
+        <div class="hl-block">
+          Several terms in this section are commonly conflated by practitioners with years of experience: SLA vs SLO, natural key vs surrogate key, schema drift vs schema evolution, soft delete vs tombstone. Knowing not just the definitions but the distinctions between related terms is what signals senior-level fluency in an interview or architecture review.
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">2.3.2</span><h2 class="sec-title">Pipeline Operations &amp; Patterns</h2></div>
+
+        <div class="term-group-head">Core patterns &mdash; all covered in detail in earlier sections</div>
+        <div class="term-entry term-xref" id="term-etl-vs-elt">
+          <h3 class="term-name">ETL vs ELT</h3>
+          <p class="term-def">Extract-Transform-Load vs Extract-Load-Transform. ETL transforms before loading (traditional DW). ELT loads raw first and transforms after (modern data lake / Medallion). &nbsp;<a href="../01-data-platform-foundation/1-1-modern-data-stack.html" style="color:#0076CC;font-size:12px;">&#8594; Covered in Section 1.1.modern.data.stack</a></p>
+        </div>
+        <div class="term-entry term-xref" id="term-batch-vs-streaming">
+          <h3 class="term-name">Batch vs Streaming</h3>
+          <p class="term-def">Batch processes data in discrete scheduled runs. Streaming processes data continuously as events arrive. ADF is batch. Event Hubs + Databricks Structured Streaming is the Azure streaming stack. &nbsp;<a href="../01-data-platform-foundation/1-5-data-mesh.html" style="color:#0076CC;font-size:12px;">&#8594; Covered in Section 1.5.data.mesh</a></p>
+        </div>
+        <div class="term-entry term-xref" id="term-full-load-vs-incremental-load">
+          <h3 class="term-name">Full Load vs Incremental Load</h3>
+          <p class="term-def">Full load copies the entire source on every run. Incremental load copies only new or changed records since the last run, tracked via a watermark. &nbsp;<a href="../01-data-platform-foundation/1-4-adf.html" style="color:#0076CC;font-size:12px;">&#8594; Covered in Section 1.4.adf</a></p>
+        </div>
+        <div class="term-entry term-xref" id="term-watermark">
+          <h3 class="term-name">Watermark</h3>
+          <p class="term-def">A stored value (timestamp or sequence number) tracking how far an incremental pipeline has processed. Read before each run, updated after. &nbsp;<a href="../01-data-platform-foundation/1-4-adf.html" style="color:#0076CC;font-size:12px;">&#8594; Covered in Section 1.4.adf</a></p>
+        </div>
+        <div class="term-entry term-xref" id="term-change-data-capture-cdc">
+          <h3 class="term-name">Change Data Capture (CDC)</h3>
+          <p class="term-def">Reading the source database's transaction log to capture every insert, update, and delete as it happens. More precise than watermark; required when deletions must be detected. &nbsp;<a href="../01-data-platform-foundation/1-4-adf.html" style="color:#0076CC;font-size:12px;">&#8594; Covered in Section 1.4.adf</a></p>
+        </div>
+        <div class="term-entry term-xref" id="term-idempotency">
+          <h3 class="term-name">Idempotency</h3>
+          <p class="term-def">A pipeline that produces the same output no matter how many times it runs on the same input. Critical for Bronze ingestion; achieved via partition-overwrite mode. &nbsp;<a href="../01-data-platform-foundation/1-2-medallion-architecture.html" style="color:#0076CC;font-size:12px;">&#8594; Covered in Section 1.2.medallion.architecture</a></p>
+        </div>
+        <div class="term-group-head">New terms</div>
+        <div class="term-entry" id="term-backfill">
+          <h3 class="term-name"><span class="kt" data-term="Backfill">Backfill</span></h3>
+          <p class="term-def"><strong>Re-running a pipeline over a historical time range it missed or that needs correction.</strong></p>
+          <p>Backfills are triggered by: pipeline downtime during a period, a logic bug that has been fixed and history needs reprocessing, or a new dataset that requires historical data loaded before go-live.</p>
+          <p>The key requirement: backfills must be <span class="kt" data-term="Idempotent">idempotent</span>. Re-running a backfill for January must produce exactly the same result as running it the first time. Partition-overwrite mode achieves this for Bronze layers. For Silver and Gold, MERGE operations with deduplication logic handle it. A non-idempotent backfill doubles historical data &mdash; a very common and painful bug.</p>
+          <p><strong>Hmm.</strong> A frequently missed edge case: backfilling a table that downstream consumers are actively querying. The backfill may temporarily produce inconsistent query results as partial history is loaded. The safe pattern is to backfill into a shadow table, validate, then swap.</p>
+        </div>
+        <div class="term-entry" id="term-upsert--merge">
+          <h3 class="term-name"><span class="kt" data-term="Upsert">Upsert / MERGE</span></h3>
+          <p class="term-def"><strong>Insert if the record does not exist; update if it does. The standard pattern for synchronising source data to Silver and Gold.</strong></p>
+          <p>In Delta Lake: <code>MERGE INTO target USING source ON target.id = source.id WHEN MATCHED THEN UPDATE SET ... WHEN NOT MATCHED THEN INSERT ...</code>. This is how CDC records (inserts, updates, deletes from a source) are applied to Silver tables.</p>
+          <p>Upserts are more expensive than appends because each incoming record requires a key lookup against the target. For high-volume tables, this cost is justified. For append-only tables (like raw event logs), an upsert adds unnecessary overhead. Know which pattern your table requires before designing the pipeline.</p>
+          <p><strong>Soft deletes</strong> in a source system are handled as updates in the upsert: a record with <code>is_deleted = true</code> is applied as an update to the target row, not a deletion of it.</p>
+        </div>
+        <div class="term-entry" id="term-hot-path-vs-cold-path">
+          <h3 class="term-name"><span class="kt" data-term="CDC">Hot Path vs Cold Path</span></h3>
+          <p class="term-def"><strong>Two parallel processing paths in a Lambda architecture: one for real-time (hot) and one for batch (cold).</strong></p>
+          <p>In a Lambda architecture, the <strong>hot path</strong> processes streaming data with low latency (seconds to minutes) for real-time dashboards and alerts. The <strong>cold path</strong> processes the same data in large batches (hours) with higher accuracy and completeness. Results from both paths are merged in a serving layer.</p>
+          <p>The Lambda architecture was the dominant pattern before unified streaming/batch systems like Spark Structured Streaming and Delta Lake matured. Today, most organisations use a <strong>Kappa architecture</strong> (streaming-only, with batch replaced by replaying the stream) or a <strong>Medallion Architecture</strong> where the same Delta tables serve both near-real-time and batch queries. Lambda is worth knowing because legacy systems still use it &mdash; and because "hot path" and "cold path" remain common vocabulary even outside strict Lambda implementations.</p>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Financial Services Firm &nbsp;&middot;&nbsp; When "Backfill" Means Four Different Things</span>
+          </div>
+          <div class="field-note-body">            <p>During a data platform migration project, a firm's project manager called a meeting to discuss "the backfill plan." In the room were a data engineer, a business analyst, a DBA, and a product owner. Each of them understood "backfill" differently: the data engineer meant reprocessing historical pipeline runs; the business analyst meant loading historical data for a new report; the DBA meant rebuilding fragmented index pages (an entirely different SQL Server term); and the product owner meant filling in gaps in data coverage from source systems that hadn't been connected yet.</p>
+            <p>The meeting produced a project plan that was four incompatible plans merged into one document. The confusion cost two weeks of rework when the implementation team started executing on different assumptions. The resolution: the project adopted a shared vocabulary document &mdash; every significant technical term was defined with an example before it appeared in project documentation.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Vocabulary failures are not vocabulary problems — they are coordination problems. Shared definitions are engineering infrastructure. Define terms early and explicitly, especially on projects where data engineers, analysts, DBAs, and business stakeholders work together.</p></div>
+        </div>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="fs23"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter>
+                <marker id="ma23" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 7 3.5, 0 7" fill="#0076CC"/></marker>
+              </defs>
+              <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Where Terminology Lives in a Pipeline</text>
+
+              <!-- Source -->
+              <rect x="12" y="80" width="72" height="50" rx="5" fill="#3A4A6A" filter="url(#fs23)"/>
+              <text x="48" y="100" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="600" text-anchor="middle">Source</text>
+              <text x="48" y="113" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">ERP / API</text>
+              <line x1="84" y1="105" x2="94" y2="105" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma23)"/>
+              <text x="48" y="148" fill="#C8892A" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">CDC detects</text>
+              <text x="48" y="159" fill="#C8892A" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">changes here</text>
+
+              <!-- ADF -->
+              <rect x="96" y="80" width="72" height="50" rx="5" fill="#0076CC" filter="url(#fs23)"/>
+              <text x="132" y="98" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="600" text-anchor="middle">ADF</text>
+              <text x="132" y="110" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Ingest</text>
+              <text x="132" y="120" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Watermark</text>
+              <line x1="168" y1="105" x2="178" y2="105" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma23)"/>
+              <text x="132" y="148" fill="#0076CC" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Idempotent</text>
+              <text x="132" y="159" fill="#0076CC" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">run design</text>
+
+              <!-- Bronze -->
+              <rect x="180" y="68" width="80" height="74" rx="5" fill="#B87333" filter="url(#fs23)"/>
+              <text x="220" y="92" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="600" text-anchor="middle">&#129350; Bronze</text>
+              <text x="220" y="106" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Raw snapshot</text>
+              <text x="220" y="118" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Partition prune</text>
+              <text x="220" y="130" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Full backfill</text>
+              <line x1="260" y1="105" x2="270" y2="105" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma23)"/>
+
+              <!-- DLQ branch (bad records) -->
+              <rect x="182" y="158" width="76" height="32" rx="4" fill="#C04040" filter="url(#fs23)"/>
+              <text x="220" y="172" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Dead Letter</text>
+              <text x="220" y="183" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Queue (DLQ)</text>
+              <line x1="220" y1="142" x2="220" y2="156" stroke="#C04040" stroke-width="1.5" stroke-dasharray="3,2" marker-end="url(#ma23)"/>
+              <text x="243" y="153" fill="#C04040" font-family="Inter,sans-serif" font-size="7.5" font-style="italic">Bad records</text>
+
+              <!-- Silver -->
+              <rect x="272" y="68" width="80" height="74" rx="5" fill="#5C6270" filter="url(#fs23)"/>
+              <text x="312" y="92" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="600" text-anchor="middle">&#129351; Silver</text>
+              <text x="312" y="106" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Upsert / MERGE</text>
+              <text x="312" y="118" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Schema drift</text>
+              <text x="312" y="130" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Late-arriving</text>
+              <line x1="352" y1="105" x2="362" y2="105" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma23)"/>
+              <text x="312" y="162" fill="#C8892A" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Schema drift</text>
+              <text x="312" y="173" fill="#C8892A" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">detected here</text>
+
+              <!-- Gold -->
+              <rect x="364" y="68" width="80" height="74" rx="5" fill="#C8892A" filter="url(#fs23)"/>
+              <text x="404" y="92" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="600" text-anchor="middle">&#129352; Gold</text>
+              <text x="404" y="106" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Aggregated</text>
+              <text x="404" y="118" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Grain defined</text>
+              <text x="404" y="130" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Surrogate keys</text>
+              <line x1="444" y1="105" x2="454" y2="105" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma23)"/>
+
+              <!-- Observability + Catalog box -->
+              <rect x="456" y="54" width="108" height="48" rx="5" fill="#1B3A6B" filter="url(#fs23)"/>
+              <text x="510" y="71" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Observability</text>
+              <text x="510" y="83" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Freshness · Volume</text>
+              <text x="510" y="93" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Schema · Distribution</text>
+
+              <rect x="456" y="108" width="108" height="34" rx="5" fill="#0F2447" filter="url(#fs23)"/>
+              <text x="510" y="122" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Data Catalog</text>
+              <text x="510" y="134" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Lineage · Ownership</text>
+
+              <!-- SLA box -->
+              <rect x="578" y="80" width="108" height="50" rx="5" fill="#254F8F" filter="url(#fs23)"/>
+              <text x="632" y="97" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">SLA / SLO / SLI</text>
+              <text x="632" y="109" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Consumer commitment</text>
+              <text x="632" y="120" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Internal target · Metric</text>
+              <line x1="564" y1="90" x2="576" y2="90" stroke="#0076CC" stroke-width="1" marker-end="url(#ma23)"/>
+              <line x1="564" y1="120" x2="576" y2="120" stroke="#0076CC" stroke-width="1" marker-end="url(#ma23)"/>
+
+              <text x="350" y="210" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Section 2.3 terminology mapped to the Medallion pipeline from Part 1</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 2.5</strong>
+            <span>Section 2.3 terminology placed in context. CDC detects changes at the source. ADF applies the watermark pattern. Bronze stores the idempotent snapshot. Failed records route to the Dead Letter Queue. Silver handles upserts, schema drift detection, and late-arriving data. Gold defines the grain and applies surrogate keys. Observability monitors the whole flow. SLAs govern what consumers can expect from the output.</span>
+          </div>
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">2.3.3</span><h2 class="sec-title">Data Quality &amp; Lifecycle</h2></div>
+
+        <div class="term-group-head">How data degrades, fails, and gets preserved</div>
+        <div class="term-entry" id="term-schema-drift">
+          <h3 class="term-name"><span class="kt" data-term="Schema Drift">Schema Drift</span></h3>
+          <p class="term-def"><strong>A source system changing its schema without notice, causing downstream pipelines to fail or silently produce wrong data.</strong></p>
+          <p>Schema drift is distinct from intentional schema evolution (adding a column as part of a planned release). Drift is unplanned: a source developer renames <code>cust_id</code> to <code>customer_id</code>, changes a column type from VARCHAR to INTEGER, or removes a field that has been deprecated internally but is still used by downstream pipelines.</p>
+          <p>In a Medallion architecture, Bronze absorbs schema drift gracefully (schema-on-read). The failure surface is Silver: if the Silver transformation references a column by its old name, it breaks silently or raises an error. Detection tools run schema comparison checks on each pipeline run and alert when column names, types, or counts change from the last successful run.</p>
+          <p><strong>Schema evolution</strong> is the managed process of deliberately changing a schema &mdash; adding a new column, deprecating an old one &mdash; with advance notice and backward-compatible changes. Delta Lake supports schema evolution via <code>mergeSchema</code> and <code>overwriteSchema</code> options. Schema drift is the unmanaged version of the same event.</p>
+        </div>
+        <div class="term-entry" id="term-late-arriving-data">
+          <h3 class="term-name"><span class="kt" data-term="Late-Arriving Data">Late-Arriving Data</span></h3>
+          <p class="term-def"><strong>Records whose event timestamp belongs to a past processing window that has already been closed.</strong></p>
+          <p>A mobile order placed at 11:58pm while the user is offline syncs to the backend at 12:04am. It arrives in January's pipeline but belongs in December. An IoT sensor with a slow connection sends yesterday's readings today. These records are not wrong &mdash; they are genuinely late.</p>
+          <p>Handling strategies depend on how much lateness is acceptable. For daily reporting, accepting records up to 48 hours late and MERGEing them into the correct partition may be sufficient. For financial close, a hard cutoff is required and late records may need to be held for the next reporting period. For streaming, Apache Spark's watermarking and windowing features define how long to wait for late events before closing a time window.</p>
+          <p>The worst handling strategy is silently dropping late records. The second-worst is unknowingly including them in wrong time periods without a flag. Always add an <code>is_late_arrival</code> boolean and an <code>arrival_timestamp</code> column to Silver for auditability.</p>
+        </div>
+        <div class="term-entry" id="term-dead-letter-queue">
+          <h3 class="term-name"><span class="kt" data-term="Dead Letter Queue">Dead Letter Queue</span></h3>
+          <p class="term-def"><strong>A holding area for records that a pipeline could not process, preserved for investigation rather than lost or blocking.</strong></p>
+          <p>Without a DLQ, a pipeline has two bad choices when a record fails: stop the entire pipeline (blocking all subsequent records) or silently drop the bad record (data loss). A DLQ provides a third option: capture the failed record with its error message and timestamp, continue processing the rest of the batch, and let engineers investigate the failures separately.</p>
+          <p>A mature DLQ includes: the original record bytes, the error message and stack trace, the pipeline run ID, the timestamp, and a status field (PENDING, RESOLVED, DISCARDED). Engineers review DLQ contents daily, fix the root cause (a new enum value the source started sending, a null in a required field, a schema change), and replay the records through the corrected pipeline.</p>
+          <p>In Azure, DLQs are commonly implemented as a dedicated ADLS container or as a secondary Delta table. ADF's fault tolerance settings can route failed records to a log file automatically.</p>
+        </div>
+        <div class="term-entry" id="term-soft-delete-vs-hard-delete-vs-tombstone-vs-archive">
+          <h3 class="term-name"><span class="kt" data-term="CDC">Soft Delete vs Hard Delete vs Tombstone vs Archive</span></h3>
+          <p class="term-def"><strong>Four ways to handle record removal &mdash; all of which mean "not deleted" in different technical senses.</strong></p>
+          <p><strong>Hard delete:</strong> the record is physically removed from the table. A <code>DELETE FROM orders WHERE id = 42</code> with no record of the deletion. For analytics, hard deletes in source systems are the hardest to handle &mdash; CDC can detect them from the transaction log, but downstream tables need explicit removal logic.</p>
+          <p><strong>Soft delete:</strong> the record remains in the table but is flagged as deleted with a column like <code>is_deleted = true</code> and a <code>deleted_at</code> timestamp. The application filters these out in normal queries. For analytics pipelines, soft deletes are changes (updates), not removals &mdash; they are captured cleanly by CDC and watermark incremental loads.</p>
+          <p><strong>Tombstone:</strong> a positive record asserting that deletion occurred. Common in event-sourced systems and Apache Kafka (a null-value message for a key tombstones that key's history in a compacted topic). Used when you need to communicate deletion across distributed systems.</p>
+          <p><strong>Archive:</strong> the record is moved to a separate storage location (an archive table, a Cold-tier ADLS container) rather than deleted. Primarily a storage cost and compliance concept. Archived records are not deleted &mdash; they are moved. Under GDPR right-to-erasure, archiving is not sufficient; the data must be genuinely deleted from all copies.</p>
+        </div>
+        <div class="term-entry" id="term-snapshot">
+          <h3 class="term-name"><span class="kt" data-term="Snapshot">Snapshot</span></h3>
+          <p class="term-def"><strong>A complete copy of data state at a specific point in time, preserved for comparison or audit.</strong></p>
+          <p>A daily snapshot of a customer table captures every customer record as of midnight, regardless of what changes tomorrow. Snapshots enable point-in-time queries ("what did our customer list look like on January 1st?"), historical comparisons ("how did churn rates differ between Q1 and Q3?"), and regulatory compliance ("what did we report on this filing date?").</p>
+          <p>Delta Lake's time travel feature provides snapshot access to any previous version of a table without storing explicit snapshot copies: <code>SELECT * FROM table TIMESTAMP AS OF '2024-01-01'</code>. For very long retention requirements or cross-system snapshots, explicit snapshot tables written as <code>INSERT INTO snapshots SELECT *, current_date() AS snapshot_date FROM source</code> remain necessary.</p>
+          <p>Snapshots grow linearly with retention period. A table with 10 million rows taking daily snapshots for 5 years stores 18 billion rows. Columnar formats and partition pruning on <code>snapshot_date</code> keep this manageable but it remains the primary cost of snapshot-based historical tracking.</p>
+        </div>
+        <div class="term-entry" id="term-fill-and-kill">
+          <h3 class="term-name"><span class="kt" data-term="CDC">Fill and Kill</span></h3>
+          <p class="term-def"><strong>A financial trading term: execute as much of an order as is immediately available, and cancel the remainder.</strong></p>
+          <p>In algorithmic trading systems, a Fill and Kill (FAK) order instructs the exchange: "buy 10,000 shares right now if they're available at this price; fill whatever you can immediately and cancel the unfilled portion." This contrasts with Fill or Kill (FOK, must fill entirely or not at all) and Good 'Til Cancelled (GTC, remain open until filled or explicitly cancelled).</p>
+          <p>For data engineers working in financial services, trading, or capital markets, this term appears in order management system (OMS) data. A <code>fill_kill</code> status in a trade table is not a data quality flag &mdash; it is a valid order execution type. Misinterpreting it as an error or incomplete record is a real and documented cause of incorrect financial reporting.</p>
+          <p><strong>Why it's in a data engineering guide:</strong> domain vocabulary leaks into data. The names of database columns, status codes, and event types in financial source systems often carry trading-specific meaning. Getting these wrong produces incorrect analytics and risk reports.</p>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Schema drift vs schema evolution &mdash; detecting the difference automatically</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>Schema evolution is planned: a team adds a <code>customer_segment</code> column to the CRM, notifies the data team, and the Silver pipeline is updated to include the new column before the next run. Schema drift is unplanned: a developer renames a column in a hotfix, no notification is sent, and the Silver pipeline fails silently at 2am.</p>
+              <p>Automated schema comparison solves this. On each Bronze write, compare the schema of the incoming data to the schema of the last successful run. If column names, types, or counts changed: alert the team and optionally fail the pipeline rather than write potentially broken data to Silver.</p>
+              <p>In Databricks, Delta Live Tables schema enforcement raises errors on schema mismatches automatically. Great Expectations' schema validation suite can be added as a pipeline step. dbt tests include <code>not_null</code>, <code>accepted_values</code>, and custom schema checks. The goal: detect drift before it propagates from Bronze to Gold and appears in a business dashboard as unexplained missing data.</p>
+          </div></div>
+        </div>
+        <div class="sec-head"><span class="sec-tag">2.3.4</span><h2 class="sec-title">Performance Concepts</h2></div>
+
+        <div class="term-group-head">Already covered in depth — cross-references</div>
+        <div class="term-entry term-xref" id="term-data-skew">
+          <h3 class="term-name">Data Skew</h3>
+          <p class="term-def">Uneven data distribution where some Spark partitions receive far more records than others, causing slow tasks. Detected via Spark UI task duration variance. See Section 2.2 — Partitions. &nbsp;<a href="2-2-partitions.html" style="color:#0076CC;font-size:12px;">&#8594; Covered in Section 2.2.partitions</a></p>
+        </div>
+        <div class="term-entry term-xref" id="term-shuffle">
+          <h3 class="term-name">Shuffle</h3>
+          <p class="term-def">Data redistribution across Spark executors during GROUP BY, JOIN, and DISTINCT operations. Expensive because it involves network transfer. Minimised with broadcast joins and AQE. &nbsp;<a href="2-2-partitions.html" style="color:#0076CC;font-size:12px;">&#8594; Covered in Section 2.2.partitions</a></p>
+        </div>
+        <div class="term-entry term-xref" id="term-broadcast-join">
+          <h3 class="term-name">Broadcast Join</h3>
+          <p class="term-def">Spark optimisation: send a small dimension table to every executor to avoid shuffling the large fact table. Controlled via spark.sql.autoBroadcastJoinThreshold. &nbsp;<a href="2-2-partitions.html" style="color:#0076CC;font-size:12px;">&#8594; Covered in Section 2.2.partitions</a></p>
+        </div>
+        <div class="term-group-head">New terms</div>
+        <div class="term-entry" id="term-pushdown-predicate">
+          <h3 class="term-name"><span class="kt" data-term="Pushdown Predicate">Pushdown Predicate</span></h3>
+          <p class="term-def"><strong>A WHERE clause filter applied at the storage layer before data is read into memory, reducing data transfer.</strong></p>
+          <p>Without predicate pushdown, the compute engine reads the entire dataset and then applies the filter. With pushdown, the storage layer applies the filter and returns only matching records. Parquet achieves this via row group statistics: if a filter is <code>WHERE amount > 1000</code> and a row group's maximum <code>amount</code> value is 500, the entire row group is skipped without being read.</p>
+          <p>Partition pruning (Section 2.2) is the most extreme form of predicate pushdown — entire files are skipped, not just row groups. Column statistics pushdown is more granular — individual page-level skipping within a file. Delta Lake maintains statistics on the first 32 columns of every file, enabling very effective predicate pushdown without partition folders.</p>
+          <p><strong>ADF pushdown:</strong> when ADF copies data from a SQL database, the source query filter is pushed to the database rather than reading all rows and filtering in ADF. This dramatically reduces the network transfer between the source database and ADLS.</p>
+        </div>
+        <div class="term-entry" id="term-cardinality">
+          <h3 class="term-name"><span class="kt" data-term="Cardinality">Cardinality</span></h3>
+          <p class="term-def"><strong>The number of distinct values in a column &mdash; a fundamental factor in partition design, join performance, and index effectiveness.</strong></p>
+          <p><strong>High cardinality:</strong> many distinct values relative to total rows. Customer ID, order ID, email address, UUID. High-cardinality columns make good surrogate keys and join keys. They make poor partition columns.</p>
+          <p><strong>Low cardinality:</strong> few distinct values. Status (ACTIVE/INACTIVE), country code (200 values), boolean flags (2 values). Low-cardinality columns make good partition columns. They make poor index keys because the selectivity is low &mdash; a filter on <code>is_active = true</code> might still return 90% of the table.</p>
+          <p>In query optimisation: the planner estimates how many rows a filter will return using cardinality statistics. A <code>WHERE customer_id = 12345</code> filter on a high-cardinality column is highly selective (returns one row). A <code>WHERE country = 'US'</code> filter on a low-cardinality column may be non-selective (returns 60% of rows). The planner uses these estimates to choose the right join strategy and index access path.</p>
+        </div>
+        <div class="sec-head"><span class="sec-tag">2.3.5</span><h2 class="sec-title">Modelling, Governance &amp; Security</h2></div>
+
+        <div class="term-group-head">Data modelling</div>
+        <div class="term-entry" id="term-grain">
+          <h3 class="term-name"><span class="kt" data-term="Grain">Grain</span></h3>
+          <p class="term-def"><strong>The level of detail that a single row in a fact table represents &mdash; the most important decision in dimensional modelling.</strong></p>
+          <p>Declaring the grain means answering: "What is one row?" For a sales fact table, one row might represent one order line item (fine grain) or one order (coarser grain). For a web analytics fact table, one row might represent one page view (fine) or one session (coarser). The grain must be declared before choosing which facts and dimensions to include.</p>
+          <p>Mixing grains in a single fact table is one of the most common dimensional modelling errors. If a fact table has both order-level facts (total_order_amount) and order-line-level facts (line_amount), querying both simultaneously produces incorrect results. Analysts SUM(total_order_amount) and get a number multiplied by the number of line items per order.</p>
+          <p><strong>Hmm.</strong> Many practitioners can define "grain" abstractly but cannot apply it. The practical test: given a new fact column someone wants to add, ask "what does one row mean?" If the answer changes depending on which column you look at, the grain is mixed and the table needs redesign.</p>
+        </div>
+        <div class="term-entry" id="term-surrogate-key-vs-natural-key-vs-business-key">
+          <h3 class="term-name"><span class="kt" data-term="Surrogate Key">Surrogate Key vs Natural Key vs Business Key</span></h3>
+          <p class="term-def"><strong>Three types of identifier used in dimensional models, each with different stability, meaning, and join performance characteristics.</strong></p>
+          <p><strong>Surrogate key:</strong> a system-generated integer (or UUID) with no business meaning. Generated by the data platform, not the source. Stable when source systems change. Enables SCD Type 2 (multiple versions of the same entity with different surrogate keys). Used as the primary join key in dimensional models.</p>
+          <p><strong>Natural key:</strong> the identifier from the source system. Customer email, order number, product SKU. Has business meaning but may change (customer updates their email), may not be unique across systems (order #1001 exists in both the CRM and the ERP), and is often a long string (slow joins).</p>
+          <p><strong>Business key:</strong> a stable, unique identifier agreed upon at the business level, used to match the same entity across multiple source systems. May or may not match the natural key. Often the first column you reach for when resolving the "same customer appears twice" problem. A customer might have different IDs in the CRM, ERP, and eCommerce platform &mdash; the business key is the agreed single identifier.</p>
+        </div>
+        <div class="term-entry" id="term-normalised-vs-denormalised">
+          <h3 class="term-name"><span class="kt" data-term="Schema-on-Write">Normalised vs Denormalised</span></h3>
+          <p class="term-def"><strong>Two opposing schema design philosophies with different write efficiency, query efficiency, and storage cost tradeoffs.</strong></p>
+          <p><strong>Normalised</strong> schemas eliminate redundancy by splitting data into many related tables. A customer appears once in the customers table; their orders appear in the orders table referencing the customer by ID. Write efficiency is high (one place to update). Query efficiency is lower (JOINs required). Dominant in OLTP databases.</p>
+          <p><strong>Denormalised</strong> schemas embed related data into fewer, wider tables. A customer's name and region are repeated on every order row. Write efficiency is lower (updating a customer's name requires updating many rows). Query efficiency is higher (no JOINs). Dominant in analytics and OLAP workloads where queries read many rows and JOINs are expensive.</p>
+          <p>Gold tables in a Medallion architecture are typically denormalised for query performance. Silver tables may be partially normalised to avoid data duplication across multiple Gold layers. Bronze is whatever the source sent.</p>
+        </div>
+        <div class="term-entry" id="term-materialised-view">
+          <h3 class="term-name"><span class="kt" data-term="Semantic Layer">Materialised View</span></h3>
+          <p class="term-def"><strong>A pre-computed query result stored as a physical table and refreshed on a schedule or trigger.</strong></p>
+          <p>A regular view re-executes its query every time it is queried. A materialised view executes once, stores the result as a physical table, and subsequent queries read the stored result. This trades storage cost and staleness (the view is only as fresh as its last refresh) for dramatically faster query performance on expensive aggregations.</p>
+          <p>In Databricks: <code>CREATE MATERIALIZED VIEW gold.monthly_revenue AS SELECT ...</code>. In Power BI: calculated tables and aggregation tables implement materialised views. In Azure Synapse: materialised views on dedicated SQL pools provide the same benefit for large aggregations.</p>
+          <p>The key question before materialising: how often is the view queried vs how often does the underlying data change? A materialised view that's queried 1,000 times per day but refreshed once per hour is very efficient. A materialised view queried once per day but refreshed every 5 minutes has the costs of materialisation with minimal benefit.</p>
+        </div>
+        <div class="term-entry" id="term-semantic-layer">
+          <h3 class="term-name"><span class="kt" data-term="Semantic Layer">Semantic Layer</span></h3>
+          <p class="term-def"><strong>A business-friendly abstraction that translates physical data models into business concepts and metric definitions.</strong></p>
+          <p>Without a semantic layer, "revenue" might be defined differently in every Power BI report, every Looker dashboard, and every ad-hoc SQL query. The semantic layer centralises metric logic: "revenue" is defined once as <code>SUM(order_amount - discount_applied) WHERE status = 'completed'</code> and every consumer references that definition. Changing the definition in one place propagates everywhere.</p>
+          <p>Tools: dbt Semantic Layer (formerly dbt Metrics), Microsoft Analysis Services (SSAS / Power BI datasets), Looker's LookML, AtScale, Cube.dev. The common feature: a modelling layer that sits between physical tables and BI tools, where business logic is written once and exposed to all consumers through a stable interface.</p>
+          <p><strong>Practically:</strong> if your Power BI reports and your SQL reports consistently show different revenue numbers, the root cause is almost always a missing or inconsistently implemented semantic layer &mdash; multiple teams defining the same metric differently.</p>
+        </div>
+        <div class="term-entry" id="term-lakehouse">
+          <h3 class="term-name"><span class="kt" data-term="Lakehouse">Lakehouse</span></h3>
+          <p class="term-def"><strong>An architecture that combines data lake storage flexibility with data warehouse reliability and query performance.</strong></p>
+          <p>A data lake stores data in open file formats on cheap object storage. Flexible and cheap, but brittle: no ACID transactions, no schema enforcement, poor query performance for analytical workloads. A data warehouse provides ACID transactions, strong schema enforcement, and excellent query performance but is expensive, inflexible, and proprietary.</p>
+          <p>A Lakehouse achieves both by adding a transaction layer (Delta Lake's transaction log, Apache Iceberg's metadata, Apache Hudi's timeline) on top of object storage files. ACID transactions are enforced via optimistic concurrency control in the metadata layer. Schema enforcement, query optimisation, and time travel are all handled by the transaction layer without changing the underlying Parquet files.</p>
+          <p>Databricks coined the term. Microsoft Fabric, Snowflake, and Apache Iceberg-based platforms implement variants. The key insight: the architectural gap between data lakes and data warehouses is not in the storage format but in the metadata management layer above it.</p>
+        </div>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="fs23b"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.14)"/></filter>
+              </defs>
+              <rect width="700" height="200" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">SLI → SLO → SLA: From Measurement to Commitment</text>
+
+              <!-- SLI -->
+              <rect x="14" y="34" width="200" height="140" rx="7" fill="#0076CC" filter="url(#fs23b)"/>
+              <text x="114" y="58" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="9" font-weight="700" letter-spacing="2" text-anchor="middle">SLI</text>
+              <text x="114" y="72" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">Service Level Indicator</text>
+              <text x="114" y="86" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">The raw measurement</text>
+              <line x1="24" y1="94" x2="202" y2="94" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="114" y="110" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">% runs completing in 4h</text>
+              <text x="114" y="124" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Null rate on customer_id</text>
+              <text x="114" y="138" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Row count vs yesterday</text>
+              <text x="114" y="160" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Owned by: monitoring tooling</text>
+
+              <!-- Arrow -->
+              <text x="240" y="108" fill="#6080A0" font-family="Inter,sans-serif" font-size="20" text-anchor="middle">&#8594;</text>
+              <text x="240" y="122" fill="#6080A0" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">sets target</text>
+
+              <!-- SLO -->
+              <rect x="260" y="34" width="180" height="140" rx="7" fill="#1B3A6B" filter="url(#fs23b)"/>
+              <text x="350" y="58" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="9" font-weight="700" letter-spacing="2" text-anchor="middle">SLO</text>
+              <text x="350" y="72" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">Service Level Objective</text>
+              <text x="350" y="86" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">The engineering target</text>
+              <line x1="270" y1="94" x2="428" y2="94" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="350" y="110" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">95% of runs by 7:00am</text>
+              <text x="350" y="124" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Null rate &lt; 0.01%</text>
+              <text x="350" y="138" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Row count &plusmn;5% of prior</text>
+              <text x="350" y="160" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Owned by: data engineering</text>
+
+              <!-- Arrow -->
+              <text x="460" y="108" fill="#6080A0" font-family="Inter,sans-serif" font-size="20" text-anchor="middle">&#8594;</text>
+              <text x="460" y="122" fill="#6080A0" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">more conservative</text>
+
+              <!-- SLA -->
+              <rect x="490" y="34" width="196" height="140" rx="7" fill="#C8892A" filter="url(#fs23b)"/>
+              <text x="588" y="58" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="9" font-weight="700" letter-spacing="2" text-anchor="middle">SLA</text>
+              <text x="588" y="72" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">Service Level Agreement</text>
+              <text x="588" y="86" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">The business commitment</text>
+              <line x1="500" y1="94" x2="674" y2="94" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="588" y="110" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Data ready by 8:00am</text>
+              <text x="588" y="124" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">(1h buffer over SLO)</text>
+              <text x="588" y="138" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Breach = business impact</text>
+              <text x="588" y="160" fill="#FFDDA0" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Owned by: business / product</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 2.6</strong>
+            <span>SLI, SLO, and SLA are three distinct concepts that build on each other. SLIs are what you measure (instruments). SLOs are the targets your team sets for those measurements (internal contract). SLAs are the commitments made to business consumers (external contract). The SLA buffer above the SLO exists because SLOs are sometimes missed &mdash; the buffer prevents each SLO miss from immediately becoming an SLA breach.</span>
+          </div>
+        </div>
+
+        <div class="term-group-head">Governance &amp; quality</div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">Spotify &nbsp;&middot;&nbsp; Data Contracts at Scale</span>
+          </div>
+          <div class="field-note-body">            <p>Spotify, which runs one of the largest data platforms in the industry with thousands of data producers and consumers, documented their data contract journey publicly around 2023. Their core problem: when producers changed schemas without notice, downstream consumers broke silently. With hundreds of teams producing data and thousands of pipelines consuming it, the informal "just let the data team know if you change something" coordination mechanism had completely broken down.</p>
+            <p>Spotify implemented data contracts as machine-readable YAML specifications stored in Git alongside the code that produces each dataset. Each contract declared the schema, the freshness SLA, the quality guarantees, and the breaking-change policy. Automated CI/CD checks validated that any proposed schema change was backward-compatible before the change could be merged. Consumers referenced the contract version in their pipeline configurations, so breaking changes triggered explicit migration workflows rather than silent failures.</p>
+            <p>The measurable outcome they reported: data-related incidents caused by unexpected schema changes dropped significantly, and the time to diagnose and resolve remaining incidents decreased because the contract immediately surfaced which consumers were affected.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Data contracts shift the cost of schema changes from discovery (finding out something broke after it breaks) to negotiation (agreeing on a change before it ships). The upfront cost is higher. The total cost across the organisation is lower.</p></div>
+        </div>
+        <div class="term-entry" id="term-data-lineage">
+          <h3 class="term-name"><span class="kt" data-term="Data Lineage">Data Lineage</span></h3>
+          <p class="term-def"><strong>The documented trail of where data came from, every transformation it underwent, and where it went.</strong></p>
+          <p>Table-level lineage: "This Gold table was produced from Silver table A and Silver table B, which were produced from Bronze tables C, D, and E, which were ingested from SAP and Salesforce." Column-level lineage: "The 'revenue' column in the Gold table is SUM(Silver.order_amount) - SUM(Silver.discount_applied) where order_amount came from Bronze.total_price from SAP field NET_VALUE."</p>
+          <p>Lineage matters for two reasons. <strong>Impact analysis:</strong> if a source column changes, lineage tells you every downstream table and report that may be affected without manually tracing the pipelines. <strong>Regulatory audit:</strong> a regulator asks "where did this reported figure come from?" Lineage provides the answer without manual investigation.</p>
+          <p>Tools: Microsoft Purview (Azure-native, scans ADF and Databricks automatically), Databricks Unity Catalog (column-level lineage for Databricks workloads), dbt (documents lineage as part of its DAG). The most valuable lineage is automated &mdash; lineage documented manually in a spreadsheet is always out of date.</p>
+        </div>
+        <div class="term-entry" id="term-data-catalog">
+          <h3 class="term-name"><span class="kt" data-term="Data Catalog">Data Catalog</span></h3>
+          <p class="term-def"><strong>A searchable inventory of data assets: what exists, what it means, who owns it, and who can access it.</strong></p>
+          <p>A data catalog answers the question "where is the data for X?" without needing to ask a person. It documents every table, view, and data product: column descriptions, sample values, data owner, freshness, access controls, quality metrics, and lineage. Without a catalog, data engineers spend 20-30% of their time answering discovery questions from analysts.</p>
+          <p>In Azure: Microsoft Purview is the native data catalog, automatically scanning Azure SQL, ADLS, ADF, and Databricks to populate metadata. Databricks Unity Catalog serves as both the governance layer and catalog for Databricks workloads. Open-source options include Apache Atlas and DataHub (LinkedIn open-source).</p>
+          <p><strong>A catalog without governance is just documentation.</strong> The most effective catalogs are also the enforcement layer: access controls defined in the catalog are enforced at query time, not just documented.</p>
+        </div>
+        <div class="term-entry" id="term-data-contract">
+          <h3 class="term-name"><span class="kt" data-term="Data Contract">Data Contract</span></h3>
+          <p class="term-def"><strong>A formal, versioned agreement between a data producer and its consumers, defining schema, quality guarantees, and breaking-change policies.</strong></p>
+          <p>A data contract typically includes: the schema (column names, types, nullability), quality SLAs (freshness, null rates, value ranges), versioning semantics (what constitutes a breaking change, how much notice is given), ownership (who to contact when something breaks), and the consumer registry (who is using this dataset and therefore must be notified of changes).</p>
+          <p>Contracts are typically stored as YAML or JSON in Git alongside pipeline code. CI/CD checks validate that proposed changes are contract-compliant before merging. Consumers reference the contract version they depend on, enabling producers to detect when a change would break a consumer before shipping it.</p>
+          <p>The cultural shift data contracts require is significant: producers must accept that they have accountability to their consumers, not just to their own product. This is the same shift as Data Mesh's "Data as a Product" principle (Section 1.5) &mdash; data contracts are the technical mechanism that makes that principle operational.</p>
+        </div>
+        <div class="term-entry" id="term-data-observability">
+          <h3 class="term-name"><span class="kt" data-term="Data Observability">Data Observability</span></h3>
+          <p class="term-def"><strong>Automatically monitoring pipeline health across five dimensions &mdash; freshness, volume, schema, distribution, and lineage.</strong></p>
+          <p>Freshness: did the data arrive on time? Volume: is the row count within the expected range? Schema: did any column types or names change unexpectedly? Distribution: are value ranges, null rates, and categorical distributions consistent with historical norms? Lineage: when something breaks, which upstream change caused it?</p>
+          <p>Observability differs from monitoring in granularity. Monitoring checks if the pipeline finished. Observability checks if the data it produced is correct. A pipeline can complete successfully and still produce wrong data if a source changed format, a business logic rule produced incorrect results, or a join produced unexpected duplicates.</p>
+          <p><strong>Rule of thumb:</strong> if a business user has ever been the first person to notice a data quality problem that should have been detected by the data team, you have a data observability gap.</p>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Implementing GDPR right-to-erasure in a Medallion architecture</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>GDPR Article 17 gives EU residents the right to request deletion of their personal data. For a data platform with a Medallion architecture, this is technically one of the most demanding obligations because data has been copied, transformed, and replicated across many layers.</p>
+              <p><strong>The deletion surface for one customer typically includes:</strong> raw records in Bronze (partitioned files — the customer's data is embedded in Parquet files with other customers), cleaned records in Silver, aggregated records in Gold (which may contain the customer's contribution to aggregate metrics), Delta Lake time travel history (previous versions of tables are stored in the Delta log and remain queryable until VACUUM'd), backups and disaster recovery copies in secondary regions, and any materialized views or snapshots derived from these tables.</p>
+              <p><strong>The implementation pattern most commonly used:</strong> pseudonymisation at Bronze. Instead of storing PII directly in Bronze, customer identifiers are stored as pseudonymous tokens mapped to real identities in a separate, tightly controlled "identity vault." To fulfill a right-to-erasure request, delete the customer's record from the identity vault. All Bronze data containing their pseudonymous token is now inaccessible and effectively anonymised — without requiring rewriting every Parquet file that contains their data.</p>
+              <p><strong>VACUUM timing matters:</strong> Delta Lake's time travel retains historical table versions. The default retention is 7 days. For GDPR compliance, you must either reduce retention to zero for PII-containing tables (at the cost of losing time travel) or design PII out of Delta tables and keep it only in the identity vault. Regulators consider data in accessible time travel history to be retained data subject to erasure requests.</p>
+          </div></div>
+        </div>
+
+        <div class="term-group-head">Service levels</div>
+        <div class="term-entry" id="term-sla-vs-slo-vs-sli">
+          <h3 class="term-name"><span class="kt" data-term="SLA">SLA vs SLO vs SLI</span></h3>
+          <p class="term-def"><strong>Three related but distinct concepts for measuring and committing to service quality &mdash; often confused by practitioners.</strong></p>
+          <p><strong>SLI (Service Level Indicator):</strong> a specific, measurable metric. "Percentage of pipeline runs completing within 4 hours." "Null rate on the customer_id column." "Row count variance from yesterday's run." An SLI is the raw measurement.</p>
+          <p><strong>SLO (Service Level Objective):</strong> a target value for an SLI. "95% of pipeline runs must complete within 4 hours." "Null rate on customer_id must be below 0.01%." "Row count must not vary by more than 5% from yesterday's run." An SLO is the engineering team's internal target. The data engineering team sets and monitors SLOs.</p>
+          <p><strong>SLA (Service Level Agreement):</strong> a commitment made to business consumers, typically less strict than the SLO to provide a buffer. "The Gold tables will be ready for reporting by 8am." If the SLO is 95% of runs completing by 7am, the SLA of 8am provides a 1-hour buffer. Breaking an SLA has business consequences. Breaking an SLO is an internal signal to improve reliability before it becomes an SLA breach.</p>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Data contracts in practice &mdash; what one actually looks like</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>A data contract is a YAML or JSON file stored in Git. A minimal example for a sales transaction dataset might contain four sections.</p>
+              <p><strong>Schema:</strong> a list of fields with name, type, description, nullable flag, and accepted values for enums. Specifies what producers promise to deliver and what consumers can depend on.</p>
+              <p><strong>Quality:</strong> freshness SLA ("updated within 2 hours of source"), null rate thresholds per column ("customer_id null rate &lt; 0.001"), row count expectations ("daily row count between 50,000 and 500,000"), and value range constraints ("amount &gt; 0").</p>
+              <p><strong>Versioning:</strong> the current version number, a changelog of past versions, what constitutes a breaking change (removing a column, changing a type) vs a non-breaking change (adding a nullable column), and the required notice period for breaking changes (e.g. "30 days notice, with a 90-day deprecation window").</p>
+              <p><strong>Ownership and consumers:</strong> the team that owns the dataset, the Slack channel for incidents, and the list of known consumers. When a producer wants to make a breaking change, CI/CD checks this list and automatically opens GitHub issues or sends Slack notifications to every registered consumer team.</p>
+          </div></div>
+        </div>
+        <div class="term-group-head">Security &amp; privacy</div>
+        <div class="term-entry" id="term-row-level-security-rls">
+          <h3 class="term-name"><span class="kt" data-term="RBAC">Row-Level Security (RLS)</span></h3>
+          <p class="term-def"><strong>Restricting which rows of a table a user can see, based on their identity or group membership.</strong></p>
+          <p>RLS allows different users to query the same table and see different results. A regional sales manager running <code>SELECT * FROM gold.sales</code> sees only their region's records. A global head running the same query sees all regions. The filtering is applied transparently by the database engine before the query results are returned &mdash; the user is unaware of the restriction.</p>
+          <p>In Power BI: RLS is defined in the data model with DAX filter expressions. In Databricks: Unity Catalog row filters apply policies to Delta tables. In Azure SQL: the built-in RLS predicate function mechanism. The implementation must be tested carefully &mdash; an incorrectly defined row filter can either expose data that should be hidden or hide data that should be visible.</p>
+        </div>
+        <div class="term-entry" id="term-column-level-security-&amp;-data-masking">
+          <h3 class="term-name"><span class="kt" data-term="RBAC">Column-Level Security &amp; Data Masking</span></h3>
+          <p class="term-def"><strong>Restricting access to specific columns, or hiding sensitive values from unauthorised users while preserving the row.</strong></p>
+          <p><strong>Column-level security</strong> grants or denies access to entire columns. A contractor querying a customer table may see demographic and preference columns but not the email address or phone number. Unity Catalog and Microsoft Purview both support column-level access policies.</p>
+          <p><strong>Data masking</strong> allows the column to be queried but returns a transformed value instead of the real one. An analyst might query <code>SELECT email FROM customers</code> and see <code>j***@***.com</code> instead of the actual email address. Analysts can still work with the data shape and structure without seeing real PII. The same query by a privileged user returns the unmasked value.</p>
+          <p><strong>Data encryption</strong> is distinct from masking: the data is encrypted at rest and decryption requires a key. Encryption protects against storage-layer breaches. Masking protects against query-layer exposure. Both may be required for <span class="kt" data-term="PII">PII</span> depending on regulatory requirements.</p>
+        </div>
+        <div class="term-entry" id="term-pii-personally-identifiable-information">
+          <h3 class="term-name"><span class="kt" data-term="PII">PII (Personally Identifiable Information)</span></h3>
+          <p class="term-def"><strong>Any data that can identify an individual person &mdash; subject to significant regulatory obligations.</strong></p>
+          <p>PII includes obvious identifiers (name, email, phone, national ID number, passport number, IP address in some jurisdictions) and indirect identifiers that can identify someone when combined (age + zip code + gender can uniquely identify many individuals). The definition varies by regulation: GDPR's definition is broader than HIPAA's.</p>
+          <p><strong>Data engineering obligations for PII:</strong> identify and tag PII columns in the data catalog. Mask or pseudonymise PII in non-production environments (dev and test should never contain real customer data). Apply column-level access controls and data masking in production. Implement right-to-erasure (RTBF) workflows so that when a user requests deletion, their PII is removed from all tables including historical snapshots. Maintain a record of where PII flows through the system via data lineage.</p>
+          <p><strong>GDPR Article 17 (Right to Erasure)</strong> is the most technically demanding PII obligation for data engineers. Deleting a record from a Bronze partition that was snapshotted 3 years ago, replicated to a disaster-recovery region, and referenced in 15 downstream tables requires a documented deletion workflow across every copy &mdash; including Delta Lake's time travel history, which must be VACUUM'd.</p>
+        </div>
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>This section covered 36 terms across pipeline operations, data quality, performance, modelling, governance, and security. The most commonly confused pairs to keep distinct: <strong>SLA</strong> (business commitment) vs <strong>SLO</strong> (engineering target) vs <strong>SLI</strong> (measured metric); <strong>schema drift</strong> (unplanned source change) vs <strong>schema evolution</strong> (planned, managed change); <strong>soft delete</strong> (flagged, still present) vs <strong>hard delete</strong> (physically removed) vs <strong>tombstone</strong> (assertion of deletion event) vs <strong>archive</strong> (moved to cold storage, not deleted); <strong>surrogate key</strong> (system-generated, no business meaning) vs <strong>natural key</strong> (from source) vs <strong>business key</strong> (agreed cross-system identifier). All 36 terms are available in the full glossary in Section 2.4.</p>
+        </div>
+
+        <div class="info-box gold">
+          <div class="info-label">Coming in Section 2.4 &mdash; Glossary</div>
+          <p>Section 2.4 is the guide's full alphabetical glossary &mdash; all 58 terms defined across Parts 1 and 2, searchable and browsable in one place. It grows automatically as new sections are published.</p>
+        </div>
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text"><h3>Learning Check</h3><p>Section 2.3 &nbsp;&middot;&nbsp; Data Terminology</p></div>
+            <div class="quiz-score-wrap"><div class="quiz-score-num">0/5</div><div class="quiz-score-label">Score</div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">Your ADF pipeline processes last night's orders but three records from 11:45pm are missing — they arrived in the source system at 12:20am. What is this called and how should you handle it?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Schema drift — the source changed its ingestion timing; add a schema check and alert</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">A dead letter queue failure — the records failed processing and need to be investigated</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Late-arriving data — records whose event timestamp belongs to a closed processing window; handle by either extending the window, using MERGE to insert them into the prior partition, or accepting them in the current run with an is_late_arrival flag</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">A watermark error — the watermark was not updated correctly and skipped these records</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The records exist in the source system but arrived after the pipeline's processing window closed. This is the definition of late-arriving data. The records are not failures (so DLQ is wrong), the schema has not changed (schema drift is wrong), and the watermark worked correctly &mdash; it simply did not capture records that arrived after the run. The correct response depends on business requirements: how much lateness is acceptable and whether the prior period's data can be amended.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">Your Gold table's "Revenue" figure differs between the Finance Power BI report and the Operations SQL report. Both query from the same Gold table. What is the most likely structural cause?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The Gold table is not being refreshed frequently enough</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The Gold table has mixed grain &mdash; some rows represent orders and some represent order line items</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Each report applies different filters or aggregations to define "Revenue" &mdash; what is missing is a semantic layer or data contract that encodes the single agreed definition</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Data lineage is not configured, so the reports cannot access the same rows</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> When two reports query the same physical table and get different answers, the root cause is almost always different metric definitions applied at the report layer. Finance may exclude returns; Operations may include intercompany. The structural fix is a semantic layer that centralises the "Revenue" definition as a single, agreed calculation. Both reports then reference the same definition and cannot diverge. A data contract for the Gold table would also formalise what "Revenue" means so both teams are explicitly aligned.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A data engineering team tells a business stakeholder "we have an SLO of 95% of pipeline runs completing by 7am." The stakeholder responds "but you committed to having data ready by 8am." Are these statements contradictory?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Yes &mdash; if the SLO is 7am, the SLA must also be 7am or earlier</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">No &mdash; the SLO (7am internal target) is more strict than the SLA (8am business commitment) to provide a buffer. Missing the SLO occasionally does not breach the SLA</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Yes &mdash; SLOs and SLAs must be identical or the governance model is incorrect</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It depends on how frequently the SLO is missed</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The SLO (7am) is intentionally stricter than the SLA (8am). This buffer means the team can miss their internal target occasionally without immediately breaching the business commitment. An SLO equal to the SLA leaves no room for recovery &mdash; any miss is immediately a breach. Well-designed SLAs include buffer above the SLO to account for the fact that SLOs are sometimes missed even in well-run teams.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A source CRM system uses a "soft delete" pattern — deleted customers have is_deleted = true but remain in the table. Your incremental pipeline uses a watermark on the last_modified column. Will deleted customers be captured?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="true"><div class="option-letter">A</div><div class="option-text">Yes — a soft delete updates the row (setting is_deleted = true and updating last_modified), so the watermark pattern captures it as an update and the change is replicated to Silver via upsert</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">No — the watermark pattern cannot detect any type of deletion, soft or hard</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">No — soft deletes require CDC to detect because the watermark only sees inserts</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It depends on whether the source database updates the last_modified timestamp on soft deletes</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>A is correct</strong> (with the caveat in D being the critical nuance). A soft delete that updates <code>last_modified</code> will be captured by a watermark pipeline because the watermark filters on <code>last_modified > last_run_watermark</code> &mdash; the soft delete appears as a changed row and is replicated to Silver as an upsert. The Silver table then shows <code>is_deleted = true</code>. If the source does NOT update <code>last_modified</code> on soft delete, option D would be correct and CDC would be required. Option B is wrong because soft deletes are updates, not deletions. Hard deletes, not soft deletes, require CDC.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">What is the grain of a fact table that contains one row per customer per day showing their total orders, total spend, and most recent order date?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">One row per order</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">One row per customer</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">One row per customer per day &mdash; the grain is the unique combination of customer and date</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The grain cannot be determined without knowing the primary key</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The grain is defined by the granularity of a single row: what unique combination of dimensions does one row represent? "One row per customer per day" means the grain is customer × date. This determines what facts can exist in the table: total_orders and total_spend are valid (they aggregate to customer × day). An individual order amount is not valid at this grain because one customer may have many orders on the same day &mdash; including that column would require a finer grain (one row per order). When in doubt about grain, find the natural primary key of the fact table: (customer_id, date) in this case.</p></div></div>
+          </div>
+
+          <div class="quiz-final"><div class="quiz-final-score">&mdash;</div><p class="quiz-final-msg"></p><button class="quiz-retry-btn">Try Again</button></div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="2-2-partitions.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">2.2 Partitions</span></span>
+          </a>
+          <a href="2-4-glossary.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">2.4 Glossary</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 2 &nbsp;&middot;&nbsp; Data Fundamentals</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">8</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:130px;"></div>
+        <div class="mnote key"><div class="mnote-label">Key Distinctions</div><p>SLA vs SLO: business commitment vs engineering target. Schema drift vs evolution: unplanned vs managed. Soft delete vs tombstone vs archive: row flagged vs event recorded vs data moved.</p></div>
+        <div class="ms" style="height:400px;"></div>
+        <div class="mnote warn"><div class="mnote-label">Backfill Rule</div><p>Every backfill must be <strong>idempotent</strong>. Running it twice must produce the same result as running it once. Use partition-overwrite mode for Bronze, MERGE for Silver and Gold.</p></div>
+        <div class="ms" style="height:300px;"></div>
+        <div class="mnote tip"><div class="mnote-label">Grain Test</div><p>For any column you want to add to a fact table: ask "does a single row at this grain always have exactly one value for this column?" If the answer is sometimes "it depends," the grain is wrong.</p></div>
+        <div class="ms" style="height:350px;"></div>
+        <div class="mnote key"><div class="mnote-label">SLI / SLO / SLA</div><p>SLI: what you <em>measure</em>. SLO: what you <em>target</em>. SLA: what you <em>promise</em>. The SLA should always be more generous than the SLO to allow a buffer for recovery.</p></div>
+        <div class="ms" style="height:300px;"></div>
+        <div class="mnote warn"><div class="mnote-label">GDPR &amp; PII</div><p>Archiving PII does not satisfy right-to-erasure. The data must be <strong>deleted</strong> from all copies: production, backup, Delta time travel history (VACUUM), and replicated regions.</p></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('2.3');</script>
+</body>
+</html>

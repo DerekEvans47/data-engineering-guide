@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3.7 dbt &mdash; data build tool · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="3.7">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+        <header class="chap-header">
+          <div class="part-tag">Part Three &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="chap-num">3.7</div>
+          <h1 class="chap-title">dbt &mdash; data build tool</h1>
+          <p class="chap-sub">SQL transformation with software engineering practices: tests, documentation, version control, and CI/CD for your data models</p>
+        </header>
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain what dbt does and how it differs from ADF, Spark notebooks, and stored procedures</li>
+            <li>Navigate a dbt project structure: models, seeds, tests, sources, and schema.yml</li>
+            <li>Use ref() and source() to build the DAG and manage dependencies between models</li>
+            <li>Choose the correct materialization (view, table, incremental, ephemeral) for each model</li>
+            <li>Write generic and singular tests to validate data quality in the pipeline</li>
+            <li>Describe the dbt CI/CD pattern (slim CI with state:modified+) and dbt's 2026 trajectory</li>
+          </ol>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.7.1</span><h2 class="sec-title">What dbt Is &mdash; and Why It Exists</h2></div>
+
+        <p>dbt (data build tool) is a transformation framework that applies software engineering practices to SQL-based data transformation. It does one thing: it takes <code>.sql</code> SELECT statements and runs them against your data warehouse or lakehouse, materialising the results as tables or views. What makes dbt different from a folder of SQL files is everything around the SELECT: version control (every model is a file in Git), automated dependency management (ref() builds the DAG), built-in testing (schema.yml), generated documentation (dbt docs), and CI/CD integration (dbt on pull requests).</p>
+        <p>dbt does not move data. It does not orchestrate pipelines end-to-end. It does not ingest from sources. It transforms data that is already in your lakehouse or data warehouse. In a Medallion architecture, dbt typically operates on Silver data to produce Gold, or on staged Bronze data to produce cleaned Silver. ADF brings data in; Databricks (or dbt on Databricks) transforms it.</p>
+        <div class="hl-block">The most powerful thing dbt does that a SQL file cannot: the ref() function. When you write ref("dim_customer") instead of the table name, dbt knows this model depends on dim_customer. dbt builds a directed acyclic graph (DAG) of all dependencies, executes models in the correct order, and knows which models are affected when you change another. This is the core of dbt's value proposition.</div>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Financial Services Team &nbsp;&middot;&nbsp; Replacing 200 Stored Procedures</span>
+          </div>
+          <div class="field-note-body">            <p>A financial services firm's Silver-to-Gold transformation layer was implemented as 200 SQL Server stored procedures, organised by a verbal convention ("run spr_staging_customers before spr_dim_customer") documented in a Word document. The procedures had been written over five years by six different engineers. No procedure had tests. None generated documentation automatically. Changing one procedure required manually tracing all downstream consumers to understand the blast radius.</p>
+            <p>The team migrated to dbt over six months. Each procedure became a dbt model: a single <code>.sql</code> file containing a SELECT statement. Dependencies were declared via ref() rather than assumed by convention. dbt generated the execution DAG automatically. Schema tests (not_null, unique, accepted_values) were added to critical columns. Running <code>dbt docs generate</code> produced an interactive documentation site with the full DAG visualisation and column-level descriptions. When engineers proposed changes, <code>dbt ls --select state:modified+</code> showed exactly which downstream models would be affected.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>dbt transforms a collection of undocumented SQL scripts into a governed, tested, documented, DAG-aware transformation layer. The migration cost is significant but the long-term maintainability benefit compounds with every new model added.</p></div>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.7.2</span><h2 class="sec-title">Project Structure and Core Concepts</h2></div>
+
+        <div class="code-wrap">
+          <div class="code-label">dbt project &nbsp;&middot;&nbsp; Directory structure<button class="copy-btn">Copy</button></div>
+          <pre><code>my_dbt_project/
+├── dbt_project.yml          # Project configuration (name, version, model paths)
+├── packages.yml             # Third-party package dependencies
+├── profiles.yml             # Connection config (usually in ~/.dbt/ not in repo)
+│
+├── models/                  # .sql transformation files
+│   ├── staging/             # 1:1 with source tables, light cleaning
+│   │   ├── stg_crm_customers.sql
+│   │   └── schema.yml       # source definitions + tests
+│   ├── intermediate/        # Business logic, joins
+│   │   └── int_customer_orders.sql
+│   └── marts/               # Final Gold-equivalent tables
+│       ├── dim_customer.sql
+│       └── fact_orders.sql
+│
+├── seeds/                   # Static CSV files loaded as reference tables
+│   └── country_codes.csv
+├── tests/                   # Singular (custom SQL) tests
+│   └── assert_no_negative_revenue.sql
+├── macros/                  # Reusable Jinja functions
+│   └── generate_surrogate_key.sql
+└── snapshots/               # SCD Type 2 definitions
+    └── snap_customers.sql</code></pre>
+        </div>
+        <div class="code-wrap">
+          <div class="code-label">SQL &nbsp;&middot;&nbsp; dbt model — a SELECT statement that becomes a table<button class="copy-btn">Copy</button></div>
+          <pre><code>-- models/marts/dim_customer.sql
+-- dbt materialises this SELECT as a table (based on dbt_project.yml config)
+
+WITH source AS (
+    -- source() references a declared external source (Bronze / external table)
+    SELECT * FROM {{ source('bronze', 'crm_customers') }}
+),
+
+cleaned AS (
+    SELECT
+        customer_id,
+        TRIM(LOWER(email))          AS email,
+        INITCAP(name)               AS name,
+        COALESCE(region, 'UNKNOWN') AS region,
+        CAST(created_date AS DATE)  AS created_date
+    FROM source
+    WHERE customer_id IS NOT NULL
+),
+
+final AS (
+    -- ref() references another dbt model — builds the DAG automatically
+    SELECT
+        {{ dbt_utils.generate_surrogate_key(['customer_id']) }} AS customer_sk,
+        c.*,
+        o.order_count,
+        o.total_spend
+    FROM cleaned AS c
+    LEFT JOIN {{ ref('int_customer_orders') }} AS o
+        ON c.customer_id = o.customer_id
+)
+
+SELECT * FROM final</code></pre>
+        </div>
+        <p>The two key functions in every dbt model:</p>
+        <p><code>{{ source('source_name', 'table_name') }}</code> references a table defined in a sources.yml declaration. dbt tracks freshness, generates documentation, and creates lineage nodes for source references. Use source() for anything external to dbt (Bronze Delta tables, external databases).</p>
+        <p><code>{{ ref('model_name') }}</code> references another dbt model. This is how dbt builds the DAG: every ref() creates a dependency edge. dbt resolves the correct target schema and database automatically based on the environment (dev vs prod), and ensures all upstream models run before the current one.</p>
+        <h3 class="subsec">schema.yml: Documentation and Tests in One File</h3>
+        <div class="code-wrap">
+          <div class="code-label">dbt schema.yml &nbsp;&middot;&nbsp; Tests and documentation together<button class="copy-btn">Copy</button></div>
+          <pre><code># models/marts/schema.yml
+version: 2
+
+models:
+  - name: dim_customer
+    description: "One row per customer. Slowly changing (Type 1 overwrite)."
+    columns:
+      - name: customer_sk
+        description: "Surrogate key. Primary join key for all fact tables."
+        tests:
+          - unique
+          - not_null
+
+      - name: email
+        description: "Customer email. Normalised to lowercase."
+        tests:
+          - not_null
+          - unique
+
+      - name: region
+        description: "Business region."
+        tests:
+          - accepted_values:
+              values: ["EMEA", "AMER", "APAC", "UNKNOWN"]
+
+      - name: total_spend
+        description: "Lifetime spend in GBP. NULL if customer has no orders."
+        tests:
+          - not_null:
+              where: "order_count &gt; 0"  # conditional test
+
+sources:
+  - name: bronze
+    description: "Raw Bronze layer in Unity Catalog."
+    tables:
+      - name: crm_customers
+        freshness:
+          warn_after: {count: 2, period: hour}
+          error_after: {count: 6, period: hour}</code></pre>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.7.3</span><h2 class="sec-title">Materializations: How dbt Persists Results</h2></div>
+
+        <p>A materialisation is how dbt writes the result of a model to the database. Four materialisation types cover most use cases, and choosing correctly has significant performance and cost implications.</p>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body"><svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs>
+    <filter id="fs313"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter>
+    <marker id="ma313" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+    </marker>
+  </defs>
+  <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+  <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">dbt Project DAG &mdash; ref() Builds the Dependency Graph</text>
+  <!-- Sources -->
+  <rect x="12" y="36" width="100" height="36" rx="5" fill="#3A4A6A" filter="url(#fs313)"/>
+  <text x="62" y="51" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">source()</text>
+  <text x="62" y="65" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">bronze.crm</text>
+  <rect x="12" y="82" width="100" height="36" rx="5" fill="#3A4A6A" filter="url(#fs313)"/>
+  <text x="62" y="97" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">source()</text>
+  <text x="62" y="111" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">bronze.orders</text>
+  <rect x="12" y="128" width="100" height="36" rx="5" fill="#3A4A6A" filter="url(#fs313)"/>
+  <text x="62" y="143" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">source()</text>
+  <text x="62" y="157" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">bronze.products</text>
+  <!-- Staging -->
+  <line x1="112" y1="54" x2="124" y2="54" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma313)"/>
+  <rect x="126" y="36" width="110" height="36" rx="5" fill="#B87333" filter="url(#fs313)"/>
+  <text x="181" y="51" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">stg_customers</text>
+  <text x="181" y="65" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">view · light cleaning</text>
+  <line x1="112" y1="100" x2="124" y2="100" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma313)"/>
+  <rect x="126" y="82" width="110" height="36" rx="5" fill="#B87333" filter="url(#fs313)"/>
+  <text x="181" y="97" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">stg_orders</text>
+  <text x="181" y="111" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">view · light cleaning</text>
+  <line x1="112" y1="146" x2="124" y2="146" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma313)"/>
+  <rect x="126" y="128" width="110" height="36" rx="5" fill="#B87333" filter="url(#fs313)"/>
+  <text x="181" y="143" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">stg_products</text>
+  <text x="181" y="157" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">view · light cleaning</text>
+  <!-- Intermediate -->
+  <line x1="236" y1="54" x2="250" y2="82" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma313)"/>
+  <line x1="236" y1="100" x2="250" y2="100" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma313)"/>
+  <rect x="252" y="72" width="130" height="36" rx="5" fill="#5C6270" filter="url(#fs313)"/>
+  <text x="317" y="87" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">int_customer_orders</text>
+  <text x="317" y="101" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">table · joins + business logic</text>
+  <!-- Marts -->
+  <line x1="382" y1="90" x2="396" y2="68" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma313)"/>
+  <rect x="398" y="50" width="120" height="36" rx="5" fill="#C8892A" filter="url(#fs313)"/>
+  <text x="458" y="65" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">dim_customer</text>
+  <text x="458" y="79" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">table · Gold dimension</text>
+  <line x1="236" y1="146" x2="396" y2="122" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma313)"/>
+  <line x1="382" y1="90" x2="396" y2="110" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma313)"/>
+  <rect x="398" y="102" width="120" height="36" rx="5" fill="#C8892A" filter="url(#fs313)"/>
+  <text x="458" y="117" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">fact_orders</text>
+  <text x="458" y="131" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">incremental · Gold fact</text>
+  <!-- Power BI -->
+  <line x1="518" y1="68" x2="530" y2="68" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma313)"/>
+  <line x1="518" y1="120" x2="530" y2="120" stroke="#0076CC" stroke-width="1.5" marker-end="url(#ma313)"/>
+  <rect x="532" y="50" width="152" height="108" rx="5" fill="#0F2447" filter="url(#fs313)"/>
+  <text x="608" y="72" fill="#88BEFF" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Power BI</text>
+  <text x="608" y="88" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Reads Gold marts</text>
+  <text x="608" y="102" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">via DirectQuery or</text>
+  <text x="608" y="116" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Import mode</text>
+  <!-- Labels below -->
+  <text x="62" y="195" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">External sources</text>
+  <text x="181" y="195" fill="#B87333" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Staging (views)</text>
+  <text x="317" y="195" fill="#5C6270" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Intermediate (tables)</text>
+  <text x="458" y="195" fill="#C8892A" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Marts / Gold</text>
+</svg></div>
+          <div class="fig-caption"><strong>Figure 3.13</strong><span>dbt project DAG. source() references external tables (Bronze Delta tables, external databases). Staging models (typically views) perform light cleaning 1:1 with source tables. Intermediate models (typically tables) join and apply business logic. Mart models (Gold-equivalent) are the final business-facing outputs consumed by Power BI and other tools. ref() between models creates the dependency edges — dbt executes the DAG in topological order.</span></div>
+        </div>
+        <div class="code-wrap">
+          <div class="code-label">dbt &nbsp;&middot;&nbsp; Materialization types and when to use each<button class="copy-btn">Copy</button></div>
+          <pre><code>-- dbt_project.yml — set defaults per folder
+models:
+  my_project:
+    staging:
+      +materialized: view           # No storage cost; always fresh
+    intermediate:
+      +materialized: table          # Pre-computed; faster for downstream
+    marts:
+      +materialized: incremental    # Only process new/changed rows
+
+-- ── view ─────────────────────────────────────────────────
+-- No storage. SQL executed fresh on every query.
+-- Use for: staging models, simple transformations, anything
+-- where the underlying table is already small and fast.
+{{ config(materialized='view') }}
+SELECT * FROM {{ source('bronze', 'crm_customers') }}
+WHERE is_deleted = false
+
+-- ── table ─────────────────────────────────────────────────
+-- Full refresh every dbt run. Fast to query; expensive at scale.
+-- Use for: intermediate models, dimensions, small-to-medium facts.
+{{ config(materialized='table') }}
+SELECT c.*, o.order_count
+FROM {{ ref('stg_customers') }} c
+LEFT JOIN {{ ref('int_customer_orders') }} o ON c.customer_id = o.customer_id
+
+-- ── incremental ───────────────────────────────────────────
+-- Only processes new/changed rows on subsequent runs.
+-- First run: full load. Subsequent: incremental only.
+-- Use for: large fact tables, event tables, anything expensive to full-refresh.
+{{ config(
+    materialized='incremental',
+    unique_key='order_id',
+    on_schema_change='append_new_columns'
+) }}
+SELECT * FROM {{ source('bronze', 'orders') }}
+{% if is_incremental() %}
+  WHERE order_date &gt; (SELECT MAX(order_date) FROM {{ this }})
+{% endif %}
+
+-- ── ephemeral ─────────────────────────────────────────────
+-- Compiled as a CTE in the referencing model. No storage.
+-- Use for: intermediate CTEs you want to name without creating a table.
+{{ config(materialized='ephemeral') }}
+SELECT * FROM {{ source('bronze', 'products') }}
+WHERE product_status = 'active'</code></pre>
+        </div>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body"><svg viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs><filter id="fs314"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter></defs>
+  <rect width="700" height="180" fill="#F4F6FB" rx="6"/>
+  <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">dbt Materialization Comparison</text>
+  <rect x="10" y="30" width="158" height="140" rx="6" fill="#1B3A6B" filter="url(#fs314)"/>
+  <text x="89" y="52" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">view</text>
+  <text x="89" y="68" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">No storage · Always fresh</text>
+  <text x="89" y="84" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">SQL runs on each query</text>
+  <text x="89" y="104" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&#9733; Staging, simple</text>
+  <text x="89" y="116" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">pass-through models</text>
+  <text x="89" y="132" fill="rgba(255,255,255,.55)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">&#9888; Slow if underlying</text>
+  <text x="89" y="144" fill="rgba(255,255,255,.55)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">data is large</text>
+  <text x="89" y="160" fill="rgba(255,255,255,.45)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Storage: none</text>
+  <rect x="176" y="30" width="158" height="140" rx="6" fill="#0076CC" filter="url(#fs314)"/>
+  <text x="255" y="52" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">table</text>
+  <text x="255" y="68" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Fully rebuilt each run</text>
+  <text x="255" y="84" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Fast to query</text>
+  <text x="255" y="104" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&#9733; Intermediate models</text>
+  <text x="255" y="116" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">dimensions, small facts</text>
+  <text x="255" y="132" fill="rgba(255,255,255,.55)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">&#9888; Expensive for very</text>
+  <text x="255" y="144" fill="rgba(255,255,255,.55)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">large tables</text>
+  <text x="255" y="160" fill="rgba(255,255,255,.45)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Storage: full table</text>
+  <rect x="342" y="30" width="158" height="140" rx="6" fill="#C8892A" filter="url(#fs314)"/>
+  <text x="421" y="52" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">incremental</text>
+  <text x="421" y="68" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Processes new rows only</text>
+  <text x="421" y="84" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">on subsequent runs</text>
+  <text x="421" y="104" fill="#FFDDA0" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&#9733; Large fact tables</text>
+  <text x="421" y="116" fill="#FFDDA0" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">event tables</text>
+  <text x="421" y="132" fill="rgba(255,255,255,.55)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">&#9888; More complex logic</text>
+  <text x="421" y="144" fill="rgba(255,255,255,.55)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">requires unique_key</text>
+  <text x="421" y="160" fill="rgba(255,255,255,.45)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Storage: full table</text>
+  <rect x="508" y="30" width="180" height="140" rx="6" fill="#254F8F" filter="url(#fs314)"/>
+  <text x="598" y="52" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">ephemeral</text>
+  <text x="598" y="68" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Compiled as a CTE</text>
+  <text x="598" y="84" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">inside referencing model</text>
+  <text x="598" y="104" fill="#AADDFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&#9733; Named intermediate</text>
+  <text x="598" y="116" fill="#AADDFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">logic without storage</text>
+  <text x="598" y="132" fill="rgba(255,255,255,.55)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">&#9888; Cannot be queried</text>
+  <text x="598" y="144" fill="rgba(255,255,255,.55)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">directly</text>
+  <text x="598" y="160" fill="rgba(255,255,255,.45)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Storage: none</text>
+</svg></div>
+          <div class="fig-caption"><strong>Figure 3.14</strong><span>dbt materialization comparison. view runs SQL fresh on every query — no storage cost but slow for large underlying tables. table fully rebuilds on every dbt run — fast to query, expensive for very large models. incremental processes only new rows after the first run — the correct default for large fact tables. ephemeral compiles to a CTE in the referencing model — no storage, cannot be queried directly.</span></div>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.7.4</span><h2 class="sec-title">Testing and Documentation</h2></div>
+
+        <p>dbt has two test types. <strong>Generic tests</strong> are defined in schema.yml and apply pre-built rules to columns: unique, not_null, accepted_values, relationships (referential integrity check). They run with <code>dbt test</code> and fail the pipeline if any assertion is violated.</p>
+        <p><strong>Singular tests</strong> are custom SQL files in the <code>tests/</code> directory. A singular test must return zero rows to pass. Any returned row is a test failure. Use them for business logic that cannot be expressed as a generic test:</p>
+        <div class="code-wrap">
+          <div class="code-label">dbt &nbsp;&middot;&nbsp; Singular test example<button class="copy-btn">Copy</button></div>
+          <pre><code>-- tests/assert_no_negative_revenue.sql
+-- Returns rows where revenue is negative — test fails if any rows returned
+SELECT
+    order_id,
+    amount
+FROM {{ ref('fact_orders') }}
+WHERE amount &lt; 0
+
+-- tests/assert_order_count_matches_source.sql
+-- Checks that dbt model row count matches source (catches silent data loss)
+SELECT 1
+WHERE (SELECT COUNT(*) FROM {{ ref('fact_orders') }})
+    != (SELECT COUNT(*) FROM {{ source('bronze', 'orders') }}
+        WHERE status = 'completed')</code></pre>
+        </div><p>Documentation is written in schema.yml <code>description:</code> fields. Running <code>dbt docs generate</code> creates a static documentation site with the full DAG visualisation, column descriptions, test coverage, and source freshness status. <code>dbt docs serve</code> hosts it locally. In production, the generated site is typically deployed to a static hosting service or internal wiki.</p>
+        <div class="sec-head"><span class="sec-tag">3.7.5</span><h2 class="sec-title">dbt in Production: CI/CD and 2026 Trajectory</h2></div>
+
+        <div class="code-wrap">
+          <div class="code-label">GitHub Actions &nbsp;&middot;&nbsp; dbt slim CI pattern<button class="copy-btn">Copy</button></div>
+          <pre><code># .github/workflows/dbt_ci.yml
+name: dbt CI
+on: [pull_request]
+
+jobs:
+  dbt-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dbt
+        run: pip install dbt-databricks
+
+      - name: dbt deps
+        run: dbt deps
+
+      # Slim CI: only run models changed in this PR + all downstream
+      # "state:modified+" means: changed models and everything that depends on them
+      - name: dbt build (changed models only)
+        run: |
+          dbt build \
+            --select state:modified+ \
+            --defer \
+            --state prod_artifacts/    # artifacts from last successful prod run
+        env:
+          DBT_TARGET: ci
+          DBT_DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}</code></pre>
+        </div>
+        <p>The slim CI pattern is the most important dbt operational pattern for teams at scale. Instead of running the full dbt project on every pull request (which can take 30+ minutes for large projects), <code>--select state:modified+</code> selects only the models that changed in the current PR plus all downstream models that depend on them. Combined with <code>--defer</code>, which reads upstream results from the last production run rather than rebuilding them, CI runs that would take 40 minutes take 3.</p>
+        <div class="hl-block">dbt Core v2.0 was announced in alpha at Snowflake Summit in June 2026. It is a Rust-based rewrite (the "Fusion engine") that ships as two distributions: dbt-core (open source, Apache 2.0) and dbt (Fusion distribution, proprietary). The Fusion engine delivers significantly faster compilation and execution. Section 3.7 teaches the stable 1.x syntax, which v2.0 is designed to be backward-compatible with. Monitor the dbt Labs release notes for v2.0 GA timeline before upgrading production deployments.</div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Incremental models in depth &mdash; append vs merge strategy</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>Incremental models are the most complex dbt feature and the most commonly misconfigured. Two strategies exist: append and merge (the dbt default on Databricks).</p>
+              <p><strong>Append strategy:</strong> new rows from the SELECT are appended to the existing table. Simple and fast. Correct only when source rows never change after initial load (immutable event logs, for example). If rows can be updated, append creates duplicates.</p>
+              <p><strong>Merge strategy (default on Databricks):</strong> dbt uses a unique_key column (or list of columns) to MERGE incoming rows into the existing table. Rows matching the unique key are updated; new rows are inserted. This is correct for tables where rows can be updated. Requires a unique_key configuration.</p>
+              <p><code>on_schema_change</code> controls what happens when the SELECT adds new columns not in the existing table. Options: fail (default — prevents silent schema drift), append_new_columns (adds them), ignore (ignores the new columns). Choosing fail in development catches accidental schema changes; append_new_columns is appropriate for stable production Bronze tables absorbing source additions.</p>
+          </div></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Jinja templating &mdash; the minimum viable knowledge</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>dbt models use Jinja templating to enable dynamic SQL. Most dbt users need only a small subset of Jinja: the is_incremental() macro, ref() and source(), config(), and basic if/else.</p>
+              <p><code>{% if is_incremental() %} ... {% endif %}</code>: the most important block. SQL inside runs only on incremental runs (not the first full build). Used to add a WHERE clause filtering to new rows only.</p>
+              <p><code>{{ config(...) }}</code>: sets model-level configuration inline. Overrides project defaults. Common: materialized, unique_key, partition_by, cluster_by, on_schema_change.</p>
+              <p>Macros extend dbt with reusable functions. Define in <code>macros/my_macro.sql</code> and call with <code>{{ my_macro(arg1, arg2) }}</code>. The <code>dbt_utils</code> and <code>dbt_date</code> packages provide widely used macros (generate_surrogate_key, date spine, pivot). Install packages via packages.yml and run <code>dbt deps</code>.</p>
+          </div></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>SCD Type 2 with dbt snapshots</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>dbt snapshots implement Slowly Changing Dimension Type 2 (SCD Type 2 — full history with version rows) using a declarative YAML-like configuration. Define a snapshot in the <code>snapshots/</code> directory:</p>
+              <p><code>{{ config(target_schema='snapshots', unique_key='customer_id', strategy='timestamp', updated_at='updated_at') }}</code> followed by a SELECT from the source. On the first run, dbt inserts all rows with dbt_valid_from = current_timestamp and dbt_valid_to = NULL. On subsequent runs, dbt checks for changed rows using the unique_key and updated_at. Changed rows get the prior version's dbt_valid_to stamped with the current timestamp, and a new row is inserted as the current version.</p>
+              <p>The result is a Type 2 dimension table where every historical version of a customer record exists with valid_from and valid_to timestamps. The current version has dbt_valid_to IS NULL. Query current customers: <code>WHERE dbt_valid_to IS NULL</code>. Query as-of a specific date: <code>WHERE dbt_valid_from &lt;= '2024-01-01' AND (dbt_valid_to &gt; '2024-01-01' OR dbt_valid_to IS NULL)</code>.</p>
+              <p>Snapshots run separately from dbt models: <code>dbt snapshot</code>. They should be scheduled before model runs that depend on the snapshot table, and they should be excluded from slim CI runs because they capture point-in-time state from the source, not transformed data.</p>
+          </div></div>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Data Engineering Team &nbsp;&middot;&nbsp; dbt CI Catching a Business Logic Error</span>
+          </div>
+          <div class="field-note-body">            <p>A data engineering team maintained a dbt project with 140 models. A PR was opened adding a new column to the fact_orders mart model to capture a promotional discount flag. The developer introduced a logic error: the WHERE clause on the incremental filter was changed from <code>order_date &gt; (SELECT MAX(order_date) FROM {{ this }})</code> to <code>order_date &gt;= CURRENT_DATE()</code> &mdash; a change that would cause the incremental model to only process orders from today rather than all unprocessed orders.</p>
+            <p>The GitHub Actions CI workflow ran <code>dbt build --select state:modified+</code> on a CI target that pointed to a Databricks dev schema containing a small representative dataset. The dbt test suite included a singular test asserting that the model row count after a run matched the expected cumulative order count. The test failed: the incremental model produced 847 rows (today's orders only) rather than the expected ~45,000 cumulative rows.</p>
+            <p>The reviewer saw the test failure in the PR before merge and the error was corrected. Without CI testing, the bug would have silently truncated the fact_orders model on the next production run, removing all historical orders from the Gold layer.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>dbt tests exist to catch logic errors before they reach production. Running dbt build on every PR with a representative dataset and a meaningful test suite is the difference between catching a silent data loss bug in CI and discovering it when the Finance team calls.</p></div>
+        </div>        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text"><h3>Learning Check</h3><p>Section 3.7 &nbsp;&middot;&nbsp; dbt</p></div>
+            <div class="quiz-score-wrap"><div class="quiz-score-num">0/5</div><div class="quiz-score-label">Score</div></div>
+          </div>
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">What does ref("dim_customer") do inside a dbt model, beyond substituting the correct table name?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">It only substitutes the correct schema-qualified table name in the compiled SQL</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">It creates a dependency edge in the dbt DAG, ensuring dim_customer runs before the current model, and enabling impact analysis and lineage tracking</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">It creates a foreign key constraint between the current model and dim_customer</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It triggers a data freshness check on dim_customer before running the current model</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> ref() does two things: (1) substitutes the correct environment-aware table name (dev schema in development, prod schema in production), and (2) creates a dependency edge in the DAG. dbt uses these edges to determine execution order (topological sort), to identify which models are affected by a change (<code>state:modified+</code>), and to render the lineage graph in dbt docs. Without ref(), two models that use the same table have no declared relationship and dbt cannot manage their dependency.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">A fact_orders table has 500 million rows and grows by 2 million rows daily. Which dbt materialization is most appropriate?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">view — always reflects the latest data with no storage overhead</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">table — ensures the model is always fully rebuilt with the latest logic</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">incremental — processes only new rows on each run, avoiding the cost of rebuilding 500M rows daily</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">ephemeral — compiles the logic as a CTE to avoid storage costs</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> An incremental model processes only new or changed rows on each run after the initial full build. For a 500M-row table growing by 2M daily, rebuilding the entire table every day (table materialization) would process 500M rows for 2M new rows — 250× more work than necessary. The incremental model, with a date-based filter in is_incremental(), processes only the 2M new rows. ephemeral cannot be queried directly and is inappropriate for a final mart model.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">What happens when a dbt singular test returns zero rows?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The test fails — zero rows indicates no data was tested</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The test passes — zero rows means no violations were found</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">dbt raises a warning but does not fail the pipeline</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The test is skipped and marked as inconclusive</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Singular tests are written as SQL that SELECTs violation rows. The test passes when the query returns zero rows (no violations found) and fails when it returns any rows. This is the inverse of what many developers expect initially. The pattern: write a SELECT that finds rows that SHOULD NOT EXIST — negative revenue orders, NULL customer IDs in a required field, orders with dates in the future. If any rows are returned, a data quality violation exists.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">What does --select state:modified+ do in dbt slim CI?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Runs all models that have been modified in the last 24 hours</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Runs only models changed in the current PR, plus all downstream models that depend on them (transitively)</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Runs only the models marked as modified in dbt_project.yml</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Runs the modified models in parallel to reduce CI runtime</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> <code>state:modified</code> selects models whose .sql files changed compared to the last production state artifacts. The <code>+</code> suffix means "and all downstream descendants." So if you changed stg_customers, dbt also runs int_customer_orders, dim_customer, and fact_orders (everything that depends on stg_customers, transitively). Combined with <code>--defer</code> (which reads upstream results from production rather than rebuilding them), this limits CI runs to only the affected subgraph of the DAG, dramatically reducing CI time for large projects.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">What significant architectural change was announced for dbt Core v2.0 in June 2026?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">dbt Core v2.0 adds native streaming support for processing data as it arrives</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">dbt Core v2.0 replaces the Python runtime with a Rust-based engine (the Fusion engine) for significantly faster compilation and execution</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">dbt Core v2.0 merges with Apache Airflow to provide native orchestration</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">dbt Core v2.0 removes support for SQL models in favour of Python models</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> dbt Core v2.0, announced at Snowflake Summit in June 2026, is a Rust-based rewrite delivering a faster compilation and execution engine (called dbt Fusion). It ships as two distributions: dbt-core (open source, Apache 2.0) and dbt (Fusion distribution, proprietary). The SQL model syntax and project structure are designed to be backward-compatible with 1.x. As of June 2026, v2.0 is in alpha — production deployments should continue on the stable 1.x series until GA is announced.</p></div></div>
+          </div>
+
+          <div class="quiz-final"><div class="quiz-final-score">&mdash;</div><p class="quiz-final-msg"></p><button class="quiz-retry-btn">Try Again</button></div>
+        </section>
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>dbt applies software engineering practices to SQL transformation: version control (every model is a .sql file in Git), dependency management (ref() builds the DAG), testing (schema.yml generic tests + singular SQL tests), and documentation (dbt docs). Four materializations: view (no storage, always fresh), table (full rebuild), incremental (new rows only — correct for large facts), ephemeral (CTE, no storage). Slim CI runs only changed models + downstream via --select state:modified+ --defer. SCD Type 2 via dbt snapshots. dbt Core v2.0 (Rust Fusion engine) announced alpha at Snowflake Summit June 2026 — production deployments remain on stable 1.x.</p>
+        </div>
+        <div class="info-box gold">
+          <div class="info-label">Coming in the Next Section</div>
+          <p>Part 4 covers Analytics and Visualisation: Dimensional Modeling, SCDs Type 0–7, Power BI, and DAX. Part 3 has provided the transformation foundation that Part 4's analytics layer builds on.</p>
+        </div>
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+        <nav class="sec-nav">
+          <a href="3-6-delta-lake.html" class="sec-nav-btn sec-nav-prev"><span class="sec-nav-arrow">&#8592;</span><span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">3.6 Delta Lake & File Formats</span></span></a>
+          <span class="sec-nav-btn sec-nav-next sec-nav-disabled"><span class="sec-nav-text"><span class="sec-nav-tag">Coming Next</span><span class="sec-nav-name">Part 4 — Analytics & Visualisation</span></span></span>
+        </nav>
+        <footer class="page-foot">
+          <div class="fl">Part 3 &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">16</div>
+        </footer>
+      </article>
+      <aside class="margin-col">
+                <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">ref() is the DAG</div>
+          <p>Use ref() for every model-to-model reference. Never hard-code table names. ref() is what gives dbt its dependency graph, slim CI, and lineage.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Materialization Rule</div>
+          <p>view for staging. table for intermediate + small dimensions. incremental for large facts. ephemeral for named CTEs you don't need to query directly.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Incremental Risk</div>
+          <p>is_incremental() filter must be correct. A wrong WHERE clause can truncate the model (too restrictive) or duplicate data (too permissive). Test incremental logic with dbt test after every change.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">dbt v2.0</div>
+          <p>dbt Core v2.0 (Rust Fusion engine) is in alpha as of June 2026. Stay on 1.x for production. Watch dbt Labs release notes for GA date before upgrading.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+
+      </aside>
+    </div>
+  </div>
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('3.7');</script>
+</body>
+</html>

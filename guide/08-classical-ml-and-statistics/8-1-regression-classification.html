@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>8.1 Regression &amp; Classification &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="8.1">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Eight &nbsp;&middot;&nbsp; Classical ML &amp; Statistics</div>
+          <div class="chap-num">8.1</div>
+          <h1 class="chap-title">Regression &amp; Classification</h1>
+          <p class="chap-sub">The two fundamental problems all supervised machine learning solves, the four algorithms practitioners reach for first, and why the shape of the thing you're predicting matters more than the business question itself</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Distinguish supervised learning from unsupervised learning, and identify regression and classification as the two core supervised learning tasks based on the shape of the target variable</li>
+            <li>Explain how linear regression fits a line to data and why its coefficients are directly interpretable</li>
+            <li>Explain why logistic regression — despite its name — is a classification algorithm, and how the sigmoid function produces a probability</li>
+            <li>Describe how a decision tree splits data into progressively purer groups, and why an unconstrained tree will overfit</li>
+            <li>Explain how a random forest combines many trees through bagging to reduce overfitting and improve accuracy, at the cost of interpretability</li>
+            <li>Recognize the symptoms of overfitting versus underfitting, and explain why a held-out test set — and clean, leakage-free feature pipelines — are non-negotiable before trusting a model's reported performance</li>
+          </ol>
+        </div>
+
+        <!-- 8.1.1 -->
+        <div class="sec-head"><span class="sec-tag">8.1.1</span><h2 class="sec-title">Supervised Learning: The Target Variable Decides Everything</h2></div>
+
+        <p><span class="kt" data-term="Supervised Learning">Supervised learning</span> is the branch of machine learning (ML) where a model learns a mapping from input variables — called <strong>features</strong> — to a known output variable, called the <strong>label</strong> or <strong>target</strong>, using historical examples where the correct answer is already known. You show the model thousands of past loan applications along with whether each one defaulted, and it learns the pattern well enough to estimate the risk on a new application it has never seen. This is different from <em>unsupervised learning</em> (covered in section 8.2), where there is no known label at all — the goal is to discover structure in the data rather than predict a known outcome.</p>
+
+        <p>Within supervised learning, there is exactly one question that determines which family of algorithms applies, and it has nothing to do with how important or complex the business problem feels: <strong>is the target variable a continuous number, or is it a category?</strong> Predicting next month's warehouse throughput in units is a number on a continuous scale — that's <span class="df" data-term="Regression">regression</span>. Predicting whether a customer will churn this quarter is one of a fixed set of categories (yes or no) — that's <span class="df" data-term="Classification">classification</span>. A surprising amount of confusion in this field — including the name "logistic regression," which you'll meet in section 8.1.3 — comes from not asking this question first.</p>
+
+        <div class="hl-block">The business question never tells you whether you need regression or classification. The <em>shape of the target variable</em> does. "How much revenue will we make next month?" is regression. "Will this specific deal close this month?" is classification. Both questions can come from the exact same sales pipeline data — what differs is what you're asking the model to output.</div>
+
+        <p>Classification itself splits further: <strong>binary classification</strong> has exactly two possible categories (churn / no churn, fraud / not fraud), while <strong>multiclass classification</strong> has three or more (which of five support queues should this ticket route to). The distinction matters because some algorithms handle multiclass problems natively and others need an extension — a detail covered in the deep dive after section 8.1.3.</p>
+
+        <p>Where does this sit relative to the rest of the guide? The Gold-layer tables you've spent Parts 1 through 7 learning to build — clean, well-modeled, business-logic-applied — are exactly what becomes <strong>training data</strong> for these models. A senior data engineer is rarely the person choosing between logistic regression and a random forest, but is very often the person whose pipeline determines whether the features reaching the data science team are correct, complete, and available at the right point in time. That last detail — timing — turns out to be one of the most common and most expensive mistakes in production ML, and it gets a full treatment in section 8.1.6.</p>
+
+        <!-- Figure 8.1 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f81sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m81b" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#0076CC"/></marker>
+                <marker id="m81g" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#B07D2A"/></marker>
+              </defs>
+              <rect width="700" height="250" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">The First Question in Supervised Learning</text>
+
+              <rect x="255" y="34" width="190" height="46" rx="5" fill="#0F2447" filter="url(#f81sh)"/>
+              <text x="350" y="54" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">What is the target variable?</text>
+              <text x="350" y="69" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">(the thing you're trying to predict)</text>
+
+              <line x1="300" y1="80" x2="180" y2="106" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m81b)"/>
+              <line x1="400" y1="80" x2="520" y2="106" stroke="#B07D2A" stroke-width="1.5" marker-end="url(#m81g)"/>
+              <text x="200" y="98" fill="#0076CC" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">A continuous number</text>
+              <text x="500" y="98" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">A category or class</text>
+
+              <rect x="60" y="108" width="240" height="40" rx="5" fill="#254F8F" filter="url(#f81sh)"/>
+              <text x="180" y="133" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">REGRESSION</text>
+
+              <line x1="180" y1="148" x2="180" y2="162" stroke="#0076CC" stroke-width="1.5"/>
+              <rect x="40" y="164" width="280" height="68" rx="5" fill="white" stroke="#C8E2F8" stroke-width="1.5"/>
+              <text x="180" y="180" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Predicts a number on a continuous scale</text>
+              <text x="55" y="198" fill="#3A5A8A" font-family="Inter,sans-serif" font-size="7.5">&#8226; Next month's revenue ($)</text>
+              <text x="55" y="211" fill="#3A5A8A" font-family="Inter,sans-serif" font-size="7.5">&#8226; Units of product demand</text>
+              <text x="55" y="224" fill="#3A5A8A" font-family="Inter,sans-serif" font-size="7.5">&#8226; Predicted warehouse throughput</text>
+
+              <rect x="400" y="108" width="240" height="40" rx="5" fill="#8A5F1E" filter="url(#f81sh)"/>
+              <text x="520" y="133" fill="white" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">CLASSIFICATION</text>
+
+              <line x1="520" y1="148" x2="520" y2="162" stroke="#B07D2A" stroke-width="1.5"/>
+              <rect x="380" y="164" width="280" height="68" rx="5" fill="white" stroke="#E8D5B5" stroke-width="1.5"/>
+              <text x="520" y="180" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Predicts which category something belongs to</text>
+              <text x="395" y="198" fill="#7A5520" font-family="Inter,sans-serif" font-size="7.5">&#8226; Will this customer churn? (Yes/No)</text>
+              <text x="395" y="211" fill="#7A5520" font-family="Inter,sans-serif" font-size="7.5">&#8226; Is this transaction fraudulent? (Yes/No)</text>
+              <text x="395" y="224" fill="#7A5520" font-family="Inter,sans-serif" font-size="7.5">&#8226; Which queue does this ticket route to?</text>
+
+              <line x1="20" y1="240" x2="680" y2="240" stroke="rgba(27,58,107,.12)" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 8.1</strong><span>The branching question that determines which family of algorithms applies. Note that the two examples on the right — churn and fraud — are both binary classification, while ticket routing is multiclass classification (more than two possible categories). The business domain is irrelevant to this decision; only the shape of the target variable matters.</span></div>
+        </div>
+
+        <!-- 8.1.2 -->
+        <div class="sec-head"><span class="sec-tag">8.1.2</span><h2 class="sec-title">Linear Regression</h2></div>
+
+        <p><span class="df" data-term="Linear Regression">Linear regression</span> is the oldest and most interpretable algorithm in this section, and very often the right first model to try on a regression problem before reaching for anything more complex. It fits a straight line — or, with multiple input features, a flat hyperplane — through the training data, of the form:</p>
+
+        <div class="hl-block">y = b&#8320; + b&#8321;x&#8321; + b&#8322;x&#8322; + &#8230; + b&#8345;x&#8345;<br><span style="font-size:12.5px;font-weight:400;">Predicted value = intercept + (weight &times; feature) for every feature in the model</span></div>
+
+        <p>The model "learns" by finding the set of weights (b&#8321;, b&#8322;, &#8230;) that minimizes the gap between its predictions and the actual values across all training rows — typically measured as the <strong>mean squared error</strong>, the average of the squared differences between predicted and actual. Why squared rather than just the difference? Squaring makes every error positive (so overshooting and undershooting don't cancel out) and penalizes large errors disproportionately more than small ones, which is usually the behaviour you want — a model that is wildly wrong on one row is worse than one that is slightly wrong on many.</p>
+
+        <p>The reason linear regression remains so widely used despite being decades old is interpretability: each weight tells you, directly, the effect of that feature on the prediction, holding everything else constant. If the weight on "years of customer tenure" is +42, you can say to a stakeholder, with no hedging, "each additional year of tenure is associated with $42 more in predicted annual spend." Decision trees and random forests, covered later in this section, cannot make a claim that clean.</p>
+
+        <p>Linear regression's core assumption — and its main limitation — is that the relationship between each feature and the target really is a straight line. Demand that doubles every time price drops by 10% is not a linear relationship; advertising spend with strongly diminishing returns past a certain point is not linear either. Forcing a straight line onto a curved relationship produces a model that is systematically wrong in predictable ways — a problem you can usually spot by plotting the residuals (the errors) and seeing a curved pattern rather than random scatter.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>How does a model actually "learn" a line? Gradient descent in plain terms</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>For small datasets, the exact best-fit line for linear regression can be solved directly with linear algebra (a method called <em>ordinary least squares</em>). But most real ML training — including logistic regression, neural networks, and gradient-boosted trees — uses an iterative method called <span class="df" data-term="Gradient Descent">gradient descent</span> instead, because a direct solution either doesn't exist or is too computationally expensive at scale.</p>
+              <p><strong>The analogy:</strong> imagine you're standing on a hillside in thick fog, trying to reach the lowest point in the valley. You can't see the whole landscape, but you can feel which direction the ground slopes beneath your feet. So you take a step downhill, feel the slope again, take another step, and repeat — gradually working your way to the bottom. The "hillside" is the model's cost function (how wrong its current predictions are, plotted against every possible combination of weights), and "downhill" is the direction that reduces that error the most.</p>
+              <p><strong>The learning rate</strong> controls how big each step is. Too large, and you overshoot the bottom of the valley and bounce around without ever settling (the model fails to converge, or its error oscillates wildly). Too small, and you crawl toward the bottom so slowly that training takes far longer than necessary, or you get stuck in a shallow dip that isn't the true minimum. Tuning the learning rate is one of the most common practical levers in ML training, and is the first thing to check when a model's training loss isn't decreasing as expected.</p>
+              <p>This same hill-descending process is what's happening, conceptually, every time you see a training job logging a decreasing "loss" value epoch after epoch — whether it's a simple linear regression or a billion-parameter LLM (Large Language Model) being trained. The math gets more elaborate at scale, but the core idea — measure the slope, take a step downhill, repeat — does not change.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8.1.3 -->
+        <div class="sec-head"><span class="sec-tag">8.1.3</span><h2 class="sec-title">Logistic Regression: A Classifier Wearing a Regression's Name</h2></div>
+
+        <p>The single most common point of confusion for anyone new to this material: <span class="df" data-term="Logistic Regression">logistic regression</span> is not used for regression problems. It is one of the most widely used <em>classification</em> algorithms in production systems today, and the name is a historical artifact rather than a description of what it does.</p>
+
+        <p>Here's how it actually works. Logistic regression starts exactly like linear regression — it computes a weighted sum of the input features. But instead of returning that number directly as the prediction, it passes the result through the <strong>sigmoid function</strong>, an S-shaped curve that squashes any number, no matter how large or small, into a value strictly between 0 and 1. That output is interpreted as a probability — "this transaction has an 87% estimated probability of being fraudulent" — and a threshold (commonly, but not always, 0.5) converts that probability into a final class label: above the threshold, predict "fraud"; below it, predict "not fraud."</p>
+
+        <p>This probability output is precisely why logistic regression is so heavily used in practice, beyond just its accuracy. A binary yes/no prediction discards information — a 51% churn probability and a 98% churn probability are both "predict churn," but they call for very different business responses. A retention team can triage its limited outreach budget toward the 98%-probability customers first, something a model that only outputs "yes" or "no" cannot support.</p>
+
+        <p>Like linear regression, logistic regression's weights remain reasonably interpretable: each one tells you the direction and approximate strength of a feature's effect on the <em>log-odds</em> of the positive class. It's a slightly less intuitive quantity to explain to a non-technical stakeholder than a linear regression coefficient, but it is still far more transparent than the algorithms covered next in this section — which matters enormously in regulated industries where a model's decision sometimes has to be explained to a regulator or a rejected customer by law.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Beyond yes/no: handling more than two classes</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Logistic regression, as described above, naturally handles binary classification. Real classification problems are frequently multiclass — routing a support ticket to one of five queues, or classifying a product image into one of dozens of categories. Two standard strategies extend binary classifiers to handle this:</p>
+              <p><strong>One-vs-Rest (OvR):</strong> train one binary classifier per class, each asking "is this Class A, or is it anything else?" For five ticket queues, that's five separate logistic regression models. At prediction time, run all five and pick whichever model is most confident. Simple to implement and reason about, but the separate models never directly compare against each other, which can produce inconsistent calibration across classes.</p>
+              <p><strong>Softmax (multinomial) regression:</strong> rather than training separate models, extend the sigmoid function to output a full probability distribution across all classes simultaneously, guaranteed to sum to exactly 1. This is the standard approach inside neural networks' final layer for multiclass problems, and is generally preferred over One-vs-Rest when training a single unified model is feasible, because the classes are learned jointly rather than independently.</p>
+              <p>Decision trees and random forests, by contrast, handle multiclass classification natively with no extension required — a leaf node can simply store a probability distribution over any number of classes directly. This is one of several reasons tree-based methods are often the practical default for multiclass tabular problems.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8.1.4 -->
+        <div class="sec-head"><span class="sec-tag">8.1.4</span><h2 class="sec-title">Decision Trees</h2></div>
+
+        <p>A <span class="df" data-term="Decision Tree">decision tree</span> makes predictions through a sequence of simple yes/no questions about the input features, arranged in a branching tree structure — conceptually identical to a flowchart. "Is account tenure greater than 18 months? If no, is monthly usage below 20 hours? If yes, predict churn." Each question is a <strong>split</strong>, and the tree keeps splitting the data into progressively more homogeneous (purer) groups until it reaches a <strong>leaf node</strong>, which holds the final prediction — a class label for classification, or an average value for regression.</p>
+
+        <p>The algorithm chooses each split by testing many candidate questions (across every feature and many possible threshold values) and picking whichever one creates the purest resulting groups. For classification, "purity" is most often measured using <strong>Gini impurity</strong> or <strong>entropy</strong> — both quantify how mixed the classes are within a group, with a value of zero meaning the group is now 100% one class. For regression, the equivalent measure is the reduction in variance within each resulting group.</p>
+
+        <p>The single biggest advantage of a decision tree is that it is the most interpretable model covered in this section after linear and logistic regression — arguably more so, because it can be drawn as an actual diagram and walked through, question by question, with a business stakeholder who has never heard the word "algorithm" in their life. The biggest disadvantage is that a tree grown without any constraints will happily keep splitting until every single leaf contains exactly one training row — at which point it has achieved 100% accuracy on the data it was trained on by essentially memorizing it, and has learned nothing generalizable about new data it hasn't seen. This failure mode, <span class="kt" data-term="Overfitting">overfitting</span>, is one of the most important concepts in this entire section and gets dedicated treatment in 8.1.6.</p>
+
+        <p>In practice, decision trees are constrained during training to prevent this: a <strong>maximum depth</strong> limits how many questions deep the tree can go, a <strong>minimum samples per leaf</strong> stops splits that would create tiny, statistically meaningless groups, and post-training <strong>pruning</strong> removes branches that don't meaningfully improve validation performance. Even with these constraints, a single tree's accuracy on unseen data is rarely state-of-the-art — which is exactly the gap random forests close.</p>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Manufacturing Firm &nbsp;&middot;&nbsp; The Tree the Engineers Trusted Immediately</span>
+          </div>
+          <div class="field-note-body">
+            <p>A manufacturing company's data science team built a predictive maintenance model to flag machines likely to fail within the next 7 days, using sensor data — vibration, temperature, run-hours since last service — engineered into Gold-layer features by the data engineering team. The first model the team tried was a single decision tree, deliberately, before reaching for anything more sophisticated.</p>
+            <p>The result wasn't the most accurate model they would eventually build, but it was the most immediately trusted. The maintenance engineers could look at the printed tree diagram and say, within seconds, "yes — vibration above that threshold combined with run-hours past that point is exactly the pattern I've seen before a bearing fails." That validation from domain experts, who could read the model's logic directly rather than being told to trust a black box, was what got the project funded for a second phase.</p>
+            <p>The second phase replaced the single tree with a random forest once accuracy needed to improve beyond what the engineers' intuition alone could validate — but the team kept the original tree as a standalone "explainability layer" they could show to plant managers, alongside the more accurate forest doing the actual flagging in production.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>A simpler, more interpretable model that domain experts can validate against their own intuition is often the right first step — even when you already know you'll eventually need something more powerful. Trust, once lost on an unexplainable model, is expensive to rebuild.</p>
+          </div>
+        </div>
+
+        <!-- 8.1.5 -->
+        <div class="sec-head"><span class="sec-tag">8.1.5</span><h2 class="sec-title">Random Forests: Many Trees, One Vote</h2></div>
+
+        <p>A <span class="df" data-term="Random Forest">random forest</span> is an <strong>ensemble</strong> method — rather than training one model, it trains many decision trees (often hundreds) and combines their outputs into a single prediction. The mechanism that makes this work, rather than just multiplying the same overfitting problem, is called <span class="df" data-term="Bagging">bagging</span> (bootstrap aggregating), and it introduces two distinct sources of randomness into how each tree is built:</p>
+
+        <p><strong>1. Each tree trains on a random sample of the rows</strong> — drawn with replacement from the full training set (a "bootstrap sample"), so each tree sees a slightly different, overlapping subset of the data. <strong>2. Each tree's splits only consider a random subset of the features</strong> at each decision point, rather than all of them. Both forms of randomness mean every tree in the forest ends up slightly different from every other tree — and, critically, each tree tends to overfit to <em>different</em>, essentially random quirks of its own training subset.</p>
+
+        <p>At prediction time, every tree in the forest votes (classification) or contributes its predicted value to an average (regression), and the forest's final output is the combined result. This is the practical payoff of bagging: the random, idiosyncratic mistakes that any individual tree makes tend to cancel out across hundreds of trees, while the genuine underlying signal — the pattern that's actually true across the data, which every tree picks up on regardless of its specific random subset — gets reinforced. The result, in the large majority of tabular ML problems, is meaningfully higher accuracy on unseen data than any single tree achieves, with substantially lower risk of overfitting.</p>
+
+        <!-- Figure 8.2 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f82sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="240" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Random Forest — Bagging Many Trees Into One Prediction</text>
+
+              <rect x="8" y="78" width="84" height="74" rx="5" fill="#0F2447" filter="url(#f82sh)"/>
+              <text x="50" y="106" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Training</text>
+              <text x="50" y="118" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Data</text>
+              <text x="50" y="138" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">all historical rows</text>
+
+              <!-- 4 tree boxes -->
+              <g>
+                <line x1="92" y1="100" x2="136" y2="48" stroke="#3A9FE0" stroke-width="1"/>
+                <rect x="138" y="22" width="78" height="86" rx="5" fill="#254F8F" filter="url(#f82sh)"/>
+                <circle cx="177" cy="40" r="6" fill="white" opacity=".85"/>
+                <line x1="177" y1="46" x2="165" y2="58" stroke="white" stroke-width="1" opacity=".7"/>
+                <line x1="177" y1="46" x2="189" y2="58" stroke="white" stroke-width="1" opacity=".7"/>
+                <circle cx="165" cy="62" r="4.5" fill="white" opacity=".7"/>
+                <circle cx="189" cy="62" r="4.5" fill="white" opacity=".7"/>
+                <text x="177" y="84" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Tree 1</text>
+                <text x="177" y="98" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="6" text-anchor="middle">bootstrap rows +</text>
+                <text x="177" y="106" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="6" text-anchor="middle">random features</text>
+              </g>
+              <g>
+                <line x1="92" y1="112" x2="228" y2="70" stroke="#3A9FE0" stroke-width="1"/>
+                <rect x="230" y="22" width="78" height="86" rx="5" fill="#254F8F" filter="url(#f82sh)"/>
+                <circle cx="269" cy="40" r="6" fill="white" opacity=".85"/>
+                <line x1="269" y1="46" x2="257" y2="58" stroke="white" stroke-width="1" opacity=".7"/>
+                <line x1="269" y1="46" x2="281" y2="58" stroke="white" stroke-width="1" opacity=".7"/>
+                <circle cx="257" cy="62" r="4.5" fill="white" opacity=".7"/>
+                <circle cx="281" cy="62" r="4.5" fill="white" opacity=".7"/>
+                <text x="269" y="84" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Tree 2</text>
+                <text x="269" y="98" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="6" text-anchor="middle">bootstrap rows +</text>
+                <text x="269" y="106" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="6" text-anchor="middle">random features</text>
+              </g>
+              <g>
+                <line x1="92" y1="124" x2="320" y2="142" stroke="#3A9FE0" stroke-width="1"/>
+                <rect x="322" y="22" width="78" height="86" rx="5" fill="#254F8F" filter="url(#f82sh)"/>
+                <circle cx="361" cy="40" r="6" fill="white" opacity=".85"/>
+                <line x1="361" y1="46" x2="349" y2="58" stroke="white" stroke-width="1" opacity=".7"/>
+                <line x1="361" y1="46" x2="373" y2="58" stroke="white" stroke-width="1" opacity=".7"/>
+                <circle cx="349" cy="62" r="4.5" fill="white" opacity=".7"/>
+                <circle cx="373" cy="62" r="4.5" fill="white" opacity=".7"/>
+                <text x="361" y="84" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Tree 3</text>
+                <text x="361" y="98" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="6" text-anchor="middle">bootstrap rows +</text>
+                <text x="361" y="106" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="6" text-anchor="middle">random features</text>
+              </g>
+              <g>
+                <line x1="92" y1="140" x2="412" y2="160" stroke="#3A9FE0" stroke-width="1"/>
+                <rect x="414" y="22" width="78" height="86" rx="5" fill="#254F8F" filter="url(#f82sh)"/>
+                <circle cx="453" cy="40" r="6" fill="white" opacity=".85"/>
+                <line x1="453" y1="46" x2="441" y2="58" stroke="white" stroke-width="1" opacity=".7"/>
+                <line x1="453" y1="46" x2="465" y2="58" stroke="white" stroke-width="1" opacity=".7"/>
+                <circle cx="441" cy="62" r="4.5" fill="white" opacity=".7"/>
+                <circle cx="465" cy="62" r="4.5" fill="white" opacity=".7"/>
+                <text x="453" y="84" fill="white" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Tree 4</text>
+                <text x="453" y="98" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="6" text-anchor="middle">bootstrap rows +</text>
+                <text x="453" y="106" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="6" text-anchor="middle">random features</text>
+              </g>
+
+              <text x="500" y="65" fill="#4A6080" font-family="Inter,sans-serif" font-size="9" font-style="italic">&#8230; +hundreds more</text>
+
+              <line x1="216" y1="108" x2="540" y2="150" stroke="#3A9FE0" stroke-width="1"/>
+              <line x1="308" y1="108" x2="548" y2="155" stroke="#3A9FE0" stroke-width="1"/>
+              <line x1="400" y1="108" x2="556" y2="160" stroke="#3A9FE0" stroke-width="1"/>
+              <line x1="492" y1="108" x2="564" y2="165" stroke="#3A9FE0" stroke-width="1"/>
+
+              <rect x="540" y="120" width="150" height="80" rx="5" fill="#1A5A78" filter="url(#f82sh)"/>
+              <text x="615" y="146" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Majority Vote</text>
+              <text x="615" y="158" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">(classification)</text>
+              <text x="615" y="173" fill="rgba(200,240,220,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">or Average</text>
+              <text x="615" y="185" fill="rgba(200,240,220,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">(regression)</text>
+
+              <line x1="20" y1="222" x2="680" y2="222" stroke="rgba(27,58,107,.12)" stroke-width="1"/>
+              <text x="350" y="234" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-style="italic">Each tree overfits differently and somewhat randomly; combined, their idiosyncratic errors cancel out and the shared real signal is reinforced.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 8.2</strong><span>Bagging in a random forest. Each tree is trained on its own bootstrap sample of rows and considers only a random subset of features at each split, producing many slightly different, individually imperfect trees. Combining their votes (classification) or averaging their outputs (regression) typically beats any single tree's accuracy on unseen data.</span></div>
+        </div>
+
+        <p>The tradeoff for that accuracy gain is the same interpretability random forests lose relative to a single decision tree. There is no longer one diagram you can draw and walk a stakeholder through — there are hundreds of trees, each voting independently, and no single one of them represents "the" model's logic. Random forests do provide <strong>feature importance scores</strong> (a ranking of which features most influenced predictions across the whole forest), which recovers some explainability, but nowhere near the row-level, plain-English explanation a single decision tree or a logistic regression coefficient can offer.</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Algorithm</th>
+              <th>Predicts</th>
+              <th>Interpretability</th>
+              <th>Handles Non-Linearity</th>
+              <th>Overfitting Risk</th>
+              <th>Best For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Linear Regression</strong></td>
+              <td>Continuous number</td>
+              <td>Highest — coefficients are directly explainable</td>
+              <td>No — assumes a straight-line relationship</td>
+              <td>Low, if features are well-chosen</td>
+              <td>Forecasting where stakeholders need a clear "why"</td>
+            </tr>
+            <tr>
+              <td><strong>Logistic Regression</strong></td>
+              <td>Class probability</td>
+              <td>High — coefficients map to log-odds</td>
+              <td>No — same straight-line assumption, before the sigmoid</td>
+              <td>Low, if features are well-chosen</td>
+              <td>Regulated decisions requiring an explainable reason</td>
+            </tr>
+            <tr>
+              <td><strong>Decision Tree</strong></td>
+              <td>Either</td>
+              <td>Very high — can be drawn and read directly</td>
+              <td>Yes — splits capture non-linear patterns natively</td>
+              <td>High if unconstrained — easily memorizes training data</td>
+              <td>A first model, or where a single human-readable diagram is required</td>
+            </tr>
+            <tr>
+              <td><strong>Random Forest</strong></td>
+              <td>Either</td>
+              <td>Low — hundreds of trees, no single readable diagram</td>
+              <td>Yes — and captures feature interactions automatically</td>
+              <td>Low — bagging averages away individual trees' overfitting</td>
+              <td>Maximizing accuracy on tabular data when a black box is acceptable</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Bagging vs boosting: random forest vs gradient-boosted trees</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Random forests train every tree <strong>independently and in parallel</strong> — none of the trees know anything about how the others performed. This strategy, bagging, is excellent at reducing <strong>variance</strong> (the tendency to overfit to noise in the training data) but does nothing to correct a systematic <strong>bias</strong> shared by every tree.</p>
+              <p><strong>Boosting</strong> takes the opposite strategy: trees are trained <strong>sequentially</strong>, and each new tree is trained specifically to correct the mistakes the previous trees collectively made, by focusing on the training rows the ensemble so far has gotten most wrong. <strong>Gradient-boosted trees</strong> — implemented in popular libraries like XGBoost, LightGBM, and CatBoost — apply this idea using the same gradient descent logic from the deep dive in section 8.1.2, but to minimize the ensemble's error tree by tree rather than weight by weight.</p>
+              <p>In practice, gradient-boosted trees frequently outperform random forests on structured, tabular data — they are the most consistently winning model family in tabular ML competitions on platforms like Kaggle, and are heavily used in production systems for exactly that reason. The cost is that boosted models are more sensitive to hyperparameter tuning (learning rate, tree depth, number of boosting rounds) and more prone to overfitting if those settings aren't carefully validated, compared to a random forest, which tends to perform reasonably well even with fairly default settings.</p>
+              <p><strong>Rule of thumb for an interview answer:</strong> "Start with a random forest as a strong, fairly low-maintenance baseline. Move to gradient boosting (XGBoost/LightGBM) when you need to squeeze out additional accuracy and have the time to tune it properly." Both are still classical ML — section 8.5 covers when the added complexity of deep learning is actually justified instead of either.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8.1.6 -->
+        <div class="sec-head"><span class="sec-tag">8.1.6</span><h2 class="sec-title">Overfitting, Underfitting, and the Train/Test Split</h2></div>
+
+        <p><span class="kt" data-term="Overfitting">Overfitting</span> occurs when a model learns the training data too well — including its noise and random quirks — to the point that it performs excellently on the data it was trained on but poorly on new data it hasn't seen. An unconstrained decision tree memorizing every training row, described in section 8.1.4, is the textbook example. <strong>Underfitting</strong> is the opposite failure: a model too simple to capture the real pattern in the data, performing poorly on both training and new data alike — for example, forcing a straight line onto a relationship that is clearly curved.</p>
+
+        <p>The practical danger of overfitting is that it's invisible if you only ever measure a model's performance on the same data it was trained on. A model can report 99% accuracy on its training set while being barely better than a coin flip on real, unseen data — and the only way to catch this before it costs the business something is to evaluate the model on data it has never encountered during training.</p>
+
+        <p>This is the entire purpose of the <strong>train/test split</strong>: before training begins, a portion of the available data — commonly 20–30% — is set aside and never shown to the model during training. Once training is complete, the model's accuracy is measured only on this held-out test set, giving an honest estimate of how it will perform on genuinely new data. A common refinement splits the data three ways — train, validation, and test — using the validation set to tune the model's settings (like a decision tree's maximum depth) and reserving the test set purely as a final, untouched check, so that not even the tuning process can leak information from the data meant to simulate "the real world." An even more robust approach, <strong>k-fold cross-validation</strong>, repeats this split several times over different partitions of the data and averages the results, reducing the chance that one lucky or unlucky split gives a misleading performance estimate.</p>
+
+        <div class="hl-block">If a model's training accuracy and its test accuracy are nearly identical, that's a healthy sign. A large gap — 98% training accuracy, 61% test accuracy — is the single clearest signal of overfitting an interviewer can ask you to diagnose. The fix is rarely "get a fancier algorithm"; it's usually simplify the model (less depth, more regularization), get more training data, or fix a leaking feature.</div>
+
+        <p>That last possibility — a leaking feature — is where data engineering and data science responsibilities directly intersect, and it's worth being explicit about it here rather than treating it as a purely modeling concern. <strong>Target leakage</strong> happens when a feature in the training data is, accidentally, only available <em>after</em> the outcome you're trying to predict has already occurred — for example, including "total repair cost" as a feature when predicting "will this machine fail," when repair cost is only ever recorded once a failure has already happened. The model appears to perform brilliantly in testing, because that feature is an almost-perfect proxy for the label, and then collapses in production, because at actual prediction time — before the failure has happened — that feature simply isn't available yet. Catching this requires understanding exactly when, in the pipeline, each feature's value becomes known relative to the label's timestamp, which is precisely the kind of detail a Gold-layer feature pipeline's design needs to get right.</p>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Logistics Company &nbsp;&middot;&nbsp; 96% Accuracy That Wasn't Real</span>
+          </div>
+          <div class="field-note-body">
+            <p>A logistics company's data science team built a random forest to predict which shipments would arrive late, intended to trigger proactive customer notifications. Initial testing showed 96% accuracy — high enough that the team scheduled a production rollout within two weeks, well ahead of their original timeline.</p>
+            <p>During a pre-launch review, a senior data engineer asked a simple question about one of the features: "actual_delivery_duration_hours" — when, exactly, is that value populated in the source system? The answer was uncomfortable: it was written by the warehouse system only once a shipment had actually been delivered — meaning, for every single training row, the model had effectively been given a feature that directly encoded almost the entire answer to the question it was supposedly predicting in advance.</p>
+            <p>The random/test split, drawn the normal way (a random sample of historical rows), hadn't caught this, because in every historical row — train and test alike — that feature was already populated by the time the data was pulled. The leak only became visible once someone checked the feature's actual availability timeline against the label's, rather than just trusting the held-out accuracy number. The fix was a strict <strong>temporal split</strong> instead of a random one: train on shipments before a cutoff date, test only on shipments after it, using only features that would genuinely have been known at the moment of prediction. Real accuracy on the corrected setup: 71% — still useful, but a very different number than 96%.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>A held-out test set protects against overfitting to noise. It does not, by itself, protect against target leakage — a feature that is technically present in every historical row but wouldn't actually exist yet at real prediction time. Auditing exactly when each feature becomes known, relative to the label, is a data engineering responsibility that no train/test split can substitute for.</p>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Supervised learning splits into two families based purely on the shape of the target variable: regression for continuous numbers, classification for categories. Linear regression fits an interpretable straight line and minimizes squared error, typically via gradient descent. Logistic regression — despite its name — is a classification algorithm, passing a linear combination of features through the sigmoid function to output a probability. Decision trees split data into progressively purer groups via simple yes/no questions, offering excellent interpretability but a high risk of overfitting if unconstrained. Random forests bag together many trees trained on random row and feature subsets, trading away single-tree interpretability for substantially better accuracy and lower overfitting risk. Overfitting — a model that has memorized training data rather than learned a generalizable pattern — is caught using a held-out test set or cross-validation; target leakage, where a feature inadvertently encodes information only available after the outcome occurs, is a distinct failure that a clean train/test split alone will not catch and is squarely a data engineering concern.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Coming in Section 8.2 &mdash; Clustering &amp; Unsupervised Learning</div>
+          <p>Every algorithm in this section required a labeled target — a known right answer to learn from. Section 8.2 covers the other half of machine learning: finding structure in data when there is no label at all. K-means, hierarchical clustering, and DBSCAN approach the same underlying goal — grouping similar things together — through very different assumptions about what a "group" even is.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 8.1 &nbsp;&middot;&nbsp; Regression &amp; Classification</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A warehouse operations team wants to predict (a) the exact number of units that will ship tomorrow, and (b) whether tomorrow's shipment volume will exceed truck capacity, requiring a second truck to be booked. What type of problem is each?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Both are classification problems, since both relate to operational capacity planning</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">(a) is regression, because the target is a continuous number (units shipped); (b) is classification, because the target is a category (exceeds capacity: yes/no) even though it's derived from a related continuous quantity</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Both are regression problems, since they both originate from the same underlying shipment volume data</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">(a) is classification and (b) is regression, since predicting an exact count is more like sorting into buckets</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The two predictions come from a related real-world question, but they are different machine learning problems because their target variables have different shapes. "Exact number of units" is a continuous number that could in principle take any value — that's regression. "Will it exceed capacity" has exactly two possible answers — that's classification, specifically binary classification — even though, conceptually, you could derive (b) by first predicting (a) and then comparing it to a threshold. This is precisely the point made in section 8.1.1: the business question can be the same general topic, but the shape of what you're asking the model to output determines which algorithm family applies.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">Why is logistic regression classified as a classification algorithm rather than a regression algorithm, despite the name?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">It is actually a regression algorithm; "logistic regression for classification" is a common misconception</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">It uses decision trees internally instead of a weighted sum of features, which makes it a classifier</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">It computes a weighted sum of features like linear regression, but passes that sum through the sigmoid function to produce a probability between 0 and 1, which is then converted into a discrete class label via a threshold</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It only works when the target variable has exactly two possible numeric values, such as 0 and 1, which makes it technically a form of regression on a restricted numeric range</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Logistic regression shares its linear core with linear regression — a weighted sum of input features — but the sigmoid function applied afterward squashes that sum into a 0–1 probability, and a threshold then converts the probability into a final class prediction. This is a classification pipeline end to end: the model's output is used to assign a category, not to estimate a continuous quantity. The "regression" in the name is a historical holdover from the statistical literature describing how the model is fitted, not a description of the type of prediction it produces.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A decision tree, trained with no depth limit, achieves 99.8% accuracy on its training data but only 64% accuracy on a held-out test set. What is happening, and how would a random forest address it?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The tree is underfitting; a random forest would address this by training an even deeper single tree</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The tree has overfit — it has grown deep enough to essentially memorize the training data's noise and specific quirks rather than learning a generalizable pattern. A random forest addresses this by bagging many trees, each trained on a random subset of rows and features, so each tree's idiosyncratic overfitting tends to cancel out when their predictions are combined</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The test set is corrupted, since a properly trained model should perform identically on both training and test data</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">This is expected behaviour for decision trees and does not indicate a problem with the model</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The large gap between training accuracy (99.8%) and test accuracy (64%) is the textbook signature of overfitting — the model has learned the training data too specifically, including noise that doesn't generalize. An unconstrained decision tree is especially prone to this because it can keep splitting until every leaf is a single training row. A random forest doesn't eliminate any individual tree's tendency to overfit, but because each tree overfits to a different random subset of rows and features, those overfitting errors are largely uncorrelated across trees — averaging or voting across hundreds of such trees cancels out much of that noise while preserving the genuine shared signal.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A bank must, by regulation, provide applicants with a specific, human-readable reason whenever a loan application is denied. Which model is the more appropriate choice for this use case, and why?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">A random forest, because it generally achieves the highest accuracy of the algorithms covered in this section</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Logistic regression (or a single, depth-constrained decision tree), because its weights or splits translate directly into a specific, explainable reason for the decision — a regulatory requirement that a forest's hundreds of voting trees cannot satisfy as cleanly</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Either model works equally well, since regulatory explainability requirements apply only to deep learning models, not classical ML</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">A random forest, because feature importance scores fully satisfy any regulatory explainability requirement</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This is the interpretability-versus-performance tradeoff in its most consequential real-world form. A regulatory requirement to explain a specific denial to a specific applicant needs a row-level explanation — "your application was denied primarily because of X" — which logistic regression's coefficients (or a shallow decision tree's specific path of splits) can produce directly. A random forest's feature importance scores describe which features mattered <em>across the whole model</em> on average; they do not cleanly explain any single individual prediction, which is what the regulation actually requires. Choosing the highest-accuracy model without checking whether its explanations satisfy the actual regulatory or business requirement is a common and costly mistake.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A model to predict equipment failure reports 97% test accuracy using a properly randomized train/test split, but performs far worse once deployed in production. An investigation finds one feature, "total_downtime_hours," is only populated by the source system after a failure has already occurred. What is the correct diagnosis and fix?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The model is overfitting; the fix is to limit the random forest's tree depth further</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The test set was too small; the fix is to collect more historical rows and re-run the same random split</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">This is target leakage — the feature encodes information that wouldn't actually be available at real prediction time. A random train/test split does not catch this because the feature is present in every historical row regardless of split. The fix is to remove the leaking feature and verify, for every remaining feature, exactly when it becomes available relative to the label's timestamp — ideally using a temporal (not random) train/test split going forward</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The model needs to be retrained as a gradient-boosted tree instead of a random forest, since boosting is more robust to this type of data issue</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> A high test accuracy that collapses in production, combined with a feature that is only populated after the outcome has already happened, is the defining pattern of target leakage. Crucially, a standard random train/test split does not catch this kind of leak, because the problematic feature is populated identically in both the training rows and the randomly held-out test rows — the leak is invisible to any metric computed on historical data alone. No choice of algorithm (A, D) fixes a leaking feature, and more data (B) would simply make the same flawed signal more confidently learned. The only real fix is identifying and removing features that wouldn't genuinely be known at prediction time, which requires understanding the data's actual availability timeline — a data engineering responsibility, not a modeling one.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+          <a href="../07-product-management-fundamentals/7-4-software-development-lifecycle.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">7.4 The Software Development Lifecycle</span></span>
+          </a>
+          <a href="8-2-clustering-unsupervised-learning.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">8.2 Clustering &amp; Unsupervised Learning</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 8 &nbsp;&middot;&nbsp; Classical ML &amp; Statistics</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">40</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:140px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">The Only Question That Matters First</div>
+          <p>Continuous number → regression. Category → classification. Decide this before anything else — it determines which entire family of algorithms is even on the table.</p>
+        </div>
+        <div class="ms" style="height:260px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Interpretability vs Accuracy</div>
+          <p>Linear/logistic regression and single decision trees: explainable, lower ceiling on accuracy. Random forests and gradient boosting: higher accuracy, much harder to explain a single prediction. Pick based on the actual requirement, not just the leaderboard score.</p>
+        </div>
+        <div class="ms" style="height:300px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Overfitting's Tell</div>
+          <p>Training accuracy far above test accuracy is the signature. The fix is rarely a fancier algorithm — usually it's less model complexity, more data, or a leaking feature to track down.</p>
+        </div>
+        <div class="ms" style="height:280px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"How would you choose between logistic regression and a random forest for this problem?" tests whether you reach for accuracy by default or actually weigh interpretability, regulatory needs, and training cost. Naming the tradeoff explicitly, the way the comparison table in this section does, is the strong answer.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('8.1');</script>
+</body>
+</html>

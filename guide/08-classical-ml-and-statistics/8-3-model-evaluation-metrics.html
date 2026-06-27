@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>8.3 Model Evaluation Metrics &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="8.3">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Eight &nbsp;&middot;&nbsp; Classical ML &amp; Statistics</div>
+          <div class="chap-num">8.3</div>
+          <h1 class="chap-title">Model Evaluation Metrics</h1>
+          <p class="chap-sub">Why "accuracy" is the metric most likely to mislead you, the confusion matrix that every other classification metric is built from, and how to choose the right number for a problem where false positives and false negatives don't cost the same</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain why accuracy is a misleading metric on imbalanced classification problems, and construct a concrete example showing why</li>
+            <li>Read a confusion matrix and define true positive, false positive, true negative, and false negative in terms of a specific business scenario</li>
+            <li>Calculate precision and recall from a confusion matrix, and explain the real-world tradeoff between them</li>
+            <li>Explain what the F1 score balances, and when reporting it is more useful than reporting precision and recall separately</li>
+            <li>Explain what an ROC curve plots and what the AUC summarizes, including why AUC alone can be misleading on highly imbalanced data</li>
+            <li>Choose the appropriate metric — precision, recall, F1, AUC-ROC, or a regression metric like RMSE — for a given business scenario, based on which type of error is more costly</li>
+          </ol>
+        </div>
+
+        <!-- 8.3.1 -->
+        <div class="sec-head"><span class="sec-tag">8.3.1</span><h2 class="sec-title">Why Accuracy Lies on Imbalanced Data</h2></div>
+
+        <p>Accuracy — the percentage of predictions a model got right — is the first metric almost everyone reaches for, and on many problems it's perfectly reasonable. It becomes actively misleading the moment the classes you're predicting aren't roughly balanced, which describes most of the highest-stakes classification problems in practice: fraud, churn, disease screening, and equipment failure all share the property that the thing you actually care about predicting is rare.</p>
+
+        <p>Take a concrete number. Suppose 2% of transactions in a dataset are fraudulent and 98% are legitimate. A model that has learned absolutely nothing — one that simply predicts "not fraud" for every single transaction, regardless of any input feature — achieves 98% accuracy. That number sounds excellent on a slide. It is also completely useless: the model catches zero fraud, every single time, by construction. Any genuinely useful fraud model that flags real fraudulent transactions will, in the process, inevitably also flag some legitimate transactions by mistake — and that tradeoff will very often produce an accuracy number that's mathematically <em>lower</em> than the "always predict not fraud" baseline, despite being the only one of the two models providing any real value.</p>
+
+        <div class="hl-block">On an imbalanced dataset, the question "what accuracy did the model achieve?" is the wrong question to lead with. The right first question is: "what's the class balance, and what does a model that predicts nothing useful score on accuracy alone?" If that baseline number is already high, accuracy cannot be trusted as the primary metric — full stop.</div>
+
+        <p>This is precisely the gap section 8.1.3 flagged in passing when introducing logistic regression for fraud detection. The rest of this section builds the toolkit that replaces accuracy with metrics that remain meaningful even when one class vastly outnumbers the other.</p>
+
+        <!-- 8.3.2 -->
+        <div class="sec-head"><span class="sec-tag">8.3.2</span><h2 class="sec-title">The Confusion Matrix</h2></div>
+
+        <p>Every classification metric in this section is built from the same underlying structure: the <span class="df" data-term="Confusion Matrix">confusion matrix</span>, a simple table comparing what the model predicted against what actually happened, broken into four distinct outcomes. For a binary problem (say, predicting fraud), each prediction lands in exactly one of four cells:</p>
+
+        <!-- Figure 8.5 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f85sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="280" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">The Confusion Matrix — Fraud Detection Example</text>
+
+              <text x="380" y="42" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Predicted: Fraud</text>
+              <text x="555" y="42" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Predicted: Not Fraud</text>
+
+              <text x="115" y="100" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Actual:</text>
+              <text x="115" y="113" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Fraud</text>
+              <text x="115" y="200" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Actual:</text>
+              <text x="115" y="213" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Not Fraud</text>
+
+              <rect x="290" y="58" width="180" height="90" rx="5" fill="#1A7A4A" filter="url(#f85sh)"/>
+              <text x="380" y="92" fill="white" font-family="Inter,sans-serif" font-size="14" font-weight="700" text-anchor="middle">TP</text>
+              <text x="380" y="108" fill="rgba(220,250,235,.85)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">True Positive</text>
+              <text x="380" y="120" fill="rgba(220,250,235,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">correctly caught fraud</text>
+
+              <rect x="475" y="58" width="180" height="90" rx="5" fill="#9B3A3A" filter="url(#f85sh)"/>
+              <text x="565" y="92" fill="white" font-family="Inter,sans-serif" font-size="14" font-weight="700" text-anchor="middle">FN</text>
+              <text x="565" y="108" fill="rgba(255,225,225,.85)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">False Negative</text>
+              <text x="565" y="120" fill="rgba(255,225,225,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">missed real fraud</text>
+
+              <rect x="290" y="158" width="180" height="90" rx="5" fill="#B07D2A" filter="url(#f85sh)"/>
+              <text x="380" y="192" fill="white" font-family="Inter,sans-serif" font-size="14" font-weight="700" text-anchor="middle">FP</text>
+              <text x="380" y="208" fill="rgba(255,245,225,.85)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">False Positive</text>
+              <text x="380" y="220" fill="rgba(255,245,225,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">flagged a legitimate txn</text>
+
+              <rect x="475" y="158" width="180" height="90" rx="5" fill="#1A7A4A" filter="url(#f85sh)"/>
+              <text x="565" y="192" fill="white" font-family="Inter,sans-serif" font-size="14" font-weight="700" text-anchor="middle">TN</text>
+              <text x="565" y="208" fill="rgba(220,250,235,.85)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">True Negative</text>
+              <text x="565" y="220" fill="rgba(220,250,235,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">correctly cleared a txn</text>
+
+              <line x1="280" y1="270" x2="470" y2="270" stroke="#0076CC" stroke-width="2"/>
+              <text x="375" y="263" fill="#0076CC" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Precision = TP / (TP + FP)</text>
+
+              <path d="M 380,148 L 380,250 M 565,148 L 565,250" stroke="none"/>
+              <line x1="660" y1="58" x2="690" y2="58" stroke="#9B3A3A" stroke-width="0" />
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 8.5</strong><span>The four confusion matrix outcomes for a binary fraud classifier. Precision asks, of everything flagged as fraud, how much actually was fraud (TP over TP+FP — the top row). Recall, covered next, asks of everything that actually was fraud, how much got caught (TP over TP+FN — the left column).</span></div>
+        </div>
+
+        <p>The reason this table matters more than a single accuracy number is that it separates two fundamentally different kinds of mistake — a false positive and a false negative — that very rarely cost the same amount in the real world. A false positive on a fraud model blocks a legitimate customer's transaction, causing friction and possibly a support call. A false negative lets actual fraud through entirely, with a direct financial loss. Those two outcomes are not equally bad, and no single accuracy number tells you which kind of mistake a model is actually making more of.</p>
+
+        <!-- 8.3.3 -->
+        <div class="sec-head"><span class="sec-tag">8.3.3</span><h2 class="sec-title">Precision and Recall</h2></div>
+
+        <p><span class="df" data-term="Precision">Precision</span> answers: <strong>of everything the model flagged as positive, how much actually was positive?</strong> Precision = TP / (TP + FP). A fraud model with high precision rarely cries wolf — when it flags a transaction, it's very likely to genuinely be fraud.</p>
+
+        <p><span class="df" data-term="Recall">Recall</span> answers a different question: <strong>of everything that actually was positive, how much did the model catch?</strong> Recall = TP / (TP + FN). A fraud model with high recall misses very little real fraud — though it may also flag a fair number of legitimate transactions along the way.</p>
+
+        <p>These two numbers trade against each other, and the <span class="kt" data-term="Classification Threshold">classification threshold</span> — the cutoff probability, mentioned in section 8.1.3, above which a prediction counts as "positive" — is the dial that controls where on that tradeoff a model sits. Lower the threshold, and the model flags more things as positive: recall goes up (catching more real positives) but precision typically falls (also catching more false alarms along the way). Raise the threshold, and the reverse happens. Neither direction is universally correct — which one a given business should prefer depends entirely on which type of mistake is more expensive for that specific problem.</p>
+
+        <p><strong>Recall-prioritized problems</strong> are ones where missing a true positive is the costly mistake: cancer screening (missing an actual case is far worse than an unnecessary follow-up test), fraud detection at most banks (a missed large fraud case can cost more than the friction of a few blocked legitimate transactions), and critical equipment failure prediction (an unplanned shutdown is far more expensive than an unnecessary inspection). <strong>Precision-prioritized problems</strong> are ones where a false alarm carries the real cost: spam filtering (a legitimate, important email wrongly sent to spam is often worse than the occasional spam message reaching the inbox), and content moderation systems where wrongly flagging a legitimate user's content erodes trust faster than the harm of a small amount of unflagged borderline content.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Why a 99% accurate fraud model can be worthless</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Let's make section 8.3.1's point fully concrete with numbers. Take 100,000 transactions, of which 1,000 (1%) are genuinely fraudulent. A model that achieves "99% accuracy" sounds excellent — but 99% accuracy is also exactly what you'd get by predicting "not fraud" for every single transaction, since 99,000 of the 100,000 transactions are legitimate. That baseline model has a recall of 0% — it catches not a single fraud case — while reporting an accuracy figure that looks nearly perfect on a dashboard.</p>
+              <p>Now suppose a real model, trained with actual signal, catches 600 of the 1,000 fraud cases (recall = 60%) while also incorrectly flagging 2,000 of the 99,000 legitimate transactions (precision = 600 / (600+2000) = 23%). Its overall accuracy is actually <em>lower</em> than the do-nothing baseline — roughly 97.4% versus 99% — purely because it makes 2,000 false-positive mistakes the baseline never makes by never flagging anything at all. By accuracy alone, the genuinely useful model looks worse than the useless one.</p>
+              <p>This is exactly why fraud, churn, and similar imbalanced classification problems are reported using precision, recall, and F1 in production dashboards, and accuracy is rarely, if ever, the headline number a data team presents to stakeholders for this kind of problem. If you ever see a single accuracy figure presented as the primary success metric for a rare-event classification problem, the first follow-up question worth asking is what the class balance is — and what a do-nothing baseline would score.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Health Insurance Provider &nbsp;&middot;&nbsp; The Metric That Matched the Mistake's Cost</span>
+          </div>
+          <div class="field-note-body">
+            <p>A health insurance provider built a model to flag claims likely to be fraudulent before payout, and the initial version was tuned and evaluated using accuracy, which came in at a reassuring 96%. In production, the model was quietly letting through a meaningful share of large fraudulent claims while also flagging a number of entirely legitimate claims from elderly policyholders for manual review — adding weeks of delay to claims that were, in the end, completely valid.</p>
+            <p>A review reframed the problem around the actual cost of each type of mistake. A missed fraudulent claim cost the company, on average, far more than the cost of one additional manual reviewer-hour spent clearing a flagged legitimate claim. That made this explicitly a recall-prioritized problem: missing real fraud was the expensive mistake, not the operational cost of extra review.</p>
+            <p>The team lowered the classification threshold to deliberately trade some precision for higher recall, accepting a meaningfully higher false-positive rate in exchange for catching a much larger share of true fraud. Reported accuracy actually dropped slightly as a result — exactly as the earlier deep dive predicts — but estimated annual fraud losses fell by a double-digit percentage, and the review team's added workload from extra false positives was modest in comparison. The new headline metric in monthly reporting became recall at a fixed, deliberately chosen precision floor, not accuracy.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>The right metric is the one that mirrors the real cost of each type of mistake to the business — not the one that produces the most reassuring-looking number. Choosing precision versus recall as the optimization target is a business decision about which error is more expensive, made explicit, not a default left to whichever metric a model happened to report well on first.</p>
+          </div>
+        </div>
+
+        <!-- 8.3.4 -->
+        <div class="sec-head"><span class="sec-tag">8.3.4</span><h2 class="sec-title">F1 Score: Balancing Precision and Recall</h2></div>
+
+        <p>Reporting precision and recall as two separate numbers is the most informative option, but sometimes a single summary number is genuinely useful — for comparing many candidate models at a glance, or for a leaderboard where two numbers are awkward to rank by. The <span class="df" data-term="F1 Score">F1 score</span> is the standard answer: the harmonic mean of precision and recall.</p>
+
+        <div class="hl-block">F1 = 2 &times; (Precision &times; Recall) / (Precision + Recall)</div>
+
+        <p>The harmonic mean, rather than a simple average, matters here: it penalizes a large imbalance between precision and recall much more heavily than a regular average would. A model with 90% precision and 10% recall has a simple average of 50%, which sounds moderate — but its F1 score is only about 18%, correctly reflecting that a model catching just 10% of real positives is performing badly overall, regardless of how trustworthy its few flagged cases are. F1 effectively refuses to give a high score to a model that's lopsided in either direction.</p>
+
+        <p>The honest limitation of F1 is exactly what makes it convenient: it weights precision and recall equally, which is rarely true of the actual business cost structure, as the health insurance field note above illustrates plainly — that problem was not a 50/50 tradeoff. An <strong>F-beta score</strong> generalizes F1 by introducing a weighting parameter that lets recall count more or less heavily than precision, but in practice, many teams find it clearer to simply report precision and recall directly alongside the specific threshold chosen, rather than collapsing the decision into a single weighted number that obscures exactly what tradeoff was made.</p>
+
+        <!-- 8.3.5 -->
+        <div class="sec-head"><span class="sec-tag">8.3.5</span><h2 class="sec-title">ROC Curves and AUC</h2></div>
+
+        <p>Precision, recall, and F1 are all calculated at one specific classification threshold. The <span class="df" data-term="AUC-ROC">ROC curve</span> (Receiver Operating Characteristic — a name with origins in WWII-era radar signal detection, now used purely as a fixed term of art) takes a different view: it plots how a model's <strong>true positive rate</strong> (equivalent to recall) and <strong>false positive rate</strong> trade off against each other across <em>every possible threshold</em> simultaneously, producing a single curve rather than one number.</p>
+
+        <!-- Figure 8.6 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f86sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="300" fill="#F4F6FB" rx="6"/>
+              <text x="240" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">ROC Curve and AUC</text>
+
+              <!-- axes -->
+              <line x1="100" y1="270" x2="100" y2="30" stroke="#1B3A6B" stroke-width="1.5"/>
+              <line x1="100" y1="270" x2="400" y2="270" stroke="#1B3A6B" stroke-width="1.5"/>
+              <text x="250" y="290" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">False Positive Rate</text>
+              <text x="38" y="150" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" text-anchor="middle" transform="rotate(-90 38 150)">True Positive Rate</text>
+              <text x="100" y="284" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">0</text>
+              <text x="400" y="284" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">1</text>
+              <text x="92" y="274" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="end">0</text>
+              <text x="92" y="34" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="end">1</text>
+
+              <!-- diagonal random line -->
+              <line x1="100" y1="270" x2="400" y2="30" stroke="#9B3A3A" stroke-width="1.5" stroke-dasharray="4,3"/>
+              <text x="270" y="155" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="7.5" font-style="italic">Random guessing (AUC = 0.5)</text>
+
+              <!-- ROC curve and shaded AUC -->
+              <path d="M 100,270 Q 140,80 400,30 L 400,270 Z" fill="#0076CC" opacity=".18"/>
+              <path d="M 100,270 Q 140,80 400,30" fill="none" stroke="#0076CC" stroke-width="2.5"/>
+              <text x="220" y="95" fill="#0076CC" font-family="Inter,sans-serif" font-size="9" font-weight="700">AUC = 0.85</text>
+
+              <!-- legend panel -->
+              <rect x="440" y="40" width="240" height="190" rx="6" fill="white" stroke="#C8E2F8" stroke-width="1.5"/>
+              <text x="560" y="62" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">Reading the AUC</text>
+              <circle cx="460" cy="88" r="5" fill="#1A7A4A"/>
+              <text x="472" y="92" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8">AUC = 1.0 &mdash; perfect classifier</text>
+              <circle cx="460" cy="118" r="5" fill="#0076CC"/>
+              <text x="472" y="122" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8">AUC = 0.85 &mdash; strong, typical</text>
+              <text x="472" y="133" fill="#4A6080" font-family="Inter,sans-serif" font-size="7">of a well-built classifier</text>
+              <circle cx="460" cy="153" r="5" fill="#9B3A3A"/>
+              <text x="472" y="157" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8">AUC = 0.5 &mdash; no better than</text>
+              <text x="472" y="168" fill="#4A6080" font-family="Inter,sans-serif" font-size="7">a coin flip (the diagonal)</text>
+              <circle cx="460" cy="188" r="5" fill="#B07D2A"/>
+              <text x="472" y="192" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8">AUC &lt; 0.5 &mdash; worse than random</text>
+              <text x="472" y="203" fill="#4A6080" font-family="Inter,sans-serif" font-size="7">(usually a flipped label bug)</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 8.6</strong><span>The ROC curve plots true positive rate against false positive rate across every classification threshold at once. The diagonal represents a model with no predictive power. AUC (Area Under the Curve) condenses the entire curve into one number summarizing performance across all thresholds simultaneously — useful for comparing models without committing to a single operating threshold up front.</span></div>
+        </div>
+
+        <p>The single number derived from this curve, <strong>AUC</strong> (Area Under the Curve), summarizes the model's discriminative power across every threshold in one value: 1.0 is a perfect classifier, 0.5 is exactly equivalent to flipping a coin, and anything meaningfully below 0.5 almost always indicates a labeling bug (such as the positive and negative classes being accidentally swapped) rather than a model that has somehow learned to be reliably wrong. AUC's appeal is that it lets you compare two candidate models without having to first commit to a specific operating threshold — useful early in model development, before a business has decided exactly where on the precision/recall tradeoff it wants to operate.</p>
+
+        <p>AUC's most important caveat: on a heavily imbalanced dataset, the false positive rate's denominator (all actual negatives) is so large that AUC can look deceptively high even when precision — which divides by the much smaller number of <em>predicted</em> positives — is poor. For severely imbalanced problems like fraud detection, many practitioners prefer the closely related <strong>Precision-Recall AUC</strong>, which plots precision against recall directly instead of false positive rate, and is generally considered the more honest summary metric when positives are rare.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Tuning the classification threshold: moving beyond the default 0.5</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Most ML libraries default a binary classifier's threshold to 0.5 — predict positive if the model's estimated probability exceeds 50%. This default is a coincidence of convenience, not a business decision, and treating it as fixed is one of the more common ways teams ship a poorly calibrated model without realizing it.</p>
+              <p><strong>The practical process:</strong> after training, compute precision and recall at a range of candidate thresholds — say, every value from 0.1 to 0.9 — and plot how they trade off against each other (a precision-recall curve, the threshold-sweep companion to the ROC curve above). From that curve, pick the threshold that achieves the business's actual target — for example, "the highest recall achievable while keeping precision above 80%," if false positives have a known, bounded operational cost the business is willing to tolerate up to that point.</p>
+              <p><strong>A concrete illustration:</strong> the health insurance field note above is exactly this process in action. The team didn't retrain the model at all — they kept the same trained classifier and moved its threshold lower, deliberately trading precision for recall because the cost analysis showed that was the right direction to move for their specific problem. Threshold tuning is often a faster, cheaper lever to pull than retraining an entirely new model, and it's worth checking before assuming a model needs to be rebuilt from scratch to hit a different precision/recall target.</p>
+              <p>This is also why reporting a model's AUC alone, without a chosen operating threshold, is incomplete for a production decision — AUC describes the curve, but a live system has to commit to one specific point on it.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8.3.6 -->
+        <div class="sec-head"><span class="sec-tag">8.3.6</span><h2 class="sec-title">Regression Metrics: RMSE, MAE, and R&sup2;</h2></div>
+
+        <p>Everything covered so far in this section applies to classification. Regression problems — predicting a continuous number, from section 8.1 — need a different set of metrics, since there's no confusion matrix when the prediction is a number rather than a category.</p>
+
+        <p><span class="df" data-term="RMSE">RMSE</span> (Root Mean Squared Error) takes the same squared-error logic linear regression uses internally to fit its line (section 8.1.2) and applies it as an evaluation metric: square every prediction error, average them, then take the square root to bring the result back into the original units of the target variable. Because the errors are squared before averaging, RMSE penalizes large individual errors disproportionately more than small ones — a model that's wildly wrong on a handful of rows will be punished by RMSE far more than a model that's mildly wrong everywhere, even if both models have a similar average error in absolute terms.</p>
+
+        <p><span class="df" data-term="MAE">MAE</span> (Mean Absolute Error) instead averages the plain absolute value of each error, with no squaring. This makes MAE more robust to outliers than RMSE — a single wildly-off prediction moves MAE only modestly, while the same prediction can dominate RMSE entirely. The right choice between the two depends on whether large individual errors are disproportionately costly for the specific business problem (favoring RMSE, which punishes them more) or whether a more typical, representative sense of "how far off is the model usually" is what matters (favoring MAE).</p>
+
+        <p><strong>R&sup2;</strong> (R-squared, the coefficient of determination) answers a different question entirely: what proportion of the variation in the target variable does the model explain, on a scale from 0 (the model explains nothing — it does no better than just always predicting the average) to 1 (the model explains all the variation perfectly). R&sup2; is popular specifically because it's scale-free and immediately interpretable as a percentage, unlike RMSE and MAE, which are expressed in the same units as the target variable and therefore aren't directly comparable across different problems — an RMSE of "200" means something completely different when predicting house prices in dollars versus predicting delivery times in minutes.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>RMSE vs MAE: why squaring the error changes what "good" means</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Consider a demand forecasting model evaluated on five days, with absolute errors (in units) of 2, 3, 2, 4, and 40 — four days of solid, ordinary performance and one day with a major miss, perhaps due to an unflagged promotional spike the model didn't see in its features.</p>
+              <p><strong>MAE</strong> = (2+3+2+4+40) / 5 = 10.2 units. The one bad day pulls the average up noticeably, but the other four days still meaningfully shape the result.</p>
+              <p><strong>RMSE</strong> = the square root of the mean of (4 + 9 + 4 + 16 + 1600) / 5 = the square root of 326.6 &asymp; 18.1 units. The single 40-unit miss, once squared to 1,600, almost completely dominates the calculation — RMSE here is nearly double MAE, driven almost entirely by one outlier day.</p>
+              <p>Neither number is "wrong" — they're answering different questions. If a 40-unit miss on one day causes a genuinely disproportionate business problem (a stockout that damages a major customer relationship, say), RMSE's heavier penalty on large errors is the more honest reflection of what actually matters. If that one bad day was a known, explainable, one-off anomaly and what really matters is "how good is this model on a typical day," MAE gives a less outlier-distorted picture. Reporting both, rather than picking one in isolation, is common practice precisely because the gap between them is itself informative — a large RMSE/MAE gap signals that a small number of large errors, rather than consistent everyday error, are driving overall performance.</p>
+            </div>
+          </div>
+        </div>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Problem Type</th>
+              <th>What It Answers</th>
+              <th>Sensitive To</th>
+              <th>Use When</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Precision</strong></td>
+              <td>Classification</td>
+              <td>Of everything flagged positive, how much was right?</td>
+              <td>False positives</td>
+              <td>A false alarm is the expensive mistake (e.g. spam filtering)</td>
+            </tr>
+            <tr>
+              <td><strong>Recall</strong></td>
+              <td>Classification</td>
+              <td>Of everything actually positive, how much got caught?</td>
+              <td>False negatives</td>
+              <td>A missed positive is the expensive mistake (e.g. disease screening)</td>
+            </tr>
+            <tr>
+              <td><strong>F1 Score</strong></td>
+              <td>Classification</td>
+              <td>A single number balancing precision and recall equally</td>
+              <td>Imbalance between precision and recall</td>
+              <td>Comparing models at a glance with no stated cost asymmetry</td>
+            </tr>
+            <tr>
+              <td><strong>AUC-ROC</strong></td>
+              <td>Classification</td>
+              <td>Overall discriminative power across every threshold at once</td>
+              <td>Misleadingly high on severe class imbalance</td>
+              <td>Comparing models before committing to an operating threshold</td>
+            </tr>
+            <tr>
+              <td><strong>RMSE</strong></td>
+              <td>Regression</td>
+              <td>Average error, with large errors penalized disproportionately</td>
+              <td>Outliers and large individual misses</td>
+              <td>Large errors carry disproportionate real-world cost</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">An E-Commerce Platform &nbsp;&middot;&nbsp; The AUC That Hid a Precision Problem</span>
+          </div>
+          <div class="field-note-body">
+            <p>An e-commerce platform's trust and safety team built a model to flag fraudulent seller listings, and reported a strong AUC-ROC of 0.91 to leadership as evidence the model was production-ready. On a dataset where fraudulent listings made up under 0.5% of all listings, the team moved forward with launch based primarily on that one number.</p>
+            <p>Within the first week, the manual review queue — every listing the model flagged as fraudulent required human review before removal — was overwhelmed. The model's precision at the threshold actually deployed in production turned out to be just 12%: for every genuinely fraudulent listing it correctly caught, it also flagged roughly seven legitimate sellers' listings for review. The AUC of 0.91 was real and not miscalculated — the model did have strong overall discriminative power across thresholds — but on a dataset this imbalanced, the false positive rate's denominator (the enormous pool of legitimate listings) was so large that even a fairly small false-positive rate translated into an overwhelming raw number of false positives once converted to actual flagged listings.</p>
+            <p>The fix was twofold: switching the primary reported metric to Precision-Recall AUC, which is far less forgiving on this kind of imbalance and immediately revealed the precision problem that the standard AUC-ROC had obscured, and then re-tuning the threshold specifically to hit a precision target the review team could sustainably handle, accepting a lower recall in exchange.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>AUC-ROC can be a genuinely strong, accurate number while still hiding a serious precision problem on highly imbalanced data — because its false positive rate is computed against a large denominator of negatives that swamps a real precision issue. Precision-Recall AUC, or simply checking precision and recall directly at the actual deployed threshold, is the more honest check before shipping on a rare-event problem.</p>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Accuracy is unreliable on imbalanced classification problems, since a model that predicts nothing useful can still score deceptively well. The confusion matrix's four outcomes — true positive, false positive, true negative, false negative — underpin every classification metric that follows: precision (of what was flagged positive, how much was right) and recall (of what was actually positive, how much was caught) trade off against each other via the classification threshold, and which one to prioritize depends entirely on which type of error costs more in a given business context. F1 balances both into one number, assuming they matter equally — which is often not true in practice. AUC-ROC summarizes performance across every threshold at once but can be misleadingly high on severely imbalanced data, where Precision-Recall AUC is the more honest alternative. Regression problems use a different toolkit entirely: RMSE penalizes large errors disproportionately, MAE is more robust to outliers, and R&sup2; gives a scale-free sense of how much variance the model explains.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Coming in Section 8.4 &mdash; A/B Testing &amp; Hypothesis Testing</div>
+          <p>Model evaluation metrics tell you how well a model performs on historical data. They don't, by themselves, tell you whether a new model — or a new feature, or a new pricing page — actually causes a real improvement in production, versus the difference simply being noise. Section 8.4 covers the statistical rigor of A/B testing and hypothesis testing that answers exactly that question.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 8.3 &nbsp;&middot;&nbsp; Model Evaluation Metrics</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A dataset has 99% legitimate transactions and 1% fraudulent ones. A model that predicts "not fraud" for every single transaction, with zero actual predictive ability, achieves what accuracy, and what does this reveal about using accuracy on this problem?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="true"><div class="option-letter">A</div><div class="option-text">It achieves 99% accuracy despite having zero recall and providing no value at all, demonstrating that accuracy is unreliable on imbalanced data because the majority class dominates the score regardless of whether the model does anything useful for the minority class</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">It achieves 50% accuracy, since it is only correctly identifying half of the possible outcomes</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">It achieves 1% accuracy, since it never correctly identifies the fraud cases</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Accuracy cannot be calculated for a model that never predicts the positive class</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>A is correct.</strong> Accuracy simply counts the percentage of all predictions that were correct. Since 99% of transactions are legitimate and the model predicts "not fraud" for all of them, it is correct on all 99,000 of the 100,000 transactions in this example — a 99% accuracy score — while catching exactly zero of the actual fraud cases. This is the core demonstration of why accuracy alone is an unreliable, even dangerous, metric to lead with on imbalanced classification problems.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">A cancer screening model and a spam filter both need to choose whether to prioritize precision or recall. Which pairing is correct, and why?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Both should prioritize precision, because false positives are always the more expensive type of error in any classification problem</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Cancer screening should prioritize recall, because missing a real case (a false negative) is far more costly than an unnecessary follow-up test; a spam filter should prioritize precision, because incorrectly sending a legitimate, important email to spam (a false positive) is often more costly than an occasional spam message reaching the inbox</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Both should prioritize recall, because catching as many positives as possible is always the right default goal</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The choice between precision and recall is arbitrary and has no real connection to the cost of different types of mistakes</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The right metric to prioritize depends on which type of error costs more in that specific context. Missing an actual cancer case (false negative) has a far higher real-world cost than an unnecessary follow-up test (false positive), making cancer screening a recall-prioritized problem. A spam filter wrongly burying a legitimate, important email (false positive) is generally considered more damaging to user trust than an occasional spam message slipping through (false negative), making it a precision-prioritized problem. There is no universal rule that one type of error is always worse — it depends on the specific business cost structure.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A model has 90% precision and 10% recall. Why is its F1 score (approximately 18%) much closer to the lower of the two numbers rather than their simple average (50%)?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">This indicates a calculation error, since F1 should always equal the simple average of precision and recall</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">F1 is the harmonic mean, not the simple average, of precision and recall, and the harmonic mean penalizes a large imbalance between the two numbers far more heavily — correctly reflecting that a model catching only 10% of real positives is performing poorly overall, regardless of how trustworthy its few correct flags are</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">F1 always equals whichever of precision or recall is lower, ignoring the higher value entirely</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">F1 only applies to regression problems, so this calculation is not meaningful for a classification model</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> F1 = 2 &times; (Precision &times; Recall) / (Precision + Recall) is the harmonic mean, which mathematically penalizes imbalance between the two inputs much more severely than a simple arithmetic average would. A model with 90% precision but only 10% recall is, in practical terms, missing 90% of the real positives — a serious shortfall that F1's low score of roughly 18% correctly reflects, in contrast to a simple average of 50% that would make the model look far more balanced and useful than it actually is.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A fraud detection model on a severely imbalanced dataset (0.5% fraud) reports a strong AUC-ROC of 0.91, but its precision at the deployed threshold turns out to be only 12%. How can both of these be true at once?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">They cannot both be true; an AUC of 0.91 mathematically guarantees precision above 80% at any threshold</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">AUC-ROC is computed using the false positive rate, whose denominator is the very large number of actual negatives. On a severely imbalanced dataset, even a fairly low false positive rate can still produce a large raw number of false positives relative to the small number of true positives, which is exactly what drags precision down — a problem the false-positive-rate-based ROC curve does not directly expose</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The AUC must have been calculated incorrectly, since a high AUC and low precision are mutually exclusive by definition</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Precision and AUC measure unrelated, independent aspects of completely different models and cannot be meaningfully compared</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This is exactly the e-commerce field note's scenario. AUC-ROC is built from the false positive rate (FP divided by all actual negatives), and on a dataset where negatives vastly outnumber positives, that denominator is enormous — so even a quite low false positive rate can still mean a raw false-positive count that's many times larger than the true-positive count, which is precisely what drives precision down. AUC-ROC genuinely measured strong overall discriminative ability across thresholds; it simply isn't the metric that exposes a precision problem on severely imbalanced data. Precision-Recall AUC is the standard fix for this blind spot.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A demand forecasting model has near-identical RMSE and MAE on one dataset, but a much larger RMSE than MAE on a second dataset. What does the second dataset's gap most likely indicate?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The second model is performing better overall, since RMSE is always a more favorable metric than MAE</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The second dataset likely contains a small number of unusually large prediction errors. Because RMSE squares each error before averaging, large individual misses are disproportionately amplified, while MAE — which uses absolute, unsquared error — stays comparatively unaffected; a wide RMSE/MAE gap is a signal that a few outlier errors, not consistent everyday error, are driving overall performance</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">RMSE and MAE should always be equal for any well-performing model, so this gap indicates a bug in the evaluation code</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The second dataset must have more rows than the first, since RMSE increases with dataset size while MAE does not</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> RMSE squares each individual error before averaging, which means a small number of unusually large errors get amplified disproportionately in the final number, while MAE — using unsquared absolute error — treats every error proportionally to its actual size. A large gap between the two metrics on the same dataset is itself a useful diagnostic: it tells you that overall performance is being driven by a handful of large misses rather than broadly consistent, everyday error, which is exactly the pattern shown in this section's RMSE vs MAE deep dive.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="8-2-clustering-unsupervised-learning.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">8.2 Clustering &amp; Unsupervised Learning</span></span>
+          </a>
+          <a href="8-4-ab-testing-hypothesis-testing.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">8.4 A/B Testing &amp; Hypothesis Testing</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 8 &nbsp;&middot;&nbsp; Classical ML &amp; Statistics</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">42</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:140px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Check the Baseline First</div>
+          <p>Before trusting an accuracy number on a classification problem, ask what "always predict the majority class" would score. If that's already high, accuracy cannot be the primary metric.</p>
+        </div>
+        <div class="ms" style="height:260px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Precision vs Recall, In One Line</div>
+          <p>Precision: of what I flagged, how much was right? Recall: of what was real, how much did I catch? The threshold is the dial that trades one for the other.</p>
+        </div>
+        <div class="ms" style="height:300px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">AUC Can Hide a Precision Problem</div>
+          <p>On severely imbalanced data, a strong AUC-ROC can coexist with poor real-world precision. Check precision and recall at the actual deployed threshold before shipping — don't stop at AUC alone.</p>
+        </div>
+        <div class="ms" style="height:260px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"Walk me through how you'd choose an evaluation metric for this problem" is testing whether you start from the cost of false positives versus false negatives, not whether you can recite formulas. Naming the business tradeoff first is the senior-level answer.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('8.3');</script>
+</body>
+</html>

@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>9.2 Inventory Optimization &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="9.2">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Nine &nbsp;&middot;&nbsp; Supply Chain Analytics</div>
+          <div class="chap-num">9.2</div>
+          <h1 class="chap-title">Inventory Optimization</h1>
+          <p class="chap-sub">The fundamental tradeoff between holding too much inventory and risking too little, how EOQ (Economic Order Quantity) finds the order size that minimizes total cost, why safety stock should scale with forecast uncertainty rather than be a flat buffer, and the risk-profile decision between Just-in-Time and safety-stock-based strategies &mdash; closing with where data engineering fits in making any of this actually work</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain the core inventory tradeoff between holding cost and stockout cost, and why minimizing one in isolation is the wrong objective</li>
+            <li>Explain what EOQ (Economic Order Quantity) calculates and the assumptions it relies on</li>
+            <li>Define safety stock and reorder point, and explain why forecast error from section 9.1 directly determines how much safety stock is actually needed</li>
+            <li>Compare Just-in-Time and safety-stock-based inventory strategies on cost, risk, and resilience</li>
+            <li>Explain why a flat safety-stock buffer applied uniformly across SKUs is a common and costly mistake</li>
+            <li>Choose an inventory strategy appropriate to a given supply chain's risk profile, and describe where data engineering work directly enables that choice</li>
+          </ol>
+        </div>
+
+        <!-- 9.2.1 -->
+        <div class="sec-head"><span class="sec-tag">9.2.1</span><h2 class="sec-title">The Core Tradeoff</h2></div>
+
+        <p>Every inventory decision balances two costs pulling in opposite directions. <strong>Holding cost</strong> is what it costs to keep inventory on hand &mdash; warehouse space, capital tied up in unsold stock, insurance, spoilage or obsolescence risk. <strong>Stockout cost</strong> is what it costs when you don't have inventory when demand arrives &mdash; lost sales, expedited emergency shipping, and damaged customer trust that can outlast the immediate lost sale. Order too much and holding cost eats your margin; order too little and stockout cost does the same from the other direction.</p>
+
+        <div class="hl-block">There is no inventory strategy that minimizes both costs simultaneously &mdash; every method covered in this section is really a different answer to the same question: given genuine uncertainty about future demand (the forecasting problem from section 9.1), where is the point that minimizes the <em>combined</em> cost of holding too much and risking too little?</div>
+
+        <!-- 9.2.2 -->
+        <div class="sec-head"><span class="sec-tag">9.2.2</span><h2 class="sec-title">EOQ &mdash; Economic Order Quantity</h2></div>
+
+        <p><span class="kt" data-term="EOQ">EOQ</span> (Economic Order Quantity) calculates the order quantity that minimizes the combined total of two specific costs: <strong>ordering cost</strong> (a roughly fixed cost incurred each time an order is placed, regardless of size &mdash; processing, shipping setup, supplier coordination) and <strong>holding cost</strong> per unit. Order in small, frequent batches and ordering cost adds up; order in large, infrequent batches and holding cost adds up. EOQ is the specific order size sitting at the bottom of that combined cost curve.</p>
+
+        <!-- Figure 9.3 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <rect width="700" height="250" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">EOQ &mdash; Where Two Opposing Costs Cross</text>
+
+              <line x1="60" y1="200" x2="640" y2="200" stroke="#1B3A6B" stroke-width="1"/>
+              <line x1="60" y1="200" x2="60" y2="45" stroke="#1B3A6B" stroke-width="1"/>
+              <text x="350" y="225" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Order Quantity &#8594;</text>
+
+              <path d="M 70,55 Q 250,90 630,190" fill="none" stroke="#C8892A" stroke-width="2.5"/>
+              <text x="600" y="170" fill="#C8892A" font-family="Inter,sans-serif" font-size="8" font-weight="700">Holding Cost</text>
+
+              <path d="M 70,190 Q 250,90 630,55" fill="none" stroke="#254F8F" stroke-width="2.5"/>
+              <text x="600" y="70" fill="#254F8F" font-family="Inter,sans-serif" font-size="8" font-weight="700">Ordering Cost</text>
+
+              <path d="M 70,160 Q 250,82 350,85 Q 450,90 630,160" fill="none" stroke="#7A2A2A" stroke-width="3"/>
+              <text x="500" y="135" fill="#7A2A2A" font-family="Inter,sans-serif" font-size="8" font-weight="700">Total Cost</text>
+
+              <circle cx="350" cy="85" r="5" fill="#1A7A4A"/>
+              <line x1="350" y1="85" x2="350" y2="200" stroke="#1A7A4A" stroke-width="1" stroke-dasharray="3,3"/>
+              <text x="350" y="216" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">EOQ</text>
+
+              <text x="350" y="240" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-style="italic">EOQ sits where the rising holding-cost curve and the falling ordering-cost curve intersect at minimum combined cost.</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 9.3</strong><span>As order quantity increases, ordering cost per unit falls (fewer orders needed) while holding cost rises (more inventory sitting in the warehouse at any given time). EOQ is the quantity at the minimum point of their combined total.</span></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>The EOQ formula and what each assumption actually costs you if it's wrong</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The classic EOQ formula is EOQ = &radic;(2DS/H), where D is annual demand, S is the fixed cost per order, and H is the annual holding cost per unit. The formula is derived by writing total annual cost as a function of order quantity Q &mdash; (D/Q)&times;S for ordering cost plus (Q/2)&times;H for average holding cost &mdash; and finding the value of Q where that combined function is at its minimum, which calculus shows is exactly where the two cost curves cross, matching Figure 9.3.</p>
+              <p>The formula's elegance comes with real assumptions worth naming explicitly, because each one is a place the formula can mislead you if violated: demand is assumed constant and known (exactly the forecasting problem from section 9.1 &mdash; EOQ on its own says nothing about demand uncertainty, which is precisely why section 9.2.3's safety stock exists as a separate concept layered on top); ordering cost and holding cost per unit are assumed fixed regardless of order size (real suppliers often offer volume discounts that change this); and lead time (the delay between placing an order and receiving it) is assumed to be zero or perfectly predictable.</p>
+              <p>The practical takeaway: EOQ answers "how much should I order at a time, assuming I know demand exactly and lead times never vary?" &mdash; a genuinely useful baseline calculation, but one that explicitly does not address the question of demand uncertainty, which is exactly what the next section covers.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 9.2.3 -->
+        <div class="sec-head"><span class="sec-tag">9.2.3</span><h2 class="sec-title">Safety Stock and Reorder Points</h2></div>
+
+        <p><span class="df" data-term="Safety Stock">Safety stock</span> is extra inventory held specifically to buffer against demand and lead-time uncertainty &mdash; the gap EOQ's clean assumptions deliberately leave unaddressed. The <strong>reorder point</strong> is the inventory level that triggers placing a new order: expected demand during the lead time, plus the safety stock buffer.</p>
+
+        <p>The critical connection back to section 9.1: safety stock should scale with <em>forecast uncertainty</em>, not be set as a flat number applied uniformly across every product. A SKU with highly stable, easily forecastable demand needs comparatively little safety stock buffer, because the forecast itself is rarely far off. A SKU with volatile, hard-to-forecast demand &mdash; exactly the kind of pattern that produces high forecast error in section 9.1's terms &mdash; needs substantially more safety stock to protect against the same probability of stocking out, even if its average demand level is identical to the stable SKU.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Sizing safety stock from forecast error and a target service level</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>A common formula sizes safety stock as: Safety Stock = Z &times; &sigma; &times; &radic;(Lead Time), where &sigma; (sigma) is the standard deviation of forecast error over a given period &mdash; the same kind of error measured by the MAE or MAPE metrics from section 9.1 &mdash; and Z is a value chosen from the standard normal distribution corresponding to a target <strong>service level</strong> (the probability of not stocking out before the next delivery arrives). A 95% service level uses a larger Z value (roughly 1.65) than an 85% service level (roughly 1.04), directly trading more safety stock for a lower stockout probability.</p>
+              <p>The formula makes the connection back to section 9.1 explicit and quantitative, not just conceptual: &sigma; is computed directly from each SKU's own historical forecast errors, so a SKU with consistently small forecast misses (low &sigma;) needs far less safety stock at the same service level than one with large, erratic misses (high &sigma;) &mdash; precisely the distinction the distribution company field note learned the expensive way. The &radic;(Lead Time) term adds a further, often underappreciated detail: uncertainty compounds over a longer lead time, so a supplier with a longer or more variable lead time needs proportionally more safety stock even at identical demand variability.</p>
+              <p>The business-facing translation of all this: a service level isn't a free choice with no cost attached &mdash; pushing from 90% to 99% service level on a volatile SKU can require a disproportionately large safety stock increase, since Z grows non-linearly as the target service level approaches 100%. Choosing a service level is itself a holding-cost-versus-stockout-cost tradeoff, the same core tension this section opened with, just expressed as a single tunable parameter.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#128202;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Distribution Company &nbsp;&middot;&nbsp; The Flat Safety-Stock Rule That Cost Money in Both Directions</span>
+          </div>
+          <div class="field-note-body">
+            <p>A distribution company applied a uniform policy &mdash; two weeks of average demand as safety stock &mdash; across its entire product catalog, regardless of how forecastable any individual SKU actually was. Stable, predictable products (steady year-round demand, low forecast error) were carrying far more safety stock than their actual uncertainty justified, tying up working capital and warehouse space for no real risk reduction. Simultaneously, a smaller set of highly volatile, hard-to-forecast products &mdash; new product launches, items with erratic seasonal spikes &mdash; were stocking out regularly under the exact same two-week rule, because two weeks of buffer was nowhere near enough to cover their much larger forecast uncertainty.</p>
+            <p>The fix, once the team connected forecast error (computed the same way as section 9.1's evaluation discussion) to safety-stock sizing directly, was to size each SKU's safety stock as a function of its own individual demand variability rather than a flat company-wide rule &mdash; reducing buffer on the stable products (freeing working capital) while increasing it specifically on the volatile ones (cutting their stockout rate), using the exact same total inventory budget as before, just allocated according to where uncertainty actually was.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Safety stock sized as a flat rule is both wasteful and risky at the same time, just on different SKUs. Sizing it from each product's actual forecast uncertainty &mdash; the direct output of section 9.1's forecasting work &mdash; is what makes inventory decisions and forecasting genuinely the same discipline rather than two separate problems handled by two separate teams.</p>
+          </div>
+        </div>
+
+        <!-- 9.2.4 -->
+        <div class="sec-head"><span class="sec-tag">9.2.4</span><h2 class="sec-title">Just-in-Time vs. Safety-Stock Strategies</h2></div>
+
+        <p><span class="kt" data-term="Just-in-Time">Just-in-Time</span> (JIT) inventory strategy minimizes held inventory by timing deliveries to arrive as close as possible to the moment of actual need, relying on highly reliable, often tightly coordinated suppliers rather than a large on-hand buffer. It minimizes holding cost aggressively &mdash; in stable, predictable-demand, reliable-supplier conditions it can be genuinely the lower-cost strategy &mdash; but it does so by removing exactly the buffer that safety stock exists to provide, which means it has comparatively little resilience against a sudden supply disruption or an unexpected demand spike.</p>
+
+        <!-- Figure 9.4 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <rect width="700" height="230" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Cost Efficiency vs. Resilience &mdash; A Direct Tradeoff</text>
+
+              <rect x="40" y="50" width="280" height="140" rx="6" fill="white" stroke="#C8E2F8" stroke-width="1.5"/>
+              <text x="180" y="72" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">Just-in-Time</text>
+              <text x="180" y="100" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">+ Lowest holding cost</text>
+              <text x="180" y="116" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">+ Less capital tied up</text>
+              <text x="180" y="140" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&minus; Little disruption buffer</text>
+              <text x="180" y="156" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&minus; Needs highly reliable suppliers</text>
+              <text x="180" y="175" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-style="italic">Best fit: stable demand, reliable supply</text>
+
+              <rect x="380" y="50" width="280" height="140" rx="6" fill="white" stroke="#C8E2F8" stroke-width="1.5"/>
+              <text x="520" y="72" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">Safety-Stock Strategy</text>
+              <text x="520" y="100" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">+ Buffers demand spikes</text>
+              <text x="520" y="116" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">+ Buffers supply disruption</text>
+              <text x="520" y="140" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&minus; Higher holding cost</text>
+              <text x="520" y="156" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">&minus; Capital tied up in stock</text>
+              <text x="520" y="175" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-style="italic">Best fit: volatile demand, risk-sensitive ops</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 9.4</strong><span>JIT and safety-stock strategies sit at opposite ends of a cost-vs-resilience tradeoff. Most real supply chains land somewhere between the two extremes, applying each strategy selectively by SKU risk profile rather than picking one universally.</span></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Why JIT's efficiency and its fragility are the same property</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>It's tempting to treat JIT's cost efficiency and its disruption fragility as two separate facts about the strategy. They're actually the same fact viewed from two angles: JIT achieves its lower holding cost specifically <em>by</em> removing the buffer that would otherwise absorb a supply delay or a demand spike. There is no version of JIT that keeps the cost savings but adds back meaningful resilience &mdash; the resilience and the buffer that provides it are the same inventory, and a strategy that minimizes one necessarily minimizes the other.</p>
+              <p>This is why the real-world decision is rarely "JIT or safety stock" applied uniformly across an entire catalog, but a selective application of each based on per-SKU risk: a single-source, long-lead-time, high-disruption-consequence component is a poor JIT candidate even within a company that runs JIT successfully elsewhere; a low-consequence, multi-sourced, short-lead-time commodity input is a much safer one. The strategic skill is in the segmentation, not in picking one philosophy company-wide.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#9881;&#65039;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">An Electronics Assembler &nbsp;&middot;&nbsp; The Single-Supplier Component That Stopped a Production Line</span>
+          </div>
+          <div class="field-note-body">
+            <p>An electronics assembler ran a Just-in-Time strategy successfully across most of its component catalog &mdash; reliable suppliers, stable demand, meaningfully lower holding costs than competitors running larger buffers. One specific component, sourced from a single overseas supplier with a multi-week lead time, was managed under the exact same JIT policy as everything else, on the reasoning that the policy had worked well company-wide.</p>
+            <p>A disruption at that single supplier &mdash; unrelated to the assembler's own operations entirely &mdash; halted shipments for several weeks. With essentially no safety stock buffer for that specific component, under the company-wide JIT policy, production of every product using it stopped within days, while components managed with appropriate safety stock for their own risk profile were unaffected. The post-incident review's conclusion was specifically about segmentation: the company's JIT strategy itself wasn't wrong, but applying it uniformly to a single-source, long-lead-time, hard-to-substitute component was a risk-profile mismatch that a deliberate component-level risk assessment would have caught.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>JIT's resilience tradeoff (covered in this section's deep dive) means a single inventory policy applied uniformly across an entire catalog is rarely correct. The components most vulnerable to a JIT policy are exactly the ones with single-source, long-lead-time, hard-to-substitute supply &mdash; precisely where a safety-stock buffer is needed most, even within an otherwise successful JIT operation.</p>
+          </div>
+        </div>
+
+        <!-- 9.2.5 -->
+        <div class="sec-head"><span class="sec-tag">9.2.5</span><h2 class="sec-title">Where Data Engineering Fits</h2></div>
+
+        <p>Pulling this Part together: every concept covered &mdash; EOQ, safety stock, reorder points, the JIT/safety-stock risk tradeoff &mdash; depends on a working data pipeline underneath it. EOQ needs accurate, current per-unit ordering and holding cost data. Safety stock sizing needs the forecast error metrics from section 9.1, computed continuously as new actuals arrive, not calculated once and left stale. Reorder points need real-time or near-real-time inventory level data flowing reliably from warehouse systems. None of this analytical layer functions without exactly the ingestion, transformation, and data quality work this entire guide has built toward &mdash; which is the precise sense in which supply chain analytics, like the classical ML and statistics covered in Part 8, is a domain a senior data engineer is expected to support fluently, even without owning the inventory policy decisions themselves.</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>EOQ</th>
+              <th>Just-in-Time</th>
+              <th>Safety-Stock Strategy</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Primary Question Answered</strong></td>
+              <td>How much to order per batch</td>
+              <td>How to minimize held inventory overall</td>
+              <td>How to buffer against demand/supply uncertainty</td>
+            </tr>
+            <tr>
+              <td><strong>Assumes Demand Is</strong></td>
+              <td>Constant and known</td>
+              <td>Stable and reliably supplied</td>
+              <td>Uncertain &mdash; explicitly planned for</td>
+            </tr>
+            <tr>
+              <td><strong>Resilience to Disruption</strong></td>
+              <td>Not addressed &mdash; orthogonal concern</td>
+              <td>Low</td>
+              <td>High</td>
+            </tr>
+            <tr>
+              <td><strong>Holding Cost</strong></td>
+              <td>Minimized for a given demand level</td>
+              <td>Lowest overall</td>
+              <td>Higher, by design</td>
+            </tr>
+            <tr>
+              <td><strong>Best Risk Profile Fit</strong></td>
+              <td>Any SKU, as a starting batch-size calculation</td>
+              <td>Stable demand, reliable, well-diversified supply</td>
+              <td>Volatile demand or single-source, hard-to-substitute supply</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Summary -->
+        <div class="info-box gold" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary &mdash; Part 9 Complete</div>
+          <p>Inventory decisions balance holding cost against stockout cost, with every method in this section answering the same underlying question differently. EOQ minimizes ordering and holding cost for known, constant demand, but explicitly assumes away the uncertainty problem. Safety stock and reorder points address that uncertainty directly, and should scale with each SKU's actual forecast error from section 9.1 rather than apply a flat company-wide rule. Just-in-Time minimizes holding cost by removing the buffer that provides resilience &mdash; the efficiency and the fragility are the same property, which is why selective, risk-profile-based application beats a uniform company-wide policy. None of this works without the underlying data pipeline supplying current cost, forecast, and inventory-level data continuously, which is exactly where a senior data engineer's work plugs in. Part 9 is now complete: demand forecasting and inventory optimization, the supply chain analytics layer that builds directly on Part 8's statistical foundations.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 9.2 &nbsp;&middot;&nbsp; Inventory Optimization</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">What specific question does EOQ (Economic Order Quantity) answer, and what does it explicitly leave unaddressed?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">EOQ determines how much safety stock to hold; it leaves order timing unaddressed</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">EOQ determines the order quantity that minimizes combined ordering and holding cost, assuming demand is constant and known; it explicitly does not address demand uncertainty, which is what safety stock separately handles</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">EOQ determines which supplier to use; it leaves cost calculations unaddressed</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">EOQ determines the exact demand forecast for a product; it leaves order quantity unaddressed</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> EOQ's formula and derivation both assume known, constant demand &mdash; it answers "how much per order, given I know demand exactly," not "how do I handle the fact that I don't actually know demand exactly," which is precisely the gap safety stock is designed to fill in section 9.2.3.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">According to the distribution company field note, what was the actual problem with applying a flat "two weeks of average demand" safety-stock rule across the entire catalog?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Two weeks is always too little safety stock for any product, regardless of demand variability</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The flat rule over-stocked low-variability products (wasting capital with no real risk reduction) while under-stocking high-variability products (causing stockouts) &mdash; because it ignored each SKU's actual forecast uncertainty</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Two weeks is always too much safety stock for any product, regardless of demand variability</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Safety stock should never be calculated using historical demand data</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The flat rule's failure was directional in both ways simultaneously, just on different SKUs &mdash; not uniformly too high or too low. The fix was sizing safety stock from each SKU's own forecast error rather than a single number applied everywhere.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">Why does this section describe JIT's cost efficiency and its disruption fragility as "the same property" rather than two separate tradeoffs?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Because JIT and safety-stock strategies are mathematically identical once fully implemented</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Because JIT achieves its lower holding cost specifically by removing the same buffer that would otherwise absorb a supply delay or demand spike &mdash; the resilience and the cost savings come from the same inventory, so you cannot keep one while adding the other</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Because cost efficiency and disruption fragility are unrelated and the section's framing is simply a rhetorical device with no real basis</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Because JIT only affects cost, never resilience, in any real supply chain</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The buffer that safety stock provides and the inventory JIT removes to cut holding cost are literally the same inventory viewed from two angles &mdash; there's no way to remove it for cost savings while somehow retaining its disruption-absorbing function.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">In the electronics assembler field note, what was the actual root cause identified in the post-incident review &mdash; was JIT itself the mistake?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Yes &mdash; JIT should never be used by any manufacturing company under any circumstances</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">No &mdash; the company's JIT strategy worked well company-wide; the mistake was applying it uniformly to a single-source, long-lead-time, hard-to-substitute component without a component-level risk assessment</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Yes &mdash; the supplier disruption was entirely the assembler's fault for choosing that supplier in the first place</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">No &mdash; the disruption was unavoidable regardless of inventory strategy and nothing could have been done differently</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The review explicitly concluded the JIT strategy itself wasn't wrong &mdash; the mismatch was applying a single uniform policy across components with very different risk profiles, exactly the segmentation point this section's deep dive makes. D is wrong because appropriate safety stock specifically for that one high-risk component would have prevented the production stoppage, as it did for other components.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">This section closes by connecting inventory optimization back to data engineering specifically. What is the core argument for why that connection exists?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Data engineers should personally make all inventory policy decisions instead of supply chain teams</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">EOQ, safety stock, and reorder points all depend on continuously current cost, forecast-error, and inventory-level data flowing reliably from underlying systems &mdash; exactly the ingestion, transformation, and data quality work a senior data engineer is positioned to own</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Inventory optimization has no real connection to data engineering and the section's closing argument is purely motivational</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Data engineers need this knowledge only to pass interview questions, not to do real work</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The argument is specifically about data dependency, not decision authority &mdash; every calculation in this section needs a working pipeline underneath it supplying current data, which is squarely a data engineering responsibility even though the policy decisions themselves belong to supply chain or operations teams.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="9-1-demand-forecasting-basics.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">9.1 Demand Forecasting Basics</span></span>
+          </a>
+          <a href="../appendix/A-free-tier-resources.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">Appendix A &mdash; Free Tier Resources</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 9 &nbsp;&middot;&nbsp; Supply Chain Analytics</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">48</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:150px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">The Core Tradeoff</div>
+          <p>Holding cost vs. stockout cost. No strategy minimizes both &mdash; every method here is a different answer to where the combined cost is lowest.</p>
+        </div>
+        <div class="ms" style="height:340px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Safety Stock Scales With Uncertainty</div>
+          <p>Size it from each SKU's own forecast error, not a flat company-wide rule &mdash; the same total budget allocated correctly beats a uniform rule everywhere.</p>
+        </div>
+        <div class="ms" style="height:300px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">JIT's Efficiency Is Its Fragility</div>
+          <p>The buffer JIT removes for cost savings is the same buffer that would absorb a disruption. Segment by SKU risk; don't apply one policy catalog-wide.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"How would you decide between JIT and safety stock for a given product?" tests whether you reach for supplier reliability and disruption consequence, not just cost.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('9.2');</script>
+</body>
+</html>

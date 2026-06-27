@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>8.4 A/B Testing &amp; Hypothesis Testing &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="8.4">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Eight &nbsp;&middot;&nbsp; Classical ML &amp; Statistics</div>
+          <div class="chap-num">8.4</div>
+          <h1 class="chap-title">A/B Testing &amp; Hypothesis Testing</h1>
+          <p class="chap-sub">Why two different conversion rates don't prove anything by themselves, the framework that tells you whether a change actually worked, and the single most common mistake that quietly inflates false positives on real production tests</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain why observing two different metric values between A and B doesn't, by itself, prove a real difference exists</li>
+            <li>Define the null and alternative hypotheses, and correctly state what a p-value actually represents — and what it does not</li>
+            <li>Distinguish a Type I error from a Type II error, and explain what statistical power measures</li>
+            <li>Identify the "peeking" problem — checking results repeatedly and stopping early — as the most common practical mistake that invalidates an A/B test</li>
+            <li>Compare the frequentist and Bayesian approaches to A/B testing, including how each is interpreted and where each is more prone to stakeholder misunderstanding</li>
+            <li>Distinguish statistical significance from business significance, and explain why a statistically significant result isn't automatically worth shipping</li>
+          </ol>
+        </div>
+
+        <!-- 8.4.1 -->
+        <div class="sec-head"><span class="sec-tag">8.4.1</span><h2 class="sec-title">Why You Can't Just Compare Two Numbers</h2></div>
+
+        <p>Section 8.3 covered how to evaluate a model's performance on data you already have. A/B testing answers a different question entirely: did a specific change — a new model, a redesigned checkout page, a different pricing display — actually cause a real improvement once it's live, or does the apparent difference just reflect the ordinary randomness of which visitors happened to land in which group?</p>
+
+        <p>Here's the trap. Version A of a checkout page converts 5.2% of visitors; version B converts 5.6%. It's tempting to declare B the winner and ship it. But if you ran version A against an exact, unchanged copy of itself — call it A and A&prime; — and split visitors randomly between the two, you would still see two different conversion numbers, purely because different random visitors landed in each group. Maybe A gets 5.2% and A&prime; gets 5.5%, with zero real difference anywhere, just the ordinary noise of who happened to show up that day. A single pair of numbers, by itself, cannot tell you whether the gap you're looking at is a real effect or this same kind of noise.</p>
+
+        <div class="hl-block">The question A/B testing actually answers is not "is B's number higher than A's?" It's "if there were truly no real difference between A and B, how likely is it that random chance alone would produce a gap this large?" If that probability is very low, you have good evidence of a real effect. If it's not especially low, the gap you observed is well within the range pure randomness would produce on its own.</div>
+
+        <!-- 8.4.2 -->
+        <div class="sec-head"><span class="sec-tag">8.4.2</span><h2 class="sec-title">The Hypothesis Testing Framework</h2></div>
+
+        <p>Formal hypothesis testing gives this intuition a precise structure. You start by stating a deliberately skeptical default position, the <span class="kt" data-term="Null Hypothesis">null hypothesis (H&#8320;)</span>: there is no real difference between A and B; whatever gap you observe is attributable to random sampling variation alone. The <strong>alternative hypothesis (H&#8321;)</strong> is the claim you're actually trying to find evidence for: there is a real difference. The entire test is then built to ask one question — is the data we collected surprising enough, assuming the null hypothesis is true, to justify abandoning that skeptical default?</p>
+
+        <p>The <span class="df" data-term="P-Value">p-value</span> is the number that answers that question. It is the probability of observing a difference at least as large as the one actually measured, <em>if the null hypothesis were really true</em> — that is, if there were genuinely no real effect and the observed gap were pure sampling noise. A small p-value means the observed result would be quite unusual under pure chance, which is evidence (not proof) against the null hypothesis. The <strong>significance level</strong> (commonly denoted &alpha;, and very often set to 0.05) is a threshold chosen <em>before</em> the test runs: if the p-value comes in below &alpha;, the result is called <span class="kt" data-term="Statistical Significance">statistically significant</span>, and the null hypothesis is rejected in favor of the alternative.</p>
+
+        <!-- Figure 8.7 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f87sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="280" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">The Null Distribution and the P-Value</text>
+
+              <line x1="80" y1="240" x2="640" y2="240" stroke="#1B3A6B" stroke-width="1.5"/>
+              <text x="360" y="262" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Difference Between A and B, If There Were No Real Effect</text>
+
+              <path d="M 110,240 C 190,240 230,65 360,60 C 490,65 530,240 610,240" fill="none" stroke="#0076CC" stroke-width="2"/>
+              <path d="M 470,150 C 510,180 560,215 610,240 L 610,240 L 470,240 Z" fill="#9B3A3A" opacity=".32"/>
+
+              <line x1="360" y1="55" x2="360" y2="240" stroke="#1B3A6B" stroke-width="1.5" stroke-dasharray="4,3"/>
+              <text x="360" y="44" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">No Difference (H&#8320;)</text>
+
+              <line x1="470" y1="148" x2="470" y2="240" stroke="#9B3A3A" stroke-width="2"/>
+              <text x="470" y="138" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Observed Difference</text>
+
+              <line x1="555" y1="190" x2="600" y2="160" stroke="#9B3A3A" stroke-width="1"/>
+              <rect x="540" y="120" width="150" height="44" rx="5" fill="white" stroke="#9B3A3A" stroke-width="1.5"/>
+              <text x="615" y="138" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">p-value = this</text>
+              <text x="615" y="151" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">shaded tail area</text>
+
+              <text x="360" y="220" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle" font-style="italic">If p &lt; 0.05, the observed gap is unlikely enough under H&#8320; to call it statistically significant</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 8.7</strong><span>The bell curve shows the range of differences you'd expect to see between A and B purely by chance, if there were truly no real effect. The shaded tail beyond the observed difference is the p-value — the probability of seeing a gap this large, or larger, under pure chance alone.</span></div>
+        </div>
+
+        <p>The single most common misreading of a p-value, common enough that it's worth stating twice in two different ways: a p-value of 0.03 does <em>not</em> mean "there's a 97% probability that B is really better than A," and it does not mean "there's a 3% probability this result is due to chance." It means: <em>if</em> there were truly no real difference between A and B, there would be a 3% chance of seeing a gap this large or larger from random sampling alone. The p-value is a statement about how surprising the data would be under the null hypothesis — it is not a direct statement about the probability that the null hypothesis (or its alternative) is true. That distinction sounds subtle, but it is the difference between a correct and an incorrect interpretation of nearly every statistical test result you will ever read.</p>
+
+        <!-- 8.4.3 -->
+        <div class="sec-head"><span class="sec-tag">8.4.3</span><h2 class="sec-title">Type I and Type II Errors</h2></div>
+
+        <p>Every hypothesis test can go wrong in one of two distinct ways, and — exactly like the confusion matrix in section 8.3.2 — the two mistakes are not equally costly in most real situations. A <span class="kt" data-term="Type I Error">Type I error</span> (a false positive) means concluding there's a real difference when there genuinely isn't one — rejecting a null hypothesis that was actually true. Its rate is controlled directly by your chosen significance level &alpha;: setting &alpha; = 0.05 means you're explicitly accepting up to a 5% chance of this kind of false alarm, by design, every time the null hypothesis happens to actually be true.</p>
+
+        <p>A <span class="kt" data-term="Type II Error">Type II error</span> (a false negative) means failing to detect a real difference that does genuinely exist — failing to reject a null hypothesis that was actually false. <span class="df" data-term="Statistical Power">Statistical power</span> is the probability of correctly detecting a real effect when one truly exists — the complement of the Type II error rate. An underpowered test (too small a sample, or too short a runtime) can easily miss a real, meaningful improvement entirely, reporting "no significant difference found" when the change genuinely did help — a failure that's easy to mistake for "the change didn't work" rather than "we didn't collect enough data to see that it worked."</p>
+
+        <!-- Figure 8.8 -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f88sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="260" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Type I vs Type II Error</text>
+
+              <text x="380" y="42" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Test Concludes: Effect Found</text>
+              <text x="555" y="42" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Test Concludes: No Effect</text>
+              <text x="115" y="100" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">H&#8320; Is</text>
+              <text x="115" y="113" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Actually True</text>
+              <text x="115" y="200" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">H&#8320; Is</text>
+              <text x="115" y="213" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Actually False</text>
+
+              <rect x="290" y="58" width="180" height="90" rx="5" fill="#9B3A3A" filter="url(#f88sh)"/>
+              <text x="380" y="92" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">Type I Error</text>
+              <text x="380" y="108" fill="rgba(255,225,225,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">false positive &mdash; rate = &alpha;</text>
+              <text x="380" y="120" fill="rgba(255,225,225,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">"found" an effect that isn't real</text>
+
+              <rect x="475" y="58" width="180" height="90" rx="5" fill="#1A7A4A" filter="url(#f88sh)"/>
+              <text x="565" y="92" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">Correct</text>
+              <text x="565" y="108" fill="rgba(220,250,235,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">true negative</text>
+
+              <rect x="290" y="158" width="180" height="90" rx="5" fill="#B07D2A" filter="url(#f88sh)"/>
+              <text x="380" y="192" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">Correct</text>
+              <text x="380" y="208" fill="rgba(255,245,225,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">true positive &mdash; this is "power"</text>
+
+              <rect x="475" y="158" width="180" height="90" rx="5" fill="#9B3A3A" filter="url(#f88sh)"/>
+              <text x="565" y="192" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">Type II Error</text>
+              <text x="565" y="208" fill="rgba(255,225,225,.85)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">false negative &mdash; rate = &beta;</text>
+              <text x="565" y="220" fill="rgba(255,225,225,.7)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">missed a real effect</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 8.8</strong><span>The same two-error structure from section 8.3's confusion matrix, applied to hypothesis testing. &alpha; (the significance level) is the Type I error rate, chosen in advance. Statistical power — the probability of correctly detecting a real effect — is 1 minus the Type II error rate (&beta;), and is driven primarily by sample size and the size of the true effect.</span></div>
+        </div>
+
+        <!-- 8.4.4 -->
+        <div class="sec-head"><span class="sec-tag">8.4.4</span><h2 class="sec-title">Designing a Valid Test</h2></div>
+
+        <p>A statistically valid <span class="df" data-term="A/B Testing">A/B test</span> requires more than just splitting traffic in half. <strong>Random assignment</strong> to group A or group B is non-negotiable — if one group systematically differs from the other in any way besides the change being tested (different traffic sources, different times of day, a non-random rollout by account type), the comparison is confounded and no p-value can rescue it. <strong>Sample size</strong> needs to be determined <em>before</em> the test starts, based on the smallest effect size that's actually worth detecting and the desired statistical power — running a test that's too small risks a Type II error, missing a real improvement simply because too few visitors were observed to distinguish it from noise.</p>
+
+        <p>And then there's the mistake responsible for more invalid A/B test conclusions in practice than perhaps any other single cause, which gets its own treatment below.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>The peeking problem: why checking your test daily inflates false positives</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>A standard 0.05 significance level means: if the null hypothesis is really true, there's a 5% chance any single test will produce a false positive. That guarantee holds for <em>one</em> look at the data, taken at a sample size decided in advance. It quietly stops holding the moment you check the p-value every day and stop as soon as it first dips below 0.05.</p>
+              <p><strong>Why this breaks the math:</strong> a p-value computed on partial data fluctuates randomly as more data comes in, even when there's truly no real effect — sometimes drifting below 0.05 for a few days before drifting back up. If you check daily and stop the instant you see significance, you're effectively giving random noise dozens of separate chances to get "lucky" and dip below the threshold at some point during the test — and with enough looks, it eventually will, even with zero real effect underlying it. Simulations of this exact scenario (truly no effect, checking daily, stopping at first significance) routinely show the actual false-positive rate climbing well above 5%, sometimes past 25-30%, depending on how long the test runs and how often it's checked.</p>
+              <p><strong>The standard fixes:</strong> decide the sample size (or test duration) in advance, based on a power calculation, and look at the result exactly once, at the end. If a business genuinely needs the ability to stop early — for instance, to halt a test quickly if a new feature is clearly harming a key metric — formal <strong>sequential testing</strong> methods exist that build the "many looks" problem directly into the math, adjusting the significance threshold at each look to keep the overall false-positive rate at the intended level. Casually checking a standard frequentist p-value daily and stopping at the first significant result is not a valid substitute for either approach.</p>
+              <p>Bayesian approaches (covered next) handle continuous monitoring somewhat more gracefully than frequentist p-values do — which is one of their genuine practical advantages — but "somewhat more gracefully" is not the same as "immune to the problem entirely," and careless early stopping can still distort a Bayesian test's conclusions.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">An E-Commerce Platform &nbsp;&middot;&nbsp; The Win That Wasn't</span>
+          </div>
+          <div class="field-note-body">
+            <p>An e-commerce platform's growth team ran an A/B test on a new checkout page layout, with a pre-planned two-week run and a power calculation that called for roughly 40,000 visitors per arm. The team checked the dashboard daily — a completely normal habit — and on day four, with only about a quarter of the planned sample collected, the p-value dipped to 0.041. Eager to capture an early win, the team stopped the test and shipped the new layout to 100% of traffic that afternoon.</p>
+            <p>A month later, company-wide conversion data showed no measurable lift from the change — if anything, a very slight, statistically inconclusive decline. A post-mortem traced the original "significant" result directly to the peeking problem: with daily checks against a 0.05 threshold over a planned two-week window, the true probability of seeing at least one false-positive dip below 0.05 at some point during the test, purely by chance, was substantially higher than the nominal 5% the team believed they were operating at.</p>
+            <p>The team's process change afterward was specific and durable: every test now has a pre-registered sample size and end date, dashboards are available for monitoring qualitative health (no crashes, no broken tracking) but the significance decision is made exactly once, at the pre-committed end date, and any genuine need to stop early triggers a separate, properly designed sequential analysis rather than a glance at a daily-updating p-value.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>A p-value's stated false-positive guarantee only holds for the test as designed — one look, at a pre-determined sample size. Checking daily and stopping at the first significant result silently breaks that guarantee, and the resulting "win" can be entirely a statistical artifact rather than a real effect.</p>
+          </div>
+        </div>
+
+        <!-- 8.4.5 -->
+        <div class="sec-head"><span class="sec-tag">8.4.5</span><h2 class="sec-title">Frequentist vs Bayesian A/B Testing</h2></div>
+
+        <p>Everything covered so far in this section — null hypotheses, p-values, significance levels — is the <strong>frequentist</strong> approach to A/B testing, and it's by far the more widely taught and widely used framework in industry. It answers a precise but somewhat indirect question: <em>if there were really no effect, how surprising would this data be?</em></p>
+
+        <p>The <strong>Bayesian</strong> approach starts from a different place: a <em>prior</em> belief about how likely B is to be better than A (which can be deliberately neutral if there's no strong reason to favor either), and updates that belief using the observed data to produce a <em>posterior</em> probability — directly answering the question most stakeholders actually want answered: "given everything we now know, what's the probability that B is genuinely better than A, and by roughly how much?" This is a more intuitive statement than a p-value, and it's a major reason Bayesian methods have gained real traction in product and growth teams over the past decade, despite frequentist methods remaining the academic and statistical default.</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>Frequentist</th>
+              <th>Bayesian</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Core Question Answered</strong></td>
+              <td>If there's truly no effect, how surprising is this data?</td>
+              <td>Given this data, what's the probability B is actually better, and by how much?</td>
+            </tr>
+            <tr>
+              <td><strong>Sample Size</strong></td>
+              <td>Must be fixed in advance via a power calculation</td>
+              <td>More naturally accommodates continuous monitoring, with care</td>
+            </tr>
+            <tr>
+              <td><strong>Output</strong></td>
+              <td>P-value and a binary significant/not-significant verdict</td>
+              <td>A full probability distribution over the likely size of the effect</td>
+            </tr>
+            <tr>
+              <td><strong>Common Stakeholder Misread</strong></td>
+              <td>Treating the p-value itself as "probability B is better"</td>
+              <td>Treating the prior as objective fact rather than a stated assumption</td>
+            </tr>
+            <tr>
+              <td><strong>Industry Adoption</strong></td>
+              <td>Standard in most A/B testing tools and academic statistics</td>
+              <td>Growing, especially in product/growth teams wanting intuitive output</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Statistical power and sample size: how many users do you actually need?</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The sample size a test needs depends on three inputs decided before the test runs, and the relationship between them is worth being able to reason about even without memorizing the underlying formula.</p>
+              <p><strong>Minimum detectable effect (MDE):</strong> the smallest real improvement you actually care about catching. Wanting to detect a tiny 0.1 percentage point lift in conversion requires a far larger sample than wanting to detect a 2 percentage point lift — smaller effects are inherently harder to distinguish from random noise, so they demand more data to see clearly.</p>
+              <p><strong>Significance level (&alpha;):</strong> the Type I error rate you're willing to accept, almost always 0.05 by convention. Demanding stronger evidence (a lower &alpha;, such as 0.01) before declaring significance requires a larger sample to compensate.</p>
+              <p><strong>Statistical power (1 &minus; &beta;):</strong> the probability of actually detecting the effect if it's real, commonly targeted at 80% or 90%. Wanting higher confidence that you won't miss a real effect (higher power) also requires a larger sample.</p>
+              <p><strong>The practical takeaway:</strong> sample size requirements grow quickly as the effect you're trying to detect shrinks — needing to detect an effect half the size typically requires roughly four times the sample, not merely double, because the underlying relationship is closer to an inverse-square one. This is precisely why testing a subtle UI tweak rigorously can require many times more traffic, and many more weeks, than testing a dramatic redesign — and why "we don't have enough traffic to test this properly" is sometimes the correct, if unwelcome, conclusion for a small or niche product.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Statistical significance vs business significance</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>A result can be statistically significant — a genuinely real, non-random effect — while still being far too small to matter for the business. With a large enough sample, even a vanishingly small true effect (a 0.05 percentage point conversion lift) can produce a p-value well under 0.05, because statistical significance is fundamentally a statement about confidence that <em>some</em> non-zero effect exists, not a statement about whether that effect is large enough to be worth anything.</p>
+              <p><strong>The question that has to be asked separately:</strong> does the size of this effect, even taken at face value, justify the cost of building, maintaining, and supporting the change going forward? A statistically airtight 0.05 percentage point lift might translate to a few hundred dollars a year in additional revenue for a mid-sized e-commerce site — almost certainly not worth the engineering time to maintain a new code path indefinitely, regardless of how confidently "real" the effect is.</p>
+              <p>The reverse failure is just as real and arguably more dangerous in practice: a large, business-meaningful effect that fails to reach statistical significance purely because the test was underpowered (too small a sample, too short a runtime) gets wrongly written off as "didn't work," when the honest conclusion is "we don't yet have enough data to know." Reporting an effect size with a confidence interval — not just a significant/not-significant verdict — alongside an explicit judgment about whether that effect size matters to the business, is the practice that catches both failure modes at once.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A SaaS Company &nbsp;&middot;&nbsp; Ten Metrics, One Lucky Hit</span>
+          </div>
+          <div class="field-note-body">
+            <p>A SaaS company's product team ran an A/B test on a new onboarding flow and, lacking a single pre-specified primary metric, checked significance across ten different tracked metrics at the end of the test: signup completion, day-1 retention, day-7 retention, time-to-first-value, feature adoption for each of five separate features, and overall trial-to-paid conversion. Nine of the ten showed no significant difference. One — adoption of a relatively minor feature — came back at p = 0.04, and the team was ready to write it up as the headline result of the test.</p>
+            <p>A statistician reviewing the readout before it went into the company-wide report flagged the <strong>multiple comparisons problem</strong>: when you test ten independent metrics at a 0.05 significance threshold, the probability that at least one shows a false positive purely by chance is not 5% — it compounds across all ten comparisons, landing close to 40% even if every single metric had zero real underlying effect. Finding exactly one "significant" result out of ten tested metrics is close to the expected outcome under pure chance, not a meaningful signal on its own.</p>
+            <p>The team's fix going forward: declare one primary metric before the test begins, treat any other metrics examined as exploratory and clearly labeled as such in reporting, and — when multiple comparisons genuinely are needed within a single test — apply a standard statistical correction (such as the Bonferroni correction) that tightens the significance threshold to account for the number of comparisons being made, rather than treating each one as an independent 5%-risk roll of the dice.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Testing many metrics at a standard significance threshold all but guarantees a false positive will turn up somewhere by chance. Declaring a single primary metric before a test runs, and correcting for multiple comparisons when more than one genuinely matters, is what separates a real finding from a statistical coincidence dressed up as a result.</p>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Two different metric values between A and B don't, by themselves, prove a real difference — random sampling alone produces gaps even when nothing has actually changed. Hypothesis testing formalizes this: the null hypothesis assumes no real effect, and the p-value measures how surprising the observed data would be if that assumption were true — not the probability that the alternative hypothesis is correct. Type I errors are false positives, controlled by the chosen significance level; Type II errors are false negatives, controlled by statistical power, which depends heavily on sample size and the size of the true effect. Checking a test's significance repeatedly and stopping at the first significant result — "peeking" — silently inflates the real false-positive rate well above the nominal threshold, and is the most common practical mistake in real-world A/B testing. The frequentist approach answers an indirect question via p-values; the Bayesian approach directly estimates the probability B is better, at the cost of depending on a stated prior. A statistically significant result is not automatically a business-significant one — the size of the effect, and whether it justifies the cost of shipping, has to be judged separately.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Coming in Section 8.5 &mdash; Deep Learning Basics</div>
+          <p>Every algorithm in Part 8 so far — linear and logistic regression, decision trees, random forests, clustering — falls under "classical ML." Section 8.5 closes out the part with a conceptual tour of deep learning: how stacking many simple computational units into layered neural networks lets a model learn its own feature representations directly from raw, unstructured data like images and text, and — just as importantly — when that added complexity is actually worth it.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 8.4 &nbsp;&middot;&nbsp; A/B Testing &amp; Hypothesis Testing</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">An A/B test reports a p-value of 0.03. Which of the following is the correct interpretation of this number?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">There is a 97% probability that version B is genuinely better than version A</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">There is a 3% probability that the observed result is due to random chance</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">If there were truly no real difference between A and B, there would be a 3% chance of observing a difference at least this large purely from random sampling variation</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Version B caused a 3% improvement in the metric being measured</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> A p-value is a statement about how surprising the observed data would be under the null hypothesis (no real effect) — it is a probability calculated assuming the null is true, not a probability that the null (or its alternative) is true given the data. Options A and B are both common, understandable, but incorrect inversions of this logic. Option D confuses the p-value with an effect size measurement entirely.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">A team runs an A/B test with a true underlying effect (B genuinely is better than A), but the sample size was too small to reliably detect it, and the test concludes "no significant difference found." What type of error has occurred?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">A Type I error, since the test produced a false positive</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">A Type II error — a real effect existed but the test failed to detect it, most likely because the sample size was too small to provide adequate statistical power</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">No error has occurred, since "no significant difference found" is always the technically correct conclusion when a test produces a high p-value</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">A multiple comparisons error, since only one metric was being tested</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> A Type II error is exactly this scenario: a real effect exists (the null hypothesis is actually false), but the test fails to detect it and fails to reject the null. Insufficient statistical power — most commonly driven by too small a sample size relative to the true effect size — is the most common cause. This is different from a Type I error, which would mean concluding a difference exists when there truly is none.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A team plans to run an A/B test for two weeks with a pre-calculated sample size, but checks the p-value every day and stops the test as soon as it first dips below 0.05, on day five. What is the main statistical problem with this practice?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">There is no problem — checking results more frequently only provides more information and cannot bias the conclusion</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Checking the p-value repeatedly and stopping at the first significant result gives random noise many separate opportunities to cross the significance threshold by chance, inflating the true false-positive rate well above the nominal 5% the team believes they're operating at</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The problem is that the test ran for fewer than two weeks, which always invalidates a result regardless of when significance was reached</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Stopping early is only a problem if the test eventually shows no effect; since it showed significance, the early stop is statistically valid</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This is the peeking problem described in this section's deep dive and demonstrated in the e-commerce field note. A 0.05 significance level guarantees a 5% false-positive rate for a single look at data collected to a pre-specified sample size. Checking daily and stopping at the first dip below 0.05 effectively gives the test many independent chances to produce a false positive from pure noise, and the true overall false-positive rate ends up substantially higher than 5%, regardless of whether that particular test's early-stopped result happened to reflect a real effect or not.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">What is the key practical difference in what a frequentist p-value and a Bayesian posterior probability actually tell you?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">They are mathematically identical and differ only in terminology</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">The frequentist p-value tells you how surprising the observed data would be if there were truly no effect; the Bayesian posterior directly estimates the probability that B is actually better than A, given the data and a stated prior belief</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The p-value requires a prior belief to compute, while the Bayesian posterior does not</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Frequentist testing can only be used for regression problems, while Bayesian testing can only be used for classification problems</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This distinction is exactly why Bayesian results are often easier for stakeholders to correctly interpret: "there's an 85% probability B is better than A" answers the question most people actually want answered, whereas a p-value answers the more indirect (and more frequently misread) question of how unlikely the data would be under an assumption of no effect. It's the Bayesian approach, not the frequentist one, that requires an explicit prior belief as an input.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A very large A/B test finds a statistically significant lift (p = 0.001) of 0.04 percentage points in conversion rate. What is the most appropriate next step before deciding to ship the change?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Ship immediately — a p-value of 0.001 is strong statistical evidence and no further analysis is needed</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Discard the result as invalid, since a p-value that low for such a small effect size must indicate an error in the test</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Separately assess whether a 0.04 percentage point lift is large enough to justify the engineering and maintenance cost of shipping the change — statistical significance confirms the effect is likely real, but says nothing about whether the effect is large enough to matter for the business</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Re-run the test with a smaller sample size to see if the effect size increases</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> This is precisely the statistical-versus-business-significance distinction from this section's deep dive. A very low p-value on a large sample is strong evidence that some non-zero effect genuinely exists — but with enough data, even a tiny, practically meaningless effect can reach high statistical significance. The decision to ship still requires a separate, explicit judgment about whether the effect's actual size justifies the ongoing cost of the change, which a p-value alone cannot answer.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="8-3-model-evaluation-metrics.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">8.3 Model Evaluation Metrics</span></span>
+          </a>
+          <a href="8-5-deep-learning-basics.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">8.5 Deep Learning Basics</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 8 &nbsp;&middot;&nbsp; Classical ML &amp; Statistics</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">43</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:140px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">What a P-Value Actually Says</div>
+          <p>P(data this extreme | no real effect) — not P(no real effect | data). Mixing these two up is the single most common statistics mistake in business reporting.</p>
+        </div>
+        <div class="ms" style="height:280px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Never "Peek and Stop"</div>
+          <p>Checking a p-value daily and stopping at the first significant result inflates the real false-positive rate far above 5%. Decide sample size in advance; look once, at the end — or use proper sequential testing.</p>
+        </div>
+        <div class="ms" style="height:280px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Significant &ne; Worth Shipping</div>
+          <p>A huge sample can make a tiny, meaningless effect statistically significant. Always ask separately: is the effect size big enough to justify the cost of shipping and maintaining the change?</p>
+        </div>
+        <div class="ms" style="height:240px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"What's wrong with checking your A/B test results every day?" is a common screening question. Naming the peeking problem specifically — not just "it's bad practice" — and explaining why the false-positive rate inflates is the strong answer.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('8.4');</script>
+</body>
+</html>

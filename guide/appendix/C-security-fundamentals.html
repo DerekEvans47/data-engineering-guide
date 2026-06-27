@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Appendix C — Security Fundamentals &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="C">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Appendix &nbsp;&middot;&nbsp; Reference &amp; Resources</div>
+          <div class="chap-num">C</div>
+          <h1 class="chap-title">Security Fundamentals for Data Engineers</h1>
+          <p class="chap-sub">The authentication, authorisation, encryption, and compliance concepts every senior data engineer must understand — from Managed Identity and Key Vault to Unity Catalog column masking, Private Endpoints, and GDPR data residency obligations</p>
+        </header>
+
+        <!-- C.1 -->
+        <div class="sec-head"><span class="sec-tag">C.1</span><h2 class="sec-title">Why Security Is a Data Engineering Concern</h2></div>
+
+        <p>Security is not the sole domain of a security team. Data engineers build and operate the systems that hold the most sensitive data in an organisation — customer PII (personally identifiable information), financial transactions, health records, intellectual property. The decisions made at the data platform level — who can access what, how credentials are managed, where data is stored, how it flows across network boundaries — determine the organisation's data security posture.</p>
+
+        <p>Senior data engineering roles require fluency with the security mechanisms of the Azure data stack specifically. Hiring panels test this through scenario questions: "how would you prevent an analyst from reading raw payment card data?", "what is wrong with storing a database password in a pipeline config file?", "how would you implement row-level security in a shared Power BI dataset?". This appendix gives you the vocabulary and patterns to answer these confidently.</p>
+
+        <div class="hl-block">The principle of least privilege is the most important security concept in data engineering: every user, service, and pipeline should have the minimum level of access required to perform its function — no more. This single principle, applied consistently, prevents most data breaches that occur through credential compromise or insider threat.</div>
+
+        <!-- C.2 -->
+        <div class="sec-head"><span class="sec-tag">C.2</span><h2 class="sec-title">Identity and Access — RBAC vs ACL</h2></div>
+
+        <p><strong>RBAC (Role-Based Access Control)</strong> assigns permissions to roles, and users are assigned to roles. No direct user-to-permission mapping. This is the dominant model in Azure and most enterprise platforms. A data engineer has the "Data Engineer" role which grants read/write to specified containers; a data analyst has the "Data Analyst" role which grants read-only access to Silver and Gold layers. When an employee changes jobs, you change their role assignment — permissions follow automatically.</p>
+
+        <p><strong>ACL (Access Control List)</strong> assigns permissions directly to individual identities on individual objects. More granular — you can set different permissions per user per file in ADLS Gen2 — but exponentially harder to manage at scale. In practice: use RBAC for coarse-grained access (who can access which containers, databases, workspaces), use ACLs for fine-grained exceptions (this specific analyst needs access to this specific folder).</p>
+
+        <!-- Figure C.1 — Identity Hierarchy -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 270" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <marker id="arrC1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="var(--accent)"/>
+                </marker>
+              </defs>
+              <text x="350" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">Azure Identity &amp; Access Hierarchy</text>
+
+              <!-- Entra ID box -->
+              <rect x="240" y="36" width="220" height="44" rx="8" fill="var(--accent)" opacity="0.15" stroke="var(--accent)" stroke-width="1.5"/>
+              <text x="350" y="55" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--heading)">Microsoft Entra ID (Azure AD)</text>
+              <text x="350" y="72" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Identity provider for all Azure services</text>
+
+              <!-- Principal types -->
+              <line x1="350" y1="80" x2="120" y2="110" stroke="var(--border)" stroke-width="1.2"/>
+              <line x1="350" y1="80" x2="350" y2="110" stroke="var(--border)" stroke-width="1.2"/>
+              <line x1="350" y1="80" x2="580" y2="110" stroke="var(--border)" stroke-width="1.2"/>
+
+              <rect x="30" y="110" width="180" height="44" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="120" y="129" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">User / Group</text>
+              <text x="120" y="145" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Human identities, Entra groups</text>
+
+              <rect x="260" y="110" width="180" height="44" rx="6" fill="var(--surface)" stroke="var(--callout-border)" stroke-width="1.5"/>
+              <text x="350" y="129" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Managed Identity</text>
+              <text x="350" y="145" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Service identity (no password)</text>
+
+              <rect x="490" y="110" width="180" height="44" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="580" y="129" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Service Principal</text>
+              <text x="580" y="145" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">App identity (has client secret)</text>
+
+              <!-- RBAC assignment -->
+              <line x1="350" y1="154" x2="350" y2="178" stroke="var(--border)" stroke-width="1.2" stroke-dasharray="4,3"/>
+              <rect x="220" y="178" width="260" height="44" rx="6" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1.5"/>
+              <text x="350" y="197" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">RBAC Role Assignment</text>
+              <text x="350" y="213" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Principal + Role + Scope (subscription/RG/resource)</text>
+
+              <!-- Key recommendation callout -->
+              <rect x="20" y="240" width="660" height="24" rx="4" fill="var(--surface)" stroke="var(--success,#388e3c)" stroke-width="1"/>
+              <text x="350" y="256" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" fill="var(--success,#388e3c)" font-weight="600">&#10003; Prefer Managed Identity over Service Principal for Azure service-to-service auth — no secrets to rotate or leak</text>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure C.1.</strong> Azure identity hierarchy. Managed Identities are the preferred authentication mechanism for Azure services — they authenticate via Entra ID token exchange with no stored credentials. Service Principals require secret management and are appropriate when Managed Identity is unavailable (e.g. external CI/CD runners).</div>
+        </div>
+
+        <!-- C.3 -->
+        <div class="sec-head"><span class="sec-tag">C.3</span><h2 class="sec-title">Managed Identity — No Credentials in Code</h2></div>
+
+        <p>A Managed Identity is an identity automatically managed by Azure for an Azure resource. When you enable a Managed Identity on an Azure Data Factory (ADF) pipeline, a Databricks workspace, or an Azure Function, that resource gets an identity in Entra ID. Other Azure services can grant that identity RBAC roles. The ADF pipeline can then authenticate to ADLS Gen2, Azure SQL, or Key Vault without any password, connection string, or client secret stored anywhere in code or config.</p>
+
+        <p>This is the correct pattern for all service-to-service authentication within Azure. The alternative — storing connection strings in pipeline configs, environment variables, or (worst of all) checked into source code — is one of the most common causes of credential exposure in data engineering projects.</p>
+
+        <h3 class="subsec">System-Assigned vs User-Assigned</h3>
+        <p><strong>System-assigned</strong>: tied to a single resource; deleted when the resource is deleted. Use when one service needs to authenticate to another and you don't need to share the identity. <strong>User-assigned</strong>: an independent identity resource that can be attached to multiple services. Use when several services (e.g. multiple ADF pipelines, multiple Functions) need the same set of permissions — manage one identity rather than many.</p>
+
+        <!-- C.4 -->
+        <div class="sec-head"><span class="sec-tag">C.4</span><h2 class="sec-title">Azure Key Vault — Secret Management</h2></div>
+
+        <p>Key Vault is the correct location for all secrets, connection strings, API keys, and certificates used by Azure data pipelines. The pattern is: pipeline authenticates to Key Vault via Managed Identity, retrieves the secret at runtime, uses it. The secret never appears in code, config files, logs, or environment variables. It is never stored locally. It can be rotated in Key Vault without any code change — the pipeline always fetches the current version.</p>
+
+        <h3 class="subsec">ADF + Key Vault Pattern</h3>
+        <p>In Azure Data Factory, linked services (connections to external systems) support Key Vault references directly in the connection string fields. The ADF Managed Identity needs the "Key Vault Secrets User" role on the vault. When the pipeline runs, ADF fetches the secret from Key Vault before initiating the connection. No human ever sees the credential in the pipeline configuration.</p>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Deep Dive — Private Endpoints and Network Isolation</strong>
+          </div>
+          <div class="dd-body">
+            <p>By default, Azure services are accessible over the public internet (though protected by authentication). For organisations handling regulated data, this is insufficient — the data must never traverse the public internet, even if the traffic is encrypted and authenticated.</p>
+            <p><strong>Private Endpoints</strong> solve this by giving an Azure resource (a Storage Account, SQL Server, Key Vault, etc.) a private IP address inside your Virtual Network (VNet). Traffic from your Databricks cluster or ADF integration runtime to that resource routes entirely over the Azure backbone and your private network — never over the public internet. The resource's public endpoint can be disabled entirely.</p>
+            <p><strong>VNet Integration</strong> for services like ADF and Databricks ensures that outbound traffic from these services also exits through your VNet rather than the public internet. Combined with Private Endpoints on the target services, this creates a fully private data plane.</p>
+            <p><strong>Service Endpoints</strong> are a lighter alternative that restricts a storage account or SQL server to accept traffic only from specified subnets. Easier to configure than Private Endpoints but does not provide a private IP — traffic still goes to the service's public IP (just from an allow-listed network).</p>
+            <p>In practice, enterprise Azure data platforms use Private Endpoints for storage accounts, Key Vault, Azure SQL, and Databricks workspace. The configuration is done by the platform/networking team, but data engineers need to understand the pattern because it affects connectivity: a pipeline that works in development (public access enabled) may fail in production (private endpoints, public access disabled) if the integration runtime is not on the approved VNet.</p>
+          </div>
+        </div>
+
+        <!-- C.5 -->
+        <div class="sec-head"><span class="sec-tag">C.5</span><h2 class="sec-title">Unity Catalog — Fine-Grained Data Access in Databricks</h2></div>
+
+        <p>Unity Catalog is Databricks' unified governance layer, providing centralised access control, data lineage, and auditing across all Databricks workspaces. For data engineers on the Azure Databricks stack, Unity Catalog is the mechanism for implementing column-level security, row-level security, and dynamic data masking — the controls that prevent analysts from reading raw PII while still allowing them to work with the data.</p>
+
+        <!-- Figure C.2 — Unity Catalog Hierarchy -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <text x="350" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">Unity Catalog Object Hierarchy &amp; Security Controls</text>
+
+              <!-- Metastore -->
+              <rect x="240" y="35" width="220" height="38" rx="6" fill="var(--accent)" opacity="0.15" stroke="var(--accent)" stroke-width="1.5"/>
+              <text x="350" y="52" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--heading)">Metastore</text>
+              <text x="350" y="67" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">One per Azure region — top-level container</text>
+
+              <!-- Catalog -->
+              <line x1="350" y1="73" x2="350" y2="93" stroke="var(--border)" stroke-width="1.2"/>
+              <rect x="255" y="93" width="190" height="34" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="350" y="108" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Catalog</text>
+              <text x="350" y="122" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">e.g. prod_catalog, dev_catalog</text>
+
+              <!-- Schema -->
+              <line x1="350" y1="127" x2="350" y2="147" stroke="var(--border)" stroke-width="1.2"/>
+              <rect x="255" y="147" width="190" height="34" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="350" y="162" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Schema (Database)</text>
+              <text x="350" y="176" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">e.g. bronze, silver, gold</text>
+
+              <!-- Table / View -->
+              <line x1="350" y1="181" x2="350" y2="201" stroke="var(--border)" stroke-width="1.2"/>
+              <rect x="255" y="201" width="190" height="34" rx="6" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1.5"/>
+              <text x="350" y="216" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">Table / View / Function</text>
+              <text x="350" y="230" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Finest granularity for permissions</text>
+
+              <!-- Security callouts -->
+              <rect x="20" y="155" width="210" height="78" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+              <text x="125" y="173" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">Column-Level Security</text>
+              <text x="125" y="188" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="var(--body-fg)">GRANT SELECT(region, revenue)</text>
+              <text x="125" y="201" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="var(--body-fg)">ON TABLE silver.orders TO analyst_role</text>
+              <text x="125" y="218" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="var(--muted-fg)">Analyst sees only permitted columns</text>
+              <line x1="235" y1="195" x2="253" y2="215" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,2"/>
+
+              <rect x="470" y="155" width="210" height="78" rx="6" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+              <text x="575" y="173" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">Dynamic Data Masking</text>
+              <text x="575" y="188" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="var(--body-fg)">email shown as: j***@e***.com</text>
+              <text x="575" y="201" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="var(--body-fg)">card as: ****-****-****-1234</text>
+              <text x="575" y="218" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" fill="var(--muted-fg)">Masking function defined once, applied by role</text>
+              <line x1="468" y1="195" x2="447" y2="215" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,2"/>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure C.2.</strong> Unity Catalog hierarchy and security controls. Permissions are granted at any level — catalog, schema, table, or column. Dynamic data masking applies masking functions at query time based on the caller's role, without modifying the underlying data.</div>
+        </div>
+
+        <h3 class="subsec">Row-Level Security (RLS)</h3>
+        <p>Row-level security restricts which rows a user can see based on their identity. In Unity Catalog, RLS is implemented using row filters — SQL functions applied to a table that evaluate the current user's group membership or attributes and filter rows accordingly. A regional sales analyst sees only the rows for their region; the filter is applied transparently at query time. They cannot circumvent it by writing different SQL.</p>
+
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6">-- Unity Catalog row filter example
+CREATE FUNCTION region_filter(region_col STRING)
+  RETURN IS_ACCOUNT_GROUP_MEMBER('emea_analysts') = (region_col = 'EMEA')
+      OR IS_ACCOUNT_GROUP_MEMBER('apac_analysts') = (region_col = 'APAC')
+      OR IS_ACCOUNT_GROUP_MEMBER('data_admins');  -- admins see all
+
+ALTER TABLE gold.sales_facts SET ROW FILTER region_filter ON (region);</pre>
+
+        <!-- C.6 -->
+        <div class="sec-head"><span class="sec-tag">C.6</span><h2 class="sec-title">Encryption — At Rest and In Transit</h2></div>
+
+        <p><strong>Encryption at rest</strong>: all Azure storage services (Blob, ADLS Gen2, Azure SQL, Cosmos DB) encrypt data at rest by default using Microsoft-managed keys. For organisations requiring customer control, Azure Storage encryption supports Customer-Managed Keys (CMK) via Key Vault. The data engineer's responsibility here is mainly: ensure CMK is configured where required by policy, ensure key rotation is automated, and ensure the Key Vault holding the CMK is backed up and access-controlled.</p>
+
+        <p><strong>Encryption in transit</strong>: all Azure service endpoints enforce HTTPS/TLS. Data engineers should ensure that: connection strings use encrypted protocols (not http:// for storage, not non-SSL database connections), Azure Storage accounts have "Secure transfer required" enabled (rejects HTTP), and any custom data movement code uses TLS explicitly rather than relying on defaults.</p>
+
+        <!-- C.7 -->
+        <div class="sec-head"><span class="sec-tag">C.7</span><h2 class="sec-title">GDPR and Data Residency Obligations</h2></div>
+
+        <p>GDPR (General Data Protection Regulation) imposes specific obligations on organisations processing personal data of EU residents. For data engineers, the most operationally relevant requirements are:</p>
+
+        <h3 class="subsec">Data Residency</h3>
+        <p>Personal data of EU residents must not be transferred outside the EU/EEA without adequate protection. In Azure terms: deploy storage and compute resources in EU Azure regions (West Europe, North Europe, Germany West Central, etc.). Ensure replication policies don't copy data to non-EU regions. Azure paired regions within the EU are acceptable; cross-region replication to the US is not, without additional contractual protections.</p>
+
+        <h3 class="subsec">Right to Erasure (Right to be Forgotten)</h3>
+        <p>Individuals can request deletion of their personal data. For data engineers, this means pipelines must be designed for erasure: identify all tables and Delta partitions containing data for a given individual, execute targeted deletes, and handle the consequences for downstream models that used that data. Delta Lake's <code>DELETE</code> command handles this at the table level; the challenge is identifying all locations where a person's data has propagated across a multi-layer platform.</p>
+
+        <h3 class="subsec">Data Minimisation and Retention</h3>
+        <p>Only collect and retain what is necessary for a stated purpose. In practice: implement retention policies (auto-delete raw PII after 90 days if no longer needed), avoid copying PII into analytics layers unless necessary (use pseudonymised keys instead), and document the purpose and retention period for each personal data element in your data catalog.</p>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Deep Dive — Security Reference: Key Azure Roles for Data Engineering</strong>
+          </div>
+          <div class="dd-body">
+            <div class="table-scroll"><table class="comp-table">
+              <thead><tr><th>Role</th><th>Scope</th><th>Grants</th><th>Typical Assignee</th></tr></thead>
+              <tbody>
+                <tr><td>Storage Blob Data Contributor</td><td>Storage Account / Container</td><td>Read, write, delete blobs</td><td>ADF Managed Identity, Databricks Managed Identity</td></tr>
+                <tr><td>Storage Blob Data Reader</td><td>Storage Account / Container</td><td>Read blobs only</td><td>Analysts, reporting services</td></tr>
+                <tr><td>Key Vault Secrets User</td><td>Key Vault</td><td>Read secret values</td><td>ADF MI, Function App MI, pipeline identities</td></tr>
+                <tr><td>Key Vault Secrets Officer</td><td>Key Vault</td><td>Create, update, delete secrets</td><td>DevOps pipelines, platform engineers</td></tr>
+                <tr><td>Contributor</td><td>Resource Group</td><td>Create and manage resources (not access control)</td><td>Data engineering team on dev RG</td></tr>
+                <tr><td>Reader</td><td>Subscription / RG</td><td>View resources, not modify</td><td>Auditors, stakeholders needing visibility</td></tr>
+              </tbody>
+            </table></div>
+            <p style="margin-top:0.8rem"><strong>Never assign Owner or Contributor at subscription scope</strong> to pipeline identities. Scope RBAC as narrowly as possible — prefer container-level Blob Data Contributor over storage-account-level, and resource-level Key Vault access over vault-level if possible.</p>
+          </div>
+        </div>
+
+        <div class="field-note">
+          <div class="fn-head">&#128203; Field Note — GDPR Erasure at a Retail Analytics Platform</div>
+          <p>A UK-based retail company received a surge of "right to be forgotten" requests following a high-profile news story about data retention practices. Their existing platform had no erasure capability — customer data existed in twelve Delta tables across bronze, silver, and gold layers, several dbt mart tables, a Databricks Feature Store, and historical snapshots in a secondary analytics database.</p>
+          <p>The data engineering team spent six weeks building an erasure pipeline: a parameterised Databricks job that accepted a customer_id, looked up all table locations from Unity Catalog lineage, executed targeted DELETEs, ran VACUUM to remove the physical files, and updated a compliance audit log. The critical design decision was not to cascade deletes automatically through all downstream tables — instead, the pipeline identified affected records and required explicit approval before deleting from Gold layer tables that fed live dashboards. This human gate prevented accidental destruction of data that the subject had not actually requested be deleted.</p>
+          <p>The lesson: build erasure capability into the platform from day one, not as a retrofit. The right time to design for the right to erasure is when you design your data model, not when a request arrives.</p>
+        </div>
+
+        <div class="mark-read-wrap">
+          <button class="mark-read-btn" onclick="markRead('C', this)">&#10003; Mark Appendix C as Read</button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="B-quick-reference-cards.html" class="sec-nav-btn prev">
+            <span class="sec-nav-label">Previous</span>
+            <span class="sec-nav-title">Appendix B &mdash; Quick Reference Cards</span>
+            <span class="sec-nav-arrow">&#8592;</span>
+          </a>
+          <a href="D-interview-prep.html" class="sec-nav-btn next">
+            <span class="sec-nav-label">Next</span>
+            <span class="sec-nav-title">Appendix D &mdash; Interview Preparation</span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Appendix &nbsp;&middot;&nbsp; Reference &amp; Resources</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">34</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Least Privilege First</div>
+          <p>Every user, service, and pipeline gets the minimum access needed to do its job. Scoped RBAC — container-level, not subscription-level — is the single most effective security practice you can apply to a data platform.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Managed Identity Always</div>
+          <p>For any service-to-service auth within Azure — ADF to ADLS, Databricks to Key Vault, Functions to SQL — use Managed Identity. No secrets to rotate, no credentials in config, no exposure risk. It costs nothing extra.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Design for Erasure Early</div>
+          <p>GDPR right-to-erasure is a data engineering problem. If you don't build erasure capability at design time, you will spend weeks retrofitting it later. Know which tables contain PII, how it propagates, and how to delete it cleanly.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Pattern</div>
+          <p>"How do you prevent analysts from reading raw payment card numbers?" Answer: Unity Catalog dynamic data masking on the column, role-based — analysts get masked values, DE admins get raw. No code change needed when access patterns change.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('C');</script>
+</body>
+</html>

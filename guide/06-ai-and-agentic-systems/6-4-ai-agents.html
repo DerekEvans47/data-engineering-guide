@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6.4 AI Agents &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="6.4">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Six &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="chap-num">6.4</div>
+          <h1 class="chap-title">AI Agents — Architecture, Frameworks, and Production Reality</h1>
+          <p class="chap-sub">How agents use tools and memory to act across multiple steps, the ReAct reasoning loop, framework options from LangChain to bare metal, guardrails that keep them safe, and the observability you need before trusting them in production</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain what distinguishes an AI agent from a single-turn LLM call, and describe the observe-think-act loop</li>
+            <li>Describe the ReAct (Reason + Act) pattern and why interleaving reasoning with tool use outperforms chain-of-thought alone</li>
+            <li>Explain function calling / tool use at the API level, and describe how the LLM and host system share control</li>
+            <li>Compare memory architectures: in-context, external (vector/key-value), episodic, and procedural</li>
+            <li>Distinguish single-agent from multi-agent systems, and describe orchestrator-worker and peer architectures</li>
+            <li>Compare agentic frameworks (LangChain, LlamaIndex, AutoGen, CrewAI, bare-metal) on abstraction level, flexibility, and production suitability</li>
+            <li>List at least four guardrail categories and explain why observability for agents differs from observability for APIs</li>
+          </ol>
+        </div>
+
+        <!-- 6.4.1 -->
+        <div class="sec-head"><span class="sec-tag">6.4.1</span><h2 class="sec-title">What Makes Something an Agent?</h2></div>
+
+        <p>A single call to an <span data-term="LLM">LLM</span> is not an agent. It is a function: you send text in, you get text out. The call is stateless, single-step, and side-effect-free. This is enormously useful, but it has a hard ceiling: the model can reason about what should be done but cannot actually do anything.</p>
+
+        <p>An agent is a system in which the LLM is embedded in a loop — observe the environment, reason about what to do next, act by calling a tool, observe the result, reason again, repeat until the task is complete or a stopping condition is reached. The key word is <em>loop</em>. An agent operates across multiple reasoning and action steps, with the output of each step feeding into the next.</p>
+
+        <div class="hl-block">The minimal definition of an agent: an LLM that can call tools and use the results to inform further reasoning. Everything else — memory systems, multi-agent coordination, planning horizons — is built on that foundation.</div>
+
+        <p>This changes the engineering problem substantially. With a single LLM call, you reason about a prompt and an output. With an agent, you reason about a trajectory: a sequence of actions and observations that may branch, backtrack, or run for dozens of steps. The scope for failure is correspondingly larger. Agents can take irreversible actions, consume significant compute by looping, hallucinate tool calls that don't exist, or get stuck in unproductive reasoning cycles. The power and the risk scale together.</p>
+
+        <p class="hmm-moment">&#x1F4AD; <em>Hmm moment:</em> A useful mental model is the difference between asking a colleague a question versus delegating a task. A question expects a single answer. A delegation expects the person to figure out the steps, handle surprises, and come back with a result — possibly after going back and forth with other people or systems. Agents are the delegation model.</p>
+
+        <!-- 6.4.2 -->
+        <div class="sec-head"><span class="sec-tag">6.4.2</span><h2 class="sec-title">The ReAct Loop — Reasoning + Acting</h2></div>
+
+        <p>The dominant pattern for single-agent reasoning is <strong>ReAct</strong> (Reason + Act), introduced in a 2022 paper from Princeton and Google Brain. The insight is that interleaving reasoning traces with tool calls produces substantially better results than either chain-of-thought (reasoning alone) or plain tool use (acting without visible reasoning).</p>
+
+        <h3 class="subsec">The ReAct Cycle</h3>
+        <p>In each cycle the agent produces a <strong>Thought</strong> — a private reasoning trace about what the current state is and what to do next — followed by an <strong>Action</strong> — a specific tool call with parameters — then receives an <strong>Observation</strong> — the tool's return value — which feeds the next Thought. This continues until the agent decides to produce a final Answer.</p>
+
+        <!-- Figure 6.7 — ReAct Loop Diagram -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <marker id="arr74" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="var(--accent)"/>
+                </marker>
+                <marker id="arrgray74" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L0,6 L8,3 z" fill="var(--muted-fg)"/>
+                </marker>
+              </defs>
+              <!-- Title -->
+              <text x="350" y="24" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">The ReAct Agent Loop</text>
+
+              <!-- Nodes -->
+              <!-- OBSERVE -->
+              <rect x="30" y="100" width="110" height="52" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="85" y="121" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--accent)">OBSERVE</text>
+              <text x="85" y="138" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Tool result / env state</text>
+
+              <!-- THINK -->
+              <rect x="195" y="100" width="110" height="52" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="250" y="121" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--accent)">THINK</text>
+              <text x="250" y="138" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Reasoning trace (Thought)</text>
+
+              <!-- ACT -->
+              <rect x="360" y="100" width="110" height="52" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="415" y="121" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--accent)">ACT</text>
+              <text x="415" y="138" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Tool call with params</text>
+
+              <!-- TOOLS -->
+              <rect x="525" y="100" width="130" height="52" rx="8" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1.5"/>
+              <text x="590" y="121" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--heading)">TOOLS</text>
+              <text x="590" y="138" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">search · sql · api · code</text>
+
+              <!-- Arrows: OBSERVE → THINK → ACT → TOOLS -->
+              <line x1="140" y1="126" x2="190" y2="126" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arr74)"/>
+              <line x1="305" y1="126" x2="355" y2="126" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arr74)"/>
+              <line x1="470" y1="126" x2="520" y2="126" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arr74)"/>
+
+              <!-- TOOLS → back down and left to OBSERVE (feedback arc) -->
+              <path d="M590,152 L590,210 L85,210 L85,155" stroke="var(--muted-fg)" stroke-width="1.5" stroke-dasharray="5,3" fill="none" marker-end="url(#arrgray74)"/>
+              <text x="340" y="228" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">Observation returned to context window</text>
+
+              <!-- ANSWER branch from THINK -->
+              <rect x="195" y="40" width="110" height="38" rx="8" fill="var(--success-bg,#e8f5e9)" stroke="var(--success,#388e3c)" stroke-width="1.5"/>
+              <text x="250" y="57" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--success,#388e3c)">ANSWER</text>
+              <text x="250" y="71" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Final response to user</text>
+              <line x1="250" y1="100" x2="250" y2="80" stroke="var(--success,#388e3c)" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr74)"/>
+              <text x="270" y="93" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">task done?</text>
+
+              <!-- Context Window label -->
+              <rect x="20" y="250" width="670" height="22" rx="4" fill="var(--surface)" stroke="var(--border)" stroke-width="1"/>
+              <text x="355" y="265" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--muted-fg)">Context window accumulates: system prompt + all prior Thoughts + Actions + Observations</text>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure 6.7.</strong> The ReAct loop. Each cycle appends a Thought, Action, and Observation to the context window. The loop exits when the model decides to emit a final Answer rather than another tool call.</div>
+        </div>
+
+        <p>The reasoning traces are visible to developers (via logging) and improve reliability by giving the model a scratchpad to plan before committing to an action. They also make debugging tractable: if an agent makes the wrong tool call, the Thought trace usually reveals exactly why the model was confused.</p>
+
+        <!-- 6.4.3 -->
+        <div class="sec-head"><span class="sec-tag">6.4.3</span><h2 class="sec-title">Function Calling — How Tools Work at the API Level</h2></div>
+
+        <p><span data-term="Function Calling">Function calling</span> (also called <em>tool use</em>) is the mechanism by which an LLM signals its intent to invoke an external function. The host application defines a set of tools — each with a name, description, and JSON schema for its parameters — and passes them to the model at call time. If the model decides a tool is needed, instead of generating prose it generates a structured tool-call object: <code>{"name": "search_documents", "arguments": {"query": "Q3 revenue"}}</code>. The application intercepts this, executes the real function, and returns the result back to the model for the next step.</p>
+
+        <p>This creates a clean division of responsibility. The LLM decides <em>which</em> tool to call and <em>what arguments</em> to pass — pure reasoning. The host application handles <em>execution</em> and <em>authorization</em>. The model never directly touches a database, API, or file system; it only produces structured intent, and your code carries that intent out.</p>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Deep Dive — Tool Schema Design for Reliable Agents</strong>
+          </div>
+          <div class="dd-body">
+            <p>Poor tool schemas are one of the most common causes of agentic failure. Models choose tools based on their descriptions and call them based on parameter schemas. Every gap in the schema is an opportunity for the model to hallucinate.</p>
+            <p><strong>Write descriptions as if briefing a junior colleague.</strong> The description for a <code>run_sql_query</code> tool should not just say "runs SQL". It should say: "Execute a read-only SELECT query against the data warehouse. Returns up to 1000 rows. Do NOT use for INSERT, UPDATE, or DELETE operations. The database dialect is Spark SQL." The specificity prevents misuse.</p>
+            <p><strong>Use enums aggressively.</strong> If a parameter can only take a finite set of values, enumerate them in the schema. A <code>format</code> parameter that accepts <code>["csv", "json", "markdown"]</code> will never hallucinate <code>"excel"</code>. An open string field will.</p>
+            <p><strong>Document error modes.</strong> Tell the model what errors the tool can return and what they mean. If a search returns empty results it means the query found nothing — not that the data doesn't exist. This prevents the model from concluding "no data" when the real issue is a bad query.</p>
+            <p><strong>Limit tool sets per agent.</strong> An agent with 40 tools has high cognitive overhead — the model must scan through 40 descriptions before choosing. Prefer specialized agents with 5–10 tightly relevant tools over a generalist agent with a massive tool belt. Route tasks to the right specialized agent at the orchestration layer.</p>
+          </div>
+        </div>
+
+        <!-- 6.4.4 -->
+        <div class="sec-head"><span class="sec-tag">6.4.4</span><h2 class="sec-title">Memory Architectures</h2></div>
+
+        <p>An agent's ability to maintain context over time depends on its memory architecture. There are four categories, and production systems typically combine several.</p>
+
+        <h3 class="subsec">In-Context Memory</h3>
+        <p>The simplest form: everything the agent has seen in the current session is accumulated in the context window. Observations, prior tool calls, user messages — all in-context. This is zero-infrastructure but has a hard ceiling: context windows, even large ones (128k–1M tokens), are finite, and longer contexts increase latency and cost. For tasks that run beyond ~100 turns, in-context memory alone is not enough.</p>
+
+        <h3 class="subsec">External Memory (Vector / Key-Value)</h3>
+        <p>The agent writes summaries or facts to an external store and retrieves them by semantic search or key lookup. This is exactly the RAG retrieval pattern applied to the agent's own history. It scales to arbitrarily long task histories but requires infrastructure (a vector database or key-value store) and introduces retrieval latency and potential retrieval failure. <span data-term="Embedding">Embeddings</span> from prior sessions are stored and retrieved as needed.</p>
+
+        <h3 class="subsec">Episodic Memory</h3>
+        <p>Structured records of past episodes — completed tasks, decisions made, outcomes achieved. Different from raw vector memory in that episodes are semantically organized and often summarized. An agent that handled a similar request last week can retrieve that episode, see how it resolved, and apply the same pattern. Useful for customer-facing agents that interact with the same users repeatedly.</p>
+
+        <h3 class="subsec">Procedural Memory (Learned Rules)</h3>
+        <p>Encoded patterns that update the agent's behavior across sessions — either as fine-tuned weights, system prompt updates, or structured rule stores. The agent learns that certain tool call patterns fail in certain contexts, and its default behavior adjusts. This is the hardest to implement robustly and risks introducing drift or instability if the update mechanism is poorly designed.</p>
+
+        <!-- Figure 6.8 — Memory Architecture Comparison -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <text x="350" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">Agent Memory Architecture Comparison</text>
+              <!-- Headers -->
+              <rect x="20" y="35" width="660" height="26" rx="4" fill="var(--accent)" opacity="0.12"/>
+              <text x="110" y="52" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">TYPE</text>
+              <text x="240" y="52" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">SCOPE</text>
+              <text x="360" y="52" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">INFRA NEEDED</text>
+              <text x="490" y="52" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">BEST FOR</text>
+              <text x="625" y="52" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="700" fill="var(--heading)">LIMIT</text>
+              <!-- Rows -->
+              <line x1="20" y1="61" x2="680" y2="61" stroke="var(--border)" stroke-width="1"/>
+              <!-- Row 1 -->
+              <text x="110" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">In-Context</text>
+              <text x="240" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Current session</text>
+              <text x="360" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">None</text>
+              <text x="490" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Short tasks, prototyping</text>
+              <text x="625" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--muted-fg)">Context window size</text>
+              <line x1="20" y1="87" x2="680" y2="87" stroke="var(--border)" stroke-width="0.5"/>
+              <!-- Row 2 -->
+              <text x="110" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">External Vector</text>
+              <text x="240" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Unlimited history</text>
+              <text x="360" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Vector DB</text>
+              <text x="490" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Long-running tasks</text>
+              <text x="625" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--muted-fg)">Retrieval failures</text>
+              <line x1="20" y1="113" x2="680" y2="113" stroke="var(--border)" stroke-width="0.5"/>
+              <!-- Row 3 -->
+              <text x="110" y="130" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Episodic</text>
+              <text x="240" y="130" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Cross-session</text>
+              <text x="360" y="130" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Structured store</text>
+              <text x="490" y="130" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Repeat-user agents</text>
+              <text x="625" y="130" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--muted-fg)">Episode quality</text>
+              <line x1="20" y1="139" x2="680" y2="139" stroke="var(--border)" stroke-width="0.5"/>
+              <!-- Row 4 -->
+              <text x="110" y="156" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Procedural</text>
+              <text x="240" y="156" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Persistent behavior</text>
+              <text x="360" y="156" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Fine-tune / rules</text>
+              <text x="490" y="156" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--body-fg)">Stable recurring tasks</text>
+              <text x="625" y="156" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="var(--muted-fg)">Drift risk, cost</text>
+              <line x1="20" y1="165" x2="680" y2="165" stroke="var(--border)" stroke-width="1"/>
+              <!-- Column dividers -->
+              <line x1="160" y1="35" x2="160" y2="165" stroke="var(--border)" stroke-width="0.5"/>
+              <line x1="300" y1="35" x2="300" y2="165" stroke="var(--border)" stroke-width="0.5"/>
+              <line x1="420" y1="35" x2="420" y2="165" stroke="var(--border)" stroke-width="0.5"/>
+              <line x1="560" y1="35" x2="560" y2="165" stroke="var(--border)" stroke-width="0.5"/>
+
+              <text x="350" y="195" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-style="italic" fill="var(--muted-fg)">Production agents typically combine in-context memory with external vector or episodic stores.</text>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure 6.8.</strong> The four agent memory architectures. In-context memory is free but bounded; external stores are unbounded but require infrastructure and introduce retrieval as a failure mode.</div>
+        </div>
+
+        <!-- 6.4.5 -->
+        <div class="sec-head"><span class="sec-tag">6.4.5</span><h2 class="sec-title">Multi-Agent Systems</h2></div>
+
+        <p>Single agents hit a ceiling: context windows fill, task complexity exceeds what one reasoning chain can manage reliably, and generalist agents with too many tools become unreliable. Multi-agent architectures address this by decomposing a complex task into subtasks handled by specialized agents coordinated by an orchestrator.</p>
+
+        <h3 class="subsec">Orchestrator-Worker Pattern</h3>
+        <p>An orchestrator agent receives the high-level goal, decomposes it into subtasks, routes each subtask to a specialized worker agent, collects the results, and synthesizes the final output. Workers are narrow specialists: a SQL agent, a document retrieval agent, a code execution agent, a summarization agent. Each has a focused tool set and a focused system prompt. The orchestrator does not need to know how to write SQL — it needs to know when to call the SQL agent.</p>
+
+        <h3 class="subsec">Peer / Debate Architecture</h3>
+        <p>Multiple agents of similar capability engage with the same problem from different angles and critique each other's outputs. A drafting agent proposes an answer; a review agent critiques it; the drafting agent revises. This is particularly effective for tasks where correctness matters more than speed — code generation, contract review, data quality rule definition — because the critique step catches errors the first agent missed.</p>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Deep Dive — Framework Comparison: LangChain, LlamaIndex, AutoGen, CrewAI, Bare Metal</strong>
+          </div>
+          <div class="dd-body">
+            <p>The agentic framework landscape is crowded and evolving fast. This comparison reflects the state as of mid-2026.</p>
+            <div class="table-scroll"><table class="comp-table">
+              <thead><tr><th>Framework</th><th>Abstraction Level</th><th>Strengths</th><th>Weaknesses</th><th>Best For</th></tr></thead>
+              <tbody>
+                <tr><td><strong>LangChain</strong></td><td>High</td><td>Huge ecosystem, many integrations, active community, LCEL chain syntax</td><td>Overabstracted internals, debugging is hard, fast-moving API surface, can obscure what's actually happening</td><td>Rapid prototyping, teams that want off-the-shelf connectors</td></tr>
+                <tr><td><strong>LlamaIndex</strong></td><td>Medium-High</td><td>Best-in-class RAG abstractions, excellent document parsing, strong query engine</td><td>Less suitable for pure agent loops; weaker multi-agent story than LangChain</td><td>RAG-heavy agents, knowledge bases, document Q&amp;A pipelines</td></tr>
+                <tr><td><strong>AutoGen</strong></td><td>Medium</td><td>Multi-agent conversation architecture, strong for agent-to-agent dialogue, Microsoft Research backing</td><td>Conversation-centric model doesn't fit all use cases; runtime overhead</td><td>Multi-agent debate, review loops, code generation with human-in-the-loop</td></tr>
+                <tr><td><strong>CrewAI</strong></td><td>Medium-High</td><td>Role-based agent assignment, task dependency graphs, readable configuration</td><td>Younger project, smaller community, less battle-tested at scale</td><td>Structured workflows with defined roles (researcher, writer, reviewer)</td></tr>
+                <tr><td><strong>Bare Metal</strong></td><td>Low</td><td>Full control, no hidden behavior, easiest to debug, production-stable</td><td>You build everything: tool routing, memory, retry logic, state management</td><td>Production systems where reliability and debuggability are paramount</td></tr>
+              </tbody>
+            </table></div>
+            <p style="margin-top:0.8rem">A common trajectory: prototype in LangChain or LlamaIndex to validate the use case, then rewrite the production system in bare-metal Python against the model provider's API directly. The framework gets you to "it works on my laptop" quickly; bare metal gets you to "it works reliably at 2am" with less friction.</p>
+          </div>
+        </div>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="fn-head">&#128203; Field Note — Customer Service Agent, Retail Banking</div>
+          <p>A large retail bank deployed an orchestrator-worker agent system to handle first-tier customer inquiries. The orchestrator classified intent (balance inquiry, transaction dispute, product question, fraud report) and routed to a specialist: a read-only banking data agent for account queries, a RAG agent backed by product documentation for product questions, and a human escalation agent for anything involving money movement or fraud.</p>
+          <p>The read-only constraint on the banking data agent was the key safety mechanism. The agent could see account information but had no tools capable of initiating transactions, approvals, or data changes. All consequential actions required human review. This architectural boundary — not just a prompt instruction — ensured the system could not take harmful actions even if the LLM was tricked or confused.</p>
+          <p>After six months, first-contact resolution on eligible inquiries improved from 62% to 81%. The remaining 19% were escalated to human agents with a pre-populated context summary, which reduced average handle time on escalated calls by 34%.</p>
+        </div>
+
+        <!-- 6.4.6 -->
+        <div class="sec-head"><span class="sec-tag">6.4.6</span><h2 class="sec-title">Guardrails and Safety Architecture</h2></div>
+
+        <p>Agents that can take actions can take the wrong actions. A guardrail system is not optional in production — it is a first-class component of the architecture. The categories to address are:</p>
+
+        <h3 class="subsec">Input Guardrails</h3>
+        <p>Screen the user's request before the agent processes it. Categories include prompt injection detection (is the user trying to override the system prompt?), PII (personally identifiable information) redaction before the text hits the LLM, jailbreak classification, and topic scope enforcement (the agent only handles X; anything outside X is declined before processing).</p>
+
+        <h3 class="subsec">Output Guardrails</h3>
+        <p>Screen the agent's final response before it reaches the user. Content moderation classifiers, PII checks in the output, factual consistency checks (does the output contradict retrieved documents?), and citation verification for RAG-backed answers.</p>
+
+        <h3 class="subsec">Tool-Level Authorization</h3>
+        <p>The most important guardrail is structural: only give agents tools they are authorized to use. An agent that handles customer questions about product pricing should not have a tool that modifies pricing data. Authorization at the tool-definition layer is more reliable than instructions in the system prompt, because instructions can be overridden by adversarial input; a missing tool cannot.</p>
+
+        <h3 class="subsec">Human-in-the-Loop Gates</h3>
+        <p>For high-consequence actions — sending emails to customers, modifying production data, initiating financial transactions — the agent should not act autonomously. Instead it presents its proposed action to a human for approval and waits for explicit confirmation. The gate can be asynchronous (the agent pauses and resumes after approval) or synchronous (a human reviews and clicks confirm before the tool call executes).</p>
+
+        <div class="deep-dive">
+          <div class="dd-head" onclick="this.parentElement.classList.toggle('open')">
+            <span class="dd-icon">&#9654;</span>
+            <strong>Deep Dive — Observability for Agents: Traces, Spans, and LLM-Specific Metrics</strong>
+          </div>
+          <div class="dd-body">
+            <p>Standard application observability tracks latency, error rate, and throughput. Agent observability needs all of that plus a new dimension: <em>trace-level visibility into multi-step reasoning sequences</em>.</p>
+            <p><strong>Traces and spans.</strong> Every agent run is a trace. Every tool call within the run is a span. You need to see the full sequence: Thought → Action → Observation for every cycle, with timestamps, token counts, latency per tool, and whether the run completed or timed out. OpenTelemetry (OTel) is the standard transport; frameworks like LangSmith, Langfuse, Phoenix (Arize), and Azure AI Foundry all export OTel-compatible traces.</p>
+            <p><strong>LLM-specific metrics to track:</strong>
+              <ul style="margin:0.4rem 0 0 1.2rem">
+                <li><em>Token consumption per run</em> — agents with feedback loops can consume orders of magnitude more tokens than a single call. Budget tracking is essential.</li>
+                <li><em>Tool call success rate</em> — what % of tool invocations return valid results vs errors? A falling success rate often indicates schema drift (the tool changed, the schema didn't).</li>
+                <li><em>Loop count distribution</em> — how many reasoning cycles does a typical run take? A fat tail with many high-loop runs signals tasks the agent cannot reliably resolve and should be escalated.</li>
+                <li><em>Hallucinated tool calls</em> — calls to tool names that don't exist in the tool set. A non-zero rate means the model is confusing tool names; fix with better schema descriptions or narrower tool sets.</li>
+                <li><em>Human escalation rate</em> — what % of tasks are being routed to human-in-the-loop review? Rising rates indicate expanding scope beyond the agent's reliable envelope.</li>
+              </ul>
+            </p>
+            <p><strong>Production tooling (mid-2026):</strong> LangSmith and Langfuse are the dominant open-source/SaaS options for trace storage and visualization. Arize Phoenix provides evaluation-focused analytics. Azure AI Foundry includes native tracing for agents built on Azure OpenAI. All of these can ingest OTel spans from custom agents built outside any framework.</p>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="fn-head">&#128203; Field Note — Data Quality Monitoring Agent, E-Commerce Platform</div>
+          <p>A large e-commerce company replaced a rule-based data quality monitoring system with an agent-based system capable of investigating anomalies rather than merely flagging them. When a metric breached a threshold, the agent had access to tools for querying the data warehouse, inspecting pipeline run logs, checking upstream source system APIs, and searching a Confluence-backed knowledge base of known data issues.</p>
+          <p>The agent's task on each alert was: determine whether the anomaly is a true data quality issue or an expected business event (e.g. a promotion causing a volume spike). For genuine issues, identify the probable root cause from pipeline logs and upstream source data. Draft a Slack summary with root-cause hypothesis and proposed remediation steps for the on-call engineer.</p>
+          <p>The engineering team deliberately kept the agent out of the remediation loop — it could investigate and recommend but not execute pipeline reruns, schema changes, or incident tickets. This was a design choice, not a capability limit. The investigating agent reduced mean time to root cause from 47 minutes to 8 minutes on the anomaly classes within its scope, while the on-call engineer retained decision authority on all remediations.</p>
+        </div>
+
+        <!-- Quiz -->
+        <div class="quiz-block" id="quiz-6-4">
+          <div class="quiz-head">&#9998; Section 6.4 — Check Your Understanding</div>
+          <div class="quiz-intro">Five questions. Answers and explanations are revealed after you submit.</div>
+
+          <div class="q-item" data-q="0">
+            <div class="q-text">1. What is the defining characteristic that makes a system an "agent" rather than a simple LLM call?</div>
+            <div class="q-opts">
+              <label><input type="radio" name="q6_4_0" value="0"> It uses a larger language model with more parameters</label>
+              <label><input type="radio" name="q6_4_0" value="1"> It can operate across multiple reasoning and action steps with tool use in a loop</label>
+              <label><input type="radio" name="q6_4_0" value="2"> It stores information in a vector database between calls</label>
+              <label><input type="radio" name="q6_4_0" value="3"> It runs on a dedicated inference server rather than an API endpoint</label>
+            </div>
+            <div class="q-exp" data-correct="1">An agent is defined by the loop: the LLM observes state, reasons, calls a tool, observes the result, and iterates. A larger model or a vector database are optional enhancements; the loop is the defining feature.</div>
+          </div>
+
+          <div class="q-item" data-q="1">
+            <div class="q-text">2. In the ReAct pattern, what is the role of the "Thought" step, and why does it improve reliability?</div>
+            <div class="q-opts">
+              <label><input type="radio" name="q6_4_1" value="0"> It reduces token usage by summarizing previous observations before the next action</label>
+              <label><input type="radio" name="q6_4_1" value="1"> It is a private reasoning trace that lets the model plan before committing to a tool call, making failures debuggable</label>
+              <label><input type="radio" name="q6_4_1" value="2"> It sends a confirmation request to the user before each tool invocation</label>
+              <label><input type="radio" name="q6_4_1" value="3"> It is the user-visible explanation of what the agent is doing</label>
+            </div>
+            <div class="q-exp" data-correct="1">The Thought is a scratchpad the model uses to reason through the situation before deciding on an action. Interleaving reasoning with tool calls outperforms acting without visible reasoning. It also makes debugging tractable — the Thought trace reveals why the model chose an action.</div>
+          </div>
+
+          <div class="q-item" data-q="2">
+            <div class="q-text">3. In function calling architecture, who is responsible for executing the tool, and what does the model produce?</div>
+            <div class="q-opts">
+              <label><input type="radio" name="q6_4_2" value="0"> The model executes the tool directly via an internal code interpreter</label>
+              <label><input type="radio" name="q6_4_2" value="1"> The model produces a structured intent object; the host application executes the actual function and returns the result</label>
+              <label><input type="radio" name="q6_4_2" value="2"> A separate orchestrator LLM executes tools on behalf of the reasoning LLM</label>
+              <label><input type="radio" name="q6_4_2" value="3"> The user manually triggers each tool call based on the model's text suggestion</label>
+            </div>
+            <div class="q-exp" data-correct="1">The model never directly touches external systems. It produces a structured tool-call object (name + arguments); the host application intercepts this, runs the real function, and feeds the result back to the model. Authorization and execution live in application code, not in the model.</div>
+          </div>
+
+          <div class="q-item" data-q="3">
+            <div class="q-text">4. A team is building a customer support agent that will interact with the same users repeatedly across many sessions. Which memory architecture should they prioritize adding beyond in-context memory?</div>
+            <div class="q-opts">
+              <label><input type="radio" name="q6_4_3" value="0"> Procedural memory via fine-tuning, to bake user preferences into the model weights</label>
+              <label><input type="radio" name="q6_4_3" value="1"> Episodic memory, storing structured records of past interactions per user for retrieval in future sessions</label>
+              <label><input type="radio" name="q6_4_3" value="2"> In-context memory is sufficient if the context window is large enough</label>
+              <label><input type="radio" name="q6_4_3" value="3"> External vector memory of technical documentation is the highest priority</label>
+            </div>
+            <div class="q-exp" data-correct="1">For repeat-user agents, episodic memory — structured records of past sessions — allows the agent to personalize based on prior interactions. In-context memory cannot persist across session boundaries. Fine-tuning bakes averages across all users into weights, not per-user history.</div>
+          </div>
+
+          <div class="q-item" data-q="4">
+            <div class="q-text">5. A team is building an agent that will access production financial data. Which of the following is the most robust safety mechanism?</div>
+            <div class="q-opts">
+              <label><input type="radio" name="q6_4_4" value="0"> Adding "never modify data" to the system prompt</label>
+              <label><input type="radio" name="q6_4_4" value="1"> Including a confirmation message in the tool response that asks the model to double-check</label>
+              <label><input type="radio" name="q6_4_4" value="2"> Only providing the agent with read-only tools; no data-modifying tools exist in its tool set</label>
+              <label><input type="radio" name="q6_4_4" value="3"> Logging all tool calls so violations can be reviewed after the fact</label>
+            </div>
+            <div class="q-exp" data-correct="2">Structural constraints — the absence of harmful tools — are more reliable than instructions. System prompt instructions can be overridden by adversarial input or ignored under certain conditions. A tool that doesn't exist cannot be called. Logging catches violations after harm; structural limits prevent them.</div>
+          </div>
+
+          <button class="quiz-submit" onclick="submitQuiz('quiz-6-4', this)">Submit Answers</button>
+        </div>
+
+        <div class="mark-read-wrap">
+          <button class="mark-read-btn" onclick="markRead('6.4', this)">&#10003; Mark Section 6.4 as Read</button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="6-3-rag.html" class="sec-nav-btn prev">
+            <span class="sec-nav-label">Previous</span>
+            <span class="sec-nav-title">6.3 &mdash; RAG</span>
+            <span class="sec-nav-arrow">&#8592;</span>
+          </a>
+          <a href="6-5-agentic-data-pipelines.html" class="sec-nav-btn next">
+            <span class="sec-nav-label">Next</span>
+            <span class="sec-nav-title">6.5 &mdash; Agentic Data Pipelines</span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 6 &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">30</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Agent = LLM in a Loop</div>
+          <p>The minimal definition: an LLM that can call tools and use the results to inform further reasoning. The loop — observe, think, act — is what separates an agent from a function.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Fewer Tools = More Reliable</div>
+          <p>Agents with 5–10 tightly relevant tools outperform generalist agents with 40. The model must scan all tool descriptions before choosing; a smaller, cleaner set reduces confusion and hallucinated calls.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Prompts ≠ Guardrails</div>
+          <p>"Never modify data" in a system prompt is not a guardrail — it's a suggestion an adversarial input can override. The only reliable constraint is a tool set that contains no data-modifying tools.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Framework Reality</div>
+          <p>A common trajectory: prototype in LangChain to validate the use case, then rewrite the production system in bare-metal Python against the model API. Frameworks get you to "works on my laptop" quickly; bare metal gets you to "works at 2am" with less friction.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('6.4');</script>
+</body>
+</html>

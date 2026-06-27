@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3.4 Apache Spark &amp; Databricks · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="3.4">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+        <header class="chap-header">
+          <div class="part-tag">Part Three &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="chap-num">3.4</div>
+          <h1 class="chap-title">Apache Spark &amp; Databricks</h1>
+          <p class="chap-sub">The distributed compute platform at the heart of the Azure data stack &mdash; architecture, governance, and cost strategy</p>
+        </header>
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain Spark's architecture: Driver, Executors, Cluster Manager, and the DAG execution model</li>
+            <li>Describe how Databricks extends Spark with Photon, Unity Catalog, Auto Loader, and Asset Bundles</li>
+            <li>Choose the right cluster type and cost strategy for different workload patterns</li>
+            <li>Explain Unity Catalog's three-level namespace and what it governs</li>
+            <li>Compare Databricks to Synapse Analytics, Snowflake, and BigQuery across key dimensions</li>
+          </ol>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.4.1</span><h2 class="sec-title">What Spark Is and Why It Exists</h2></div>
+
+        <p>Apache Spark is an open-source, distributed data processing engine. It splits a dataset into partitions and processes those partitions in parallel across a cluster of machines &mdash; each machine running a Spark process called an Executor. This is how Spark processes terabytes of data in minutes rather than hours: not by having one extremely fast processor, but by having hundreds of ordinary processors working on different pieces of the data simultaneously.</p>
+        <p>Spark emerged from academic research at UC Berkeley in 2009 as a faster alternative to Hadoop MapReduce. Where Hadoop wrote intermediate results to disk between every processing stage, Spark keeps data in memory across stages, dramatically reducing the I/O overhead of multi-step pipelines. Today, Spark is the dominant distributed compute engine for data engineering workloads on all three major cloud platforms.</p>
+        <div class="hl-block">The single most important thing to understand about Spark: it is lazy. When you write a transformation (a filter, a join, a window function), Spark does not execute it. It records the transformation in a directed acyclic graph (DAG) of planned operations. When you trigger an action (writing to a file, calling .count(), displaying results), Spark executes the entire DAG at once &mdash; optimised as a whole, not step by step. This lazy evaluation is the source of both Spark's performance and its most common debugging confusion.</div>
+
+        <div class="sec-head"><span class="sec-tag">3.4.2</span><h2 class="sec-title">Spark Architecture: Driver, Executors, and the DAG</h2></div>
+
+        <p>Every Spark application has a <strong>Driver</strong> &mdash; the process that coordinates the work. The Driver runs the main program, builds the DAG, divides it into stages and tasks, and distributes those tasks to the <strong>Executors</strong>. Executors are JVM processes that run on worker nodes in the cluster. Each Executor has a fixed number of CPU cores and a fixed amount of memory. Tasks run on cores; data is stored in Executor memory. If data exceeds Executor memory, Spark spills to disk &mdash; a significant performance penalty.</p>
+        <p>The <strong>Cluster Manager</strong> allocates resources: it provisions worker nodes, manages their lifecycle, and communicates resource availability to the Driver. On Databricks, the Cluster Manager is the Databricks control plane &mdash; you do not interact with it directly. On AWS, it may be Apache YARN or Kubernetes.</p>
+        <p>When the Driver executes a DAG, it divides it into <strong>stages</strong>. Stage boundaries occur where data must be redistributed across Executors &mdash; a <strong>shuffle</strong>. Within a stage, tasks run in parallel across Executors. Between stages, all Executors must complete their current stage before the next begins. Shuffle is the most expensive Spark operation and the most important to minimise.</p>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body"><svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs><filter id="fs37"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.15)"/></filter>
+  <linearGradient id="g37d" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0076CC"/><stop offset="100%" stop-color="#0050AA"/></linearGradient>
+  <linearGradient id="g37e" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1B3A6B"/><stop offset="100%" stop-color="#0F2447"/></linearGradient>
+  <marker id="ma37" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#0076CC"/></marker>
+  <marker id="ma37r" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#C8892A"/></marker></defs>
+  <rect width="700" height="280" fill="#F4F6FB" rx="6"/>
+  <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">Apache Spark Architecture</text>
+  <!-- Driver -->
+  <rect x="250" y="32" width="200" height="78" rx="7" fill="url(#g37d)" filter="url(#fs37)"/>
+  <text x="350" y="52" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="9" font-weight="700" letter-spacing="1.5" text-anchor="middle">DRIVER</text>
+  <text x="350" y="67" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="600" text-anchor="middle">Your Code Runs Here</text>
+  <text x="350" y="82" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Builds the DAG · Divides into tasks</text>
+  <text x="350" y="96" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Sends tasks to Executors</text>
+  <!-- ADLS -->
+  <rect x="550" y="32" width="136" height="78" rx="7" fill="#0F2447" filter="url(#fs37)"/>
+  <text x="618" y="58" fill="#88BEFF" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">ADLS / DELTA</text>
+  <text x="618" y="74" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Data stored here</text>
+  <text x="618" y="87" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Executors read/write</text>
+  <line x1="450" y1="71" x2="546" y2="71" stroke="#C8892A" stroke-width="1.5" marker-end="url(#ma37r)" stroke-dasharray="5,3"/>
+  <!-- Arrows: Driver to Executors -->
+  <line x1="350" y1="110" x2="350" y2="126" stroke="#0076CC" stroke-width="2" marker-end="url(#ma37)"/>
+  <text x="350" y="123" fill="#0076CC" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">distributes tasks</text>
+  <!-- Executors row -->
+  <rect x="14" y="146" width="150" height="94" rx="7" fill="url(#g37e)" filter="url(#fs37)"/>
+  <text x="89" y="166" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">EXECUTOR 1</text>
+  <text x="89" y="181" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">4 cores · 16GB</text>
+  <rect x="24" y="188" width="128" height="16" rx="3" fill="rgba(255,255,255,.1)"/>
+  <text x="88" y="199" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Task 1 | Task 2 | Task 3 | Task 4</text>
+  <text x="89" y="224" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Worker Node A</text>
+  <text x="89" y="233" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Reads partition 1–4</text>
+
+  <rect x="176" y="146" width="150" height="94" rx="7" fill="url(#g37e)" filter="url(#fs37)"/>
+  <text x="251" y="166" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">EXECUTOR 2</text>
+  <text x="251" y="181" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">4 cores · 16GB</text>
+  <rect x="186" y="188" width="128" height="16" rx="3" fill="rgba(255,255,255,.1)"/>
+  <text x="250" y="199" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Task 5 | Task 6 | Task 7 | Task 8</text>
+  <text x="251" y="224" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Worker Node B</text>
+  <text x="251" y="233" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Reads partition 5–8</text>
+
+  <text x="360" y="195" fill="#4A6080" font-family="Inter,sans-serif" font-size="13" text-anchor="middle">⋯</text>
+
+  <rect x="400" y="146" width="150" height="94" rx="7" fill="url(#g37e)" filter="url(#fs37)"/>
+  <text x="475" y="166" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">EXECUTOR N</text>
+  <text x="475" y="181" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">4 cores · 16GB</text>
+  <rect x="410" y="188" width="128" height="16" rx="3" fill="rgba(255,255,255,.1)"/>
+  <text x="474" y="199" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Task N-3 | N-2 | N-1 | N</text>
+  <text x="475" y="224" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Worker Node N</text>
+  <text x="475" y="233" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Reads partition N-3 to N</text>
+
+  <!-- Shuffle notation -->
+  <rect x="558" y="146" width="128" height="94" rx="7" fill="#8A4010" filter="url(#fs37)"/>
+  <text x="622" y="166" fill="#FFB0B0" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">SHUFFLE</text>
+  <text x="622" y="181" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Stage boundary</text>
+  <text x="622" y="196" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Data redistributed</text>
+  <text x="622" y="211" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">across all executors</text>
+  <text x="622" y="228" fill="#FFB0B0" font-family="Inter,sans-serif" font-size="8" font-weight="600" text-anchor="middle">⚠ Most expensive op</text>
+
+  <!-- Bottom note -->
+  <text x="350" y="260" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Spark is lazy: transformations build the DAG · Actions (write, count, show) trigger execution</text>
+  <text x="350" y="272" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Cluster Manager allocates Executors · On Databricks, this is managed automatically</text>
+</svg></div>
+          <div class="fig-caption"><strong>Figure 3.7</strong><span>Apache Spark architecture. The Driver runs your code and builds a DAG of planned transformations. When an action is triggered, the Driver divides the DAG into stages and distributes tasks to Executors. Each Executor processes a partition of the data in parallel. Shuffle &mdash; data redistribution across Executors &mdash; occurs at stage boundaries during operations like GROUP BY and JOIN. Minimising shuffles is the primary Spark performance lever.</span></div>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.4.3</span><h2 class="sec-title">Databricks: Managed Spark with Enterprise Features</h2></div>
+
+        <p>Databricks is a managed platform built on Apache Spark. It handles cluster provisioning, runtime versioning, library management, autoscaling, and infrastructure maintenance &mdash; abstracting away the operational complexity of self-managing a Spark cluster. For data engineering teams, Databricks provides the compute layer between ADLS (storage) and the transformation logic written in SQL or PySpark.</p>
+        <p>Beyond managed Spark, Databricks adds several features that have become core parts of the Azure data stack:</p>
+        <p><strong>Photon Engine</strong> is a C++ vectorised query engine that replaces the JVM-based Spark execution for SQL and Delta Lake operations. Photon typically delivers 2&ndash;10&times; better query performance for analytical SQL workloads, particularly for scan-heavy operations on large Delta tables. It is enabled by default on Databricks-optimised clusters and is transparent to end users &mdash; you write the same SQL, Photon executes it faster.</p>
+        <p><strong>Unity Catalog</strong> is Databricks\&apos; unified governance layer. It provides a three-level namespace (<code>catalog.schema.table</code>), centralised access control (users and groups defined once, permissions applied across all workspaces), column-level security, row-level filters, automated data lineage, and an auditable access log. Unity Catalog replaced the legacy per-workspace Hive metastore and is now the recommended approach for any enterprise Databricks deployment.</p>
+        <p><strong>Auto Loader</strong> is a streaming ingestion feature that monitors an ADLS path and automatically processes new files as they arrive. It handles schema inference, schema evolution, and exactly-once processing &mdash; making it the recommended Bronze ingestion pattern for file-based sources that land files continuously or on irregular schedules.</p>
+        <p><strong>Databricks Asset Bundles (DABs)</strong> is the modern way to deploy Databricks resources as code: jobs, clusters, pipelines, and permissions defined in a bundle.yml file (covered in Section 3.1) and deployed via the Databricks CLI. DABs replaced the older Databricks CLI (v1) for infrastructure-as-code deployments.</p>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body"><svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs><filter id="fs38"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter></defs>
+  <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+  <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">Databricks Platform Layers</text>
+  <!-- Layer 1: ADLS -->
+  <rect x="40" y="175" width="620" height="32" rx="5" fill="#3A4A6A" filter="url(#fs38)"/>
+  <text x="350" y="190" fill="#88BEFF" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">ADLS Gen2 &mdash; Storage Layer (Section 1.3)</text>
+  <text x="350" y="202" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Parquet / Delta files &middot; Blob Storage with Hierarchical Namespace</text>
+  <!-- Layer 2: Spark + Photon -->
+  <rect x="40" y="126" width="620" height="44" rx="5" fill="#0050AA" filter="url(#fs38)"/>
+  <text x="350" y="144" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Apache Spark Runtime &nbsp;+&nbsp; Photon Engine</text>
+  <text x="350" y="158" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Distributed compute · C++ vectorised execution for SQL/Delta · Driver + Executors on managed infra</text>
+  <!-- Layer 3: Unity Catalog -->
+  <rect x="40" y="80" width="620" height="42" rx="5" fill="#1B3A6B" filter="url(#fs38)"/>
+  <text x="350" y="98" fill="#88BEFF" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Unity Catalog &mdash; Governance Layer</text>
+  <text x="350" y="112" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">catalog.schema.table namespace · Access control · Column/row security · Lineage · Audit log</text>
+  <!-- Layer 4: Workspace tools -->
+  <rect x="40" y="34" width="185" height="42" rx="5" fill="#0076CC" filter="url(#fs38)"/>
+  <text x="132" y="52" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Notebooks + Jobs</text>
+  <text x="132" y="66" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">SQL, Python, PySpark, R</text>
+  <rect x="237" y="34" width="145" height="42" rx="5" fill="#0076CC" filter="url(#fs38)"/>
+  <text x="310" y="52" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Auto Loader</text>
+  <text x="310" y="66" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Streaming file ingest</text>
+  <rect x="394" y="34" width="145" height="42" rx="5" fill="#0076CC" filter="url(#fs38)"/>
+  <text x="467" y="52" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Delta Live Tables</text>
+  <text x="467" y="66" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Declarative pipelines</text>
+  <rect x="551" y="34" width="109" height="42" rx="5" fill="#0076CC" filter="url(#fs38)"/>
+  <text x="606" y="52" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">MLflow</text>
+  <text x="606" y="66" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Model tracking</text>
+</svg></div>
+          <div class="fig-caption"><strong>Figure 3.8</strong><span>Databricks platform layers. ADLS provides object storage. Apache Spark with the Photon engine provides distributed compute &mdash; Photon replaces JVM-based execution for SQL and Delta operations with a C++ vectorised engine. Unity Catalog provides unified governance across all workspaces in an account. Notebooks, Jobs, Auto Loader, Delta Live Tables, and MLflow are workspace-level tools that use the compute and storage layers.</span></div>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.4.4</span><h2 class="sec-title">Unity Catalog: Governance at Scale</h2></div>
+
+        <p>Unity Catalog introduced a three-level namespace for all Databricks data assets: <code>catalog.schema.table</code>. A catalog is the top-level container &mdash; typically one per environment (prod, dev, staging) or one per business domain (finance, logistics, marketing). A schema (also called a database) groups related tables within a catalog. A table lives within a schema.</p>
+        <div class="code-wrap">
+          <div class="code-label">SQL &nbsp;&middot;&nbsp; Unity Catalog namespace in practice<button class="copy-btn">Copy</button></div>
+          <pre><code>-- Three-level namespace: catalog.schema.table
+USE CATALOG prod;
+USE SCHEMA gold;
+SELECT * FROM dim_customer;   -- reads prod.gold.dim_customer
+
+-- Explicit three-part reference (can be used anywhere)
+SELECT c.*, o.total_spend
+FROM prod.gold.dim_customer AS c
+JOIN prod.gold.fact_orders   AS o ON c.customer_sk = o.customer_sk;
+
+-- Grant access (Unity Catalog replaces per-cluster GRANT statements)
+GRANT SELECT ON TABLE prod.gold.dim_customer TO GROUP analysts;
+GRANT MODIFY  ON SCHEMA prod.silver          TO GROUP data_engineers;
+
+-- Row filter (Unity Catalog managed — transparent to the querying user)
+-- Users in the "finance" group only see their region's data:
+ALTER TABLE prod.gold.fact_orders
+SET ROW FILTER region_access_filter ON (region);
+
+-- Column mask (Unity Catalog — masks email for non-PII roles)
+ALTER TABLE prod.gold.dim_customer
+ALTER COLUMN email
+SET MASK email_mask;</code></pre>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Photon engine &mdash; what it accelerates and what it does not</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>Photon is a C++ vectorised query engine that replaces Spark's JVM-based physical execution for specific operation types. Understanding what Photon accelerates &mdash; and what it does not &mdash; helps you set correct performance expectations.</p>
+              <p><strong>What Photon accelerates:</strong> column-oriented scans of Parquet and Delta files, SQL aggregations (GROUP BY, SUM, COUNT, AVG), SQL joins (especially hash joins on numeric columns), Delta MERGE operations, window functions in SQL, and ORDER BY. These are the operations that appear in Silver-to-Gold transformation pipelines &mdash; which is where Photon delivers its most visible benefits.</p>
+              <p><strong>What Photon does NOT accelerate:</strong> Python UDFs (these still run in the JVM/Python interpreter, not in Photon), custom Scala/Java code, operations on non-Delta file formats (CSV, unstructured files), and streaming operations using the older DStream API. Photon specifically targets the analytical SQL and Delta Lake workloads that dominate most production Databricks usage.</p>
+              <p>Practical guidance: enable Photon on all production clusters running SQL-heavy transformations (Silver-to-Gold, reporting queries). The performance improvement is 2&ndash;10&times; for typical workloads with no code changes required. For Python-heavy workloads running custom UDFs, Photon's impact is limited to the SQL portions of those workloads.</p>
+          </div></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Cluster types and cost strategy</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>Databricks has three cluster types with very different cost profiles and use cases.</p>
+              <p><strong>All-Purpose Clusters (formerly Interactive Clusters):</strong> persistent clusters you start manually and leave running for interactive work (notebook development, ad-hoc analysis). They persist between jobs. Cost: full Databricks Units (DBUs) + VM cost for every minute running, whether you are actively using them or not. Idle all-purpose clusters are a major source of unexpected Databricks bills. Best practice: auto-terminate after 20-30 minutes of inactivity.</p>
+              <p><strong>Job Clusters:</strong> clusters provisioned automatically when a Job runs and terminated immediately when it completes. Cost: only for the duration of the job. For production pipelines, job clusters are almost always the right choice. The start-up time (2-3 minutes) is acceptable for scheduled pipelines.</p>
+              <p><strong>SQL Warehouses (Serverless):</strong> serverless compute for BI and SQL analytics. Spins up in seconds, scales automatically, and charges per query second rather than per cluster minute. Ideal for Power BI DirectQuery connections and ad-hoc SQL from business users.</p>
+              <p><strong>Spot instances</strong> (AWS) or <strong>spot VMs</strong> (Azure) are interruptible cloud VMs available at 60-90% discount. Databricks handles interruption gracefully by retrying tasks. For batch jobs that can tolerate occasional retries, using spot workers for all worker nodes (while keeping the driver on on-demand) typically reduces cluster costs by 50-70%.</p>
+          </div></div>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Manufacturing Company &nbsp;&middot;&nbsp; Cluster Policies Saving 58%</span>
+          </div>
+          <div class="field-note-body">            <p>A manufacturer running a Databricks platform for roughly 60 data engineers found that monthly Databricks compute costs had grown to over three times the original budget estimate. Investigation revealed that most of the overspend was on all-purpose cluster idle time: engineers were spinning up clusters for exploration, leaving them running overnight and over weekends. The default auto-termination setting was not being applied consistently, and cluster sizes were not being aligned to workload requirements.</p>
+            <p>The platform team implemented Databricks cluster policies: admin-defined configuration templates that engineers select rather than configure from scratch. Policies enforced maximum cluster sizes (8 workers for interactive, 32 for jobs), mandatory auto-termination of 20 minutes for all-purpose clusters, and required spot instances for all worker nodes. Engineers retained full flexibility in their notebooks but could not accidentally configure an oversized always-on cluster.</p>
+            <p>Monthly compute costs dropped 58% within two months. The primary driver was eliminating idle all-purpose cluster runtime. Secondary contributors were right-sizing (engineers had been requesting 10&times; more workers than jobs required) and spot instance adoption.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Cluster policies are the most effective single governance change for controlling Databricks costs in a multi-team environment. They do not restrict what engineers can do — they restrict how they can accidentally waste money while doing it.</p></div>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Retailer &nbsp;&middot;&nbsp; Unity Catalog Enabling Self-Service</span>
+          </div>
+          <div class="field-note-body">            <p>A UK retailer had a Databricks environment where all data access was managed through a shared "data engineering" service account. Business analysts requested data by filing tickets with the data team, who manually granted access to specific files on ADLS. The process took 2-4 days per request and generated significant toil for the data engineering team.</p>
+            <p>After migrating to Unity Catalog, the retailer implemented role-based access control aligned to business domains: Finance analysts were granted SELECT on the finance catalog, Marketing analysts on the marketing catalog, and Data scientists on designated feature engineering schemas. Row-level security on Gold tables filtered data to each team's business region. Column masking automatically obscured PII fields for roles without explicit PII access grants.</p>
+            <p>Self-service access request time dropped from 2-4 days to under 4 hours (the time for a manager to approve a group membership change in Azure Active Directory, which Unity Catalog inherited automatically). The data engineering team eliminated approximately 40% of their ticket volume that had previously been data access requests.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Unity Catalog's integration with Azure Active Directory groups is its most operationally valuable feature: you manage access by managing group membership in the directory your organisation already uses, and Unity Catalog enforces the resulting permissions automatically across every workspace.</p></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger"><div class="deep-dive-icon">+</div><div class="deep-dive-label"><span class="tag">Go Deeper</span>Adaptive Query Execution &mdash; how Spark optimises at runtime</div></div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>Traditional Spark query optimisation happens before execution, based on table statistics (row counts, cardinality estimates). If those statistics are stale or absent, the plan may be suboptimal &mdash; the planner might choose a sort-merge join when a broadcast join would be faster, or allocate too many shuffle partitions for a small intermediate dataset.</p>
+              <p>Adaptive Query Execution (AQE), introduced in Spark 3.0 and enabled by default in Databricks Runtime 7.3+, allows Spark to revise the execution plan at runtime based on what it actually observes during execution. Three key AQE optimisations:</p>
+              <p><strong>Dynamic coalescing of shuffle partitions:</strong> after a shuffle, AQE automatically merges small partitions into larger ones. A query that initially creates 200 shuffle partitions but produces a small intermediate dataset can be coalesced to 20 partitions, reducing task overhead without any configuration change.</p>
+              <p><strong>Dynamic switch to broadcast join:</strong> if AQE determines at runtime that one side of a join is smaller than expected (after filtering), it can switch from a planned sort-merge join to a broadcast join, avoiding a full shuffle. This addresses a common pain point where filter statistics are not accurately reflected in the pre-execution plan.</p>
+              <p><strong>Skew join optimisation:</strong> AQE detects skewed partitions (where one partition is significantly larger than others) at runtime and automatically splits them, distributing the work more evenly across executors. This directly addresses the data skew problem described in Section 2.2.</p>
+              <p>AQE is typically beneficial to leave enabled. The main exception: deterministic testing scenarios where you need predictable execution plans. <code>spark.conf.set("spark.sql.adaptive.enabled", "true")</code> to verify it is on.</p>
+          </div></div>
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">3.4.5</span><h2 class="sec-title">Databricks vs Alternatives</h2></div>
+
+        <p class="table-hint">Tap any column header to sort.</p>
+
+        <table class="data-table sortable">
+          <thead><tr><th>Dimension</th><th>Databricks</th><th>Azure Synapse</th><th>Snowflake</th><th>Google BigQuery</th><th>Amazon Redshift</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Architecture</strong></td><td>Lakehouse (Delta on ADLS)</td><td>All-in-one (lake + DW + Spark)</td><td>Pure cloud DW (proprietary storage)</td><td>Serverless DW (Dremel engine)</td><td>Cloud DW (shared-nothing cluster)</td></tr>
+            <tr><td><strong>SQL support</strong></td><td>Excellent (Photon, Spark SQL)</td><td>Good (dedicated SQL pools)</td><td>Excellent (ANSI SQL)</td><td>Excellent (standard SQL)</td><td>Good (PostgreSQL dialect)</td></tr>
+            <tr><td><strong>Python / ML</strong></td><td>First-class (MLflow, notebooks)</td><td>Limited (Synapse Spark)</td><td>Snowpark for Python</td><td>Vertex AI integration</td><td>SageMaker integration (external)</td></tr>
+            <tr><td><strong>Streaming</strong></td><td>Native (Structured Streaming, Auto Loader)</td><td>Limited (via Event Hubs)</td><td>No native streaming</td><td>Native (ksqlDB via Confluent)</td><td>Limited (via Kinesis)</td></tr>
+            <tr><td><strong>Open formats</strong></td><td>Delta + Iceberg (native both)</td><td>Delta (primary)</td><td>Iceberg support (limited)</td><td>BigLake (Iceberg)</td><td>Spectrum (S3 Parquet)</td></tr>
+            <tr><td><strong>Governance</strong></td><td>Unity Catalog (excellent)</td><td>Microsoft Purview (external)</td><td>Snowflake governance</td><td>Dataplex</td><td>Lake Formation</td></tr>
+            <tr><td><strong>Cost model</strong></td><td>DBU + VM (complex)</td><td>Compute hours + DWU</td><td>Credits (predictable)</td><td>Slot or on-demand (simple)</td><td>Node hours</td></tr>
+            <tr><td><strong>Best for</strong></td><td>Python/ML + SQL at scale, Azure-first</td><td>Microsoft-native, existing Synapse investment</td><td>SQL-first, managed, non-technical teams</td><td>Serverless SQL analytics on GCP</td><td>AWS-native SQL analytics</td></tr>
+          </tbody>
+        </table>        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text"><h3>Learning Check</h3><p>Section 3.4 &nbsp;&middot;&nbsp; Apache Spark & Databricks</p></div>
+            <div class="quiz-score-wrap"><div class="quiz-score-num">0/5</div><div class="quiz-score-label">Score</div></div>
+          </div>
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A Spark DataFrame transformation chain contains five filter, join, and select operations. When does Spark actually execute these transformations?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Each transformation executes immediately as it is called</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Transformations are recorded in a DAG and executed only when an action (write, count, show) is triggered</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Transformations are batched and executed every 30 seconds automatically</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Transformations execute on the Driver; only writes are distributed to Executors</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Spark is lazy. Transformation methods (filter, join, select, groupBy, withColumn) do not execute when called — they add a node to the DAG. When an action is called (df.write, df.count(), df.show(), df.collect()), Spark optimises the full DAG and executes it. This laziness allows Spark to reorder and combine operations for efficiency — pushing filters before joins, eliminating unused columns, and batching reads. The most common consequence for practitioners: timing Spark operations is only meaningful at the action point, not at individual transformation calls.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">What is the correct Unity Catalog three-level namespace reference for a table named "dim_customer" in the "gold" schema of the "prod" catalog?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">gold.dim_customer</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">prod/gold/dim_customer</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">prod.gold.dim_customer</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">dim_customer@prod.gold</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Unity Catalog uses dot-separated three-level notation: <code>catalog.schema.table</code>. In this case: <code>prod.gold.dim_customer</code>. This format is used in SQL queries, GRANT statements, and CLI references. The slash-separated path (option B) is the ADLS storage path format, not the Unity Catalog SQL reference format. Two-part references (option A) work only if a default catalog and schema are set for the session.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">Which Databricks cluster type is most cost-effective for a daily batch pipeline that runs for 45 minutes at 6am and then has no further usage?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">An All-Purpose Cluster with auto-termination set to 45 minutes</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">A Job Cluster that is provisioned when the pipeline starts and terminated automatically when it finishes</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">A SQL Warehouse configured for batch compute mode</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">A shared cluster that multiple teams use throughout the day</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> A Job Cluster is provisioned on demand when the job starts and terminated immediately when it completes — you pay only for 45 minutes of runtime. An All-Purpose Cluster with auto-termination (option A) could work but adds the risk of the cluster remaining running if the auto-termination is misconfigured, and costs slightly more in DBUs. SQL Warehouses (option C) are designed for SQL analytics, not batch pipeline compute. Shared clusters (option D) may have resource contention and retain state from other workloads.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">What does the Photon engine in Databricks accelerate most significantly?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Python UDFs applied row-by-row to DataFrames</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">SQL aggregations, joins, and Delta Lake scan operations — replacing JVM-based execution with a C++ vectorised engine</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Streaming operations using Kafka consumer groups</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Custom Scala code written as Spark extensions</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Photon is a C++ vectorised query engine that replaces JVM-based physical execution for SQL aggregations, joins, Delta Lake scans, MERGE operations, and window functions. It typically delivers 2–10× improvement for these workloads. Photon does NOT accelerate Python UDFs (which run in the Python interpreter), custom Scala/Java code, or streaming DStream operations. For SQL-heavy Silver-to-Gold transformation pipelines, Photon is typically the single largest performance improvement available with zero code changes.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A Databricks platform team wants to prevent data engineers from accidentally spinning up 50-node clusters for interactive notebook work. What is the correct governance mechanism?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Send a team email reminding engineers to use small clusters</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Remove engineers' ability to create clusters entirely — only admins can create them</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Implement Cluster Policies that engineers select when creating clusters, enforcing maximum node counts, auto-termination, and spot instance requirements</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Create a shared all-purpose cluster that all engineers must use</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Databricks Cluster Policies are admin-defined configuration templates that enforce specific settings (max workers, auto-termination, instance types) while still allowing engineers to create their own clusters. Engineers select from policy templates rather than configuring clusters from scratch. This approach prevents wasteful configurations without restricting engineering autonomy. Removing cluster creation rights entirely (option B) would require engineers to file tickets for every cluster — creating toil and slowing development.</p></div></div>
+          </div>
+
+          <div class="quiz-final"><div class="quiz-final-score">&mdash;</div><p class="quiz-final-msg"></p><button class="quiz-retry-btn">Try Again</button></div>
+        </section>
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Apache Spark distributes data across Executor processes on worker nodes and processes partitions in parallel. Spark is lazy: transformations build a DAG that only executes when an action is triggered. Shuffle (data redistribution across Executors) occurs at stage boundaries and is the most expensive operation. Databricks adds Photon (C++ vectorised engine for SQL/Delta, 2–10× faster), Unity Catalog (three-level namespace, centralised access control, lineage), Auto Loader (streaming file ingestion), and Databricks Asset Bundles (DABs, infrastructure-as-code). Cluster policies enforce cost governance. Job Clusters are the correct choice for production pipelines. Photon accelerates SQL and Delta operations but not Python UDFs or custom code.</p>
+        </div>
+        <div class="info-box gold">
+          <div class="info-label">Coming in the Next Section</div>
+          <p>Section 3.5 covers PySpark: the Python programming interface for Spark. SparkSession, DataFrames, the transformation vs action distinction in practice, common DataFrame operations, schema handling, and the Delta Lake MERGE pattern in PySpark code.</p>
+        </div>
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+        <nav class="sec-nav">
+          <a href="3-3-python.html" class="sec-nav-btn sec-nav-prev"><span class="sec-nav-arrow">&#8592;</span><span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">3.3 Python for Data Engineering</span></span></a>
+          <a href="3-5-pyspark.html" class="sec-nav-btn sec-nav-next"><span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">3.5 PySpark</span></span><span class="sec-nav-arrow">&#8594;</span></a>
+        </nav>
+        <footer class="page-foot">
+          <div class="fl">Part 3 &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">13</div>
+        </footer>
+      </article>
+      <aside class="margin-col">
+                <div class="ms" style="height:130px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Lazy = DAG</div>
+          <p>Spark transformations build a plan. Actions execute it. Time your Spark operations at the action — not the transformation.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Shuffle Cost</div>
+          <p>Shuffle is the most expensive Spark operation. Every GROUP BY and JOIN that requires data redistribution triggers a shuffle. Minimising unnecessary shuffles is the primary performance lever.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Cluster Costs</div>
+          <p>All-Purpose clusters: on when you're not using them = money spent. Set auto-termination to 20 minutes. Production pipelines: always Job Clusters. SQL analytics: Serverless SQL Warehouses.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Unity Catalog</div>
+          <p>catalog.schema.table is the three-level namespace. Permissions set once in Unity Catalog apply across all workspaces — manage via Azure AD groups for zero-maintenance access control.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+
+      </aside>
+    </div>
+  </div>
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('3.4');</script>
+</body>
+</html>

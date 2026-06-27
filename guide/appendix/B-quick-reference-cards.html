@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Appendix B — Quick Reference Cards &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="B">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Appendix &nbsp;&middot;&nbsp; Reference &amp; Resources</div>
+          <div class="chap-num">B</div>
+          <h1 class="chap-title">Quick Reference Cards</h1>
+          <p class="chap-sub">Condensed syntax and patterns for SQL, Python, PySpark, dbt, and Git — the daily tools of a working data engineer. These cards are memory joggers for practitioners who know the concepts and need the exact syntax</p>
+        </header>
+
+        <!-- B.1 SQL -->
+        <div class="sec-head"><span class="sec-tag">B.1</span><h2 class="sec-title">SQL Quick Reference</h2></div>
+
+        <p>The patterns below cover the SQL that appears most frequently in data engineering work. Dialect notes indicate where Spark SQL, T-SQL, and ANSI SQL diverge meaningfully.</p>
+
+        <!-- Figure B.1 — Window Functions -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 290" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <text x="350" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">Window Function Anatomy</text>
+              <rect x="20" y="35" width="660" height="62" rx="6" fill="var(--code-bg,#1e1e2e)" stroke="var(--border)" stroke-width="1"/>
+              <text x="36" y="56" font-family="monospace" font-size="10.5" fill="#a6e3a1">SELECT</text>
+              <text x="94" y="56" font-family="monospace" font-size="10.5" fill="#cdd6f4"> region, trip_date, revenue,</text>
+              <text x="36" y="76" font-family="monospace" font-size="10.5" fill="#89b4fa">  SUM</text>
+              <text x="71" y="76" font-family="monospace" font-size="10.5" fill="#cdd6f4">(revenue) </text>
+              <text x="149" y="76" font-family="monospace" font-size="10.5" fill="#f38ba8">OVER</text>
+              <text x="179" y="76" font-family="monospace" font-size="10.5" fill="#cdd6f4">(</text>
+              <text x="186" y="76" font-family="monospace" font-size="10.5" fill="#fab387">PARTITION BY</text>
+              <text x="290" y="76" font-family="monospace" font-size="10.5" fill="#cdd6f4"> region </text>
+              <text x="353" y="76" font-family="monospace" font-size="10.5" fill="#fab387">ORDER BY</text>
+              <text x="425" y="76" font-family="monospace" font-size="10.5" fill="#cdd6f4"> trip_date) </text>
+              <text x="530" y="76" font-family="monospace" font-size="10.5" fill="#a6e3a1">AS</text>
+              <text x="552" y="76" font-family="monospace" font-size="10.5" fill="#cdd6f4"> running_total</text>
+
+              <!-- Annotation callouts -->
+              <line x1="78" y1="107" x2="71" y2="98" stroke="var(--accent)" stroke-width="1.2"/>
+              <rect x="20" y="107" width="115" height="34" rx="4" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1"/>
+              <text x="77" y="121" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">Aggregate Function</text>
+              <text x="77" y="134" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="var(--body-fg)">SUM / AVG / COUNT / MAX</text>
+
+              <line x1="195" y1="107" x2="175" y2="98" stroke="var(--accent)" stroke-width="1.2"/>
+              <rect x="150" y="107" width="90" height="34" rx="4" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1"/>
+              <text x="195" y="121" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">OVER Clause</text>
+              <text x="195" y="134" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="var(--body-fg)">Defines the window</text>
+
+              <line x1="330" y1="107" x2="300" y2="98" stroke="var(--accent)" stroke-width="1.2"/>
+              <rect x="255" y="107" width="150" height="34" rx="4" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1"/>
+              <text x="330" y="121" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">PARTITION BY</text>
+              <text x="330" y="134" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="var(--body-fg)">Groups without collapsing rows</text>
+
+              <line x1="490" y1="107" x2="455" y2="98" stroke="var(--accent)" stroke-width="1.2"/>
+              <rect x="425" y="107" width="130" height="34" rx="4" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1"/>
+              <text x="490" y="121" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">ORDER BY</text>
+              <text x="490" y="134" text-anchor="middle" font-family="Inter,sans-serif" font-size="8.5" fill="var(--body-fg)">Running total semantics</text>
+
+              <!-- Common functions table -->
+              <text x="350" y="167" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--heading)">Common Window Functions</text>
+              <text x="90" y="186" font-family="monospace" font-size="10" fill="var(--accent)">ROW_NUMBER()</text>
+              <text x="240" y="186" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Sequential integer per partition, no ties</text>
+              <text x="90" y="202" font-family="monospace" font-size="10" fill="var(--accent)">RANK()</text>
+              <text x="240" y="202" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Rank with gaps on ties: 1,2,2,4</text>
+              <text x="90" y="218" font-family="monospace" font-size="10" fill="var(--accent)">DENSE_RANK()</text>
+              <text x="240" y="218" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Rank without gaps on ties: 1,2,2,3</text>
+              <text x="90" y="234" font-family="monospace" font-size="10" fill="var(--accent)">LAG(col, n)</text>
+              <text x="240" y="234" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Value from n rows before current row</text>
+              <text x="90" y="250" font-family="monospace" font-size="10" fill="var(--accent)">LEAD(col, n)</text>
+              <text x="240" y="250" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Value from n rows after current row</text>
+              <text x="90" y="266" font-family="monospace" font-size="10" fill="var(--accent)">NTILE(n)</text>
+              <text x="240" y="266" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Divide rows into n equal buckets</text>
+              <line x1="220" y1="175" x2="220" y2="272" stroke="var(--border)" stroke-width="0.5"/>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure B.1.</strong> Window function anatomy. PARTITION BY groups without collapsing; ORDER BY activates running semantics. All standard SQL — works in Spark SQL, T-SQL, BigQuery, and DuckDB.</div>
+        </div>
+
+        <h3 class="subsec">SCD Type 2 Pattern (Spark SQL / MERGE)</h3>
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6">-- Upsert with history preservation
+MERGE INTO silver.dim_customer AS target
+USING (
+  SELECT *, TRUE AS is_new FROM staging.customer_updates
+) AS source
+ON target.customer_id = source.customer_id AND target.is_current = TRUE
+WHEN MATCHED AND (target.name != source.name OR target.address != source.address) THEN
+  UPDATE SET is_current = FALSE, valid_to = CURRENT_TIMESTAMP
+WHEN NOT MATCHED THEN
+  INSERT (customer_id, name, address, is_current, valid_from, valid_to)
+  VALUES (source.customer_id, source.name, source.address, TRUE, CURRENT_TIMESTAMP, NULL);</pre>
+
+        <h3 class="subsec">Date Spine (Generate Date Series)</h3>
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6">-- Spark SQL
+SELECT EXPLODE(SEQUENCE(DATE '2024-01-01', CURRENT_DATE, INTERVAL 1 DAY)) AS date_day;
+
+-- dbt (macro approach — see B.4)
+{{ dbt_utils.date_spine(datepart="day", start_date="cast('2024-01-01' as date)", end_date="current_date") }}</pre>
+
+        <!-- B.2 Python -->
+        <div class="sec-head"><span class="sec-tag">B.2</span><h2 class="sec-title">Python — Data Engineering Patterns</h2></div>
+
+        <h3 class="subsec">Polars — Fast DataFrame Pattern</h3>
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6">import polars as pl
+
+df = pl.read_parquet("trips.parquet")
+
+result = (
+    df
+    .filter(pl.col("fare_amount") > 0)
+    .filter(pl.col("trip_distance").is_between(0.1, 200))
+    .with_columns([
+        pl.col("pickup_datetime").dt.hour().alias("pickup_hour"),
+        (pl.col("tip_amount") / pl.col("fare_amount")).alias("tip_pct"),
+    ])
+    .group_by(["pickup_hour", "payment_type"])
+    .agg([
+        pl.col("fare_amount").mean().alias("avg_fare"),
+        pl.col("tip_pct").median().alias("median_tip_pct"),
+        pl.len().alias("trip_count"),
+    ])
+    .sort("pickup_hour")
+)</pre>
+
+        <h3 class="subsec">Azure Blob Storage — Upload / Download</h3>
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6">from azure.storage.blob import BlobServiceClient
+from pathlib import Path
+
+client = BlobServiceClient.from_connection_string(os.environ["AZURE_STORAGE_CONN_STR"])
+
+# Upload
+def upload_parquet(local_path: Path, container: str, blob_name: str) -> None:
+    blob = client.get_blob_client(container, blob_name)
+    blob.upload_blob(local_path.read_bytes(), overwrite=True)
+
+# Download
+def download_parquet(container: str, blob_name: str, local_path: Path) -> None:
+    blob = client.get_blob_client(container, blob_name)
+    local_path.write_bytes(blob.download_blob().readall())</pre>
+
+        <h3 class="subsec">Retry Decorator for API Calls</h3>
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6">import time
+import functools
+
+def retry(max_attempts=3, delay=1.0, backoff=2.0):
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            attempt, wait = 0, delay
+            while attempt < max_attempts:
+                try:
+                    return fn(*args, **kwargs)
+                except Exception as e:
+                    attempt += 1
+                    if attempt >= max_attempts:
+                        raise
+                    time.sleep(wait)
+                    wait *= backoff
+        return wrapper
+    return decorator
+
+@retry(max_attempts=3, delay=2.0)
+def call_external_api(url: str) -> dict:
+    # ... request logic
+    pass</pre>
+
+        <!-- B.3 PySpark -->
+        <div class="sec-head"><span class="sec-tag">B.3</span><h2 class="sec-title">PySpark Quick Reference</h2></div>
+
+        <!-- Figure B.2 — PySpark Transformations -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <text x="350" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="var(--heading)">PySpark: Narrow vs Wide Transformations</text>
+
+              <!-- Narrow section -->
+              <rect x="20" y="35" width="310" height="200" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="175" y="56" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--heading)">Narrow Transformations</text>
+              <text x="175" y="72" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">No shuffle — operate within partition</text>
+              <text x="36" y="94" font-family="monospace" font-size="10" fill="var(--accent)">.filter()</text>
+              <text x="155" y="94" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Row-level predicate</text>
+              <text x="36" y="112" font-family="monospace" font-size="10" fill="var(--accent)">.select() / .withColumn()</text>
+              <text x="155" y="112" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Column projection / derivation</text>
+              <text x="36" y="130" font-family="monospace" font-size="10" fill="var(--accent)">.map() / .flatMap()</text>
+              <text x="155" y="130" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Row transformation (RDD-level)</text>
+              <text x="36" y="148" font-family="monospace" font-size="10" fill="var(--accent)">.union()</text>
+              <text x="155" y="148" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Stack two DataFrames</text>
+              <text x="36" y="166" font-family="monospace" font-size="10" fill="var(--accent)">.drop() / .rename()</text>
+              <text x="155" y="166" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Schema manipulation</text>
+              <rect x="25" y="180" width="300" height="46" rx="4" fill="var(--callout-bg)" stroke="var(--callout-border)" stroke-width="1"/>
+              <text x="175" y="196" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--heading)">&#10003; Chain these freely — no network I/O</text>
+              <text x="175" y="210" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Lazy evaluation; nothing runs until action</text>
+              <text x="175" y="222" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Catalyst optimizer may reorder them</text>
+
+              <!-- Wide section -->
+              <rect x="370" y="35" width="310" height="200" rx="8" fill="var(--surface)" stroke="var(--border)" stroke-width="1.5"/>
+              <text x="525" y="56" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="var(--heading)">Wide Transformations</text>
+              <text x="525" y="72" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted-fg)">Shuffle required — cross-partition data movement</text>
+              <text x="386" y="94" font-family="monospace" font-size="10" fill="var(--accent)">.groupBy().agg()</text>
+              <text x="530" y="94" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Aggregation across partitions</text>
+              <text x="386" y="112" font-family="monospace" font-size="10" fill="var(--accent)">.join()</text>
+              <text x="530" y="112" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Hash join or sort-merge join</text>
+              <text x="386" y="130" font-family="monospace" font-size="10" fill="var(--accent)">.distinct()</text>
+              <text x="530" y="130" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Dedup across all partitions</text>
+              <text x="386" y="148" font-family="monospace" font-size="10" fill="var(--accent)">.repartition()</text>
+              <text x="530" y="148" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Full shuffle to n partitions</text>
+              <text x="386" y="166" font-family="monospace" font-size="10" fill="var(--accent)">.orderBy()</text>
+              <text x="530" y="166" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Global sort (expensive!)</text>
+              <rect x="375" y="180" width="300" height="46" rx="4" fill="var(--surface)" stroke="var(--warn,#f59e0b)" stroke-width="1"/>
+              <text x="525" y="196" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="var(--warn,#b45309)">&#9888; Each triggers a stage boundary</text>
+              <text x="525" y="210" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Minimize shuffle: filter before join</text>
+              <text x="525" y="222" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--body-fg)">Use broadcast join for small tables</text>
+            </svg>
+          </div>
+          <div class="fig-cap"><strong>Figure B.2.</strong> PySpark narrow vs wide transformations. Narrow transformations are cheap and freely chainable; wide transformations trigger network shuffles. Performance tuning almost always starts with minimizing shuffles.</div>
+        </div>
+
+        <h3 class="subsec">Key PySpark Patterns</h3>
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6">from pyspark.sql import functions as F
+from pyspark.sql.window import Window
+
+# Broadcast join (avoid shuffle for small tables)
+from pyspark.sql.functions import broadcast
+result = large_df.join(broadcast(small_df), "key")
+
+# Window function
+w = Window.partitionBy("region").orderBy("trip_date")
+df = df.withColumn("running_total", F.sum("revenue").over(w))
+
+# Conditional column
+df = df.withColumn("tier",
+    F.when(F.col("revenue") > 1000, "high")
+     .when(F.col("revenue") > 500, "mid")
+     .otherwise("low"))
+
+# Explode array column
+df = df.withColumn("tag", F.explode(F.col("tags")))
+
+# Pivot
+df.groupBy("region").pivot("year").agg(F.sum("revenue"))</pre>
+
+        <!-- B.4 dbt -->
+        <div class="sec-head"><span class="sec-tag">B.4</span><h2 class="sec-title">dbt Quick Reference</h2></div>
+
+        <h3 class="subsec">Materialization Cheatsheet</h3>
+        <div class="table-scroll"><table class="comp-table">
+          <thead><tr><th>Type</th><th>How it works</th><th>Use when</th><th>Key config</th></tr></thead>
+          <tbody>
+            <tr><td><code>table</code></td><td>DROP + CREATE every run</td><td>Marts, report tables (&lt;1hr build time)</td><td>Default</td></tr>
+            <tr><td><code>view</code></td><td>CREATE OR REPLACE VIEW</td><td>Staging, simple transforms, low query frequency</td><td>Default for staging</td></tr>
+            <tr><td><code>incremental</code></td><td>INSERT/MERGE only new rows</td><td>Large fact tables, event streams</td><td><code>unique_key</code>, <code>incremental_strategy</code></td></tr>
+            <tr><td><code>ephemeral</code></td><td>CTE — no materialization</td><td>Intermediate logic, reused within one model</td><td>No target object created</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3 class="subsec">Incremental Model Pattern</h3>
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6">-- models/fct_trips.sql
+{{ config(
+    materialized='incremental',
+    unique_key='trip_id',
+    incremental_strategy='merge'
+) }}
+
+SELECT
+    trip_id,
+    pickup_datetime,
+    fare_amount,
+    tip_amount
+FROM {{ source('raw', 'trips') }}
+
+{% if is_incremental() %}
+  WHERE pickup_datetime > (SELECT MAX(pickup_datetime) FROM {{ this }})
+{% endif %}</pre>
+
+        <h3 class="subsec">Test Patterns (schema.yml)</h3>
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6">models:
+  - name: fct_trips
+    columns:
+      - name: trip_id
+        tests:
+          - unique
+          - not_null
+      - name: payment_type
+        tests:
+          - accepted_values:
+              values: ['credit_card', 'cash', 'no_charge', 'dispute']
+      - name: fare_amount
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "> 0"</pre>
+
+        <!-- B.5 Git -->
+        <div class="sec-head"><span class="sec-tag">B.5</span><h2 class="sec-title">Git — Data Engineering Workflow Commands</h2></div>
+
+        <pre style="background:var(--code-bg,#1e1e2e);color:#cdd6f4;padding:1rem;border-radius:6px;font-size:0.78rem;overflow-x:auto;line-height:1.6"># Daily workflow
+git checkout -b feature/add-trip-model    # New branch per feature
+git add -p                                 # Stage hunks interactively (preferred over git add .)
+git commit -m "feat(trips): add fct_trips incremental model"
+git push origin feature/add-trip-model
+# Open PR → CI runs dbt test → merge to main
+
+# Undo staged changes (not committed)
+git restore --staged models/fct_trips.sql
+
+# Amend last commit message (before push)
+git commit --amend -m "new message"
+
+# Interactive rebase to squash commits
+git rebase -i HEAD~3
+
+# Stash changes and apply later
+git stash push -m "WIP: trip model"
+git stash pop
+
+# See who changed a line (blame)
+git log -L 12,15:models/fct_trips.sql
+
+# Pull with rebase (preferred for DE repos — cleaner history)
+git pull --rebase origin main</pre>
+
+        <h3 class="subsec">Conventional Commits (Recommended Standard)</h3>
+        <div class="table-scroll"><table class="comp-table">
+          <thead><tr><th>Prefix</th><th>When to use</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><code>feat</code></td><td>New pipeline, model, or feature</td><td><code>feat(trips): add pickup borough enrichment</code></td></tr>
+            <tr><td><code>fix</code></td><td>Bug fix in existing logic</td><td><code>fix(trips): correct null fare exclusion</code></td></tr>
+            <tr><td><code>refactor</code></td><td>Code restructure, no behavior change</td><td><code>refactor: extract shared date logic to macro</code></td></tr>
+            <tr><td><code>test</code></td><td>Add or update tests</td><td><code>test(trips): add accepted_values for payment_type</code></td></tr>
+            <tr><td><code>docs</code></td><td>Documentation only</td><td><code>docs: add column descriptions to fct_trips</code></td></tr>
+            <tr><td><code>chore</code></td><td>Config, dependencies, tooling</td><td><code>chore: update dbt-spark to 1.8</code></td></tr>
+          </tbody>
+        </table></div>
+
+        <div class="mark-read-wrap">
+          <button class="mark-read-btn" onclick="markRead('B', this)">&#10003; Mark Appendix B as Read</button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="A-free-tier-resources.html" class="sec-nav-btn prev">
+            <span class="sec-nav-label">Previous</span>
+            <span class="sec-nav-title">Appendix A &mdash; Free-Tier Resources</span>
+            <span class="sec-nav-arrow">&#8592;</span>
+          </a>
+          <a href="C-security-fundamentals.html" class="sec-nav-btn next">
+            <span class="sec-nav-label">Next</span>
+            <span class="sec-nav-title">Appendix C &mdash; Security Fundamentals</span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Appendix &nbsp;&middot;&nbsp; Reference &amp; Resources</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">33</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Window vs GROUP BY</div>
+          <p>PARTITION BY in a window function groups rows like GROUP BY — but doesn't collapse them. Every source row appears in the output. Use it whenever you need an aggregation alongside the original row detail.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Filter Before Join</div>
+          <p>In PySpark, always apply .filter() before .join(). Filtering reduces the rows that must be shuffled. This is the single most impactful query optimization available without changing the query logic.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">dbt full-refresh</div>
+          <p>Running <code>dbt run --full-refresh</code> on an incremental model drops and recreates the table. On large tables in production, this can take hours. Always test incremental logic before relying on it — and add <code>--target dev</code> when experimenting.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('B');</script>
+</body>
+</html>

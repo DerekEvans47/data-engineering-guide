@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1.4 Azure Data Factory &middot; Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="1.4">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part One &nbsp;&middot;&nbsp; The Data Platform Foundation</div>
+          <div class="chap-num">1.4</div>
+          <h1 class="chap-title">Azure Data Factory</h1>
+          <p class="chap-sub">The orchestration layer &mdash; moving data reliably from hundreds of sources into your data lake</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head">
+            <div class="outcomes-badge">&#10003;</div>
+            <h3>Expected Learning Outcomes</h3>
+          </div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain ADF's role in the modern data stack and its deliberate boundary with transformation</li>
+            <li>Describe the ADF object model: Linked Services, Datasets, Activities, Pipelines, Triggers, and Integration Runtimes</li>
+            <li>Select the correct Integration Runtime type for a given source system scenario</li>
+            <li>Compare incremental load patterns (watermark, CDC, full load) and when each is appropriate</li>
+            <li>Compare ADF to its main alternatives across cost, capability, and use case</li>
+            <li>Explain the ADF cost model and the common sources of unexpected bills</li>
+          </ol>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.4.1</span>
+          <h2 class="sec-title">What ADF Is &mdash; and Critically, What It Is Not</h2>
+        </div>
+
+        <p>Azure Data Factory is an orchestration and data movement service. It connects to source systems, schedules when data moves, handles connection failures with retry logic, logs what happened, and alerts when something goes wrong. It is the Layer 1 (Ingestion) tool in the four-layer architecture from Section 1.1.</p>
+
+        <p>What ADF is not: a transformation engine. This boundary is the single most important thing to understand about ADF, and it is where the most common architectural mistakes originate. ADF has a feature called Mapping Data Flows that provides a visual interface for transformations. Practitioners discover this feature, use it for logic that belongs in Databricks, and then wonder why their pipeline is slow, expensive, and hard to test. The guidance is direct: use ADF to move data, use Databricks to transform it. The one overlap zone &mdash; simple, low-volume transformations where the overhead of a Databricks cluster is not justified &mdash; is a narrow exception, not a general pattern.</p>
+
+        <div class="hl-block">
+          The fact that ADF doesn't transform data is considered a limitation by beginners and a deliberate design by architects. Clean separation of concerns means you can change your transformation logic without touching your ingestion logic, and vice versa. Systems that mix the two are harder to debug, harder to scale, and harder to hand off to a team member.
+        </div>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A European Logistics Company &nbsp;&middot;&nbsp; Migrating from SSIS</span>
+          </div>
+          <div class="field-note-body">
+            <p>A European logistics company ran their entire data warehouse ETL on SSIS &mdash; SQL Server Integration Services, Microsoft's on-premise predecessor to ADF. Their SSIS packages had accumulated over a decade and mixed data movement, transformation, business logic, and even email notifications in the same package files. Maintaining them required specialists who knew SSIS's proprietary visual interface, and version control was nearly impossible &mdash; SSIS packages are XML blobs that do not diff cleanly.</p>
+            <p>Their ADF migration took eighteen months, not because ADF was difficult, but because the SSIS packages had never been properly documented. For every package migrated, the team discovered undocumented business rules embedded in transformations, hardcoded connection strings, and dependencies on SQL Server Agent jobs that no one remembered creating. The migration forced a documentation exercise that the organization had been deferring for years.</p>
+            <p>The outcome: ADF pipelines backed by Git, parameterized templates that replaced dozens of nearly-identical SSIS packages, and transformation logic properly separated into Databricks notebooks that could be unit-tested. The migration cost was significant. The maintainability improvement was transformational.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>SSIS migrations are often documentation exercises disguised as technical projects. The cost is real, but the alternative &mdash; maintaining undocumented legacy pipelines indefinitely &mdash; compounds with each passing year.</p>
+          </div>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.4.2</span>
+          <h2 class="sec-title">The ADF Object Model</h2>
+        </div>
+
+        <p>ADF has a specific set of objects that every practitioner must understand. They have a clear hierarchy and a clear purpose at each level. The analogy of a logistics company maps cleanly to each layer:</p>
+
+        <p>A <span class="kt" data-term="Linked Service">Linked Service</span> is the address book &mdash; how ADF connects to a specific system. Each Linked Service stores credentials and connection configuration for one endpoint: an ADLS storage account, an on-premise SQL Server, a Salesforce org, an SAP system, an HTTP API. The Linked Service does not specify what data to read &mdash; only how to connect. You create one Linked Service per connection, then reuse it across many Datasets.</p>
+
+        <p>A <strong>Dataset</strong> is the cargo manifest &mdash; it specifies what data within a connected system. A Dataset references a Linked Service and adds specifics: which table, which file path, which format (Parquet, CSV, JSON, Delta), which schema. Datasets are used as inputs and outputs for Activities.</p>
+
+        <p>An <strong>Activity</strong> is a single task: copy this data, call this REST API, run this SQL stored procedure, execute this Databricks notebook, wait for this condition, send this email notification. Activities are the individual steps of work inside a pipeline.</p>
+
+        <p>A <strong>Pipeline</strong> is the route &mdash; an ordered sequence of Activities with control flow logic (if-then conditions, loops, parallel execution). A pipeline might copy files from an API, then trigger a Databricks notebook to transform them, then send a success notification. Pipelines are the primary unit of work in ADF.</p>
+
+        <p>A <strong>Trigger</strong> fires a pipeline on a schedule. There are three trigger types: scheduled (run at 2am daily), tumbling window (run every hour for the previous hour's data window), and storage event (run when a file arrives in ADLS). The right trigger type depends on your ingestion pattern.</p>
+
+        <p>An <span class="kt" data-term="Integration Runtime">Integration Runtime (IR)</span> is the compute infrastructure that ADF uses to physically perform the data movement. This is where most practitioners get confused, so the next section covers it in full.</p>
+
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <linearGradient id="g14n" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1B3A6B"/><stop offset="100%" stop-color="#0F2447"/></linearGradient>
+                <linearGradient id="g14b" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0076CC"/><stop offset="100%" stop-color="#0050AA"/></linearGradient>
+                <filter id="fs14"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.15)"/></filter>
+                <marker id="ma14" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 7 3.5, 0 7" fill="#0076CC"/></marker>
+              </defs>
+              <rect width="700" height="260" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="22" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">The ADF Object Model &mdash; Each Layer Has One Job</text>
+
+              <!-- Trigger -->
+              <rect x="18" y="38" width="100" height="58" rx="6" fill="#C8892A" filter="url(#fs14)"/>
+              <text x="68" y="60" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="1" text-anchor="middle">TRIGGER</text>
+              <text x="68" y="74" fill="white" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">&#128197; Schedule</text>
+              <text x="68" y="86" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Event / Window</text>
+              <line x1="118" y1="67" x2="128" y2="67" stroke="#C8892A" stroke-width="2" marker-end="url(#ma14)"/>
+              <text x="68" y="114" fill="#7A5820" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">"When to run"</text>
+
+              <!-- Pipeline -->
+              <rect x="130" y="28" width="180" height="78" rx="6" fill="url(#g14n)" filter="url(#fs14)"/>
+              <text x="220" y="48" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="1.5" text-anchor="middle">PIPELINE</text>
+              <text x="220" y="63" fill="white" font-family="Inter,sans-serif" font-size="9.5" text-anchor="middle">Sequence of Activities</text>
+              <text x="220" y="77" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Copy &rarr; Notebook &rarr; Notify</text>
+              <text x="220" y="91" fill="rgba(255,255,255,.5)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Control flow: if/else, loops, parallel</text>
+              <line x1="310" y1="67" x2="320" y2="67" stroke="#3A6AAA" stroke-width="2" marker-end="url(#ma14)"/>
+              <text x="220" y="122" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">"What to do and in what order"</text>
+
+              <!-- Activity -->
+              <rect x="322" y="38" width="120" height="58" rx="6" fill="url(#g14b)" filter="url(#fs14)"/>
+              <text x="382" y="57" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" letter-spacing="1" text-anchor="middle">ACTIVITY</text>
+              <text x="382" y="71" fill="white" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">Copy / Notebook / Web</text>
+              <text x="382" y="83" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Stored Proc / Wait / Email</text>
+              <line x1="442" y1="67" x2="452" y2="67" stroke="#3A6AAA" stroke-width="2" marker-end="url(#ma14)"/>
+              <text x="382" y="114" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">"A single unit of work"</text>
+
+              <!-- Dataset + Linked Service stacked -->
+              <rect x="454" y="28" width="110" height="38" rx="5" fill="#254F8F" filter="url(#fs14)"/>
+              <text x="509" y="44" fill="#AACCFF" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">DATASET</text>
+              <text x="509" y="57" fill="white" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">What data &amp; format</text>
+
+              <rect x="454" y="72" width="110" height="34" rx="5" fill="#1B3A6B" filter="url(#fs14)"/>
+              <text x="509" y="86" fill="#AACCFF" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">LINKED SERVICE</text>
+              <text x="509" y="98" fill="white" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">How to connect</text>
+
+              <text x="509" y="122" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">"What &amp; where"</text>
+
+              <!-- Integration Runtime -->
+              <rect x="580" y="28" width="108" height="78" rx="6" fill="#0F2447" filter="url(#fs14)"/>
+              <text x="634" y="46" fill="#6AAEFF" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" letter-spacing="1" text-anchor="middle">INTEGRATION</text>
+              <text x="634" y="57" fill="#6AAEFF" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" letter-spacing="1" text-anchor="middle">RUNTIME</text>
+              <text x="634" y="71" fill="white" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Azure IR</text>
+              <text x="634" y="83" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Self-Hosted IR</text>
+              <text x="634" y="95" fill="rgba(255,255,255,.7)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">SSIS IR</text>
+              <text x="634" y="122" fill="#4A6080" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">"The engine"</text>
+
+              <!-- Bottom row: Sources -->
+              <text x="350" y="155" fill="#4A6080" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">Source Systems ADF Can Connect To (via Linked Services)</text>
+              <rect x="18" y="165" width="88" height="30" rx="4" fill="#E8EDF8" stroke="#D4DAF0" stroke-width="1"/>
+              <text x="62" y="184" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">SAP / ERP</text>
+              <rect x="114" y="165" width="88" height="30" rx="4" fill="#E8EDF8" stroke="#D4DAF0" stroke-width="1"/>
+              <text x="158" y="184" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">SQL Server</text>
+              <rect x="210" y="165" width="88" height="30" rx="4" fill="#E8EDF8" stroke="#D4DAF0" stroke-width="1"/>
+              <text x="254" y="184" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">REST APIs</text>
+              <rect x="306" y="165" width="88" height="30" rx="4" fill="#E8EDF8" stroke="#D4DAF0" stroke-width="1"/>
+              <text x="350" y="184" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">Salesforce</text>
+              <rect x="402" y="165" width="88" height="30" rx="4" fill="#E8EDF8" stroke="#D4DAF0" stroke-width="1"/>
+              <text x="446" y="184" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">Flat Files</text>
+              <rect x="498" y="165" width="88" height="30" rx="4" fill="#E8EDF8" stroke="#D4DAF0" stroke-width="1"/>
+              <text x="542" y="184" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">Oracle DB</text>
+              <rect x="594" y="165" width="88" height="30" rx="4" fill="#E8EDF8" stroke="#D4DAF0" stroke-width="1"/>
+              <text x="638" y="184" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">100+ more</text>
+
+              <text x="350" y="238" fill="#4A6080" font-family="Inter,sans-serif" font-size="9" font-style="italic" text-anchor="middle">All connectors land data in ADLS (Section 1.3) &middot; All transformation happens in Databricks (Part 3)</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 1.10</strong>
+            <span>The ADF object model. A Trigger fires a Pipeline on schedule or event. The Pipeline runs Activities in sequence. Activities reference Datasets (what data) backed by Linked Services (how to connect). The Integration Runtime is the compute that physically moves the data. Each object has exactly one responsibility.</span>
+          </div>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.4.3</span>
+          <h2 class="sec-title">Integration Runtimes: The Three Types</h2>
+        </div>
+
+        <p>The <span class="kt" data-term="Integration Runtime">Integration Runtime</span> is the component most practitioners underestimate until it becomes the blocking issue on a project. It is the compute infrastructure that ADF uses to physically perform data movement and transformation. There are three types, each designed for a different connectivity scenario.</p>
+
+        <p><strong>Azure Integration Runtime (Azure IR)</strong> is the default. It handles cloud-to-cloud connectivity: ADF moving data from one Azure service to another, from a public REST API to ADLS, from Azure SQL to ADLS. Azure IR is fully managed by Microsoft &mdash; you specify how many Data Integration Units (DIUs) to use and ADF handles the rest. No infrastructure to maintain.</p>
+
+        <p><strong>Self-Hosted Integration Runtime (SHIR)</strong> is the most important and least understood. It handles connectivity between ADF and systems that are not on the public internet: on-premise SAP ERP systems, SQL Servers behind firewalls, manufacturing execution systems in plant networks, on-premise Oracle databases. You install the SHIR software on a Windows server inside your network. That server becomes the bridge between your internal systems and Azure. ADF sends instructions to the SHIR; the SHIR executes them locally and sends results to ADLS. For any organization with on-premise ERP or operational systems &mdash; which is most manufacturing and logistics companies &mdash; the SHIR is not optional.</p>
+
+        <div class="hl-block">
+          If someone asks why you can't just use Azure IR to connect to an on-premise SAP system, the answer is network topology. Azure IR runs in Microsoft's cloud. Your SAP system is behind your corporate firewall. There is no inbound route from Azure into your network. The Self-Hosted IR reverses the connection: it sits inside your network, calls out to Azure (outbound), and pulls instructions. Outbound connections through firewalls are generally permitted. Inbound from unknown cloud endpoints are not.
+        </div>
+
+        <p><strong>SSIS Integration Runtime</strong> exists specifically for organizations with existing SSIS package investments. It runs SSIS packages natively in Azure, providing a lift-and-shift path for legacy pipelines. Organizations use this during a migration period while rebuilding SSIS logic as proper ADF pipelines and Databricks notebooks. It is not a long-term target architecture &mdash; it is a migration bridge.</p>
+
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="fs14b"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.15)"/></filter>
+              </defs>
+              <rect width="700" height="240" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="22" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">Integration Runtime Types &mdash; Which to Use When</text>
+
+              <!-- Azure IR -->
+              <rect x="18" y="36" width="200" height="164" rx="8" fill="#0076CC" filter="url(#fs14b)"/>
+              <text x="118" y="58" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="2" text-anchor="middle">AZURE IR</text>
+              <text x="118" y="72" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">Cloud to Cloud</text>
+              <line x1="30" y1="80" x2="206" y2="80" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="118" y="96" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Managed by Microsoft</text>
+              <text x="118" y="110" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">No infrastructure to run</text>
+              <text x="118" y="124" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Scales automatically</text>
+              <line x1="30" y1="136" x2="206" y2="136" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="118" y="152" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Use for: REST APIs, Azure SQL,</text>
+              <text x="118" y="164" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Blob Storage, Salesforce,</text>
+              <text x="118" y="176" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">any public cloud source</text>
+              <text x="118" y="192" fill="#FFFFFF" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Default choice</text>
+
+              <!-- Self-Hosted IR -->
+              <rect x="238" y="36" width="224" height="164" rx="8" fill="#1B3A6B" filter="url(#fs14b)"/>
+              <text x="350" y="58" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="2" text-anchor="middle">SELF-HOSTED IR</text>
+              <text x="350" y="72" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">On-Premise to Cloud</text>
+              <line x1="250" y1="80" x2="450" y2="80" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="350" y="96" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Installed on your Windows server</text>
+              <text x="350" y="110" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Calls out to Azure (outbound only)</text>
+              <text x="350" y="124" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">You manage the server</text>
+              <line x1="250" y1="136" x2="450" y2="136" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="350" y="152" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Use for: SAP, Oracle on-prem,</text>
+              <text x="350" y="164" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">SQL Server behind firewall,</text>
+              <text x="350" y="176" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">any system inside your network</text>
+              <text x="350" y="192" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="700" font-style="italic" text-anchor="middle">Required for on-premise ERP</text>
+
+              <!-- SSIS IR -->
+              <rect x="482" y="36" width="200" height="164" rx="8" fill="#C8892A" filter="url(#fs14b)"/>
+              <text x="582" y="58" fill="rgba(255,255,255,.75)" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" letter-spacing="2" text-anchor="middle">SSIS IR</text>
+              <text x="582" y="72" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="600" text-anchor="middle">Legacy SSIS in Cloud</text>
+              <line x1="494" y1="80" x2="670" y2="80" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+              <text x="582" y="96" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Runs SSIS packages in Azure</text>
+              <text x="582" y="110" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Lift-and-shift only</text>
+              <text x="582" y="124" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Not a long-term target</text>
+              <line x1="494" y1="136" x2="670" y2="136" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="582" y="152" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Use for: migration period</text>
+              <text x="582" y="164" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">only, while rebuilding SSIS</text>
+              <text x="582" y="176" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">logic as proper pipelines</text>
+              <text x="582" y="192" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Temporary bridge</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 1.11</strong>
+            <span>The three Integration Runtime types. Azure IR handles cloud connectivity with no infrastructure overhead. Self-Hosted IR bridges on-premise systems to Azure &mdash; required for any ERP, SQL Server, or proprietary system that sits behind a corporate firewall. SSIS IR is a migration tool, not a target architecture.</span>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>The Self-Hosted IR in practice &mdash; network setup and high availability</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Installing a Self-Hosted IR requires a Windows Server 2012 R2 or later machine with outbound internet access on ports 443 and 1433. The installation process involves downloading the SHIR agent from ADF, registering it with an authentication key from your ADF instance, and configuring the machine to run the service. The SHIR calls out to ADF every few seconds to check for new pipeline run instructions &mdash; this is the outbound connection that eliminates the need for inbound firewall rules.</p>
+              <p><strong>High availability:</strong> for production use, you should install the SHIR on at least two machines. ADF automatically load-balances between available SHIR nodes and routes around unavailable nodes. A single SHIR node creates a single point of failure for all on-premise connectivity &mdash; if that server needs a Windows update reboot, all on-premise pipelines pause.</p>
+              <p><strong>Common issues:</strong> the most frequent SHIR problem in manufacturing environments is network connectivity to on-premise SAP systems. The SHIR machine needs access to the SAP application server port (typically 3300 + system number) and the SAP message server port. Coordinating this with corporate network security teams is usually the longest task in an ERP integration project.</p>
+              <p><strong>Credentials:</strong> the SHIR machine needs a service account with read access to the source systems it connects to. These credentials are stored in the SHIR's encrypted local store, not in ADF. They never leave your network.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.4.4</span>
+          <h2 class="sec-title">Incremental Load Patterns</h2>
+        </div>
+
+        <p>The most consequential design decision in any ADF pipeline is the load pattern: how do you identify and move only the new or changed records since the last run? Three patterns cover the vast majority of real scenarios.</p>
+
+        <p><strong>Full Load</strong> copies the entire source dataset on every run. Simplest to implement, most expensive at scale. Appropriate for small reference tables that change infrequently (product catalogs, lookup tables, customer segments under 100,000 rows). Becomes problematic when the source table exceeds a few million rows or when the source system cannot sustain the query load of a full extract multiple times per day.</p>
+
+        <p><strong>Watermark-Based Incremental Load</strong> uses a stored value &mdash; the <span class="kt" data-term="Watermark">watermark</span> &mdash; to track how far the pipeline has processed. On each run: read the current watermark from a tracking table, query the source for records modified after that value, copy those records to Bronze, update the watermark to the current high value. This pattern requires a reliable "last modified" timestamp column in the source table. If the source system updates records without changing the timestamp (or if there is no timestamp), the watermark pattern cannot detect those changes.</p>
+
+        <p><strong>Change Data Capture (CDC)</strong> reads the source database's transaction log to capture every insert, update, and delete as it happens. <span class="kt" data-term="CDC">CDC</span> is the most precise pattern: it captures deletes (which a watermark cannot detect), captures multiple changes to the same row as separate events, and adds minimal load to the source system. The trade-off: CDC requires the source database to have change tracking or CDC features enabled, and the configuration varies significantly between database vendors (SQL Server CDC, Oracle LogMiner, Debezium for open-source databases).</p>
+
+        <table class="data-table sortable">
+          <thead>
+            <tr><th>Pattern</th><th>Complexity</th><th>Source Load</th><th>Detects Deletes</th><th>Requires</th><th>Best For</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Full Load</strong></td><td>Low</td><td>High (every run)</td><td>Yes (by absence)</td><td>Nothing special</td><td>Small tables, slow-changing reference data</td></tr>
+            <tr><td><strong>Watermark Incremental</strong></td><td>Medium</td><td>Low (only new/changed)</td><td>No</td><td>Reliable timestamp column in source</td><td>Large tables with a trustworthy last-modified field</td></tr>
+            <tr><td><strong>CDC</strong></td><td>High</td><td>Minimal</td><td>Yes</td><td>Database CDC/log features enabled</td><td>High-volume tables where delete detection matters</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sec-head">
+          <span class="sec-tag">1.4.5</span>
+          <h2 class="sec-title">ADF vs Alternatives &mdash; and the Cost Model</h2>
+        </div>
+
+        <p class="table-hint">Tap any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr><th>Tool</th><th>Approach</th><th>Connector Count</th><th>Cost Model</th><th>Learning Curve</th><th>Best When</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>ADF</strong></td><td>Visual + code</td><td>100+</td><td>Per activity run + DIU hours</td><td>Medium</td><td>Azure-first, enterprise, on-prem sources</td></tr>
+            <tr><td><strong>Apache Airflow</strong></td><td>Code-first (Python DAGs)</td><td>Extensible</td><td>Infrastructure (self-hosted or managed)</td><td>High</td><td>Python-native teams needing maximum control</td></tr>
+            <tr><td><strong>Fivetran</strong></td><td>Fully managed, no code</td><td>300+</td><td>Monthly rows synced</td><td>Very low</td><td>SaaS-heavy sources, speed of setup priority</td></tr>
+            <tr><td><strong>Airbyte</strong></td><td>Open-source / cloud</td><td>300+</td><td>Free (self-hosted) or per connector</td><td>Low-medium</td><td>Budget-conscious, open-source preference</td></tr>
+            <tr><td><strong>SSIS</strong></td><td>Visual (on-premise)</td><td>Limited</td><td>SQL Server license</td><td>Medium</td><td>Legacy maintenance only &mdash; no new projects</td></tr>
+            <tr><td><strong>Synapse Pipelines</strong></td><td>Visual + code</td><td>Same as ADF</td><td>Same as ADF</td><td>Medium</td><td>Already using Synapse Analytics workspace</td></tr>
+          </tbody>
+        </table>
+
+        <h3 class="subsec">The ADF Cost Model &mdash; Where Bills Surprise People</h3>
+        <p>ADF charges across four dimensions, and the interaction between them creates costs that new practitioners consistently underestimate:</p>
+        <p><strong>Pipeline runs:</strong> a fixed cost per pipeline execution. Running a pipeline 100 times per day creates 100 pipeline run charges per day. This is usually the smallest cost component but adds up for high-frequency pipelines.</p>
+        <p><strong>Activity runs:</strong> a cost per activity executed within a pipeline. A pipeline with 20 activities that runs 48 times per day generates 960 activity runs per day. For organizations running hundreds of pipelines, this is often the largest cost component.</p>
+        <p><strong>DIU hours:</strong> Data Integration Units are the measure of compute power for Copy Activities. More DIUs mean faster data transfer but higher cost. ADF auto-selects DIU count but you can cap it.</p>
+        <p><strong>Self-Hosted IR:</strong> you pay for the server running your SHIR (Azure VM or on-premise hardware). This is a fixed cost regardless of whether pipelines are running.</p>
+
+        <div class="hl-block">
+          The most effective ADF cost optimization: parameterization. Instead of separate pipelines for each source table (common in organizations that let pipelines proliferate), build one generic pipeline that takes source name, schema, watermark column, and destination path as parameters. Run it 50 times per day with different parameter values. The activity count stays constant; the flexibility is unlimited.
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>ADF and Git &mdash; the publish button trap</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>ADF has a Git integration mode where pipeline definitions are stored as JSON files in a Git repository (GitHub or Azure DevOps). This is the correct approach for any team with more than one developer. But it introduces a behavior that trips up nearly every team the first time they encounter it.</p>
+              <p>In Git mode, ADF has two states: "in development" (changes saved to your feature branch in Git) and "published" (changes deployed to the ADF live service). <strong>A pipeline saved to Git is not running in production. A pipeline must be published to run.</strong> The Publish button in the ADF UI is what deploys your changes from the collaboration branch (usually main) to the live service.</p>
+              <p>The trap: a developer merges changes into main. They expect the pipeline to start running with the new logic. It does not &mdash; because they forgot to click Publish. The live ADF service is still running the previously published version. This causes real incidents when teams assume deployment happened automatically.</p>
+              <p>The proper pattern: automate publishing via Azure DevOps or GitHub Actions pipelines that trigger on merges to main, run ADF's ARM template deployment, and publish to the live service. This eliminates the manual publish step and makes ADF deployment behave like normal CI/CD. See Section 5.4 for the full CI/CD implementation.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A UK Financial Services Firm &nbsp;&middot;&nbsp; The Activity Run Bill</span>
+          </div>
+          <div class="field-note-body">
+            <p>A financial services firm built their data ingestion layer on ADF over the course of a year. They had approximately 340 source tables across four systems, and the team had created individual pipelines for each table &mdash; 340 pipelines, each with between 8 and 15 activities, running hourly. The architecture worked fine technically. Then the monthly Azure invoice arrived.</p>
+            <p>340 pipelines &times; 12 activities average &times; 24 runs per day &times; 30 days = approximately 2.9 million activity runs per month. At ADF's activity run pricing, this was a significant and unexpected cost. The platform team had built the pipelines independently without considering the aggregate cost model.</p>
+            <p>The remediation took six weeks: a data engineer designed a generic parameterized pipeline template that handled all 340 source tables. The refactored architecture ran one pipeline 340 times per hour with different parameters, rather than 340 pipelines once per hour each. Activity runs dropped from 2.9 million to approximately 350,000 per month. The savings paid for the refactoring effort within the second month.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Design for parameterization from day one. One generic pipeline running many times costs dramatically less than many specific pipelines running once each. This principle is the single most impactful ADF cost optimization in practice.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>ADF vs Streaming &mdash; when ADF is the wrong tool</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>ADF is a batch orchestration tool. It moves data in discrete runs &mdash; once per hour, once per day, once per week. It is not designed for real-time data movement. This distinction matters more than it might initially seem, because the desire for "near real-time" data is common in business stakeholders, and the correct architectural response is not to make ADF run more frequently.</p>
+              <p>The streaming alternative in Azure is <strong>Event Hubs</strong> (Microsoft's Kafka-compatible managed streaming service) feeding into <strong>Databricks Structured Streaming</strong>, which writes to Delta Lake continuously. This architecture achieves latency of seconds to minutes. ADF is not in this stack at all.</p>
+              <p>The practical question: does your business actually need streaming data? "Near real-time" often means "I want my dashboard to update faster." If the underlying business decision happens daily or weekly, a 5-minute lag from ADF running frequently is often sufficient and dramatically simpler than a full streaming architecture. True streaming is warranted when the business action must happen within seconds of the event &mdash; fraud detection, real-time inventory alerts, live operational monitoring. For financial reporting, inventory analysis, and most BI dashboards, ADF running at 15-minute intervals is more than adequate.</p>
+              <p>Introducing streaming prematurely is one of the most expensive over-engineering mistakes in data engineering. Evaluate the actual business decision latency requirement before reaching for Event Hubs.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>ADF is an orchestration and data movement tool &mdash; not a transformation engine. Its object model has six layers: Trigger (when) &rarr; Pipeline (what order) &rarr; Activity (one task) &rarr; Dataset (what data) + Linked Service (how to connect) &rarr; Integration Runtime (the compute engine). Three IR types cover different connectivity scenarios: Azure IR for cloud-to-cloud, Self-Hosted IR for on-premise systems (required for ERP), and SSIS IR for legacy migration only. Three load patterns handle most ingestion scenarios: full load for small tables, watermark incremental for large tables with timestamps, and CDC for high-volume or delete-sensitive sources. The cost model charges per pipeline run, activity run, and DIU hours &mdash; parameterization is the key optimization. ADF is batch only; true streaming requires Event Hubs + Databricks Structured Streaming.</p>
+        </div>
+
+        <div class="info-box gold">
+          <div class="info-label">Coming in Section 1.5 &mdash; Data Mesh</div>
+          <p>Part 1 ends with a challenge to the architecture you just learned. Data Mesh asks: what if the centralized platform model &mdash; one team, one stack, all sources &mdash; is itself the bottleneck? Understanding both the platform and its organizational limits is what separates a practitioner from someone who only knows the tools.</p>
+        </div>
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 1.4 &nbsp;&middot;&nbsp; Azure Data Factory</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">Your team needs to ingest data from an on-premise SAP ERP system that sits behind a corporate firewall with no inbound internet access. Which Integration Runtime type is required?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Azure IR &mdash; it handles all connectivity scenarios managed by Microsoft</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Self-Hosted IR &mdash; installed on a server inside your network, it calls out to Azure rather than requiring inbound connections from Azure to your firewall</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">SSIS IR &mdash; SAP connectivity requires the SSIS-compatible runtime</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">No Integration Runtime is needed &mdash; SAP has a native Azure connector</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Azure IR runs in Microsoft's cloud and cannot reach systems behind your corporate firewall. The Self-Hosted IR reverses the connection direction: installed on a server inside your network, it establishes outbound connections to Azure (which firewalls generally permit) and pulls pipeline instructions. This is the required pattern for any on-premise source &mdash; SAP, Oracle, SQL Server behind a firewall, manufacturing systems in plant networks.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">In ADF's object model, what is the difference between a Linked Service and a Dataset?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">They are the same concept &mdash; Datasets replaced Linked Services in ADF v2</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">A Linked Service defines HOW to connect (credentials, endpoint) &mdash; a Dataset specifies WHAT data within that connection (table name, file path, format)</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">A Linked Service defines WHAT data to move &mdash; a Dataset defines WHEN to move it</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Datasets are for structured data; Linked Services are for unstructured data</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The separation is intentional. You create one Linked Service per system (one for your SAP, one for your Salesforce, one for your ADLS account) and reuse it across many Datasets. A Dataset says "from this SQL Server (Linked Service), read this specific table in this specific format." Separating connection credentials from data specifications makes pipelines more maintainable and credentials easier to manage.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A source system has 50 million customer records. The source table has a reliable "last_updated" timestamp column. Records are never deleted in the source &mdash; only updated. Which load pattern is most appropriate?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Full Load &mdash; simplest to implement and ensures completeness</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Watermark-Based Incremental Load &mdash; use last_updated as the watermark to copy only records changed since the last run</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">CDC &mdash; required for any table that receives updates</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">A scheduled storage event trigger with no load pattern &mdash; ADF handles incremental detection automatically</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The conditions perfectly match the watermark pattern: large table (50M rows makes full load expensive), reliable timestamp column (last_updated is trustworthy), no deletes (the watermark pattern cannot detect deletions, but they are not occurring here). CDC would also work but adds unnecessary complexity for a scenario where a simpler pattern is sufficient. Full load of 50M records on every pipeline run would be costly and slow.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A team has built 200 separate ADF pipelines, one per source table, each with 10 activities, running every hour. They are receiving a high monthly ADF bill. What is the most effective architectural change?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Reduce the pipeline run frequency from hourly to twice daily</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Upgrade to a higher Azure commitment tier to reduce per-unit pricing</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Refactor to a parameterized generic pipeline template that runs once per table using parameter values &mdash; reducing 200 fixed pipelines to one flexible one</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Switch from ADF to Fivetran for all 200 source tables</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> ADF charges per activity run. 200 pipelines &times; 10 activities &times; 24 hours = 48,000 activity runs per day. A parameterized pipeline reduces this to 200 parameter invocations &times; 10 activities = 2,000 activity runs per day &mdash; a 96% reduction in activity run costs while maintaining the same run frequency and functionality. Reducing frequency (option A) reduces business value. Parameterization reduces cost without reducing value.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A business stakeholder asks for "real-time inventory data" to monitor stock levels as warehouse transactions happen. What is the correct architectural response?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Configure ADF to run every minute &mdash; this provides near-real-time data within ADF's existing capabilities</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Use ADF Mapping Data Flows with streaming mode enabled for sub-minute latency</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Replace ADF with Fivetran, which supports real-time sync</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">D</div><div class="option-text">First clarify what "real-time" means for their actual decision &mdash; if seconds matter, evaluate Event Hubs + Databricks Structured Streaming; if minutes are acceptable, ADF on a short schedule may be sufficient</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>D is correct.</strong> This question tests practitioner judgment, not technical recall. ADF is a batch tool &mdash; running it every minute is technically possible but operationally fragile and expensive. True streaming (Event Hubs + Databricks) is more complex and costly. The right response is to understand what latency the business actually needs. Most inventory monitoring decisions happen in minutes, not seconds. If a 5-minute ADF schedule provides the signal the business needs, the streaming architecture is unnecessary complexity. True real-time (seconds) genuinely warrants Event Hubs + Databricks Structured Streaming.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+
+        <nav class="sec-nav">
+          <a href="1-3-adls.html" class="sec-nav-btn sec-nav-prev"><span class="sec-nav-arrow">&#8592;</span><span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">1.3 Azure Data Lake Storage</span></span></a>
+          <a href="1-5-data-mesh.html" class="sec-nav-btn sec-nav-next"><span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">1.5 Data Mesh</span></span><span class="sec-nav-arrow">&#8594;</span></a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 1 &nbsp;&middot;&nbsp; The Data Platform Foundation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">4</div>
+        </footer>
+
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:160px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Core Rule</div>
+          <p><strong>ADF moves. Databricks transforms.</strong> Every time you are tempted to use ADF Data Flows for complex logic, ask: should this be a Databricks notebook instead? The answer is almost always yes.</p>
+        </div>
+        <div class="ms" style="height:220px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Key Term</div>
+          <p><strong>Self-Hosted IR</strong> &mdash; required for any on-premise source. Installed on your server. Calls out to Azure; no inbound firewall rules needed. Run at least two for high availability.</p>
+        </div>
+        <div class="ms" style="height:300px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"What triggers a pipeline in ADF?" &mdash; three types: <strong>Schedule</strong> (run at 2am daily), <strong>Tumbling Window</strong> (run for each time window sequentially), <strong>Storage Event</strong> (run when a file arrives). Knowing the distinction shows operational depth.</p>
+        </div>
+        <div class="ms" style="height:220px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Cost Warning</div>
+          <p><strong>Activity runs compound.</strong> 20 pipelines &times; 15 activities &times; 24 runs/day = 7,200 activity runs/day. Design with parameterization from the start.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">The Publish Trap</div>
+          <p>In ADF Git mode, <strong>saved &ne; deployed</strong>. Changes saved to Git do not run until you click Publish (or automate publishing via CI/CD). This confuses nearly every team at least once.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary (coming soon)</div>
+  </div>
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('1.4');</script>
+</body>
+</html>

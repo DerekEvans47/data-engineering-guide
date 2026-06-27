@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6.1 How LLMs Work &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="6.1">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Six &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="chap-num">6.1</div>
+          <h1 class="chap-title">How LLMs Work</h1>
+          <p class="chap-sub">Tokens, context windows, embeddings, hallucination, temperature, and the foundational mechanics that every data engineer deploying AI in a production pipeline needs to understand — without the PhD</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain what a Large Language Model (LLM) is, how it generates text, and why that mechanism makes hallucination structurally inevitable</li>
+            <li>Define tokens, context windows, and embeddings — the three concepts that determine what an LLM can and cannot do with your data</li>
+            <li>Explain the role of temperature and why it should be set near zero for data engineering tasks</li>
+            <li>Structure an effective prompt using system prompt, user turn, and assistant turn correctly</li>
+            <li>Distinguish between fine-tuning, prompting, and RAG — and explain why fine-tuning is almost never the right answer for enterprise data questions</li>
+            <li>Explain why Azure OpenAI is the standard for enterprise data teams and what it adds over direct API access</li>
+          </ol>
+        </div>
+
+        <!-- 6.1.1 -->
+        <div class="sec-head"><span class="sec-tag">6.1.1</span><h2 class="sec-title">Why Data Engineers Need to Understand This</h2></div>
+
+        <p>Large Language Models (LLMs) — the AI systems behind ChatGPT, Claude, Gemini, and GitHub Copilot — are no longer external tools that sit beside the data stack. They are being embedded inside it. LLMs generate SQL from natural language descriptions. They summarise pipeline run logs and flag anomalies. They power chatbots that query your Gold layer semantic model in plain English. GitHub Copilot autocompletes your dbt models. Azure Fabric's AI features generate data transformations from business descriptions. Microsoft Copilot in Power BI writes DAX measures when you describe what you want.</p>
+
+        <p>A data engineer who treats LLMs as black boxes — who uses them without understanding their failure modes — will eventually deploy one in a context where it fails quietly and expensively. The most dangerous LLM failure mode in data engineering is not the model refusing to answer. It is the model confidently producing a wrong answer that looks correct: a SQL query that references a non-existent table, a column mapping that silently drops records, or a data quality summary that inverts the finding.</p>
+
+        <div class="hl-block">You do not need to understand transformer architecture or backpropagation to use LLMs safely in production. You need to understand tokens, context windows, hallucination, and temperature. These four concepts explain the vast majority of production LLM failures in data engineering contexts.</div>
+
+        <!-- 6.1.2 -->
+        <div class="sec-head"><span class="sec-tag">6.1.2</span><h2 class="sec-title">Tokens, Context Windows, and Embeddings</h2></div>
+
+        <h3 class="subsec">Tokens: The Unit of Everything</h3>
+        <p>LLMs do not process text character by character or word by word. They process tokens — subword units that fall somewhere between characters and words. A common rule of thumb: one token is roughly three-quarters of a word in English, or approximately four characters. The word "running" is one token. "Uncharacteristically" is likely two or three. A SQL keyword like "SELECT" is one token. A code block of 200 lines might be 600 tokens.</p>
+
+        <p>Tokens matter for two reasons. First, API costs: LLM APIs charge per million tokens in (input) and per million tokens out (output). Sending a 10,000-row CSV as context to an LLM will cost significantly more than sending a 500-row summary. For data engineers building LLM pipelines, token counting is cost engineering. Second, context limits: every LLM has a maximum number of tokens it can process in a single request — the context window. Anything beyond that limit is silently truncated or results in an error.</p>
+
+        <h3 class="subsec">Context Windows: The Model's Working Memory</h3>
+        <p>The context window is the total amount of text (measured in tokens) that an LLM can "see" simultaneously — the conversation history, the system instructions, the retrieved documents, and the current question, all together. Think of it as the model's working memory. Context window size has increased dramatically since 2022: early GPT models had 4,096-token limits. By 2025, context windows of 128,000 to 1 million tokens are common across major models. Meta's Llama 4 Scout introduced context windows of up to 10 million tokens — enough to process an entire large codebase in a single request.</p>
+
+        <p>For data engineers, context window size determines: how much schema documentation you can include when asking an LLM to generate SQL (too little context = wrong table and column names), how long a pipeline log you can pass for error diagnosis, and whether an entire dbt project's models can be included in a single prompt for cross-model analysis.</p>
+
+        <h3 class="subsec">Embeddings: Meaning as Numbers</h3>
+        <p>An embedding is a numerical representation of text — a vector of hundreds or thousands of floating-point numbers that encodes the semantic meaning of the text. The critical property: text with similar meaning produces similar embeddings (close together in vector space); text with different meaning produces dissimilar embeddings (far apart). "Customer churn" and "subscriber cancellation" will have similar embeddings even though they share no words.</p>
+
+        <p>Embeddings are the foundation of Retrieval-Augmented Generation (RAG, section 6.3) — the technique used to give LLMs access to your organisation's data without fine-tuning. The embedding models used by Azure OpenAI (<code>text-embedding-3-small</code> and <code>text-embedding-3-large</code>) produce vectors that are stored in a vector database and queried at runtime to find the most semantically relevant context for a given question.</p>
+
+        <!-- 6.1.3 -->
+        <div class="sec-head"><span class="sec-tag">6.1.3</span><h2 class="sec-title">How Text Generation Works — and Why Hallucination Is Inevitable</h2></div>
+
+        <p>An LLM generates text by predicting the next token, given all the tokens that came before. It does this one token at a time: produce a token, add it to the context, predict the next token from the expanded context, repeat. The prediction is a probability distribution over the entire vocabulary of possible next tokens — the model assigns a probability to every possible word or subword, and the output token is sampled from that distribution.</p>
+
+        <p>The critical implication: an LLM is not retrieving facts from a database. It is not running a search engine. It is predicting what text is most likely to follow the given input — based on patterns learned from an enormous corpus of human-generated text. When you ask it a question, it generates the most plausible-sounding continuation of the conversation. "Plausible" and "correct" are not the same thing.</p>
+
+        <h3 class="subsec">Why Hallucination Is Structural, Not a Bug</h3>
+        <p>Hallucination — when an LLM produces confident, fluent, factually wrong output — is not a defect that will be fixed in the next model version. It is an emergent property of the generation mechanism. A model that predicts the most plausible next token will occasionally produce text that sounds completely correct but refers to a non-existent fact, a wrong table name, or an incorrect calculation — because those wrong answers were the highest-probability continuation of the prompt, given the model's training.</p>
+
+        <p>For consumer use cases (writing assistance, summarisation), occasional hallucination is an acceptable quality issue. For data engineering use cases — LLM-generated SQL executed against a production database, LLM-summarised data quality reports distributed to executives, LLM-generated ETL logic — hallucination is a pipeline failure mode. A hallucinated table name silently drops records. A hallucinated column mapping produces wrong numbers. These failures do not raise exceptions; they produce incorrect output that may not be discovered for days or weeks.</p>
+
+        <!-- Figure 6.1 — Token Prediction Loop -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f61sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m61" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+                </marker>
+              </defs>
+              <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">How LLMs Generate Text — One Token at a Time</text>
+
+              <!-- Step 1: Input -->
+              <rect x="8" y="32" width="120" height="56" rx="4" fill="#0F2447" filter="url(#f61sh)"/>
+              <text x="68" y="50" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-weight="600">INPUT PROMPT</text>
+              <text x="68" y="65" fill="white" font-family="Courier New,monospace" font-size="8.5" text-anchor="middle">"SELECT revenue</text>
+              <text x="68" y="78" fill="white" font-family="Courier New,monospace" font-size="8.5" text-anchor="middle">FROM "</text>
+              <line x1="128" y1="60" x2="148" y2="60" stroke="#0076CC" stroke-width="1.8" marker-end="url(#m61)"/>
+
+              <!-- Step 2: Tokenization -->
+              <rect x="150" y="32" width="120" height="56" rx="4" fill="#1B3A6B" filter="url(#f61sh)"/>
+              <text x="210" y="50" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-weight="600">TOKENISATION</text>
+              <text x="210" y="64" fill="#88BEFF" font-family="Courier New,monospace" font-size="8" text-anchor="middle">[SELECT][revenue]</text>
+              <text x="210" y="76" fill="#88BEFF" font-family="Courier New,monospace" font-size="8" text-anchor="middle">[FROM]["</text>
+              <line x1="270" y1="60" x2="290" y2="60" stroke="#0076CC" stroke-width="1.8" marker-end="url(#m61)"/>
+
+              <!-- Step 3: Probability distribution -->
+              <rect x="292" y="26" width="170" height="68" rx="4" fill="#254F8F" filter="url(#f61sh)"/>
+              <text x="377" y="42" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-weight="600">PROBABILITY DISTRIBUTION</text>
+              <text x="377" y="54" fill="rgba(200,220,255,.4)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">Next token candidates:</text>
+              <!-- Mini bar chart -->
+              <text x="300" y="70" fill="rgba(200,220,255,.8)" font-family="Courier New,monospace" font-size="7">fact_sales  ████████░  71%</text>
+              <text x="300" y="82" fill="rgba(200,220,255,.6)" font-family="Courier New,monospace" font-size="7">customers   ███░░░░░░  22%</text>
+              <text x="300" y="88" fill="rgba(200,220,255,.4)" font-family="Courier New,monospace" font-size="7">orders      █░░░░░░░░   7%</text>
+              <line x1="462" y1="60" x2="482" y2="60" stroke="#0076CC" stroke-width="1.8" marker-end="url(#m61)"/>
+
+              <!-- Step 4: Selected token -->
+              <rect x="484" y="36" width="110" height="48" rx="4" fill="#1A7A4A" filter="url(#f61sh)"/>
+              <text x="539" y="54" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Selected Token</text>
+              <text x="539" y="68" fill="rgba(200,240,220,.9)" font-family="Courier New,monospace" font-size="11" text-anchor="middle">fact_sales</text>
+              <text x="539" y="89" fill="rgba(200,240,220,.5)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">(highest probability)</text>
+
+              <!-- Loop back arrow -->
+              <path d="M 594,60 Q 660,60 660,130 Q 660,170 350,170 Q 100,170 68,100"
+                    fill="none" stroke="#0076CC" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#m61)"/>
+              <text x="480" y="165" fill="#0076CC" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Loop repeats — new token appended to context, next token predicted</text>
+
+              <!-- Temperature annotation -->
+              <rect x="292" y="102" width="170" height="40" rx="3" fill="rgba(176,125,42,.12)" stroke="rgba(176,125,42,.3)" stroke-width="1"/>
+              <text x="377" y="118" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">Temperature controls sampling</text>
+              <text x="377" y="130" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">T=0: always pick highest probability (deterministic)</text>
+              <text x="377" y="141" fill="#B07D2A" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">T=1: sample across distribution (creative, less predictable)</text>
+
+              <!-- Hallucination warning -->
+              <rect x="8" y="108" width="270" height="100" rx="4" fill="rgba(155,58,58,.08)" stroke="rgba(155,58,58,.25)" stroke-width="1"/>
+              <text x="143" y="126" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">&#9888; Hallucination Mechanism</text>
+              <text x="18" y="142" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">The model predicts plausible tokens —</text>
+              <text x="18" y="154" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">NOT facts retrieved from a database.</text>
+              <text x="18" y="166" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">If "inventory_summary" sounds plausible</text>
+              <text x="18" y="178" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">as a table name, the model may produce</text>
+              <text x="18" y="190" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" font-weight="700">it even if the table does not exist.</text>
+
+              <!-- Final output -->
+              <rect x="484" y="108" width="208" height="92" rx="4" fill="#0F2447" filter="url(#f61sh)"/>
+              <text x="588" y="124" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle" font-weight="600">FINAL OUTPUT (built token by token)</text>
+              <text x="492" y="140" fill="#88BEFF" font-family="Courier New,monospace" font-size="8">SELECT revenue</text>
+              <text x="492" y="152" fill="#88BEFF" font-family="Courier New,monospace" font-size="8">FROM fact_sales</text>
+              <text x="492" y="164" fill="#88BEFF" font-family="Courier New,monospace" font-size="8">WHERE region = 'North'</text>
+              <text x="492" y="176" fill="#88BEFF" font-family="Courier New,monospace" font-size="8">AND date_sk</text>
+              <text x="492" y="188" fill="#88BEFF" font-family="Courier New,monospace" font-size="8">&gt;= 20240101</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 6.1</strong><span>The LLM text generation loop. The model takes all input tokens, computes a probability distribution over every possible next token, selects one (influenced by temperature), appends it to the context, then repeats. This continues until a stop token is produced. Critically: the model is not looking up facts — it is predicting what text is most plausible given the input. The hallucination mechanism (bottom left) shows why a model can confidently produce a non-existent table name: "inventory_summary" may be a highly plausible next token in context, even if no such table exists in your schema.</span></div>
+        </div>
+
+        <!-- 6.1.4 -->
+        <div class="sec-head"><span class="sec-tag">6.1.4</span><h2 class="sec-title">Temperature and Determinism</h2></div>
+
+        <p>Temperature is a parameter that controls how the model samples from the probability distribution over next tokens. At temperature 0, the model always selects the highest-probability token — the output is deterministic and reproducible. At temperature 1.0, the model samples according to the actual probability distribution — more varied, more creative, less predictable. At temperatures above 1.0, even low-probability tokens get amplified — outputs become increasingly random and often incoherent.</p>
+
+        <p><strong>For data engineering tasks: set temperature to 0 (or as close as the API allows).</strong> When asking an LLM to generate SQL, classify a data quality issue, or extract structured information from text, you want the most probable correct answer every time — not creative variation. A SQL query that generates different results on each call is not a reliable pipeline component. Temperature 0 makes LLM outputs deterministic, repeatable, and testable — essential properties for any production system.</p>
+
+        <p>Temperature above 0 is appropriate for: creative writing assistance, brainstorming data product names, generating varied example data for testing. Never for SQL generation, code writing, data extraction, or any task where the output feeds directly into a pipeline.</p>
+
+        <!-- 6.1.5 — Prompt Structure -->
+        <div class="sec-head"><span class="sec-tag">6.1.5</span><h2 class="sec-title">The Prompt Structure — System, User, and Assistant Turns</h2></div>
+
+        <p>Modern LLM APIs structure interaction as a conversation with three distinct role types. Understanding the purpose of each role is fundamental to writing effective prompts for data engineering use cases.</p>
+
+        <p><strong>System prompt:</strong> The instructions that define the model's behaviour, role, and constraints for the entire conversation. Set once at the start. The system prompt is where you tell the model what it is ("You are a SQL assistant for our Azure Databricks environment"), what it knows ("The following tables exist in the Gold schema: fact_sales, dim_customer, dim_product, dim_date"), and what it must not do ("Never generate DROP or DELETE statements. Never reference tables not listed above"). For production data pipelines, the system prompt is your primary tool for constraining the model's behaviour and reducing hallucination surface area.</p>
+
+        <p><strong>User turn:</strong> The current request. "Generate a SQL query that shows revenue by product category for the last 90 days, excluding returns." This is what changes with each request; the system prompt stays constant.</p>
+
+        <p><strong>Assistant turn:</strong> The model's response. In a multi-turn conversation, prior assistant responses are included in the context for subsequent requests — allowing follow-up questions and iterative refinement.</p>
+
+        <!-- Figure 6.2 — Conversation Structure + Context Window -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f62sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="240" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Prompt Structure — System, User, and Assistant Turns</text>
+
+              <!-- Context window border -->
+              <rect x="8" y="26" width="684" height="200" rx="6" fill="rgba(27,58,107,.04)" stroke="#0076CC" stroke-width="1.5" stroke-dasharray="6,3"/>
+              <text x="690" y="170" fill="#0076CC" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="end" transform="rotate(-90 690 170)">CONTEXT WINDOW</text>
+
+              <!-- System prompt -->
+              <rect x="18" y="34" width="664" height="52" rx="4" fill="#0F2447" filter="url(#f62sh)"/>
+              <rect x="18" y="34" width="80" height="52" rx="4" fill="#254F8F"/>
+              <text x="58" y="55" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">SYSTEM</text>
+              <text x="58" y="68" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">set once</text>
+              <text x="114" y="52" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8.5">You are a SQL assistant for our Azure Databricks Gold layer.</text>
+              <text x="114" y="65" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8">Available tables: fact_sales, dim_customer, dim_product, dim_date.</text>
+              <text x="114" y="78" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="8">Never generate DROP/DELETE. Only use tables listed above. Return valid Spark SQL.</text>
+
+              <!-- User turn 1 -->
+              <rect x="18" y="94" width="664" height="32" rx="4" fill="#1A5A78" filter="url(#f62sh)"/>
+              <rect x="18" y="94" width="80" height="32" rx="4" fill="#1B7A50"/>
+              <text x="58" y="107" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">USER</text>
+              <text x="58" y="119" fill="rgba(200,240,220,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">turn 1</text>
+              <text x="114" y="113" fill="white" font-family="Inter,sans-serif" font-size="8.5">"Show revenue by product category for the last 90 days, excluding returns."</text>
+
+              <!-- Assistant response 1 -->
+              <rect x="18" y="134" width="664" height="42" rx="4" fill="#1B3A6B" filter="url(#f62sh)"/>
+              <rect x="18" y="134" width="80" height="42" rx="4" fill="#3A2A6A"/>
+              <text x="58" y="151" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">ASSISTANT</text>
+              <text x="58" y="163" fill="rgba(200,200,255,.65)" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">response 1</text>
+              <text x="114" y="149" fill="#88BEFF" font-family="Courier New,monospace" font-size="8">SELECT dp.category, SUM(fs.revenue_net) AS revenue</text>
+              <text x="114" y="161" fill="#88BEFF" font-family="Courier New,monospace" font-size="8">FROM fact_sales fs JOIN dim_product dp ON fs.product_sk = dp.product_sk</text>
+              <text x="114" y="173" fill="#88BEFF" font-family="Courier New,monospace" font-size="8">WHERE fs.date_sk &gt;= date_format(date_add(current_date(), -90), 'yyyyMMdd') AND fs.is_return = 0 ...</text>
+
+              <!-- User turn 2 -->
+              <rect x="18" y="184" width="664" height="28" rx="4" fill="#1A5A78" filter="url(#f62sh)"/>
+              <rect x="18" y="184" width="80" height="28" rx="4" fill="#1B7A50"/>
+              <text x="58" y="200" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">USER</text>
+              <text x="58" y="210" fill="rgba(200,240,220,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">turn 2</text>
+              <text x="114" y="201" fill="white" font-family="Inter,sans-serif" font-size="8.5">"Now add year-on-year comparison using the same period last year."</text>
+              <text x="500" y="201" fill="rgba(58,159,224,.5)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic">Model sees all prior turns ↑</text>
+
+              <!-- Token counter -->
+              <rect x="596" y="26" width="96" height="26" rx="3" fill="rgba(176,125,42,.15)" stroke="rgba(176,125,42,.3)" stroke-width="1"/>
+              <text x="644" y="43" fill="#B07D2A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">~640 / 128k tokens used</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 6.2</strong><span>Prompt structure showing the three role types within a single context window. The system prompt (dark, top) sets persistent instructions — it defines the model's role, the available tables, and what it must never do. This is where hallucination is controlled: by explicitly listing allowed tables, the model cannot invent one. User turns contain the current request; assistant turns contain prior responses. In multi-turn conversations, the model sees the entire history on each request. The token counter (top right) shows context consumption — critical for long data engineering sessions with large schema contexts.</span></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Prompt engineering patterns for SQL generation and data tasks</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Four prompt patterns that materially improve LLM output quality for data engineering tasks:</p>
+              <p><strong>1. Schema grounding in the system prompt.</strong> The most important technique for eliminating SQL hallucination is listing the exact available tables and their key columns in the system prompt: "Available tables: fact_sales (columns: sale_sk, date_sk, customer_sk, product_sk, revenue_net, quantity, is_return). dim_customer (columns: customer_sk, customer_id, name, region, segment)." A model that is given the schema explicitly produces far fewer hallucinated table or column names than one given only the question. Include data types for columns where the type determines behaviour (date columns, numeric types).</p>
+              <p><strong>2. Few-shot examples.</strong> Provide 2–3 examples of the exact input-output format you want. "Example: User asks 'show me top 10 customers by revenue last month'. Correct SQL: [example]. User asks 'what is the average order value by region'. Correct SQL: [example]." Few-shot examples teach the model the dialect (Spark SQL vs T-SQL vs BigQuery SQL), the table naming conventions, and the level of complexity you expect. This is more reliable than describing the format in words.</p>
+              <p><strong>3. Chain-of-thought for complex queries.</strong> For multi-step analytical questions, add "Think step by step: first identify the tables and joins required, then the filters, then the aggregation, then write the query" to the user turn. Chain-of-thought prompting reduces errors on complex multi-join or window function queries by forcing the model to decompose the problem before writing the SQL.</p>
+              <p><strong>4. Output format specification.</strong> For programmatic use (parsing the model's response in a pipeline), specify the exact output format: "Return only the SQL statement. Do not include markdown code fences, explanations, or comments. Return nothing other than valid Spark SQL." Without this, models frequently wrap output in markdown code blocks or include explanatory text that breaks downstream parsing.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6.1.6 -->
+        <div class="sec-head"><span class="sec-tag">6.1.6</span><h2 class="sec-title">Fine-Tuning, Prompting, and RAG — The Decision Framework</h2></div>
+
+        <p>Three approaches exist for making an LLM useful in a specific domain. They are often confused or conflated. Understanding when each is appropriate prevents significant wasted engineering effort.</p>
+
+        <h3 class="subsec">Prompting (Few-Shot and Zero-Shot)</h3>
+        <p>The cheapest and fastest approach: write a good system prompt, provide context, use few-shot examples. Requires no training data, no infrastructure beyond API access, and can be iterated in hours. For most data engineering use cases — SQL generation, log analysis, data quality description, documentation generation — good prompting is sufficient. Always try this first. The time spent building a fine-tuning dataset is almost always better spent on prompt engineering.</p>
+
+        <h3 class="subsec">RAG (Retrieval-Augmented Generation)</h3>
+        <p>The middle path: retrieve relevant information from your data at query time and include it in the prompt as context. An analyst asks "what was the North region's Q3 performance?" — a RAG system retrieves the relevant data from your warehouse and includes it in the prompt before asking the LLM to summarise or answer. The LLM never needs to know your data in advance; it sees it at query time. RAG is the correct approach when the LLM needs access to your organisation's proprietary data without the data being baked into the model. Covered in full in section 6.3.</p>
+
+        <h3 class="subsec">Fine-Tuning</h3>
+        <p>Training the model on a domain-specific dataset to permanently change its behaviour. Appropriate when: your domain has language that is genuinely unusual enough that no existing model understands it (specialist medical terminology, proprietary financial instrument naming), you need consistent stylistic output that prompting cannot achieve, or you are running at such scale that smaller, cheaper fine-tuned models produce significant cost savings. Almost never the right first choice for enterprise data engineering questions. Fine-tuning requires: hundreds to thousands of high-quality labelled examples, infrastructure for the training job, and model hosting — all before you know whether it outperforms a well-prompted base model. The majority of teams that start fine-tuning projects find that the time investment was not justified compared to improved prompting.</p>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Fintech Company &nbsp;&middot;&nbsp; The Hallucinated Table Name</span>
+          </div>
+          <div class="field-note-body">
+            <p>A fintech data engineering team integrated an LLM into an internal data catalogue tool that allowed analysts to describe a report in natural language and receive a SQL query in return. The system prompt included general instructions but did not list the available tables — the team reasoned that analysts could see the table list in the UI and would catch any wrong table names.</p>
+            <p>In the third week of use, an analyst ran a generated query that included a reference to <code>fact_transaction_summary</code> — a table that sounded plausible but did not exist in the production schema. The query executed against a development database where the table happened to exist (with incomplete test data), returned 47 rows, and the analyst included the figures in a client report. The error was discovered three days later when the figures were challenged in a client call.</p>
+            <p>The fix was adding the complete table list to the system prompt, along with the instruction "Only reference tables listed below. If the required data is not available in these tables, say so explicitly rather than generating a query." Zero hallucinated table references occurred in the following three months of production use.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>In data engineering contexts, schema grounding in the system prompt is not optional — it is the primary control for SQL hallucination. Never deploy an LLM SQL generator without explicitly listing the available tables. The UI showing a table list does not constrain the model; the system prompt does.</p>
+          </div>
+        </div>
+
+        <!-- 6.1.7 -->
+        <div class="sec-head"><span class="sec-tag">6.1.7</span><h2 class="sec-title">Azure OpenAI — Why Enterprise Data Teams Use It</h2></div>
+
+        <p>The same GPT-4 and GPT-4o models available through OpenAI's direct API are also available through Azure OpenAI Service — hosted on Microsoft's Azure infrastructure rather than OpenAI's own servers. For enterprise data teams, this distinction is material, and Azure OpenAI is the default choice in most regulated and enterprise environments for four specific reasons.</p>
+
+        <p><strong>Private endpoints:</strong> Azure OpenAI can be deployed within your Azure Virtual Network (VNet) with a private endpoint, meaning no traffic leaves your private network through the public internet. For data teams handling PII (Personally Identifiable Information), financial data, or any data subject to compliance requirements, this is frequently a non-negotiable requirement.</p>
+
+        <p><strong>Data does not train the model:</strong> When you use Azure OpenAI Service, Microsoft explicitly commits that your prompts and completions are not used to train or improve the model. This is the opposite of the default behavior for OpenAI's consumer API (where opt-in to training is the default for some tiers). For enterprise data — customer records, financial figures, proprietary business metrics — this commitment is required by many data governance policies.</p>
+
+        <p><strong>Azure RBAC and Microsoft Entra ID:</strong> Access to Azure OpenAI resources is controlled through the same Azure Role-Based Access Control (RBAC) system used for every other Azure resource. Existing Azure AD (Microsoft Entra ID) identities, groups, and conditional access policies apply. No separate user management system is required.</p>
+
+        <p><strong>Compliance and certifications:</strong> Azure OpenAI Service is covered by Azure's compliance framework — ISO 27001, SOC 2, GDPR compliance, UK NCSC guidance. For teams in regulated industries (financial services, healthcare, insurance), Azure's existing compliance posture extends to Azure OpenAI.</p>
+
+        <p class="table-hint">Click any column header to sort. Model versions change frequently — always verify current offerings at <a href="https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models" style="color:#3A9FE0;">Azure OpenAI documentation</a>.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>Model Family</th>
+              <th>Context Window</th>
+              <th>Azure / Enterprise Option</th>
+              <th>Data Residency</th>
+              <th>Open Source?</th>
+              <th>Best For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Azure OpenAI</strong></td>
+              <td>GPT-4o, GPT-4, o3/o4 reasoning</td>
+              <td>128k–1M tokens (varies by model)</td>
+              <td>Native — this IS the Azure product</td>
+              <td>Yes — Azure region of your choice</td>
+              <td>No</td>
+              <td>Enterprise data teams on Azure; compliance-sensitive; most enterprise default</td>
+            </tr>
+            <tr>
+              <td><strong>Anthropic Claude</strong></td>
+              <td>Claude Opus / Sonnet / Haiku</td>
+              <td>200k tokens (Opus/Sonnet)</td>
+              <td>Via AWS Bedrock or direct API</td>
+              <td>Via AWS Bedrock — regional</td>
+              <td>No</td>
+              <td>Complex reasoning; long-context analysis; code generation (SWE-Bench leader)</td>
+            </tr>
+            <tr>
+              <td><strong>Google Gemini</strong></td>
+              <td>Gemini Pro / Flash / Ultra</td>
+              <td>Up to 1M tokens (1.5 Pro)</td>
+              <td>Via Vertex AI (GCP)</td>
+              <td>Yes — GCP region</td>
+              <td>No</td>
+              <td>Google Workspace / BigQuery integration; multimodal; live Search grounding</td>
+            </tr>
+            <tr>
+              <td><strong>Meta Llama</strong></td>
+              <td>Llama 3 / Llama 4</td>
+              <td>Up to 10M tokens (Llama 4 Scout)</td>
+              <td>Deploy on Azure ML, Azure AI Foundry</td>
+              <td>Yes — fully self-hosted</td>
+              <td>Yes — weights available</td>
+              <td>Air-gapped environments; cost at extreme scale; privacy-first</td>
+            </tr>
+            <tr>
+              <td><strong>Mistral</strong></td>
+              <td>Mistral Large / Small / Codestral</td>
+              <td>128k tokens (Large)</td>
+              <td>Via Azure AI Marketplace or self-hosted</td>
+              <td>Yes — EU-based infrastructure available</td>
+              <td>Partially (some models open)</td>
+              <td>EU data residency requirements; cost-efficient inference; code tasks</td>
+            </tr>
+            <tr>
+              <td><strong>OpenAI Direct API</strong></td>
+              <td>GPT-4o, GPT-5.x, o3</td>
+              <td>128k–1M tokens</td>
+              <td>No — data leaves OpenAI's servers</td>
+              <td>No — US-based infrastructure</td>
+              <td>No</td>
+              <td>Prototyping / development; consumer products; teams without enterprise requirements</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Token counting and cost estimation for data engineering LLM pipelines</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>LLM API costs compound quickly in data pipeline contexts where the model is called at scale. Estimating costs before building is essential; discovering them in production is expensive.</p>
+              <p><strong>Token estimation rules of thumb:</strong> 1 token ≈ 4 characters ≈ 0.75 words in English. A 500-word document ≈ 650 tokens. A full database schema with 20 tables and their column definitions ≈ 1,500–2,500 tokens. A 100-line Python script ≈ 800–1,000 tokens. For exact counts before production: use the <code>tiktoken</code> Python library (OpenAI's tokenizer) or provider-specific tokenizers.</p>
+              <p><strong>Cost structure for Azure OpenAI GPT-4o (approximate, verify current pricing):</strong> Input tokens cost less than output tokens. A typical data engineering request — 2,000 tokens of schema context + 50-token question = 2,050 input tokens, ~200 output tokens (SQL response). At roughly $2.50 per million input tokens and $10.00 per million output: this request costs approximately $0.007. If your pipeline makes this call 10,000 times per day (one per analyst query), daily cost ≈ $70. At 100,000 calls per day: $700/day → $255,000/year. Build your cost model before scaling.</p>
+              <p><strong>Cost optimization techniques:</strong> Cache common requests (the same question against the same schema produces the same result at temperature 0 — cache by prompt hash). Use smaller/cheaper models for simple tasks (GPT-4o mini for classification; GPT-4o for complex SQL generation). Include only the tables relevant to the question in the context rather than the full schema (reduces input tokens by 60–80% for targeted queries). Batch offline requests where latency is not critical.</p>
+              <p><strong>The context window cost trap:</strong> Sending a 100,000-token context (e.g., a large document or log file) multiplied by 1,000 API calls = 100 million input tokens. At $2.50 per million = $250. For a single day's pipeline run. Always ask: "Does this context need to be this large? Can RAG retrieve only the relevant 1,000 tokens instead of passing 100,000?"</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Financial Services Firm &nbsp;&middot;&nbsp; The Private Endpoint Requirement</span>
+          </div>
+          <div class="field-note-body">
+            <p>A financial services firm's data team built a prototype internal analyst assistant using the OpenAI direct API. The prototype worked well technically and received enthusiastic feedback from the analyst team. The IT security team reviewed the deployment six weeks later and raised an immediate blocker: the prototype was sending prompts — which included customer names, account numbers, and transaction summaries — to OpenAI's US-based servers over the public internet. This violated the firm's data handling policy for customer financial data and the firm's interpretation of its FCA regulatory obligations on data storage.</p>
+            <p>The rebuild on Azure OpenAI Service with a private endpoint took four weeks. The Azure OpenAI endpoint sat entirely within the firm's Azure VNet. No traffic left the private network. Microsoft's commitment that prompt data was not used to train models satisfied the compliance team. The existing Azure RBAC roles (which the analysts already had for other Azure resources) controlled access without any additional user management. The rebuilt assistant was identical in capability to the prototype — different only in where it was hosted.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>For any data that falls under regulatory, contractual, or organisational data handling requirements — which is most enterprise data — validate the compliance posture of the LLM provider before building the prototype, not after. For Azure-based data teams, Azure OpenAI is the compliance-first default. Build everything else as a deliberate exception.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Hallucination in data contexts — why the stakes are higher than consumer AI</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Consumer-facing LLM hallucination is a nuisance. A chatbot that makes up a fact about a historical event can be corrected by the user. Data engineering LLM hallucination is a pipeline failure mode — and often a silent one.</p>
+              <p><strong>Why data hallucination is more dangerous:</strong></p>
+              <p><strong>No human in the loop at scale.</strong> A consumer user reads the LLM's output. A data pipeline executes it. If an LLM generates a SQL query with a hallucinated table name and no human reviews it before execution, the query either fails (best case) or executes against a similarly-named but different table (worst case). The worst case produces wrong data that looks correct.</p>
+              <p><strong>Wrong data propagates silently.</strong> A hallucinated fact in a chatbot response affects one user's understanding. A hallucinated column mapping in an ETL pipeline propagates through every downstream table, every report, and every dashboard that reads from that table — until someone notices the numbers are wrong. This is why the silent 15% record drop (section 5.4 field note) is so dangerous: it looks like data, behaves like data, and only reveals itself when someone with domain knowledge questions a figure.</p>
+              <p><strong>Specific data engineering hallucination failure modes:</strong> SQL table or column names that don't exist; business logic that sounds correct but inverts a comparison operator (> vs <); date range logic that uses the wrong reference date; aggregation functions that double-count due to missing GROUP BY; join conditions that produce a cartesian product; filter conditions that silently exclude the wrong records.</p>
+              <p><strong>Mitigation at the pipeline level:</strong> Parse and validate LLM-generated SQL using a SQL parser before execution (<code>sqlglot</code> is a Python library that parses and validates SQL across dialects). Run EXPLAIN on generated queries before execution to catch cartesian products and missing indexes. Test against a development environment with known record counts before promoting to production. Add a human review step for any LLM-generated transformation before it runs in the Gold layer.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>LLMs generate text by predicting the next token from a probability distribution — they are not retrieving facts from a database. This mechanism makes hallucination structurally inevitable: the model produces plausible-sounding text, not verified correct text. Tokens are the unit of LLM input/output (~4 characters each); context windows define how much the model can see simultaneously (128k to 1M+ tokens across current models); embeddings encode semantic meaning as numerical vectors used in RAG. Temperature at 0 gives deterministic outputs — required for data engineering tasks. Prompt structure: system prompt (persistent instructions — where hallucination is controlled via schema grounding), user turn (the request), assistant turn (prior responses). Fine-tuning is almost never the right first choice — try prompting, then RAG. Azure OpenAI is the enterprise standard: same models as OpenAI direct, plus private endpoints (data stays in your VNet), no training on your data, Azure RBAC, and Microsoft compliance certification. In data engineering contexts, hallucination is not a nuisance but a pipeline failure mode — SQL generators must include explicit schema grounding, output validation, and human review before production execution.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Coming in Section 6.2 &mdash; MCP (Model Context Protocol)</div>
+          <p>LLMs are powerful but isolated — they cannot access your files, databases, or APIs without explicit integration. Section 6.2 covers the Model Context Protocol (MCP): the open standard, now maintained by the Linux Foundation, that defines how LLM applications connect to external tools and data sources. In November 2024 it had 2 million monthly downloads; by March 2026 it had 97 million — the fastest adoption of any developer protocol in history. Every major cloud provider now supports it. Understanding MCP is quickly becoming a core data engineering skill.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 6.1 &nbsp;&middot;&nbsp; How LLMs Work</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">An LLM generates a SQL query that references a table called <code>fact_order_summary</code>, which does not exist in the production schema. The model produces this query confidently, with no indication that the table might not exist. What is the root cause of this behaviour?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The model is connected to an outdated version of the schema that included this table previously</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">LLMs predict the most plausible next token, not verified facts — "fact_order_summary" was a highly probable continuation given the context, regardless of whether the table actually exists. Without explicit schema grounding in the system prompt, the model has no mechanism to constrain its output to real tables</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">The temperature was set too high, causing random token selection</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The model needs fine-tuning on the organisation's schema to learn which tables exist</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> This is a hallucination — the model generated a plausible-sounding table name that does not exist. It occurs because LLMs predict the most probable next token given the context, not because they retrieve verified facts. "fact_order_summary" sounds like a reasonable fact table name in a dimensional model context, so the model assigns it high probability and generates it confidently. The fix is schema grounding: list the exact available tables in the system prompt ("Only reference the following tables: fact_sales, dim_customer..."). With schema grounding, the model constrains its SQL to tables it has been explicitly told exist, dramatically reducing hallucinated table references. Fine-tuning (D) could help but is far more expensive than schema grounding; temperature (C) at 0 makes outputs deterministic but doesn't prevent hallucination of plausible table names.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">What is the context window of an LLM, and why does it matter for a data engineer building an LLM-powered SQL assistant?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The context window is the time period (in seconds) within which the model must respond before timing out</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The context window defines the maximum number of concurrent users the model can serve simultaneously</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">The context window is the total number of tokens the model can process in a single request — including system prompt, conversation history, and current question. It determines how much schema documentation, table definitions, and prior conversation can be included, and anything exceeding the limit is truncated or errors</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The context window is the set of topics the model has been trained to discuss</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The context window is the model's working memory — the total token capacity for a single request. For a SQL assistant, this determines how much schema you can include (more tables = more tokens = better accuracy but higher cost), how long the conversation history you preserve is, and whether you can include example queries in the system prompt alongside the schema. A SQL assistant with a 2,000-token context budget may only be able to include 10–15 table definitions. One with a 128,000-token context can include the entire schema with column descriptions and still have room for the conversation. The trade-off: larger context = higher API cost per request, since API pricing is per token consumed.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A data team is building a pipeline that calls an LLM to classify customer support tickets by severity (Critical / High / Medium / Low). The team notices that the same ticket produces different classification results on different runs. What single parameter change will make the output deterministic and reproducible?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Increase the context window to include more historical ticket examples</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Set temperature to 0 — this makes the model always select the highest-probability token, producing identical output for identical input</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Switch from GPT-4o to a smaller model which has less randomness</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Fine-tune the model on the classification task so it always produces consistent results</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Temperature controls the sampling from the probability distribution over next tokens. At temperature 0, the model always selects the highest-probability token deterministically — the same input always produces the same output. For any pipeline task where reproducibility is required (classification, extraction, SQL generation), temperature should be set to 0. Temperature above 0 introduces controlled randomness appropriate for creative tasks but incompatible with pipeline reliability requirements. Model size (C) does not control output variance — temperature does. Fine-tuning (D) would improve classification quality but would not make outputs deterministic without also setting temperature to 0.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">An enterprise data team wants to build an LLM-powered assistant that can answer questions about customer data stored in their Azure SQL Database. Their organisation's data policy requires that customer PII never leaves the company's private network. Which deployment option meets this requirement?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">OpenAI direct API — it is the most capable and the team can trust OpenAI's data handling commitments</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Fine-tune a model on the customer data first, so it doesn't need to see live data at query time</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Azure OpenAI Service with a private endpoint — deployed within the organisation's Azure VNet so no traffic containing customer data leaves the private network; Microsoft also commits that prompts are not used to train models</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Any model will work — GDPR compliance is the data team's responsibility, not the model provider's</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Azure OpenAI Service with a private endpoint is the compliance-first answer for this scenario. The private endpoint routes all traffic within the Azure VNet — customer PII included in prompts never traverses the public internet and never leaves the organisation's network boundary. Microsoft's terms for Azure OpenAI explicitly commit that prompts and completions are not used to train or improve OpenAI models (unlike the default for some OpenAI direct API tiers). This satisfies both the network isolation requirement and the data usage requirement. OpenAI direct API (A) routes data to OpenAI's US-hosted servers over the public internet — incompatible with the policy. Fine-tuning (B) bakes data into the model weights at training time, which is a different and larger compliance concern. Option D is technically true but misleading — choosing a compliant deployment option is part of the data team's responsibility.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A data team needs an LLM to answer questions about their company's proprietary product catalogue data (10,000 products, updated daily). The team is considering fine-tuning vs RAG. Which is the more appropriate approach and why?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Fine-tuning — training the model on the product catalogue will give it deep knowledge of the data</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Fine-tuning — it is cheaper and faster than building a RAG pipeline</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">RAG — it retrieves current product data at query time, handling daily updates without retraining; fine-tuning would require daily retraining, costs significantly more, and produces a model that cannot update when the catalogue changes</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Both approaches are equivalent — choose based on team preference</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> This is a textbook RAG use case. The data is: (1) proprietary (not in the model's training data), (2) frequently updated (daily changes), and (3) large enough that it cannot all fit in a single prompt. RAG retrieves the relevant product records at query time, includes them in the prompt as context, and returns a grounded answer. When the catalogue updates, the RAG index is refreshed — no model retraining required. Fine-tuning would bake the product catalogue into model weights at training time. This means: daily retraining to keep current (expensive and operationally complex), no way to update the model's knowledge without another training run, and the fine-tuned model is still likely to hallucinate specific product details since fine-tuning changes model behaviour, not its factual knowledge in the way most teams expect. RAG is cheaper, faster to build, and correctly handles dynamic data. Fine-tuning is justified when the task requires a different output style or the domain vocabulary is genuinely unusual — not when the requirement is access to current proprietary data.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="../05-delivery-and-leadership/5-6-change-management.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">5.6 Change Management</span></span>
+          </a>
+          <a href="6-2-mcp.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">6.2 MCP &mdash; Model Context Protocol</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 6 &nbsp;&middot;&nbsp; AI &amp; Agentic Systems</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">27</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Not a Database</div>
+          <p>An LLM predicts plausible text — it does not retrieve verified facts. This is why hallucination is structural, not a bug. Design systems with this assumption: validate all LLM output before using it in production.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Temperature = 0 for Data</div>
+          <p>Any data engineering task using an LLM (SQL generation, classification, extraction) must use temperature 0. Randomness is a feature for creative tasks. It is a bug in a pipeline.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Schema Ground Your SQL Prompts</div>
+          <p>List available tables explicitly in the system prompt. "Only use tables listed below." This single instruction eliminates the majority of SQL hallucination in production LLM-powered SQL tools.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"How would you prevent an LLM from hallucinating table names in generated SQL?" Answer: schema grounding in system prompt + output validation with a SQL parser + test against dev environment before production. This demonstrates both understanding of the failure mode and practical mitigation.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('6.1');</script>
+</body>
+</html>

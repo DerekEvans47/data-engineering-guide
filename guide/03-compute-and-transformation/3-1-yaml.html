@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3.1 YAML &amp; Configuration Languages · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="3.1">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+        <header class="chap-header">
+          <div class="part-tag">Part Three &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="chap-num">3.1</div>
+          <h1 class="chap-title">YAML &amp; Configuration Languages</h1>
+          <p class="chap-sub">The universal config syntax of the data engineering stack &mdash; and where it hides in every tool you use</p>
+        </header>
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain what YAML is and why it became the dominant configuration format in data tooling</li>
+            <li>Write valid YAML including scalars, sequences, mappings, and multiline strings</li>
+            <li>Identify the five most common YAML syntax errors and how to avoid them</li>
+            <li>Recognise YAML as it appears in dbt, GitHub Actions, Databricks DABs, and ADF</li>
+            <li>Compare YAML to JSON, XML, TOML, and INI across readability, capability, and tooling support</li>
+          </ol>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.1.1</span><h2 class="sec-title">Why YAML Is Everywhere</h2></div>
+
+        <p>YAML &mdash; which officially stands for <em>YAML Ain&rsquo;t Markup Language</em> &mdash; is a human-readable data serialisation format. It was designed to be written and edited directly by humans, which makes it fundamentally different from XML or JSON, both of which are primarily consumed by machines. That human-readability made YAML the default choice for configuration files across almost every modern software and data tool.</p>
+        <p>In the data engineering stack, YAML appears in more places than most practitioners realise. A dbt project uses YAML for source definitions, test configurations, and documentation. GitHub Actions workflows are YAML files. Databricks Asset Bundles (DABs) use YAML to define jobs and pipelines. Azure DevOps CI/CD pipelines are YAML. Kubernetes manifests &mdash; which Databricks and many data tools run on &mdash; are YAML. Great Expectations configuration is YAML. Once you understand YAML, you can read and edit configuration across the entire modern stack without learning tool-specific syntax.</p>
+        <div class="hl-block">YAML is not a programming language. It has no logic, no loops, no conditionals. It is a way of expressing data as text &mdash; specifically, nested key-value pairs, lists, and scalars. Understanding YAML means understanding those three structures and the indentation rules that separate them.</div>
+
+        <div class="sec-head"><span class="sec-tag">3.1.2</span><h2 class="sec-title">YAML Syntax: The Rules That Matter</h2></div>
+
+        <p>YAML has a small set of syntax rules but breaks in ways that are <em>silent</em> &mdash; an incorrect YAML file often parses without error, just not as the author intended. The rules below are the ones that cause real production failures.</p>
+        <h3 class="subsec">Indentation is structural &mdash; and must use spaces</h3>
+        <p>YAML uses indentation to represent nesting. Tabs are illegal. Using a tab character instead of spaces will either raise a parse error or &mdash; more dangerously &mdash; be silently consumed as a space by some parsers and misinterpreted. The convention is 2 spaces per indent level. The exact number does not matter (2 or 4 both work) but must be consistent within a file.</p>
+        <div class="code-wrap">
+          <div class="code-label">YAML &nbsp;&middot;&nbsp; Structure fundamentals<button class="copy-btn">Copy</button></div>
+          <pre><code># YAML comment (JSON has no comments — YAML does)
+# Three data structures: scalars, sequences, mappings
+
+# Scalar (a single value)
+name: sales_pipeline
+version: 1.0
+enabled: true
+
+# Mapping (key: value pairs — the most common structure)
+database:
+  host: myserver.database.windows.net
+  port: 1433
+  name: gold_layer
+
+# Sequence (a list — two equivalent notations)
+models:
+  - dim_customer
+  - fact_orders
+  - agg_revenue
+
+tags: [finance, daily, gold]   # inline sequence notation
+
+# Nested: mapping containing a sequence
+sources:
+  - name: crm
+    tables:
+      - name: customers
+      - name: contacts</code></pre>
+        </div>
+        <h3 class="subsec">The boolean trap</h3>
+        <p>YAML has an unusually large set of values it considers boolean. In YAML 1.1 (which many tools still use): <code>true</code>, <code>yes</code>, <code>on</code>, <code>True</code>, <code>YES</code>, <code>ON</code> are all boolean <code>true</code>. <code>false</code>, <code>no</code>, <code>off</code>, <code>False</code>, <code>NO</code>, <code>OFF</code> are all boolean <code>false</code>. This causes real problems when these words appear as string values.</p>
+        <div class="code-wrap">
+          <div class="code-label">YAML &nbsp;&middot;&nbsp; The boolean trap in practice<button class="copy-btn">Copy</button></div>
+          <pre><code># Dangerous: "no" as a country code becomes boolean false
+country: no         # Parsed as: country: false (WRONG)
+country: "no"       # Correct: quoted string
+
+# Dangerous: "on" as a column name
+columns:
+  - name: on        # Parsed as boolean true (WRONG)
+  - name: "on"      # Correct: quoted
+
+# dbt schema.yml real-world example of the trap:
+models:
+  - name: dim_customer
+    columns:
+      - name: is_active
+        tests:
+          - accepted_values:
+              values: [yes, no]    # "yes" and "no" become true/false!
+              # Correct: values: ["yes", "no"]  — always quote</code></pre>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.1.3</span><h2 class="sec-title">YAML in the Data Engineering Stack</h2></div>
+
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs><filter id="fs31"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter></defs>
+              <rect width="700" height="260" fill="#0F1B2D" rx="6"/>
+              <text x="350" y="22" fill="#88BEFF" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">YAML Syntax Anatomy</text>
+              <!-- key: value line -->
+              <text x="30" y="50" fill="#888" font-family="monospace" font-size="12">name:</text>
+              <text x="90" y="50" fill="#88E0AA" font-family="monospace" font-size="12">sales_pipeline</text>
+              <text x="60" y="70" fill="#FFB0B0" font-family="Inter,sans-serif" font-size="9" font-style="italic">key</text>
+              <text x="104" y="70" fill="#88E0AA" font-family="Inter,sans-serif" font-size="9" font-style="italic">string scalar</text>
+              <line x1="70" y1="53" x2="70" y2="62" stroke="#FFB0B0" stroke-width="1"/>
+              <line x1="120" y1="53" x2="120" y2="62" stroke="#88E0AA" stroke-width="1"/>
+              <!-- mapping -->
+              <text x="30" y="100" fill="#888" font-family="monospace" font-size="12">database:</text>
+              <text x="50" y="118" fill="#888" font-family="monospace" font-size="12">  host:</text>
+              <text x="116" y="118" fill="#88E0AA" font-family="monospace" font-size="12">myserver.azure.com</text>
+              <text x="50" y="134" fill="#888" font-family="monospace" font-size="12">  port:</text>
+              <text x="116" y="134" fill="#FFD080" font-family="monospace" font-size="12">1433</text>
+              <line x1="34" y1="103" x2="34" y2="136" stroke="#6080A0" stroke-width="1.5"/>
+              <text x="270" y="110" fill="#6080A0" font-family="Inter,sans-serif" font-size="9" font-style="italic">mapping (nested</text>
+              <text x="270" y="122" fill="#6080A0" font-family="Inter,sans-serif" font-size="9" font-style="italic">key-value pairs)</text>
+              <text x="168" y="134" fill="#FFD080" font-family="Inter,sans-serif" font-size="9" font-style="italic">integer scalar</text>
+              <!-- sequence -->
+              <text x="30" y="165" fill="#888" font-family="monospace" font-size="12">models:</text>
+              <text x="50" y="181" fill="#888" font-family="monospace" font-size="12">  - dim_customer</text>
+              <text x="50" y="197" fill="#888" font-family="monospace" font-size="12">  - fact_orders</text>
+              <text x="50" y="197" fill="#0076CC" font-family="monospace" font-size="12">  - </text>
+              <text x="282" y="189" fill="#0076CC" font-family="Inter,sans-serif" font-size="9" font-style="italic">sequence item</text>
+              <text x="282" y="200" fill="#0076CC" font-family="Inter,sans-serif" font-size="9" font-style="italic">(dash = list entry)</text>
+              <!-- multiline -->
+              <text x="390" y="50" fill="#888" font-family="monospace" font-size="12">description: |</text>
+              <text x="390" y="66" fill="#88E0AA" font-family="monospace" font-size="12">  Daily sales refresh</text>
+              <text x="390" y="82" fill="#88E0AA" font-family="monospace" font-size="12">  for Finance team.</text>
+              <text x="580" y="60" fill="#C8892A" font-family="Inter,sans-serif" font-size="9" font-style="italic">| = literal block</text>
+              <text x="580" y="72" fill="#C8892A" font-family="Inter,sans-serif" font-size="9" font-style="italic">(newlines preserved)</text>
+              <!-- anchor -->
+              <text x="390" y="115" fill="#888" font-family="monospace" font-size="12">defaults: &amp;base</text>
+              <text x="390" y="131" fill="#888" font-family="monospace" font-size="12">  timeout: 30</text>
+              <text x="390" y="147" fill="#888" font-family="monospace" font-size="12">prod:</text>
+              <text x="390" y="163" fill="#888" font-family="monospace" font-size="12">  &lt;&lt;: *base</text>
+              <text x="580" y="122" fill="#88BEFF" font-family="Inter,sans-serif" font-size="9" font-style="italic">&amp; = anchor (define)</text>
+              <text x="580" y="134" fill="#88BEFF" font-family="Inter,sans-serif" font-size="9" font-style="italic">* = alias (reference)</text>
+              <text x="580" y="158" fill="#88BEFF" font-family="Inter,sans-serif" font-size="9" font-style="italic">&lt;&lt; = merge key</text>
+              <!-- comment note -->
+              <text x="390" y="195" fill="#608070" font-family="monospace" font-size="12"># This is a comment</text>
+              <text x="390" y="211" fill="#608070" font-family="Inter,sans-serif" font-size="9" font-style="italic">JSON has no comments. YAML does.</text>
+              <!-- spacing rule -->
+              <text x="30" y="240" fill="#6080A0" font-family="Inter,sans-serif" font-size="9" font-style="italic">Indentation: spaces only (tabs are illegal) · 2 spaces per level is the convention · colon must be followed by a space</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 3.1</strong>
+            <span>YAML syntax anatomy. Four building blocks: scalars (plain values), mappings (key-value pairs), sequences (lists, introduced by a dash), and multiline strings (| preserves newlines, &gt; folds them). Anchors (&amp;) define reusable blocks; aliases (*) reference them. Comments start with #. Indentation is structural — two spaces per level, no tabs.</span>
+          </div>
+        </div>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 210" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs><filter id="fs32"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.14)"/></filter>
+  <linearGradient id="g32" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1B3A6B"/><stop offset="100%" stop-color="#0F2447"/></linearGradient></defs>
+  <rect width="700" height="210" fill="#F4F6FB" rx="6"/>
+  <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">YAML Across the Data Engineering Toolchain</text>
+  <!-- dbt -->
+  <rect x="12" y="32" width="108" height="130" rx="7" fill="#C8892A" filter="url(#fs32)"/>
+  <text x="66" y="54" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">dbt</text>
+  <line x1="22" y1="60" x2="110" y2="60" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+  <text x="66" y="75" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">dbt_project.yml</text>
+  <text x="66" y="88" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">schema.yml</text>
+  <text x="66" y="101" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">sources.yml</text>
+  <text x="66" y="114" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">packages.yml</text>
+  <text x="66" y="142" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">Most common</text>
+  <text x="66" y="153" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">YAML in daily work</text>
+  <!-- GitHub Actions -->
+  <rect x="132" y="32" width="108" height="130" rx="7" fill="#2D3E50" filter="url(#fs32)"/>
+  <text x="186" y="54" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">GitHub Actions</text>
+  <line x1="142" y1="60" x2="230" y2="60" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+  <text x="186" y="75" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">.github/workflows/</text>
+  <text x="186" y="88" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">ci.yml</text>
+  <text x="186" y="101" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">deploy.yml</text>
+  <text x="186" y="142" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">CI/CD pipelines</text>
+  <text x="186" y="153" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">Section 5.2</text>
+  <!-- Databricks DABs -->
+  <rect x="252" y="32" width="108" height="130" rx="7" fill="#0076CC" filter="url(#fs32)"/>
+  <text x="306" y="54" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Databricks</text>
+  <line x1="262" y1="60" x2="350" y2="60" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+  <text x="306" y="75" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">bundle.yml</text>
+  <text x="306" y="88" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">(DABs)</text>
+  <text x="306" y="142" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">Jobs, clusters,</text>
+  <text x="306" y="153" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">permissions as code</text>
+  <!-- Azure DevOps -->
+  <rect x="372" y="32" width="108" height="130" rx="7" fill="#0050AA" filter="url(#fs32)"/>
+  <text x="426" y="54" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Azure DevOps</text>
+  <line x1="382" y1="60" x2="470" y2="60" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+  <text x="426" y="75" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">azure-pipelines.yml</text>
+  <text x="426" y="88" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Pipeline tasks,</text>
+  <text x="426" y="101" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">stages, agents</text>
+  <text x="426" y="142" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">Enterprise CI/CD</text>
+  <text x="426" y="153" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">Section 5.4</text>
+  <!-- Great Expectations -->
+  <rect x="492" y="32" width="108" height="130" rx="7" fill="#3A5A40" filter="url(#fs32)"/>
+  <text x="546" y="54" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Great Expectations</text>
+  <line x1="502" y1="60" x2="590" y2="60" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+  <text x="546" y="75" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">great_expectations.yml</text>
+  <text x="546" y="88" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">Expectation suites</text>
+  <text x="546" y="142" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">Data quality</text>
+  <text x="546" y="153" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7.5" font-style="italic" text-anchor="middle">validation config</text>
+  <!-- Kubernetes -->
+  <rect x="612" y="32" width="76" height="130" rx="7" fill="#326CE5" filter="url(#fs32)"/>
+  <text x="650" y="52" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">Kubernetes</text>
+  <line x1="620" y1="58" x2="680" y2="58" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+  <text x="650" y="73" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Manifests</text>
+  <text x="650" y="86" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Deployments</text>
+  <text x="650" y="99" fill="rgba(255,255,255,.9)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Services</text>
+  <text x="650" y="142" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7" font-style="italic" text-anchor="middle">Infra that</text>
+  <text x="650" y="153" fill="rgba(255,255,255,.6)" font-family="Inter,sans-serif" font-size="7" font-style="italic" text-anchor="middle">runs tools</text>
+  <text x="350" y="197" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">One syntax &mdash; six different tools. Understanding YAML once pays dividends across the entire stack.</text>
+</svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 3.2</strong>
+            <span>YAML across the data engineering toolchain. Six tools, one syntax. The dbt schema.yml is the most commonly written YAML file in a data engineer's daily work. GitHub Actions and Azure DevOps workflows define CI/CD pipelines as YAML. Databricks Asset Bundles define jobs and clusters in YAML. Great Expectations uses YAML for quality suite configuration. Kubernetes &mdash; which runs many of these tools &mdash; expresses all infrastructure as YAML manifests.</span>
+          </div>
+        </div>
+
+        <p>The four most important YAML files a data engineer encounters regularly:</p>
+        <p><strong>dbt schema.yml</strong> &mdash; documents models, sources, and columns; defines tests. Every dbt project has at least one, usually many. The most commonly written YAML file in a data engineering career.</p>
+        <p><strong>GitHub Actions workflow (.github/workflows/*.yml)</strong> &mdash; defines CI/CD pipelines: what triggers them, what steps run, what environment they run in. Covered in Section 5.2.</p>
+        <p><strong>Databricks bundle.yml</strong> &mdash; defines Databricks Asset Bundles (DABs): jobs, clusters, permissions, and deployment targets in code.</p>
+        <p><strong>dbt_project.yml</strong> &mdash; the root configuration file for a dbt project: project name, version, model paths, materialization defaults, and variable definitions.</p>
+        <div class="code-wrap">
+          <div class="code-label">dbt schema.yml &nbsp;&middot;&nbsp; What a real data engineer writes daily<button class="copy-btn">Copy</button></div>
+          <pre><code># models/schema.yml — documents a dim_customer model
+version: 2
+
+models:
+  - name: dim_customer
+    description: "One row per customer. SCD Type 2 — multiple rows for changed customers."
+    columns:
+      - name: customer_sk          # surrogate key
+        description: "Surrogate key generated by the platform."
+        tests:
+          - not_null
+          - unique
+
+      - name: customer_id          # natural key from source CRM
+        description: "CRM system customer identifier."
+        tests:
+          - not_null
+
+      - name: region
+        description: "Customer region."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["EMEA", "AMER", "APAC"]
+
+      - name: is_current
+        description: "True if this is the current version of the customer record."
+        tests:
+          - not_null</code></pre>
+        </div>
+        <div class="code-wrap">
+          <div class="code-label">Databricks bundle.yml &nbsp;&middot;&nbsp; DABs job definition<button class="copy-btn">Copy</button></div>
+          <pre><code># .databricks/bundle.yml
+bundle:
+  name: sales_pipeline
+
+resources:
+  jobs:
+    daily_gold_refresh:
+      name: "Daily Gold Layer Refresh"
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"  # 6am UTC daily
+        timezone_id: "UTC"
+      tasks:
+        - task_key: bronze_ingest
+          notebook_task:
+            notebook_path: /Repos/main/notebooks/01_bronze_ingest
+          existing_cluster_id: ${var.cluster_id}
+        - task_key: silver_transform
+          depends_on:
+            - task_key: bronze_ingest
+          notebook_task:
+            notebook_path: /Repos/main/notebooks/02_silver_transform
+          existing_cluster_id: ${var.cluster_id}
+
+targets:
+  dev:
+    mode: development
+    variables:
+      cluster_id: "0101-dev-cluster"
+  prod:
+    mode: production
+    variables:
+      cluster_id: "0101-prod-cluster"</code></pre>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Data Engineering Team &nbsp;&middot;&nbsp; The Tab Character Incident</span>
+          </div>
+          <div class="field-note-body">            <p>A data engineering team migrated their dbt project to a new repository, copying schema.yml files from an older internal wiki where they had been stored as formatted text. The wiki had automatically converted leading spaces to tabs in some entries during copy-paste. The dbt YAML parser on most systems is tolerant of tabs in some positions but strict in others, and the specific combination of tab-indented test definitions that had been migrated caused some tests to be silently parsed as empty rather than throwing an error.</p>
+            <p>The missing tests were discovered three weeks later during a data quality review, when a null customer_id issue that the tests should have caught went unreported. The root cause was traced to a single tab character on line 14 of a schema.yml file. The fix took three minutes. Detecting it took three weeks.</p>
+            <p>The team's remediation: added <code>yamllint</code> as a pre-commit hook. Every committed YAML file is now validated for indentation consistency before reaching the repository.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>YAML errors are silent until they are not. Add a YAML linter (yamllint, prettier, or your IDE's YAML extension) to your pre-commit workflow. A tab character discovered in a linter takes seconds to fix. A tab character discovered in a production incident takes weeks.</p></div>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.1.4</span><h2 class="sec-title">YAML vs Alternatives</h2></div>
+
+        <p class="table-hint">Tap any column header to sort.</p>
+
+        <table class="data-table sortable">
+          <thead><tr><th>Format</th><th>Comments?</th><th>Readability</th><th>Nested Data</th><th>Data Types</th><th>Verbosity</th><th>Common Use in Data Stack</th></tr></thead>
+          <tbody>
+            <tr><td><strong>YAML</strong></td><td>✓ Yes</td><td>Highest for humans</td><td>Native (indentation)</td><td>Rich (strings, ints, bools, lists)</td><td>Low</td><td>dbt, GitHub Actions, Databricks DABs, K8s</td></tr>
+            <tr><td><strong>JSON</strong></td><td>✗ No</td><td>Medium (braces)</td><td>Native (braces/brackets)</td><td>Limited (no dates, no comments)</td><td>Medium</td><td>APIs, ADF pipeline definitions, package.json</td></tr>
+            <tr><td><strong>TOML</strong></td><td>✓ Yes</td><td>High (simpler than YAML)</td><td>Limited (sections only)</td><td>Rich</td><td>Low–Medium</td><td>Python pyproject.toml, Rust configs</td></tr>
+            <tr><td><strong>XML</strong></td><td>✓ Yes</td><td>Low (verbose tags)</td><td>Native (element nesting)</td><td>Limited natively</td><td>Very high</td><td>Legacy ERP, SSIS packages, SOAP APIs</td></tr>
+            <tr><td><strong>INI</strong></td><td>✓ Yes</td><td>High (very simple)</td><td>No (flat sections)</td><td>Strings only</td><td>Very low</td><td>Old Windows configs, simple app settings</td></tr>
+          </tbody>
+        </table>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">An Infrastructure Team &nbsp;&middot;&nbsp; YAML Anchors Saving 400 Lines</span>
+          </div>
+          <div class="field-note-body">            <p>An infrastructure team managed Databricks cluster configurations across 40 environments: development clusters for 8 teams, 12 shared staging clusters, and 20 production clusters with varying sizes. Each cluster definition was nearly identical except for node type and count. Their initial bundle.yml was 480 lines of near-duplicate configuration, maintained manually across every cluster definition.</p>
+            <p>A senior engineer introduced YAML anchors and aliases. A single <code>&amp;base_config</code> anchor defined the 15 fields shared by every cluster: runtime version, spark configuration, libraries, init scripts, and logging settings. Each environment definition then used <code>&lt;&lt;: *base_config</code> to inherit all shared fields and overrode only node_type and num_workers. The 480-line file became 80 lines. More importantly, when the runtime version needed updating, it was one change in one place rather than 40 parallel edits.</p>
+            <p>The team also added a CI check that validated all 40 cluster definitions against a JSON schema, so misconfigured overrides were caught in the pull request rather than at deploy time.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>YAML anchors and aliases are the DRY principle applied to configuration. Whenever you find yourself copy-pasting a block of YAML and changing one or two values, an anchor is the correct tool. The syntax is unfamiliar at first but saves significant maintenance cost at scale.</p></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Multiline strings: | vs &gt; and when each is right</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>YAML has two multiline string notations with importantly different behaviour. The pipe character (<code>|</code>, literal block scalar) preserves newlines exactly as written. The greater-than character (<code>&gt;</code>, folded block scalar) converts newlines within the content to spaces, folding the text into a single long line, with only blank lines preserved as paragraph breaks.</p>
+              <p><strong>Use | (literal) when:</strong> the content is code, a shell command, a SQL query, or anything where newlines are meaningful. A GitHub Actions <code>run:</code> step with multiple shell commands must use <code>|</code> or each command will be concatenated into a single broken line.</p>
+              <p><strong>Use &gt; (folded) when:</strong> the content is prose text (a description, a README section) where the line breaks in the YAML file are just for readability and should not appear in the output string.</p>
+              <p>Both notations support a chomping indicator: <code>|-</code> strips the final newline, <code>|+</code> preserves all trailing newlines. The default (<code>|</code>) strips trailing newlines but preserves a single one at the end. In practice, <code>|-</code> is the most commonly useful variant when embedding SQL in YAML &mdash; it ensures no trailing newline is appended to the query string.</p>
+          </div></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>YAML security: the deserialization attack surface</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>YAML parsers that support "full YAML" (including Python's default PyYAML with <code>yaml.load()</code>) can deserialize arbitrary Python objects &mdash; including calls to <code>os.system()</code>, <code>subprocess.Popen()</code>, and other code execution functions. A maliciously crafted YAML file loaded with an unsafe parser can execute arbitrary code on the machine running the parser.</p>
+              <p>The attack pattern: a user submits a YAML config file that contains a Python object tag (<code>!!python/object/apply:os.system</code>) followed by a shell command. The unsafe parser deserializes it, executes the code.</p>
+              <p>The fix is simple but not the default: <strong>always use <code>yaml.safe_load()</code> instead of <code>yaml.load()</code> in Python.</strong> <code>safe_load()</code> only deserializes basic YAML types (strings, ints, lists, dicts) and refuses object tags. This is the correct default for all data engineering use of YAML parsing in Python. dbt, which reads schema.yml internally, uses safe loading. The risk arises in custom scripts that parse YAML config files from external or user-supplied sources.</p>
+          </div></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>YAML schema validation with yamllint and json-schema</div>
+          </div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>YAML is human-written, which means it has human errors. Two tools address this at different levels.</p>
+              <p><strong>yamllint</strong> is a YAML syntax linter: it checks indentation consistency, trailing spaces, line length, and other style issues. It catches structural problems before a tool even tries to parse the file. Adding <code>yamllint .</code> as a pre-commit hook takes two minutes to configure and eliminates an entire class of frustrating CI failures.</p>
+              <p><strong>JSON Schema validation</strong> goes deeper: after confirming the YAML is syntactically valid, it validates that the content matches an expected structure. dbt uses this to validate your schema.yml against a defined schema (unknown keys raise warnings). Kubernetes validators use JSON Schema to confirm your manifest defines required fields with the right types. For custom YAML configs in data pipelines, a JSON Schema validator run on every commit catches semantic errors &mdash; a required field missing, a value of the wrong type &mdash; that yamllint cannot see because they are structurally valid but logically wrong.</p>
+          </div></div>
+        </div>        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text"><h3>Learning Check</h3><p>Section 3.1 &nbsp;&middot;&nbsp; YAML & Configuration Languages</p></div>
+            <div class="quiz-score-wrap"><div class="quiz-score-num">0/5</div><div class="quiz-score-label">Score</div></div>
+          </div>
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A dbt schema.yml file defines tests for a column called "country". You write <code>accepted_values: values: [no, yes]</code> to validate the column only contains those two strings. What is the actual result?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The test validates correctly — YAML treats bare strings correctly in this context</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The YAML file fails to parse and raises a syntax error</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">The values "no" and "yes" are parsed as boolean false and true, not as strings — the test validates against [false, true] rather than ["no", "yes"]</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The test is silently skipped because boolean values are not valid for accepted_values</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> In YAML 1.1 (which many tools including older dbt versions use), <code>yes</code> and <code>no</code> are boolean literals. The list <code>[no, yes]</code> is parsed as <code>[false, true]</code>, not as strings. The fix is to quote them: <code>["no", "yes"]</code>. This is one of the most common dbt schema.yml bugs encountered in practice, especially in projects that model data from countries whose ISO codes include "no" (Norway).</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">You are writing a GitHub Actions step that runs three shell commands in sequence. Which YAML multiline string notation is correct?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Use > (folded) — it combines lines efficiently for shell commands</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Use | (literal) — it preserves newlines so each command runs as a separate line</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Either works — the shell ignores the difference</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Inline single-quoted strings are required for shell commands</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The pipe character <code>|</code> (literal block scalar) preserves newlines. In a GitHub Actions <code>run:</code> step, each newline represents a separate shell command. Using <code>&gt;</code> (folded) would collapse all commands into a single line, causing parse errors or unexpected concatenation. The <code>|</code> notation for shell commands in YAML is non-negotiable.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">Which of the following Python YAML calls is safe to use with user-supplied YAML files?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">yaml.load(user_input)</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">yaml.load(user_input, Loader=yaml.FullLoader)</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">yaml.safe_load(user_input)</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">yaml.parse(user_input)</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> <code>yaml.safe_load()</code> only deserializes basic YAML types and refuses Python object tags. <code>yaml.load()</code> without a Loader, and <code>yaml.load()</code> with <code>FullLoader</code> or <code>UnsafeLoader</code>, can deserialize arbitrary Python objects &mdash; a code execution vulnerability when the YAML source is not fully trusted. The PyYAML documentation has warned about this since 2017 and modern versions raise a warning when <code>yaml.load()</code> is called without a Loader argument.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">What does the << key in YAML do?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">It opens a multiline string block</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">It creates a left-shift operator for integer arithmetic</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">It is a merge key: it imports all key-value pairs from the referenced anchor into the current mapping</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">It indicates a YAML comment that spans multiple lines</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The merge key <code>&lt;&lt;</code> (spelled with two less-than signs) imports all key-value pairs from a referenced anchor (<code>*alias_name</code>) into the current mapping. It is the mechanism that makes YAML anchors useful for DRY configuration: define common settings once with <code>&amp;base</code>, then reference them in each environment with <code>&lt;&lt;: *base</code> and override only what differs.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">A colleague says "tabs and spaces are equivalent in YAML — I use tabs because they're easier." Is this correct?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Yes — modern YAML parsers accept both tabs and spaces</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Yes — the YAML specification allows tabs as an alternative to spaces</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">No — the YAML specification explicitly prohibits tab characters for indentation. They may be accepted silently by some parsers and cause hard-to-detect errors</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Only partially — tabs are allowed at the root level but not in nested structures</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The YAML specification (all versions: 1.1 and 1.2) explicitly prohibits tab characters for indentation. The reason: different editors interpret tab width differently (2, 4, or 8 spaces), making tab-indented YAML visually correct in one editor but structurally wrong in another. Some parsers accept tabs silently and treat them as a fixed number of spaces, which introduces inconsistency. Always use spaces. Configure your editor to insert spaces on tab keypress for YAML files.</p></div></div>
+          </div>
+
+          <div class="quiz-final"><div class="quiz-final-score">&mdash;</div><p class="quiz-final-msg"></p><button class="quiz-retry-btn">Try Again</button></div>
+        </section>
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>YAML is the dominant configuration format across the modern data engineering stack: dbt, GitHub Actions, Databricks Asset Bundles, and Kubernetes all use it. Three data structures (scalars, mappings, sequences) plus indentation rules make up the entire format. Key gotchas: tabs are illegal, <code>yes</code>/<code>no</code>/<code>on</code>/<code>off</code> are booleans not strings, and <code>|</code> vs <code>&gt;</code> for multiline strings controls newline preservation. YAML anchors and aliases implement DRY configuration at scale. Always use <code>yaml.safe_load()</code> in Python, never <code>yaml.load()</code> with user input.</p>
+        </div>
+        <div class="info-box gold">
+          <div class="info-label">Coming in the Next Section</div>
+          <p>Section 3.2 covers Advanced SQL: window functions, EXPLAIN plan reading, cross-platform SQL differences between T-SQL, Spark SQL, and BigQuery SQL, and the anti-patterns that cause quiet performance disasters.</p>
+        </div>
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+        <nav class="sec-nav">
+          <a href="../02-data-fundamentals/2-4-glossary.html" class="sec-nav-btn sec-nav-prev"><span class="sec-nav-arrow">&#8592;</span><span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">2.4 Glossary</span></span></a>
+          <a href="3-2-advanced-sql.html" class="sec-nav-btn sec-nav-next"><span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">3.2 Advanced SQL</span></span><span class="sec-nav-arrow">&#8594;</span></a>
+        </nav>
+        <footer class="page-foot">
+          <div class="fl">Part 3 &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">10</div>
+        </footer>
+      </article>
+      <aside class="margin-col">
+        
+        <div class="ms" style="height:140px;"></div>        <div class="mnote key">
+          <div class="mnote-label">Core Rule</div>
+          <p>YAML uses <strong>spaces only</strong> for indentation &mdash; tabs are illegal. Configure your editor to insert spaces on Tab for YAML files. This eliminates a whole class of silent parsing errors.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Boolean Trap</div>
+          <p><code>yes</code>, <code>no</code>, <code>on</code>, <code>off</code>, <code>true</code>, <code>false</code> are all booleans. If you mean the string "yes" or "no", quote it: <code>"yes"</code>.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">DRY Config</div>
+          <p>YAML anchors (<code>&amp;name</code>) define a reusable block. Aliases (<code>*name</code>) reference it. Merge keys (<code>&lt;&lt;: *name</code>) inherit all keys. Use these any time you copy-paste a YAML block and change one value.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"Name three files in a dbt project that use YAML." Answer: <code>dbt_project.yml</code>, <code>schema.yml</code> (models documentation &amp; tests), <code>sources.yml</code>. Bonus: <code>packages.yml</code>.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+
+      </aside>
+    </div>
+  </div>
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('3.1');</script>
+</body>
+</html>

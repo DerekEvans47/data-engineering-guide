@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3.3 Python for Data Engineering · Data Engineering & AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="3.3">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+        <header class="chap-header">
+          <div class="part-tag">Part Three &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="chap-num">3.3</div>
+          <h1 class="chap-title">Python for Data Engineering</h1>
+          <p class="chap-sub">Core libraries, pandas vs Polars, API patterns, and environment management &mdash; Python as a data engineering tool, not just a scripting language</p>
+        </header>
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain where Python fits in a data pipeline versus SQL and PySpark</li>
+            <li>Use pandas and Polars for single-machine tabular data work and choose between them</li>
+            <li>Consume REST APIs and write the results to files or Delta tables</li>
+            <li>Apply correct error handling and logging patterns to pipeline scripts</li>
+            <li>Manage Python environments with venv and understand dependency isolation</li>
+            <li>Understand why Polars on Databricks is single-node and when to switch to PySpark</li>
+          </ol>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.3.1</span><h2 class="sec-title">Python's Place in the Data Pipeline</h2></div>
+
+        <p>Python does not replace SQL in a data pipeline &mdash; it complements it. SQL is the right tool for set-based transformations on data already in a database or compute engine: the aggregations, joins, and window functions covered in Section 3.2. Python is the right tool for everything else: calling APIs that don&rsquo;t have ADF connectors, processing files in non-standard formats, orchestrating multi-step workflows with complex branching logic, building custom data quality checks, and pre-processing data on a single machine before sending it to Spark.</p>
+        <p>The boundary matters. A common mistake is reaching for Python (pandas, loops, list comprehensions) to transform data that belongs in a SQL engine. A pandas loop that processes a 10-million-row table row by row on a single core will take hours. The same transformation in a Spark <code>SELECT</code> takes seconds. <strong>Use SQL for transformation. Use Python for orchestration, file handling, API calls, and anything Spark or SQL can&rsquo;t express cleanly.</strong></p>
+        <div class="hl-block">Python in a Medallion pipeline typically appears in three roles: (1) ADF calls a Python script to pre-process a non-standard file format before passing it to the main pipeline; (2) A Databricks notebook uses Python to call an external REST API and write the response to Bronze; (3) A dbt macro uses Python for logic that cannot be expressed in SQL Jinja. PySpark &mdash; covered in Section 3.5 &mdash; is a separate role: distributed transformation on very large datasets. This section covers single-machine Python. The two are not interchangeable.</div>
+
+        <div class="sec-head"><span class="sec-tag">3.3.2</span><h2 class="sec-title">pandas and Polars: The Two DataFrame Libraries</h2></div>
+
+        <p>For single-machine tabular data work in Python, two libraries dominate: pandas and Polars. Understanding their differences &mdash; and knowing which to reach for &mdash; is increasingly essential.</p>
+        <p><strong>pandas</strong> has been the default for over a decade. It has the richest API, the largest ecosystem of compatible libraries (scikit-learn, matplotlib, seaborn), and the most Stack Overflow answers. For datasets under roughly 500MB that fit comfortably in memory, pandas is a safe and well-supported choice. Its weaknesses become visible at scale: single-threaded execution by default, high memory overhead (often 5-10&times; the raw data size), and mutable operations that make debugging pipelines harder than necessary.</p>
+        <p><strong>Polars</strong> launched in 2020 and reached production maturity in 2022-2023. By 2025-2026, it has become the default choice for new single-machine pipeline code in many engineering teams. Written in Rust with a Python API, Polars is multi-threaded by default, uses a columnar in-memory format based on Apache Arrow, and offers both eager (immediate) and lazy (deferred, optimised) execution modes. Benchmarks consistently show Polars running 5&ndash;20&times; faster than pandas on the same hardware for typical analytical workloads. New greenfield pipeline code written in 2025&ndash;2026 typically reaches for Polars first.</p>
+        <div class="code-wrap">
+          <div class="code-label">Python &nbsp;&middot;&nbsp; pandas vs Polars: same operation, different syntax<button class="copy-btn">Copy</button></div>
+          <pre><code>import pandas as pd
+import polars as pl
+
+# ── pandas ────────────────────────────────────────────────
+df_pd = pd.read_parquet("sales.parquet")
+
+result_pd = (
+    df_pd[df_pd["region"] == "EMEA"]
+    .groupby("product_category")
+    .agg(
+        total_revenue=("amount", "sum"),
+        order_count=("order_id", "count"),
+    )
+    .sort_values("total_revenue", ascending=False)
+)
+
+# ── Polars (eager — immediate execution) ──────────────────
+df_pl = pl.read_parquet("sales.parquet")
+
+result_pl = (
+    df_pl
+    .filter(pl.col("region") == "EMEA")
+    .group_by("product_category")
+    .agg([
+        pl.sum("amount").alias("total_revenue"),
+        pl.count("order_id").alias("order_count"),
+    ])
+    .sort("total_revenue", descending=True)
+)
+
+# ── Polars (lazy — query plan optimised before execution) ─
+result_lazy = (
+    pl.scan_parquet("sales.parquet")   # LazyFrame — reads nothing yet
+    .filter(pl.col("region") == "EMEA")
+    .group_by("product_category")
+    .agg(pl.sum("amount").alias("total_revenue"))
+    .sort("total_revenue", descending=True)
+    .collect()                          # Execute the optimised plan here
+)</code></pre>
+        </div>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body"><svg viewBox="0 0 700 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs><filter id="fs35"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="rgba(0,0,0,0.13)"/></filter></defs>
+  <rect width="700" height="230" fill="#F4F6FB" rx="6"/>
+  <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Python Data Library Landscape &mdash; Choose by Data Scale</text>
+  <!-- Scale axis -->
+  <line x1="40" y1="185" x2="660" y2="185" stroke="#B0BEC8" stroke-width="1.5"/>
+  <text x="40" y="205" fill="#6080A0" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">Tiny</text>
+  <text x="200" y="205" fill="#6080A0" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">&lt; 100MB</text>
+  <text x="380" y="205" fill="#6080A0" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">100MB – 50GB</text>
+  <text x="560" y="205" fill="#6080A0" font-family="Inter,sans-serif" font-size="9" text-anchor="middle">50GB+</text>
+  <text x="350" y="220" fill="#4A6080" font-family="Inter,sans-serif" font-size="8.5" font-style="italic" text-anchor="middle">Data size (approximate — depends on RAM, complexity)</text>
+  <!-- pandas zone -->
+  <rect x="30" y="36" width="270" height="128" rx="7" fill="#FFB830" opacity=".15" stroke="#C8892A" stroke-width="1.5"/>
+  <text x="165" y="58" fill="#8A5010" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">pandas</text>
+  <text x="165" y="73" fill="#8A5010" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Largest ecosystem · scikit-learn compatible</text>
+  <text x="165" y="88" fill="#8A5010" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Most StackOverflow answers</text>
+  <text x="165" y="105" fill="#6A3800" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">⚠ Single-threaded · High memory overhead</text>
+  <text x="165" y="118" fill="#6A3800" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">⚠ Mutable operations can be tricky to debug</text>
+  <text x="165" y="135" fill="#8A5010" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Best for: &lt;500MB, ML pre/post-processing,</text>
+  <text x="165" y="148" fill="#8A5010" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">existing pandas-native codebases</text>
+  <!-- Polars zone -->
+  <rect x="120" y="36" width="360" height="128" rx="7" fill="#0076CC" opacity=".1" stroke="#0076CC" stroke-width="1.5"/>
+  <text x="300" y="58" fill="#004A8A" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">Polars</text>
+  <text x="300" y="73" fill="#004A8A" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Multi-threaded · Arrow columnar · Lazy + Eager</text>
+  <text x="300" y="88" fill="#004A8A" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">5–20× faster than pandas · Low memory overhead</text>
+  <text x="300" y="105" fill="#003A7A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">✓ Default for new single-node pipeline code (2025–2026)</text>
+  <text x="300" y="118" fill="#003A7A" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">⚠ On Databricks: driver-only (single-node, not distributed)</text>
+  <text x="300" y="135" fill="#004A8A" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Best for: 100MB–50GB single-machine ETL,</text>
+  <text x="300" y="148" fill="#004A8A" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">new pipelines, file processing, API data wrangling</text>
+  <!-- PySpark zone -->
+  <rect x="380" y="36" width="290" height="128" rx="7" fill="#C8892A" opacity=".12" stroke="#C8892A" stroke-width="1.5"/>
+  <text x="525" y="58" fill="#6A3800" font-family="Inter,sans-serif" font-size="11" font-weight="700" text-anchor="middle">PySpark</text>
+  <text x="525" y="73" fill="#6A3800" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Distributed · Spark engine · Cluster required</text>
+  <text x="525" y="88" fill="#6A3800" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Handles billions of rows · Fault tolerant</text>
+  <text x="525" y="105" fill="#5A2800" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">⚠ Cluster startup overhead (seconds to minutes)</text>
+  <text x="525" y="118" fill="#5A2800" font-family="Inter,sans-serif" font-size="8" text-anchor="middle">⚠ Not suitable for &lt;1GB datasets (overhead &gt; compute)</text>
+  <text x="525" y="135" fill="#6A3800" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Best for: Medallion Bronze→Silver→Gold,</text>
+  <text x="525" y="148" fill="#6A3800" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">enterprise data at scale (Section 3.5)</text>
+</svg></div>
+          <div class="fig-caption"><strong>Figure 3.5</strong><span>Python data library landscape by data scale. pandas is the richest ecosystem for small data and ML integration. Polars is the modern default for single-machine pipeline work: faster, lower memory, multi-threaded. PySpark is for distributed workloads that exceed what a single machine can process. A critical note for Databricks users: Polars runs on the driver node only &mdash; it is not distributed across workers regardless of cluster size.</span></div>
+        </div>
+        <div class="sec-head"><span class="sec-tag">3.3.3</span><h2 class="sec-title">Polars on Databricks: The Critical Nuance</h2></div>
+
+        <p>Polars is installed and usable on Databricks, which leads many practitioners to assume it benefits from the cluster. It does not. <strong>Polars on Databricks runs entirely on the driver node.</strong> It has no integration with Spark&rsquo;s execution engine and cannot distribute work across worker nodes. A Polars operation on a 10-node Databricks cluster uses one core on the driver &mdash; exactly the same compute available on a single laptop. Cluster size does not help Polars.</p>
+        <p>This does not make Polars useless on Databricks. There are legitimate single-node tasks in a Databricks workflow: pre-processing a small lookup file before a Spark join, validating a configuration input, post-processing a small Spark result, or running a quick quality check on sampled data. For these tasks, Polars is genuinely faster than pandas. But any operation that requires the Spark cluster &mdash; reading a multi-terabyte Delta table, running a distributed join &mdash; requires PySpark, not Polars.</p>
+        <div class="hl-block">The decision rule: if the data fits comfortably on the driver node (typically &lt;10GB for a standard Databricks driver), Polars is a valid and fast choice. If the data requires reading from a Delta table that does not fit in driver memory, use PySpark. Never assume that running Polars on a large cluster gives you distributed performance.</div>
+
+        <div class="sec-head"><span class="sec-tag">3.3.4</span><h2 class="sec-title">Core Python Patterns for Data Pipelines</h2></div>
+
+        <div class="code-wrap">
+          <div class="code-label">Python &nbsp;&middot;&nbsp; REST API consumption pattern<button class="copy-btn">Copy</button></div>
+          <pre><code>import requests
+import polars as pl
+from pathlib import Path
+import logging
+from datetime import date
+
+# Set up structured logging (not print statements)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s"
+)
+log = logging.getLogger(__name__)
+
+def fetch_orders(api_url: str, api_key: str, target_date: date) -&gt; pl.DataFrame:
+    """Fetch orders from REST API and return as Polars DataFrame."""
+
+    log.info("Fetching orders for %s", target_date)
+
+    try:
+        response = requests.get(
+            f"{api_url}/orders",
+            headers={"Authorization": f"Bearer {api_key}"},
+            params={"date": target_date.isoformat()},
+            timeout=30,          # always set a timeout
+        )
+        response.raise_for_status()   # raises on 4xx/5xx
+
+    except requests.exceptions.Timeout:
+        log.error("API request timed out after 30s")
+        raise
+    except requests.exceptions.HTTPError as e:
+        log.error("API returned error: %s", e.response.status_code)
+        raise
+
+    records = response.json()["orders"]
+    log.info("Received %d records from API", len(records))
+
+    return pl.DataFrame(records)
+
+def write_to_bronze(df: pl.DataFrame, output_path: Path) -&gt; None:
+    """Write DataFrame to Parquet in the Bronze landing zone."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.write_parquet(output_path)
+    log.info("Written %d rows to %s", len(df), output_path)
+
+# Entry point
+if __name__ == "__main__":
+    today = date.today()
+    df = fetch_orders(
+        api_url="https://api.example.com",
+        api_key="...",           # in practice: load from environment or Key Vault
+        target_date=today
+    )
+    write_to_bronze(df, Path(f"bronze/orders/date={today}/part-00001.parquet"))</code></pre>
+        </div>
+        <div class="code-wrap">
+          <div class="code-label">Python &nbsp;&middot;&nbsp; Environment management<button class="copy-btn">Copy</button></div>
+          <pre><code># Create an isolated virtual environment
+python -m venv .venv
+
+# Activate (Mac/Linux)
+source .venv/bin/activate
+
+# Activate (Windows)
+.venv\Scripts\activate
+
+# Install dependencies
+pip install polars requests "databricks-sdk&gt;=0.20"
+
+# Pin exact versions for reproducibility
+pip freeze &gt; requirements.txt
+# Or better: use pip-tools
+pip install pip-tools
+pip-compile requirements.in          # generates requirements.txt with hashes
+pip-sync requirements.txt            # installs exactly what is pinned
+
+# Never use --user installs in pipeline scripts
+# Never hard-code credentials — load from environment
+import os
+api_key = os.environ["API_KEY"]        # set in .env locally, Key Vault in prod
+
+# .env file (never commit to Git — add to .gitignore)
+# API_KEY=my-secret-key
+# DATABASE_URL=...</code></pre>
+        </div>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Data Engineering Team &nbsp;&middot;&nbsp; The pandas Memory Wall</span>
+          </div>
+          <div class="field-note-body">            <p>A data engineering team at a logistics company processed daily shipment files using a pandas script. The files were CSV exports from their ERP &mdash; typically 200-300MB per day, which pandas handled comfortably. During peak season, the daily file grew to 2.4GB. The pandas script began failing with <code>MemoryError</code> on the team's standard 16GB CI runner, because pandas loaded the entire CSV into memory and then created multiple derived columns &mdash; pushing memory consumption to nearly 14GB before the failure.</p>
+            <p>The team migrated the script to Polars. The same pipeline in Polars used approximately 1.8GB of memory for the same 2.4GB file, thanks to Polars' Arrow columnar format and lazy filtering that reduced the working set before full materialisation. The script ran in 40 seconds instead of pandas' 4 minutes on normal-sized files. The peak-season file processed without errors. No cluster, no infrastructure changes &mdash; just a library switch and a one-day migration effort.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>The Polars migration decision rule: if a pandas pipeline is hitting memory limits or taking more than a few minutes on single-machine data, try Polars before reaching for a Spark cluster. Cluster overhead is expensive in both time and money. Polars often eliminates the need.</p></div>
+        </div>
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body"><svg viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs><filter id="fs36"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+  <marker id="ma36" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#0076CC"/></marker></defs>
+  <rect width="700" height="180" fill="#0F1B2D" rx="6"/>
+  <text x="350" y="22" fill="#88BEFF" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Decision: SQL vs Python vs PySpark</text>
+  <!-- boxes -->
+  <rect x="14" y="36" width="200" height="120" rx="6" fill="#1B3A6B" filter="url(#fs36)"/>
+  <text x="114" y="58" fill="#88BEFF" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">SQL</text>
+  <text x="114" y="74" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Set-based transformation</text>
+  <text x="114" y="87" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">GROUP BY, JOIN, WINDOW</text>
+  <text x="114" y="100" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Data already in DB / Spark</text>
+  <text x="114" y="118" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Silver → Gold transforms</text>
+  <text x="114" y="130" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">dbt models</text>
+  <text x="114" y="143" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Databricks spark.sql()</text>
+  <rect x="250" y="36" width="200" height="120" rx="6" fill="#254F8F" filter="url(#fs36)"/>
+  <text x="350" y="58" fill="#88BEFF" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Python (pandas / Polars)</text>
+  <text x="350" y="74" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">File I/O, API calls</text>
+  <text x="350" y="87" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Complex control flow logic</text>
+  <text x="350" y="100" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Single-machine data (&lt;50GB)</text>
+  <text x="350" y="118" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">API ingestion scripts</text>
+  <text x="350" y="130" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">File pre-processing</text>
+  <text x="350" y="143" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Data quality validation</text>
+  <rect x="486" y="36" width="200" height="120" rx="6" fill="#0050AA" filter="url(#fs36)"/>
+  <text x="586" y="58" fill="#88BEFF" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">PySpark</text>
+  <text x="586" y="74" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Distributed transformation</text>
+  <text x="586" y="87" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Data &gt; driver memory</text>
+  <text x="586" y="100" fill="rgba(255,255,255,.8)" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Spark cluster available</text>
+  <text x="586" y="118" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Bronze → Silver ETL</text>
+  <text x="586" y="130" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">Large-scale joins</text>
+  <text x="586" y="143" fill="#88CCFF" font-family="Inter,sans-serif" font-size="8" font-style="italic" text-anchor="middle">ML feature engineering</text>
+</svg></div>
+          <div class="fig-caption"><strong>Figure 3.6</strong><span>When to use SQL, Python, and PySpark. These are complementary tools, not competing ones. SQL for set-based transformation of data already in a compute engine. Python (pandas or Polars) for single-machine work: files, APIs, validation. PySpark for distributed transformation when data exceeds single-machine memory. Most Medallion pipelines use all three: Python scripts for API ingestion, SQL/PySpark for Bronze-to-Gold transforms, Python for data quality validation.</span></div>
+        </div>
+        <div class="deep-dive">
+          <div class="deep-dive-trigger"><div class="deep-dive-icon">+</div><div class="deep-dive-label"><span class="tag">Go Deeper</span>Polars lazy execution &mdash; how the query optimiser works</div></div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>Polars lazy mode works similarly to Spark: you describe a sequence of transformations, and the optimiser rewrites them into a more efficient physical plan before execution. The key optimisation is <strong>predicate pushdown</strong>: if you filter on a column early in your chain, the optimiser moves that filter to the earliest possible point &mdash; often before reading the file, so rows that don't match the filter are never loaded into memory.</p>
+              <p><strong>Column pruning</strong> is a related optimisation: if your final select only uses 5 of a 50-column Parquet file's columns, the optimiser reads only those 5 columns off disk. In pandas, reading a Parquet file always reads all columns into memory first. In Polars lazy mode with <code>scan_parquet()</code>, only the columns used in the query are read.</p>
+              <p>To see the optimised plan, call <code>df.lazy().filter(...).select(...).explain()</code>. The output shows what the optimiser will actually execute, which is often significantly simpler than what you wrote. This is particularly useful for diagnosing why a lazy pipeline is fast or slow.</p>
+              <p><strong>Common mistake:</strong> calling <code>.collect()</code> too early in a lazy chain forces execution before all optimisations can be applied. Build the full lazy chain first, then call <code>.collect()</code> once at the end. Intermediate collects defeat the purpose of lazy evaluation.</p>
+          </div></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger"><div class="deep-dive-icon">+</div><div class="deep-dive-label"><span class="tag">Go Deeper</span>Python logging patterns for data pipeline scripts</div></div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>Print statements work for interactive development but fail in production pipelines. Three problems: (1) print output is often lost when scripts run as background processes, (2) print gives no severity level &mdash; you cannot distinguish informational messages from errors, (3) print cannot be filtered or routed to different destinations (file, stdout, observability system).</p>
+              <p>Python's <code>logging</code> module solves all three. The pattern: call <code>logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")</code> once at startup. Then <code>log = logging.getLogger(__name__)</code> in each module. Use <code>log.info()</code> for routine progress, <code>log.warning()</code> for recoverable issues, <code>log.error()</code> for failures, and <code>log.exception()</code> inside except blocks (it logs the full stack trace automatically).</p>
+              <p>In Databricks notebooks, the Databricks display methods and cluster logs handle output. But for Python scripts running as Databricks jobs or as external scripts called by ADF, structured logging is essential for diagnosing failures in the Azure Monitor log stream.</p>
+              <p><strong>Row count logging is the minimum viable observability.</strong> Every pipeline step should log the row count of its input and output: <code>log.info("Filter applied: %d rows in, %d rows out", len(df_in), len(df_out))</code>. A sudden change in row count is almost always the first signal of a data quality problem.</p>
+          </div></div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger"><div class="deep-dive-icon">+</div><div class="deep-dive-label"><span class="tag">Go Deeper</span>pandas UDFs in PySpark &mdash; the bridge between Python libraries and Spark</div></div>
+          <div class="deep-dive-body"><div class="deep-dive-content">
+              <p>Sometimes you need a Python library (scikit-learn, statsmodels, a custom business logic function) applied to data at Spark scale. Regular Python functions cannot run distributedly. The solution is a <strong>pandas UDF</strong> (User-Defined Function), which tells Spark: "take this partition of the DataFrame, convert it to a pandas DataFrame, run this Python function, convert the result back to a Spark DataFrame."</p>
+              <p>This is the architectural bridge: Spark handles distribution, Python handles the computation. The function runs on each executor in parallel &mdash; each executor processes its partition independently using the Python function. The Spark overhead (serialisation, inter-process communication) is real but manageable for compute-heavy per-partition operations.</p>
+              <p>Example: applying a scikit-learn model to score customer records at scale. The model is broadcast to all executors. A pandas UDF receives a batch of rows as a pandas DataFrame, calls <code>model.predict(df)</code>, and returns the predictions as a new column. Spark handles sharding the 100-million-row customer table across executors; the UDF handles the actual scoring.</p>
+              <p>Pandas UDFs require that the Python environment on the Spark executors matches the driver (same library versions, same model file available). On Databricks, this is managed through cluster-level library installation and DBFS/Unity Catalog model storage.</p>
+          </div></div>
+        </div>
+
+        <div class="sec-head"><span class="sec-tag">3.3.5</span><h2 class="sec-title">Python vs Alternatives</h2></div>
+
+        <p class="table-hint">Tap any column header to sort.</p>
+
+        <table class="data-table sortable">
+          <thead><tr><th>Language</th><th>Data Ecosystem</th><th>Spark Native?</th><th>ML Support</th><th>Hiring Pool</th><th>Learning Curve</th><th>Primary Data Use Case</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Python</strong></td><td>Largest (pandas, Polars, scikit-learn, PyTorch)</td><td>Via PySpark (not native)</td><td>Best (PyTorch, sklearn, Hugging Face)</td><td>Largest</td><td>Low</td><td>All-purpose data engineering, ML</td></tr>
+            <tr><td><strong>R</strong></td><td>Strong for statistics (tidyverse, ggplot2)</td><td>Via Sparklyr</td><td>Strong stats, some ML</td><td>Medium (academia-heavy)</td><td>Medium</td><td>Statistical analysis, research, visualisation</td></tr>
+            <tr><td><strong>Scala</strong></td><td>Spark-native</td><td>Yes — Spark is written in Scala</td><td>Limited (no ML ecosystem)</td><td>Small</td><td>High</td><td>High-performance Spark pipelines where speed critical</td></tr>
+            <tr><td><strong>Java</strong></td><td>Enterprise (Spring, Hadoop)</td><td>Yes — JVM</td><td>Limited</td><td>Large (enterprise)</td><td>High</td><td>Legacy enterprise data pipelines</td></tr>
+            <tr><td><strong>Julia</strong></td><td>Growing for scientific computing</td><td>No</td><td>Growing</td><td>Small</td><td>Medium</td><td>Scientific computing, numerical methods</td></tr>
+          </tbody>
+        </table>
+        <p class="table-hint">Tap any column header to sort.</p>
+
+        <table class="data-table sortable">
+          <thead><tr><th>Library</th><th>Best Scale</th><th>Memory Model</th><th>API Style</th><th>Speed vs pandas</th><th>Ecosystem Depth</th><th>When to Use</th></tr></thead>
+          <tbody>
+            <tr><td><strong>pandas</strong></td><td>&lt;500MB comfortable</td><td>High overhead (5–10×)</td><td>Mutable DataFrames</td><td>Baseline (1×)</td><td>Deepest</td><td>Existing codebases, ML pipeline pre/post-processing</td></tr>
+            <tr><td><strong>Polars</strong></td><td>100MB–50GB</td><td>Low (Arrow columnar)</td><td>Immutable expressions</td><td>5–20×</td><td>Growing fast</td><td>New pipelines, file processing, any single-machine ETL</td></tr>
+            <tr><td><strong>PySpark</strong></td><td>50GB–Petabyte</td><td>Distributed (cluster)</td><td>Immutable DataFrames</td><td>N/A (distributed)</td><td>Mature</td><td>Medallion transforms, joins on very large tables (Section 3.5)</td></tr>
+          </tbody>
+        </table>
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Platform Team &nbsp;&middot;&nbsp; Polars on Databricks for Driver Tasks</span>
+          </div>
+          <div class="field-note-body">            <p>A platform team at a media company processed content metadata files as part of their Databricks ingestion pipelines. Each file was a 200-400MB JSON Lines export from their CMS, containing nested structures that required substantial parsing and flattening before the records could be written to Delta as Bronze. The original pipeline used pandas on the Databricks driver to parse and flatten each file, taking 6-8 minutes per file with 40-50 files per day.</p>
+            <p>A team member migrated the parsing code from pandas to Polars using Polars' native <code>read_ndjson()</code> and struct unnesting. The migration took one day. File processing time dropped from 6-8 minutes to 35-45 seconds per file. The total daily processing time for 40-50 files dropped from 5+ hours to under 30 minutes. Crucially, the team noted in their runbook that the Polars processing runs on the driver only &mdash; a reminder to future engineers not to expect cluster parallelism from the Polars sections of the notebook.</p>
+          </div>
+          <div class="field-note-lesson"><span class="field-note-lesson-label">The Lesson</span><p>Polars on Databricks is a legitimate optimisation for driver-side processing tasks. The speed improvement is real. The key constraint &mdash; driver-only execution &mdash; must be documented clearly so future engineers don't mistakenly assume the cluster is being utilised.</p></div>
+        </div>        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text"><h3>Learning Check</h3><p>Section 3.3 &nbsp;&middot;&nbsp; Python for Data Engineering</p></div>
+            <div class="quiz-score-wrap"><div class="quiz-score-num">0/5</div><div class="quiz-score-label">Score</div></div>
+          </div>
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A Databricks notebook processes a 500GB Delta table using Polars. The cluster has 10 worker nodes each with 32 cores. How much of the cluster's compute capacity does the Polars processing use?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">All 320 worker cores — Polars distributes work across the cluster automatically</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The cluster is used efficiently because Databricks optimises library execution</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Only the driver node's compute — Polars has no integration with Spark and cannot distribute work across workers</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">32 cores on one worker node, plus the driver</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Polars runs on the driver node only. It has no integration with Spark's distributed execution engine. On Databricks, adding more workers or cores does not speed up Polars. For 500GB of Delta table data, Polars would likely fail with an out-of-memory error on a standard driver, because 500GB does not fit in driver memory. This workload requires PySpark (Section 3.5), which reads from Delta distributedly and processes it across all worker nodes.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">What is the primary advantage of Polars' lazy execution mode (pl.scan_parquet() vs pl.read_parquet())?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Lazy mode enables Polars to distribute work across a Spark cluster</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Lazy mode builds a query plan that can be optimised before execution — for example, pushing filters before reads so fewer rows are loaded into memory</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Lazy mode loads data one row at a time to save memory</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Lazy mode is faster because it skips data validation</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Polars' lazy execution (<code>scan_*</code> functions returning a LazyFrame) builds a logical query plan without executing it. Calling <code>.collect()</code> triggers execution of the optimised plan. The optimiser can push filter predicates to reduce rows read, eliminate unused columns before processing, and reorder operations for efficiency. For file-based pipelines, lazy execution typically reduces memory usage significantly compared to eager mode — similar to how Spark's lazy evaluation model works.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">You are writing a Python script that calls an external REST API and needs to handle both network timeouts and HTTP error responses correctly. What is the correct approach?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Use a bare try/except Exception to catch all errors and log them</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Use requests.get() without error handling — if the API is down, the script should fail with its default error</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Use requests.get() with a timeout parameter, call response.raise_for_status() to convert HTTP errors to exceptions, and catch requests.exceptions.Timeout and requests.exceptions.HTTPError specifically</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Check response.status_code manually after each request and use if/else branches</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Three elements are required: (1) <code>timeout=N</code> prevents the script hanging indefinitely if the API is unresponsive; (2) <code>response.raise_for_status()</code> converts 4xx/5xx responses into exceptions automatically; (3) catching specific exception types (<code>requests.exceptions.Timeout</code>, <code>HTTPError</code>) allows different logging and retry behaviour for network failures vs API errors. A bare <code>except Exception</code> (option A) catches too broadly and makes debugging harder by hiding the error type.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A colleague says "pandas is always safer than Polars for production pipelines because it's been around for years and has more community support." What is the most accurate response?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Correct — pandas has more community support and is always the right choice</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Partially correct — pandas has the larger ecosystem but Polars is production-ready, actively maintained, and the default for new pipeline code in 2025-2026</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Incorrect — Polars has already replaced pandas entirely in the industry</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Correct for data engineering, but Polars is better for data science</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Polars reached production maturity in 2022-2023 and by 2025-2026 is the default for new greenfield pipeline code in many engineering teams. It is actively maintained, has growing community resources, and is MIT-licensed. pandas still has advantages in ecosystem depth (scikit-learn compatibility, matplotlib, the vast number of existing examples), and existing pandas codebases don't need to be migrated without a clear performance reason. Neither is always right — the choice depends on data scale, ecosystem requirements, and existing code.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">What is the correct way to load a secret (API key) in a Python pipeline script intended for production use?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Hard-code it as a string constant at the top of the script for easy access</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Store it in a comments section so it is not executed</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Load it from an environment variable set by the deployment system, or from Azure Key Vault — never store it in the script file</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Encrypt it in the script using base64 encoding</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Credentials in script files are a security incident waiting to happen — scripts are committed to Git repositories, shared with colleagues, stored in logs, and sometimes accidentally made public. The correct pattern: load secrets from environment variables (<code>os.environ["API_KEY"]</code>) set by the deployment system (a CI/CD secret, Databricks secret scope, or Azure Key Vault reference). In Databricks specifically, <code>dbutils.secrets.get(scope="...", key="...")</code> fetches from a Key Vault-backed secret scope. Base64 encoding (option D) is not encryption — it is trivially reversible.</p></div></div>
+          </div>
+
+          <div class="quiz-final"><div class="quiz-final-score">&mdash;</div><p class="quiz-final-msg"></p><button class="quiz-retry-btn">Try Again</button></div>
+        </section>
+        <div class="info-box green">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Python complements SQL and PySpark rather than replacing them. Use SQL for set-based transformation, Python for file I/O, APIs, and control flow, PySpark for distributed scale. For single-machine data: Polars is the modern default (5–20× faster than pandas, lower memory, multi-threaded). Polars on Databricks runs on the driver only &mdash; not distributed, regardless of cluster size. pandas remains valid for existing codebases and ML ecosystem compatibility. REST API patterns require explicit timeouts, raise_for_status() for HTTP errors, and specific exception types. Always load credentials from environment variables or Key Vault, never from script files.</p>
+        </div>
+        <div class="info-box gold">
+          <div class="info-label">Coming in the Next Section</div>
+          <p>Section 3.4 covers Apache Spark and Databricks: the Spark architecture (Driver, Executors, DAG), Photon engine, Unity Catalog governance, cluster management and cost strategies, and how Databricks compares to Synapse, Snowflake, and BigQuery.</p>
+        </div>
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+        <nav class="sec-nav">
+          <a href="3-2-advanced-sql.html" class="sec-nav-btn sec-nav-prev"><span class="sec-nav-arrow">&#8592;</span><span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">3.2 Advanced SQL</span></span></a>
+          <a href="3-4-spark-databricks.html" class="sec-nav-btn sec-nav-next"><span class="sec-nav-text"><span class="sec-nav-tag">Next</span><span class="sec-nav-name">3.4 Apache Spark & Databricks</span></span><span class="sec-nav-arrow">&#8594;</span></a>
+        </nav>
+        <footer class="page-foot">
+          <div class="fl">Part 3 &nbsp;&middot;&nbsp; Compute &amp; Transformation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">12</div>
+        </footer>
+      </article>
+      <aside class="margin-col">
+                <div class="ms" style="height:130px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Tool Boundary</div>
+          <p>SQL for transformation. Python for orchestration, file handling, and API calls. PySpark for distributed transformation. Use each for what it does best.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Polars on Databricks</div>
+          <p>Polars runs on the <strong>driver only</strong> — cluster size does not help. For data that exceeds driver memory, use PySpark. Document this clearly in notebooks.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">New Pipelines</div>
+          <p>New single-machine pipeline code in 2025–2026 defaults to Polars. Start there. Switch to pandas only if you need scikit-learn compatibility or an existing pandas-native library.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Never In Code</div>
+          <p>Never hard-code credentials in Python scripts. Load from <code>os.environ</code> or Azure Key Vault. A key in a script file will eventually end up in Git.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+
+      </aside>
+    </div>
+  </div>
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+  <script>window.GUIDE_ROOT = "../";</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('3.3');</script>
+</body>
+</html>

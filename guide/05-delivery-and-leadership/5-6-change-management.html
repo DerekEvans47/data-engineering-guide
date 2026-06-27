@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5.6 Change Management &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="5.6">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+      <article class="content">
+
+        <header class="chap-header">
+          <div class="part-tag">Part Five &nbsp;&middot;&nbsp; Delivery &amp; Leadership</div>
+          <div class="chap-num">5.6</div>
+          <h1 class="chap-title">Change Management</h1>
+          <p class="chap-sub">Why data products get built and never used, how to prevent the dashboard graveyard, the difference between training and enablement, and how to build the champions network that makes adoption happen without you</p>
+        </header>
+
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain the dashboard graveyard phenomenon and identify the four design-time decisions that prevent it</li>
+            <li>Distinguish clearly between training and enablement, and explain why training alone does not drive adoption</li>
+            <li>Define what a data champion is, how to identify potential champions, and how to activate them before a product launches</li>
+            <li>Structure a go-live communication plan for a new data product</li>
+            <li>Measure adoption using Power BI usage metrics and identify when a data product needs intervention</li>
+            <li>Manage the politically difficult process of decommissioning unused reports</li>
+          </ol>
+        </div>
+
+        <!-- 5.6.1 -->
+        <div class="sec-head"><span class="sec-tag">5.6.1</span><h2 class="sec-title">The Dashboard Graveyard</h2></div>
+
+        <p>Every data team has built something that nobody uses. The pattern is familiar: a request comes in from a business stakeholder, the team builds the report, it gets demonstrated to positive feedback, it goes live, and then the usage data shows it is opened once or twice and then abandoned. The graveyard fills quietly. Reports that took weeks to build sit unused while the business continues making decisions from Excel spreadsheets and email threads.</p>
+
+        <p>This is not a technical failure. The pipelines work. The data model is correct. The visualizations are accurate. The failure is organizational — the data product was delivered but the change that was supposed to accompany it never happened. Users continued doing what they were doing before because nothing made the new approach easier, more trusted, or more rewarding than the old one.</p>
+
+        <div class="hl-block">Adoption is not a post-launch problem. It is a design-time problem. By the time the dashboard is live, the conditions for adoption either exist or they don't. Building them after launch is far harder than building them before.</div>
+
+        <h3 class="subsec">The Four Design-Time Adoption Decisions</h3>
+
+        <p><strong>1. Who is this for, specifically?</strong> Not "the Finance team" — Sarah Williams, Head of Financial Planning, who runs the monthly budget review on the second Monday of each month and currently uses a manually updated Excel file to do it. Named person, specific use case, specific existing behaviour the product is replacing. Generic reports for undefined audiences do not get used.</p>
+
+        <p><strong>2. What existing behaviour does this replace?</strong> Adoption requires displacement. If the new report answers a question nobody was previously trying to answer, there is no adoption pull — the business does not yet know it needs the answer. If the report makes a manual process faster, cheaper, or more accurate, there is a pull. Identify the displaced behaviour at design time and design the product to make that displacement feel worthwhile.</p>
+
+        <p><strong>3. Has the user been involved before launch?</strong> Users who have been consulted during development — even briefly, even just to validate that the product answers the right question — have ownership of it. They are more likely to use something they helped shape. Users who receive a finished product with no prior involvement have no ownership and no investment in it succeeding.</p>
+
+        <p><strong>4. Is there a reason to stop using the old method?</strong> If users can continue using Excel and also have the new dashboard, many will continue using Excel — the familiar path. For adoption to succeed, the old method needs to be actively deprecated or the new method needs to be significantly superior in a way that users feel immediately. "The dashboard is better" is insufficient. "The dashboard updates automatically every morning and the Excel requires three hours of manual work to update" is sufficient.</p>
+
+        <!-- 5.6.2 -->
+        <div class="sec-head"><span class="sec-tag">5.6.2</span><h2 class="sec-title">Training vs Enablement</h2></div>
+
+        <p>The distinction between training and enablement is one of the most practically useful concepts in data product change management, and the difference in outcome is substantial.</p>
+
+        <p><strong>Training</strong> answers the question: how do I use this tool? "Click here to filter by region. These slicers control the date range. Export button is top right." Training produces users who can operate the interface. It does not produce users who know why they are looking at the data or what to do with what they find.</p>
+
+        <p><strong>Enablement</strong> answers the question: what should I use this tool to do, and why does it matter for my role? "This report shows your team's lead conversion rate by source channel. Your goal is to increase conversion above 18% by Q3. The report updates every morning — checking it on Monday shows you whether the previous week's campaigns are working before you finalise this week's budget allocation." Enablement produces users who understand the purpose of the data product, how it connects to their responsibilities, and what action to take in response to what they see.</p>
+
+        <p>Training creates dependency (users return to the data team every time they get confused). Enablement creates ownership (users solve their own questions because they understand the tool's purpose). The data team's objective should be the latter.</p>
+
+        <!-- Figure 5.11 — Dashboard Lifecycle -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f511sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+                <marker id="m511g" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#1A7A4A"/>
+                </marker>
+                <marker id="m511r" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#9B3A3A"/>
+                </marker>
+              </defs>
+              <rect width="700" height="220" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Dashboard Lifecycle — Adoption vs Graveyard</text>
+
+              <!-- Shared stages: Design → Build → Launch -->
+              <rect x="10" y="36" width="96" height="50" rx="4" fill="#0F2447" filter="url(#f511sh)"/>
+              <text x="58" y="57" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Design</text>
+              <text x="58" y="69" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Named user</text>
+              <text x="58" y="80" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">known use case</text>
+              <line x1="106" y1="61" x2="126" y2="61" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m511g)"/>
+
+              <rect x="128" y="36" width="96" height="50" rx="4" fill="#0F2447" filter="url(#f511sh)"/>
+              <text x="176" y="57" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Build</text>
+              <text x="176" y="69" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">User involved</text>
+              <text x="176" y="80" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">in review</text>
+              <line x1="224" y1="61" x2="244" y2="61" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m511g)"/>
+
+              <rect x="246" y="36" width="96" height="50" rx="4" fill="#254F8F" filter="url(#f511sh)"/>
+              <text x="294" y="57" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Launch</text>
+              <text x="294" y="69" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Enablement</text>
+              <text x="294" y="80" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">not just training</text>
+
+              <!-- FORK: two paths after launch -->
+              <!-- Adoption path (upper) -->
+              <line x1="342" y1="50" x2="362" y2="38" stroke="#1A7A4A" stroke-width="1.5" marker-end="url(#m511g)"/>
+              <rect x="364" y="26" width="110" height="38" rx="4" fill="#1A5A78" filter="url(#f511sh)"/>
+              <text x="419" y="41" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Champions Active</text>
+              <text x="419" y="55" fill="rgba(200,220,255,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">peer-driven adoption</text>
+              <line x1="474" y1="45" x2="494" y2="45" stroke="#1A7A4A" stroke-width="1.5" marker-end="url(#m511g)"/>
+              <rect x="496" y="28" width="108" height="34" rx="4" fill="#1A7A4A" filter="url(#f511sh)"/>
+              <text x="550" y="42" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Regular Use</text>
+              <text x="550" y="55" fill="rgba(200,240,220,.65)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">decisions from data</text>
+              <text x="615" y="50" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="9" font-weight="700">&#10003;</text>
+
+              <!-- Graveyard path (lower) -->
+              <line x1="342" y1="72" x2="362" y2="84" stroke="#9B3A3A" stroke-width="1.5" marker-end="url(#m511r)"/>
+              <rect x="364" y="76" width="110" height="38" rx="4" fill="#3A2020" filter="url(#f511sh)" stroke="#9B3A3A" stroke-width="1"/>
+              <text x="419" y="91" fill="rgba(255,160,160,.8)" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Demo Only</text>
+              <text x="419" y="105" fill="rgba(255,160,160,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">no follow-through</text>
+              <line x1="474" y1="95" x2="494" y2="95" stroke="#9B3A3A" stroke-width="1.5" marker-end="url(#m511r)"/>
+              <rect x="496" y="78" width="108" height="34" rx="4" fill="#2A1010" filter="url(#f511sh)" stroke="#9B3A3A" stroke-width="1"/>
+              <text x="550" y="92" fill="rgba(255,160,160,.8)" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Dashboard</text>
+              <text x="550" y="105" fill="rgba(255,160,160,.5)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Graveyard</text>
+              <text x="618" y="100" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="11" font-weight="700">&#9760;</text>
+
+              <!-- Labels -->
+              <text x="358" y="32" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700">Adoption path</text>
+              <text x="358" y="82" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" font-weight="700">Graveyard path</text>
+
+              <!-- Below: What determines the fork -->
+              <line x1="10" y1="132" x2="690" y2="132" stroke="rgba(27,58,107,.12)" stroke-width="1"/>
+              <text x="350" y="148" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">What determines the path at launch:</text>
+              <text x="118" y="166" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Champions identified and</text>
+              <text x="118" y="177" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">enabled before launch</text>
+              <text x="294" y="166" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Old method</text>
+              <text x="294" y="177" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">actively deprecated</text>
+              <text x="470" y="166" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">One-off demo,</text>
+              <text x="470" y="177" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">no follow-through</text>
+              <text x="620" y="166" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">Excel still available,</text>
+              <text x="620" y="177" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8.5" text-anchor="middle">no reason to switch</text>
+              <rect x="64" y="155" width="108" height="30" rx="3" fill="rgba(26,122,74,.08)" stroke="rgba(26,122,74,.2)" stroke-width="1"/>
+              <rect x="240" y="155" width="108" height="30" rx="3" fill="rgba(26,122,74,.08)" stroke="rgba(26,122,74,.2)" stroke-width="1"/>
+              <rect x="416" y="155" width="108" height="30" rx="3" fill="rgba(155,58,58,.08)" stroke="rgba(155,58,58,.2)" stroke-width="1"/>
+              <rect x="566" y="155" width="108" height="30" rx="3" fill="rgba(155,58,58,.08)" stroke="rgba(155,58,58,.2)" stroke-width="1"/>
+              <text x="118" y="199" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">&#10003; Adoption driver</text>
+              <text x="294" y="199" fill="#1A7A4A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">&#10003; Adoption driver</text>
+              <text x="470" y="199" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">&#10007; Graveyard driver</text>
+              <text x="620" y="199" fill="#9B3A3A" font-family="Inter,sans-serif" font-size="8" font-weight="700" text-anchor="middle">&#10007; Graveyard driver</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 5.11</strong><span>The dashboard lifecycle diverges at launch into adoption (green) or graveyard (red) paths. The fork is determined by design-time decisions made before launch: are champions identified and enabled? Is the old method actively deprecated? A one-off demo without follow-through, or a new tool that sits alongside the existing Excel process without displacement pressure, almost always leads to the graveyard. Both adoption drivers must be in place before the launch date.</span></div>
+        </div>
+
+        <!-- 5.6.3 -->
+        <div class="sec-head"><span class="sec-tag">5.6.3</span><h2 class="sec-title">The Champions Network</h2></div>
+
+        <p>A data champion is a business user — not a data engineer — who becomes an advocate for data-driven decision making within their team. The champion uses the data product regularly, understands its purpose, cares about its accuracy, and influences their colleagues to do the same. They are your quality assurance and your adoption engine simultaneously.</p>
+
+        <p>The key property of a champion is peer influence. When a data engineer tells a sales manager that they should use the new revenue dashboard, it sounds like a tool push. When that sales manager's peer — the rep who has been using the dashboard for two months and closed three deals based on it — tells the same story, it lands differently. Champions drive adoption through authentic peer recommendation, which the data team cannot manufacture.</p>
+
+        <h3 class="subsec">Identifying Potential Champions</h3>
+        <p>Champions are not appointed — they are identified and then cultivated. Look for these signals in your current stakeholder interactions:</p>
+        <p><strong>They ask specific, data-curious questions.</strong> Not "why are the numbers wrong?" but "I noticed the revenue by region figure changed this week — was that a data correction or an actual change in the business?"</p>
+        <p><strong>They currently manage their own data in some form.</strong> The analyst who maintains the team's Excel tracker, the manager who built her own Google Sheet because the official reports didn't have what she needed — these are people who want data and will invest in tools that give it to them more reliably.</p>
+        <p><strong>They are respected and trusted by their peers.</strong> A champion's value is their peer influence. A technically curious person with no influence in their team has limited adoption reach. Identify the people their colleagues go to for advice or context.</p>
+
+        <h3 class="subsec">Activating Champions Before Launch</h3>
+        <p>Champions are not post-launch creations. They are identified during the project and given early access, involvement, and ownership before the product launches to everyone else. Concretely: invite two or three identified champions to a preview session four weeks before launch. Ask them to use the product weekly and give feedback. Address their feedback visibly. By the time the product launches, they have been using it for a month, have had their feedback incorporated, and have already formed opinions they can share with colleagues authentically. They become the product's first users and its first advocates in the same motion.</p>
+
+        <!-- Figure 5.12 — Champions Network -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f512sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.12)"/></filter>
+              </defs>
+              <rect width="700" height="240" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Champions Network &mdash; Peer-Driven Adoption</text>
+
+              <!-- Data Team centre -->
+              <circle cx="350" cy="120" r="38" fill="#0F2447" filter="url(#f512sh)"/>
+              <text x="350" y="115" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Data</text>
+              <text x="350" y="127" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">Engineering</text>
+              <text x="350" y="139" fill="rgba(200,220,255,.6)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Team</text>
+
+              <!-- Champion nodes around centre -->
+              <!-- Top: Finance -->
+              <circle cx="350" cy="42" r="24" fill="#1A5A78" filter="url(#f512sh)" stroke="#3A9FE0" stroke-width="1.5"/>
+              <text x="350" y="38" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Finance</text>
+              <text x="350" y="50" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Champion</text>
+              <line x1="350" y1="82" x2="350" y2="66" stroke="#3A9FE0" stroke-width="2"/>
+
+              <!-- Top-right: Sales -->
+              <circle cx="510" cy="60" r="24" fill="#1A5A78" filter="url(#f512sh)" stroke="#3A9FE0" stroke-width="1.5"/>
+              <text x="510" y="56" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Sales</text>
+              <text x="510" y="68" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Champion</text>
+              <line x1="386" y1="95" x2="488" y2="75" stroke="#3A9FE0" stroke-width="2"/>
+
+              <!-- Right: Operations -->
+              <circle cx="560" cy="120" r="24" fill="#1A5A78" filter="url(#f512sh)" stroke="#3A9FE0" stroke-width="1.5"/>
+              <text x="560" y="116" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Ops</text>
+              <text x="560" y="128" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Champion</text>
+              <line x1="388" y1="120" x2="536" y2="120" stroke="#3A9FE0" stroke-width="2"/>
+
+              <!-- Bottom-right: Marketing -->
+              <circle cx="510" cy="182" r="24" fill="#1A5A78" filter="url(#f512sh)" stroke="#3A9FE0" stroke-width="1.5"/>
+              <text x="510" y="178" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">Mktg</text>
+              <text x="510" y="190" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Champion</text>
+              <line x1="385" y1="148" x2="488" y2="168" stroke="#3A9FE0" stroke-width="2"/>
+
+              <!-- Left: HR -->
+              <circle cx="140" cy="120" r="24" fill="#1A5A78" filter="url(#f512sh)" stroke="#3A9FE0" stroke-width="1.5"/>
+              <text x="140" y="116" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">HR</text>
+              <text x="140" y="128" fill="rgba(200,220,255,.7)" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Champion</text>
+              <line x1="312" y1="120" x2="164" y2="120" stroke="#3A9FE0" stroke-width="2"/>
+
+              <!-- Peer nodes around each champion -->
+              <!-- Finance peers -->
+              <circle cx="280" cy="26" r="12" fill="#254F8F" opacity=".7"/>
+              <text x="280" y="30" fill="white" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">FP&amp;A</text>
+              <line x1="350" y1="18" x2="292" y2="20" stroke="rgba(58,159,224,.4)" stroke-width="1" stroke-dasharray="3,2"/>
+              <circle cx="420" cy="26" r="12" fill="#254F8F" opacity=".7"/>
+              <text x="420" y="30" fill="white" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">Ctrl</text>
+              <line x1="350" y1="18" x2="408" y2="20" stroke="rgba(58,159,224,.4)" stroke-width="1" stroke-dasharray="3,2"/>
+
+              <!-- Sales peers -->
+              <circle cx="592" cy="36" r="12" fill="#254F8F" opacity=".7"/>
+              <text x="592" y="40" fill="white" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">SDR</text>
+              <line x1="534" y1="50" x2="580" y2="38" stroke="rgba(58,159,224,.4)" stroke-width="1" stroke-dasharray="3,2"/>
+              <circle cx="618" cy="70" r="12" fill="#254F8F" opacity=".7"/>
+              <text x="618" y="74" fill="white" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">AE</text>
+              <line x1="534" y1="68" x2="606" y2="70" stroke="rgba(58,159,224,.4)" stroke-width="1" stroke-dasharray="3,2"/>
+
+              <!-- HR peers -->
+              <circle cx="82" cy="100" r="12" fill="#254F8F" opacity=".7"/>
+              <text x="82" y="104" fill="white" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">L&amp;D</text>
+              <line x1="116" y1="110" x2="94" y2="104" stroke="rgba(58,159,224,.4)" stroke-width="1" stroke-dasharray="3,2"/>
+              <circle cx="80" cy="140" r="12" fill="#254F8F" opacity=".7"/>
+              <text x="80" y="144" fill="white" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">Recr</text>
+              <line x1="116" y1="130" x2="92" y2="138" stroke="rgba(58,159,224,.4)" stroke-width="1" stroke-dasharray="3,2"/>
+
+              <!-- Legend -->
+              <circle cx="32" cy="210" r="9" fill="#0F2447" stroke="#3A9FE0" stroke-width="1.5"/>
+              <text x="45" y="214" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">Data Team</text>
+              <circle cx="130" cy="210" r="9" fill="#1A5A78" stroke="#3A9FE0" stroke-width="1.5"/>
+              <text x="143" y="214" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">Champion (one per domain)</text>
+              <circle cx="310" cy="210" r="9" fill="#254F8F" opacity=".7"/>
+              <text x="323" y="214" fill="#4A6080" font-family="Inter,sans-serif" font-size="8">Peer (influenced by champion, no direct data team contact needed)</text>
+            </svg>
+          </div>
+          <div class="fig-caption"><strong>Figure 5.12</strong><span>The champions network structure. The data engineering team (centre) maintains direct relationships with one champion per business domain. Each champion drives adoption within their own team through peer influence — the data team has no direct contact with most end-users. The network scales: five champions can reach 50+ end-users more effectively than a data team trying to run training sessions for 50 individuals. Champions are also the first line of data quality feedback — they know when something looks wrong before the data team does.</span></div>
+        </div>
+
+        <!-- 5.6.4 -->
+        <div class="sec-head"><span class="sec-tag">5.6.4</span><h2 class="sec-title">Go-Live Communication and Post-Launch</h2></div>
+
+        <p>The go-live communication is not an email saying "the dashboard is now live." It is a structured announcement that tells users what they can now do, why they should, and what they should do first. Structured launch communication has measurably higher adoption rates than a "it's live" notification — because it connects the product to something the user cares about rather than announcing a tool's existence.</p>
+
+        <h3 class="subsec">The Launch Communication Template</h3>
+        <p><strong>Subject:</strong> [LAUNCH] [Report Name] — now live for [team name]</p>
+        <p><strong>What you can now do:</strong> One sentence. "You can now see your team's weekly pipeline performance updated every morning, broken down by rep and deal stage — without waiting for the Friday summary email."</p>
+        <p><strong>Why it matters for you:</strong> Connected to their specific goal or pain point. "This replaces the manual tracker that was updated only once per week and often had data errors."</p>
+        <p><strong>Your first action:</strong> Tell them exactly what to do next. "Open the Sales Performance report (link below). Click on your region. Your first action: check whether your current quarter pipeline is on track for target." Give them a reason to open it today, not someday.</p>
+        <p><strong>Who to contact:</strong> Named person, specific channel. Not "contact the data team."</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Measuring adoption in Power BI — and what to do when it's low</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Power BI has built-in usage metrics that are often underused by data teams. Every published report in the Power BI Service has a Usage Metrics Report (accessible from the report's context menu → View Usage Metrics Report). It shows: total views, unique viewers, view trend over time, views by day of week, and which pages are viewed most. For workspaces on Premium, it also shows average time spent per session.</p>
+              <p><strong>What to look for:</strong> High initial views followed by steep decline = interest without stickiness (enablement failure or the product doesn't answer the question well enough to be used repeatedly). Consistent weekly views on the same day = regular use as part of a workflow (adoption success). Very low views from day one = the product was not communicated effectively or was built for a user who does not exist.</p>
+              <p><strong>The 90-day adoption review:</strong> 90 days after launch, pull the usage metrics and schedule a brief conversation with each champion. Two questions: "Are you using this every week?" and "Are your colleagues using it?" Honest answers in these conversations identify whether adoption is on track. If a champion is not using the product regularly, the rest of their team certainly is not.</p>
+              <p><strong>When adoption is low:</strong> Do not immediately rebuild. First diagnose. Is the data wrong or not trusted? Is the product answering the wrong question? Is the old method still being used because it's easier? Is there a training/enablement gap? Each diagnosis leads to a different intervention. Rebuilding a dashboard that nobody trusts because of a data quality issue will produce another dashboard nobody trusts.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Media Company &nbsp;&middot;&nbsp; Three Views in Six Months</span>
+          </div>
+          <div class="field-note-body">
+            <p>A media company's data team built a content performance dashboard for the Editorial team — three weeks of development, three data sources integrated, a properly engineered Gold layer and Power BI semantic model. The launch email said "Content Performance Dashboard is now live — link below." Six months later a usage review found the dashboard had received three views total: the editor who received the launch email, a data engineer testing, and an unidentified IP address that was likely a bot.</p>
+            <p>The post-mortem found: the Editorial team continued using their existing weekly report (a PDF emailed by the Content Operations Manager every Monday morning). The PDF was familiar, required no login, and appeared in their inbox at a predictable time. The Power BI dashboard required a login, was not promoted beyond the launch email, and had no champion in the Editorial team who had been involved in its development. The data engineer who built it assumed delivery was adoption.</p>
+            <p>In the rebuild: the Content Operations Manager was identified as the natural champion (she was already managing the manual PDF process). She was brought in six weeks before relaunch. The PDF was retired. The new report was launched with a structured communication that replaced a specific workflow the Editorial team ran every Monday morning. Adoption in the first week was 85% of the team. By week four it was the standard process.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Delivery is not adoption. An email with a link is not a launch. Adoption requires: a champion who is invested, an old method that is retired, and a specific workflow that the new product improves on. All three must be in place before the launch date, not after.</p>
+          </div>
+        </div>
+
+        <!-- 5.6.5 -->
+        <div class="sec-head"><span class="sec-tag">5.6.5</span><h2 class="sec-title">Decommissioning Unused Reports</h2></div>
+
+        <p>The graveyard grows because reports are rarely retired. A data engineering team that launched twelve reports in the past two years and decommissioned none of them is maintaining twelve reports — including the eight that nobody uses — forever. Every report in production is a maintenance obligation: schema changes break it, pipeline changes affect it, Power BI updates may require changes to it. Maintaining unused reports is pure cost with zero value.</p>
+
+        <p>Decommissioning is politically difficult. Someone, at some point, asked for the report. The business unit that requested it may object to it being retired even if they never use it — because "we might need it someday." The data team's job is to make the decommission conversation factual rather than political: show the usage metrics, confirm nobody has opened it in six months, and propose a specific retirement date. Most stakeholders, when shown zero usage data, will agree to retirement rather than object to it.</p>
+
+        <h3 class="subsec">The Decommission Process</h3>
+        <p><strong>Usage review:</strong> Pull 90-day usage metrics. Any report with fewer than 5 unique viewers in 90 days is a decommission candidate.</p>
+        <p><strong>Notify owners:</strong> Email the report's original requester with usage data. "This report has had 2 unique viewers in the past 90 days. We're planning to retire it on [date] unless it's actively needed. Please let us know by [date] if you'd like to discuss." Most responses are either silence (proceed with retirement) or a legitimate use case you weren't aware of (keep it and note the use case for future reviews).</p>
+        <p><strong>Archive, don't delete:</strong> Move the report to an archive workspace rather than deleting it. Archive workspaces are not promoted to users and don't appear in navigation, but the report can be restored if it turns out to be needed. After 12 months in archive with no restoration requests, delete.</p>
+
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Approach</th>
+              <th>Mechanism</th>
+              <th>Adoption Rate</th>
+              <th>Ongoing Cost</th>
+              <th>Scales Beyond One Product?</th>
+              <th>Best For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Training only</strong></td>
+              <td>Sessions showing how to use the tool</td>
+              <td>Low — users learn features, not purpose</td>
+              <td>High — repeated training needed as staff turns over</td>
+              <td>No — requires data team involvement per cohort</td>
+              <td>Rarely the right primary strategy for business analytics</td>
+            </tr>
+            <tr>
+              <td><strong>Enablement without champions</strong></td>
+              <td>Purpose-first onboarding with "what to do" guidance</td>
+              <td>Medium — engaged users adopt, others don't</td>
+              <td>Medium — updates needed when product changes</td>
+              <td>Partially — scales to direct stakeholders but not their peers</td>
+              <td>Small teams with direct data team contact</td>
+            </tr>
+            <tr>
+              <td><strong>Champions + enablement</strong></td>
+              <td>Peer advocates enabled before launch; purpose-first comms</td>
+              <td>High — peer influence drives broad adoption</td>
+              <td>Low — champions carry adoption without data team</td>
+              <td>Yes — one champion reaches 10–20 peers autonomously</td>
+              <td>Enterprise rollouts; domain-level adoption at scale</td>
+            </tr>
+            <tr>
+              <td><strong>Mandate only</strong></td>
+              <td>Management instruction to use the tool</td>
+              <td>Compliance, not adoption — minimal genuine use</td>
+              <td>Medium — enforcement required over time</td>
+              <td>Technically yes, but quality of use is poor</td>
+              <td>Regulatory or compliance reporting only</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Finding and activating data champions — the practical process</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Champion identification is not a one-time activity — it is an ongoing process that begins during requirements gathering and continues through the entire project lifecycle. The best champions are rarely the loudest voices in stakeholder meetings; they are often the person sitting quietly who asks the most specific question about how a particular metric is calculated.</p>
+              <p><strong>Where to find potential champions:</strong> Ask each business sponsor "who on your team is most interested in data?" and "who do people go to when they have a question about the numbers?" These two questions usually identify different people, and both are worth talking to. The first may be more technically curious; the second may have more peer influence. You want someone who combines both.</p>
+              <p><strong>The champion activation conversation:</strong> Direct and honest: "We're building [product] for [business area]. I'd like to give you early access four weeks before launch so you can shape how it works and be the first person in your team who knows it well. We'd want you to use it weekly during that period and give us feedback. Would that be useful to you?" Most people who would make good champions will say yes — early access and the opportunity to shape the product is attractive to data-curious users.</p>
+              <p><strong>What to give champions:</strong> Early access (obviously). Direct contact with a named engineer (not "the data team"). Visibility into how their feedback was acted on. Recognition in the launch communication ("The Finance team's champion, [name], has been using this for the past month and can answer any questions you have about it"). That final element — public recognition — transforms a user into an advocate. They have now publicly endorsed the product to their peers.</p>
+              <p><strong>What champions give you in return:</strong> Weekly feedback during the preview period (invaluable for the final sprint of development). Early adoption metrics that prove the product works. A line of communication for data quality issues that bypasses email escalation: champions tend to message directly on Teams rather than raising a formal ticket when something looks wrong — which means you find out about issues faster.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Financial Services Firm &nbsp;&middot;&nbsp; The Champion Who Found the Bug</span>
+          </div>
+          <div class="field-note-body">
+            <p>A financial services firm's data team built a client portfolio risk dashboard with a champion in the Risk team — a senior analyst who had been using the preview version for three weeks before the full launch. On day two of the full launch, the champion sent a Teams message to the data engineer: "Hi — just checking: the duration risk figure for the UK Gilts portfolio looks lower than I'd expect given yesterday's move. Is that right or worth double-checking?"</p>
+            <p>The data engineer ran the check. The champion was correct — there was a calculation error in the convexity adjustment for long-duration bonds that had been introduced during the final pre-launch fix. The error affected approximately 8% of the portfolio's reported duration risk. It was caught on day two of the live launch, fixed within the hour, and corrected before any risk-based decisions had been made using the wrong figure.</p>
+            <p>Without the champion, the error would have been discovered in the weekly risk committee meeting three days later — after the portfolio manager had prepared documentation using the incorrect figures. The correction at that stage would have been significantly more disruptive. The champion's domain expertise — knowing what the duration risk figure should look like given a specific market move — was something no automated test would have caught.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Champions are your quality assurance network in ways that dbt tests and observability dashboards cannot be. Domain knowledge — knowing that a duration figure looks wrong for a given market condition — lives with people, not in code. Cultivating that relationship makes the data product more reliable, not just more adopted.</p>
+          </div>
+        </div>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Gracefully retiring an unused report — the full decommission conversation</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The hardest part of decommissioning is not the technical work (archive the report, remove from navigation) — it is the political work of telling someone that the thing they asked for is not being used and should be retired. Done poorly, this feels like an accusation. Done well, it is a housekeeping conversation that almost always ends in agreement.</p>
+              <p><strong>The decommission email (to the original requester):</strong></p>
+              <p>"Hi [name], as part of our quarterly housekeeping we review usage across our reporting portfolio. The [Report Name] report has had [X] unique viewers in the past 90 days. I wanted to check in before we consider retiring it — is this still being used in a way that the usage metrics might not be capturing? (For example, if someone exports it regularly or uses it in a specific context that we might not see in view counts.)"</p>
+              <p>This framing: acknowledges the report exists and was asked for; shows you checked before deciding; invites a response that might reveal legitimate use you weren't aware of; doesn't accuse anyone of wasting the team's time.</p>
+              <p><strong>If the response is silence or "we don't really use it":</strong> "Thanks for confirming — we'll archive the report on [date]. We'll keep it in archive for 12 months in case it's needed again. If anything changes, just let me know and we can restore it within the day."</p>
+              <p><strong>If the response is "we need it, here's why":</strong> Understand the actual use case. Often it's more specific than the original request suggested — "we only look at it at year-end for the annual audit" is a legitimate use case that might mean reducing the maintenance burden (simplify the report) rather than retiring it entirely. The conversation clarifies the true requirement.</p>
+              <p><strong>What you gain from decommissioning regularly:</strong> A smaller, better-maintained portfolio that the team can actually support. Stakeholders who see you actively managing the portfolio have more confidence that the reports you do maintain are correct and current. A graveyard of abandoned reports signals neglect. A curated portfolio signals engineering rigour.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary &mdash; Part 5 Complete</div>
+          <p>The dashboard graveyard is caused by treating delivery as the end of the job rather than the middle of it. Adoption is determined by four design-time decisions: named user with specific use case, existing behaviour to displace, user involvement before launch, and active deprecation of the old method. Training tells users how to operate a tool. Enablement tells them what to do with it and why it matters for their role — and produces ownership rather than dependency. Data champions are business users who act as peer advocates within their team — one per domain, identified early, activated four weeks before launch with early access and visible recognition. Go-live communication must tell users what they can now do, why it matters to them specifically, and what their first action should be. Adoption is measured via Power BI usage metrics at 90 days; low adoption requires diagnosis before rebuilding. Decommission unused reports regularly using usage data — archive before delete, notify owners before archiving. Champions are also quality assurance: domain expertise catches errors that automated tests cannot. Part 5 is complete. Delivery methodology, version control, iterative delivery, automated quality, communication, and adoption — the full senior practitioner toolkit.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Part 6 &mdash; AI &amp; Agentic Systems</div>
+          <p>Part 6 covers the AI layer of the modern data stack: how large language models work, the Model Context Protocol (MCP), Retrieval-Augmented Generation (RAG), AI agents and sub-agents, and agentic data pipelines. The technical foundations built in Parts 1–5 — the data platform, transformation layer, analytics, and delivery practices — are the infrastructure that AI-augmented systems depend on. Part 6 connects those foundations to the emerging AI engineering discipline that is reshaping the data practitioner's role.</p>
+        </div>
+
+        <!-- Quiz -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 5.6 &nbsp;&middot;&nbsp; Change Management</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">A data team launches a new regional sales dashboard. The launch email says "Now live — link below." Three months later, usage metrics show it has been opened by 4 unique users. What is the most likely root cause, and what should have been done differently?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The dashboard has a data quality issue that users discovered and stopped trusting</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The data team should have run more training sessions to teach users how to use Power BI</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">The launch communication failed to connect the product to a specific user need, no champion was activated, and the old method (likely a manual report or Excel) was not retired — removing the motivation to switch</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The dashboard should have been built with more features to be more compelling to users</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> A "now live — link below" email provides no reason to open the dashboard. It doesn't connect to a specific need, it doesn't tell users what to do first, and it creates no social or workflow pressure to adopt. Without a champion who has been using the product for weeks and can say "I used this on Monday to reallocate our Q3 pipeline and it saved me three hours," adoption relies entirely on individual motivation — which is rarely sufficient when the old method still works. More training (B) would teach users how to operate the filters, not why they should use the report instead of their existing process. More features (D) don't address the adoption problem — they add more things that users won't use if they're not using the product at all.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">What is the key difference between training and enablement for a data product, and which is more likely to produce sustained adoption?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Training is for technical users; enablement is for non-technical users — both are needed for complete adoption</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Training answers "how do I use this tool?" — producing users who can operate it but may not know why. Enablement answers "what should I use this for and how does it help my role?" — producing users with ownership and purpose. Enablement drives sustained adoption; training alone creates temporary familiarity that fades</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Training is more effective for complex tools; enablement is more effective for simple ones</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">They are equivalent — the distinction is semantic rather than practical</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> Training tells you what to click. Enablement tells you what to think about when you're looking at what you clicked. A sales manager trained on Power BI knows how to apply a region filter. An enabled sales manager knows that they should check their team's pipeline conversion by stage every Monday morning, that a drop below 35% conversion at the qualification stage is their leading indicator of a missed quarter, and that the dashboard shows this metric in the top-left card — and what to do when it turns red. The second person uses the dashboard habitually because it is directly connected to a responsibility they own. The first person may use it once or twice and then revert to their familiar Excel tracker. Enablement creates intrinsic motivation to use the product; training creates capability without necessarily creating motivation.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">When should data champions be identified and activated in a data product development project?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">At the post-launch retrospective, once you know which users are most engaged</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">At the product demo, when you can identify who in the room seems most interested</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">During requirements gathering or early development — identified before build completes and activated with early access four to six weeks before launch, so they arrive at launch already fluent in the product and credible with their peers</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">One week before launch, to maximise their enthusiasm without giving them time to find issues</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Champions who are identified after launch are not champions — they are power users who self-selected. Their influence is valuable but cannot be planned. The champion model works because of what happens in the pre-launch period: four to six weeks of regular use makes the champion genuinely fluent (they can answer their colleagues' questions without referring back to the data team), their feedback shapes the final product (creating real ownership), and they arrive at launch with authentic enthusiasm rather than launch-day manufactured positivity. A champion identified on demo day and "activated" one week before launch has neither the fluency nor the genuine ownership that drives peer advocacy. The time investment — one additional scoping conversation during requirements gathering to identify the right people — is minimal relative to the adoption benefit.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A data team's Power BI portfolio has grown to 28 reports over two years. A usage review finds that 11 reports have had fewer than 5 unique viewers in the past 90 days. What is the correct approach?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Delete all 11 immediately — unused reports are a waste of maintenance resources</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Run training sessions for each unused report to drive adoption</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Contact the original requester of each low-usage report with the usage data, confirm whether legitimate use cases exist that the metrics may not capture, archive those where the response confirms disuse (notifying a retirement date), and only delete after 12 months in archive</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Keep all reports — stakeholders may need them for infrequent but important use cases like annual audits</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> The correct decommission process balances maintenance efficiency (reducing the team's obligation to 28 reports, some of which nobody uses) with stakeholder respect (not deleting things without consultation) and operational safety (archiving rather than immediately deleting, allowing recovery if a use case turns out to be real). Immediate deletion (A) is risky — a report used once per year for an annual audit will show low 90-day usage but is genuinely needed. The consultation step reveals these legitimate low-frequency use cases. Running training for unused reports (B) is backwards — low usage may reflect that the report doesn't answer the right question; training won't fix a requirements problem. Keeping everything indefinitely (D) is the default behaviour that creates the portfolio burden problem in the first place — the team ends up maintaining 28 reports, 11 of which provide no value to anyone.</p></div></div>
+          </div>
+
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">Why are data champions described as both an adoption engine AND quality assurance, and what type of data issues can they catch that automated monitoring cannot?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Champions can run manual SQL queries to validate data, replacing the need for dbt tests</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Champions submit formal data quality tickets faster than end users, improving the incident response time</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">Champions bring domain expertise — they know what the data should look like based on business context. They can identify that a figure is implausible given a known market event or business condition — a type of semantic anomaly that volume, freshness, and schema checks cannot detect</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Champions have admin access to the Power BI workspace and can identify permission-related data issues that the data team would otherwise miss</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Automated observability monitors what data looks like structurally: are the expected columns present, is the row count within range, was the table updated on schedule. What it cannot monitor is whether the data makes sense in business context. A duration risk figure that is technically valid (within the historical range, no NULL values, updated on time) but implausible given yesterday's bond market move — that requires a person with domain expertise to catch. Champions provide this semantic validation layer because they are domain experts who use the data regularly and know what it should look like under different business conditions. This is complementary to automated monitoring, not a replacement for it — the four-layer observability framework (section 5.4) catches structural issues; champions catch semantic ones. Together they provide coverage that neither provides alone.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <nav class="sec-nav">
+          <a href="5-5-stakeholder-communication.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text"><span class="sec-nav-tag">Previous</span><span class="sec-nav-name">5.5 Stakeholder Communication</span></span>
+          </a>
+          <span class="sec-nav-btn sec-nav-next sec-nav-disabled">
+            <span class="sec-nav-text"><span class="sec-nav-tag">Coming Next</span><span class="sec-nav-name">Part 6 &mdash; AI &amp; Agentic Systems</span></span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </span>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 5 &nbsp;&middot;&nbsp; Delivery &amp; Leadership</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">26</div>
+        </footer>
+      </article>
+
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Adoption is Design-Time</div>
+          <p>By the time the dashboard launches, adoption is already determined. Named user + known use case + user involved in build + old method retired = adoption. Generic report + "now live" email = graveyard.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote tip">
+          <div class="mnote-label">Champions Before Launch</div>
+          <p>Identify champions during requirements gathering. Give early access 4–6 weeks before launch. Make their feedback visible. Name them in the launch email. They arrive at launch already fluent and invested.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote warn">
+          <div class="mnote-label">Decommission Regularly</div>
+          <p>28 reports maintained forever is worse than 17 maintained well. Pull usage metrics quarterly. Archive low-use reports after owner confirmation. A curated portfolio signals rigour; a graveyard signals neglect.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"How do you ensure your data products get used?" is a senior interview question. Answer: design-time adoption decisions (named user, displaced behaviour), champions network (peer advocacy), enablement not just training, usage metrics at 90 days. This demonstrates delivery maturity beyond build.</p>
+        </div>
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('5.6');</script>
+</body>
+</html>

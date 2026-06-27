@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4.1 Dimensional Modeling &mdash; Data Engineering &amp; AI Practitioner's Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-section="4.1">
+
+  <!-- ======================================================
+       SIDEBAR — populated by guide.js renderSidebar()
+  ====================================================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-brand">
+        <div class="brand-text">
+          <div class="eyebrow">Practitioner's Field Guide</div>
+          <h1>Data Engineering<br>&amp; AI</h1>
+          <div class="sub">From Recognition to Implementation</div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggleBtn">&#9664;</button>
+      </div>
+      <div id="sidebarNav"></div>
+    </div>
+  </aside>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation">&#9776;</button>
+  <button class="sidebar-reopen" onclick="toggleSidebar()">&#9776; NAV</button>
+
+  <!-- ======================================================
+       MAIN CONTENT
+  ====================================================== -->
+  <div class="main-wrap" id="mainWrap">
+    <div class="page-grid">
+
+      <article class="content">
+
+        <!-- Chapter Header -->
+        <header class="chap-header">
+          <div class="part-tag">Part Four &nbsp;&middot;&nbsp; Analytics &amp; Visualisation</div>
+          <div class="chap-num">4.1</div>
+          <h1 class="chap-title">Dimensional Modeling</h1>
+          <p class="chap-sub">Designing data for how analysts actually query it — star schemas, grain, fact and dimension tables, surrogate keys, and the patterns Power BI expects to find at the Gold layer</p>
+        </header>
+
+        <!-- Learning Outcomes -->
+        <div class="outcomes">
+          <div class="outcomes-head"><div class="outcomes-badge">&#10003;</div><h3>Expected Learning Outcomes</h3></div>
+          <p class="intro">When you have completed this section, you should be able to:</p>
+          <ol>
+            <li>Explain why normalized (3NF) data models perform poorly for analytical workloads, and why dimensional modeling solves this</li>
+            <li>Define grain precisely and explain why it is always the first decision in fact table design</li>
+            <li>Distinguish between fact tables and dimension tables, and select the correct fact table type for a given scenario</li>
+            <li>Explain the purpose of surrogate keys and why they are architecturally required for Slowly Changing Dimensions</li>
+            <li>Recognize and apply the four key dimension design patterns: conformed, role-playing, junk, and degenerate</li>
+            <li>Compare star, snowflake, and Data Vault schemas — and justify which to use in a given context</li>
+          </ol>
+        </div>
+
+        <!-- =====================================================
+             4.1.1 — Why Dimensional Modeling Exists
+        ====================================================== -->
+        <div class="sec-head">
+          <span class="sec-tag">4.1.1</span>
+          <h2 class="sec-title">Why Dimensional Modeling Exists</h2>
+        </div>
+
+        <p>Every operational system that stores business data — an order management platform, a banking ledger, a hospital patient record — is almost certainly built on a normalized schema. Normalization, specifically Third Normal Form (3NF), is a set of design rules that eliminate redundancy: each fact is stored in exactly one place, related data is split into separate tables, and nothing is duplicated. It is the right model for systems that write data thousands of times per second and cannot afford inconsistency between related records.</p>
+
+        <p>The problem is that what makes a schema good for writing makes it bad for reading at scale. A normalized e-commerce schema might record a single sale across seven or more tables — order header, order line, customer, address, product, category, promotion. To answer "what was total revenue by product category and customer region last quarter?" a query has to join all seven tables, apply aggregations across millions of rows, and resolve foreign keys through multiple indexes. At small data volumes this is merely slow. At the volumes typical of a Gold layer — tens of millions to billions of rows — it becomes unusable.</p>
+
+        <p>In the early 1990s, Ralph Kimball formalized a different approach: design the data model not for how data is written, but for how it will be read. His insight was that analytical queries follow a predictable pattern — they measure something (revenue, claims paid, units sold, call duration) across dimensions of analysis (time, geography, product, customer). If you model your data around that pattern rather than fighting against it, queries become fast, simple, and legible to business users who do not write SQL.</p>
+
+        <div class="hl-block">The critical distinction: 3NF optimizes for write integrity. Dimensional modeling optimizes for read performance and analytical clarity. The Gold layer of a Medallion architecture should almost always be dimensional — not because 3NF is wrong, but because it is wrong for this job.</div>
+
+        <p>This is not historical trivia. Every Power BI report, every Databricks Gold table queried by analysts, every Azure Synapse Analytics (a Microsoft analytics service integrating SQL and Spark workloads in one workspace) query against a data warehouse performs better — often dramatically better — when the underlying model is dimensional. Understanding dimensional modeling is not optional for a senior data engineer. It is the design language of the consumption layer.</p>
+
+        <!-- Field Note 1 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A UK Retailer &nbsp;&middot;&nbsp; The Cost of 3NF in the Gold Layer</span>
+          </div>
+          <div class="field-note-body">
+            <p>A mid-sized UK retailer migrated their reporting from an on-premise SQL Server data warehouse to Azure. The data engineering team faithfully reproduced the normalized structure of their source systems in the Gold layer of ADLS — 24 tables in 3NF, matching the OLTP schema. Power BI reports were connected via DirectQuery (a Power BI connection mode that queries the data source live rather than importing data into memory). Performance was catastrophic: simple sales-by-region reports timed out after 30 seconds. Analysts began building their own Excel extracts rather than using the dashboards, defeating the purpose of the migration entirely.</p>
+            <p>An architectural review identified the root cause immediately: DirectQuery against 3NF Gold required 8-to-12-table joins at query time, resolved by Power BI's engine on every page refresh. Power BI's VertiPaq columnar engine — designed to operate against pre-joined star schemas in Import mode — could not compensate. The fix required rebuilding the Gold layer as a star schema: one central fact_sales table and five dimension tables. After the rebuild, the same reports that had been timing out ran in under three seconds.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>Migrating a 3NF schema to the cloud is not a data warehouse modernization. It is moving the wrong design to a new location. The Gold layer must be designed for consumption. Dimensional modeling is that design.</p>
+          </div>
+        </div>
+
+        <!-- =====================================================
+             4.1.2 — The Star Schema
+        ====================================================== -->
+        <div class="sec-head">
+          <span class="sec-tag">4.1.2</span>
+          <h2 class="sec-title">The Star Schema: Grain, Facts, and Dimensions</h2>
+        </div>
+
+        <p>A star schema has two types of tables: a fact table at the centre and dimension tables surrounding it. When drawn on a whiteboard the fact table is the hub and the dimension tables are the spokes — which is where the name comes from. The model is deliberately simple. That simplicity is the feature, not a limitation.</p>
+
+        <h3 class="subsec">Grain: The First and Most Important Decision</h3>
+
+        <p>Before deciding what columns your fact table has, you must decide what one row represents. This is the grain. Not "sales data" — too vague. Not "one row per order" — closer, but still ambiguous if orders contain multiple products. A correct grain declaration for a retail sales fact looks like this: <em>one row per individual order line item, representing the sale of a single product within a single customer order.</em></p>
+
+        <p>Grain determines everything downstream. Which measures are valid (you can sum line-level revenue across any dimension; you cannot sum order-header totals without double-counting when a customer has multiple lines). Which dimensions can be attached (a line-level fact can join to dim_product because each line has one product; an order-header fact cannot without losing granularity). How large the table grows (finer grain = more rows = larger table, potentially by orders of magnitude). The most common dimensional modeling failure is not choosing the wrong grain — it is failing to choose one explicitly at all, and discovering the ambiguity six months into production.</p>
+
+        <div class="hl-block">State the grain in one sentence before writing a single column name. Then validate it: "Can every row be described by this sentence? Does every measure I want to capture exist at this level of detail?" If yes to both — proceed. If not — restate the grain before continuing.</div>
+
+        <h3 class="subsec">Fact Tables: Measurable Events</h3>
+
+        <p>A fact table stores quantitative measurements of events — the things a business measures, aggregates, and reports on. Revenue, quantity sold, claim amount, call duration, page views. These are the measures: numeric values that are mathematically meaningful to sum, average, min, max, or count. Alongside the measures, a fact table contains foreign keys (FK) pointing to each surrounding dimension table, providing the context for each event: who, what, when, where, and how.</p>
+
+        <p>What a fact table does <em>not</em> contain: descriptive text, long string columns, or information about the entities involved beyond their keys. If you find yourself storing customer names or product descriptions directly in the fact table, you have either violated the grain or denormalized into the fact table attributes that belong in a dimension. The fact table is intentionally lean — foreign keys and numeric measures, nothing else.</p>
+
+        <h3 class="subsec">Dimension Tables: Descriptive Context</h3>
+
+        <p>Dimension tables provide the context for the numbers in the fact table. When a business user asks "what was revenue by customer region and product category?" — customer region lives in dim_customer, product category lives in dim_product, and revenue lives in fact_sales. Dimension tables are deliberately denormalized: rather than normalizing product into separate product, category, sub-category, and department tables (which would be 3NF), all that information is collapsed into a single wide dim_product table. This denormalization is what enables the one-or-two-join query pattern that makes star schemas fast in Power BI and Synapse.</p>
+
+        <!-- Figure 4.1 — Star Schema -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f41sh"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.15)"/></filter>
+                <marker id="m41" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                  <polygon points="0 0,7 3.5,0 7" fill="#0076CC"/>
+                </marker>
+              </defs>
+              <rect width="700" height="340" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="20" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Star Schema &mdash; fact_sales with Five Dimension Tables</text>
+
+              <!-- CENTRAL FACT TABLE -->
+              <rect x="250" y="118" width="200" height="138" rx="6" fill="#0F2447" filter="url(#f41sh)"/>
+              <rect x="250" y="118" width="200" height="28" rx="6" fill="#0060AA"/>
+              <rect x="250" y="136" width="200" height="10" rx="0" fill="#0060AA"/>
+              <text x="350" y="137" fill="white" font-family="Inter,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">fact_sales</text>
+              <text x="262" y="157" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="600">FK &rarr; dim_date</text>
+              <text x="262" y="170" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="600">FK &rarr; dim_customer</text>
+              <text x="262" y="183" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="600">FK &rarr; dim_product</text>
+              <text x="262" y="196" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="600">FK &rarr; dim_store</text>
+              <text x="262" y="209" fill="#88BEFF" font-family="Inter,sans-serif" font-size="8" font-weight="600">FK &rarr; dim_employee</text>
+              <line x1="250" y1="218" x2="450" y2="218" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+              <text x="262" y="231" fill="#A8C8E8" font-family="Inter,sans-serif" font-size="7.5" font-style="italic">measures:</text>
+              <text x="262" y="243" fill="#E0EAF8" font-family="Inter,sans-serif" font-size="8">quantity_sold</text>
+              <text x="262" y="254" fill="#E0EAF8" font-family="Inter,sans-serif" font-size="8">unit_price &middot; discount_pct</text>
+
+              <!-- TOP — dim_date -->
+              <rect x="260" y="22" width="180" height="78" rx="5" fill="#1B3A6B" filter="url(#f41sh)" stroke="#0076CC" stroke-width="1.5"/>
+              <rect x="260" y="22" width="180" height="20" rx="5" fill="#254F8F"/>
+              <rect x="260" y="34" width="180" height="8" fill="#254F8F"/>
+              <text x="350" y="36" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">dim_date</text>
+              <text x="270" y="54" fill="#C0D8F0" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">date_sk (PK, surrogate)</text>
+              <text x="270" y="65" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7">date_actual &middot; day_of_week &middot; month_name</text>
+              <text x="270" y="76" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7">quarter &middot; fiscal_year &middot; is_weekend</text>
+              <text x="270" y="87" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7">is_public_holiday &middot; business_day_num</text>
+              <!-- arrow dim_date → fact -->
+              <line x1="350" y1="100" x2="350" y2="118" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m41)"/>
+
+              <!-- LEFT — dim_customer -->
+              <rect x="28" y="150" width="178" height="78" rx="5" fill="#1B3A6B" filter="url(#f41sh)" stroke="#0076CC" stroke-width="1.5"/>
+              <rect x="28" y="150" width="178" height="20" rx="5" fill="#254F8F"/>
+              <rect x="28" y="162" width="178" height="8" fill="#254F8F"/>
+              <text x="117" y="165" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">dim_customer</text>
+              <text x="38" y="183" fill="#C0D8F0" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">customer_sk (PK, surrogate)</text>
+              <text x="38" y="194" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7">customer_id (natural key from CRM)</text>
+              <text x="38" y="205" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7">name &middot; email &middot; region &middot; segment</text>
+              <text x="38" y="216" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7">loyalty_tier &middot; acquisition_channel</text>
+              <!-- arrow dim_customer → fact -->
+              <line x1="206" y1="188" x2="250" y2="188" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m41)"/>
+
+              <!-- RIGHT — dim_product -->
+              <rect x="494" y="150" width="178" height="78" rx="5" fill="#1B3A6B" filter="url(#f41sh)" stroke="#0076CC" stroke-width="1.5"/>
+              <rect x="494" y="150" width="178" height="20" rx="5" fill="#254F8F"/>
+              <rect x="494" y="162" width="178" height="8" fill="#254F8F"/>
+              <text x="583" y="165" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">dim_product</text>
+              <text x="504" y="183" fill="#C0D8F0" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">product_sk (PK, surrogate)</text>
+              <text x="504" y="194" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7">product_id (natural key from ERP)</text>
+              <text x="504" y="205" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7">name &middot; brand &middot; category &middot; sub_category</text>
+              <text x="504" y="216" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7">colour &middot; size &middot; unit_cost</text>
+              <!-- arrow dim_product → fact -->
+              <line x1="494" y1="188" x2="450" y2="188" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m41)"/>
+
+              <!-- BOTTOM-LEFT — dim_store -->
+              <rect x="68" y="286" width="178" height="46" rx="5" fill="#1B3A6B" filter="url(#f41sh)" stroke="#0076CC" stroke-width="1.5"/>
+              <rect x="68" y="286" width="178" height="20" rx="5" fill="#254F8F"/>
+              <rect x="68" y="298" width="178" height="8" fill="#254F8F"/>
+              <text x="157" y="301" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">dim_store</text>
+              <text x="78" y="315" fill="#C0D8F0" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">store_sk (PK)</text>
+              <text x="78" y="326" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7">store_name &middot; region &middot; country &middot; store_type</text>
+              <!-- arrow dim_store → fact -->
+              <line x1="246" y1="308" x2="312" y2="256" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m41)"/>
+
+              <!-- BOTTOM-RIGHT — dim_employee -->
+              <rect x="454" y="286" width="178" height="46" rx="5" fill="#1B3A6B" filter="url(#f41sh)" stroke="#0076CC" stroke-width="1.5"/>
+              <rect x="454" y="286" width="178" height="20" rx="5" fill="#254F8F"/>
+              <rect x="454" y="298" width="178" height="8" fill="#254F8F"/>
+              <text x="543" y="301" fill="white" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" text-anchor="middle">dim_employee</text>
+              <text x="464" y="315" fill="#C0D8F0" font-family="Inter,sans-serif" font-size="7.5" font-weight="600">employee_sk (PK)</text>
+              <text x="464" y="326" fill="rgba(255,255,255,.65)" font-family="Inter,sans-serif" font-size="7">employee_id &middot; name &middot; department &middot; manager_sk</text>
+              <!-- arrow dim_employee → fact -->
+              <line x1="454" y1="308" x2="388" y2="256" stroke="#0076CC" stroke-width="1.5" marker-end="url(#m41)"/>
+
+              <!-- Legend -->
+              <rect x="20" y="316" width="9" height="9" rx="1" fill="#254F8F"/>
+              <text x="33" y="324" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">Dimension table — PK is surrogate key; descriptive attributes are denormalized (wide)</text>
+              <rect x="20" y="329" width="9" height="9" rx="1" fill="#0060AA"/>
+              <text x="33" y="337" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5">Fact table — stores FK references + numeric measures; intentionally lean</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 4.1</strong>
+            <span>The star schema for a retail sales subject area. The central fact_sales table stores one row per order line item (the grain), with five foreign keys pointing to surrounding dimensions. Each dimension is denormalized — all product hierarchy, all customer attributes, and all date properties collapsed into single wide tables. Arrows indicate FK relationships: dimension primary keys (surrogate keys) are referenced as fact foreign keys. A query joining any two of these tables requires exactly two joins — fact to one dimension. Any combination of all five requires five joins, not the 12+ joins of an equivalent 3NF schema.</span>
+          </div>
+        </div>
+
+        <!-- =====================================================
+             4.1.3 — Keys
+        ====================================================== -->
+        <div class="sec-head">
+          <span class="sec-tag">4.1.3</span>
+          <h2 class="sec-title">Keys: Surrogate, Natural, and Business</h2>
+        </div>
+
+        <p>One of the most consequential decisions in dimensional modeling is how you identify rows. Three types of keys appear in every dimensional model, and they serve very different purposes.</p>
+
+        <h3 class="subsec">Surrogate Keys</h3>
+
+        <p>A surrogate key is a system-generated integer with no business meaning: <code>customer_sk = 1, 2, 3, 4…</code>. The warehouse creates these keys; they mean nothing outside the warehouse. Every dimension table has a surrogate key as its primary key (PK), and the fact table stores surrogate keys as its foreign keys (FK). This is not a convention — it is the architectural contract of dimensional modeling, required for the approach to work correctly.</p>
+
+        <p>Why not use the natural key from the source system? Four reasons. First, natural keys can be recycled — a product code reassigned to a different product breaks historical reporting if you have not preserved the old version. Second, source systems change — when a CRM migration renumbers all customer IDs, a surrogate key insulates your warehouse from that upstream change completely. Third, Slowly Changing Dimensions (SCDs) — covered fully in section 4.2 — require surrogate keys. When a customer moves region and you want to preserve history, you insert a new row with a new surrogate key; without surrogate keys, you cannot have two coexisting versions of the same customer entity. Fourth, integer joins are faster than string joins at the scale of Gold layer fact tables.</p>
+
+        <h3 class="subsec">Natural Keys and Business Keys</h3>
+
+        <p>A natural key is the identifier from the source system (customer_id from the CRM, product_code from the ERP). A business key is an identifier the business recognizes and uses — an account number, a policy number, an ISIN (International Securities Identification Number) in financial services. These are often the same field. Both should be stored in the dimension table alongside the surrogate key — never discarded. They are the bridge back to source systems for debugging, lineage auditing, and reconciliation when numbers don't match.</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Generating surrogate keys in Databricks and dbt — two approaches</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Two common approaches are used in the Azure stack, and both are valid for different reasons:</p>
+              <p><strong>Hash-based surrogate keys (dbt + Databricks — recommended for most cases):</strong> The dbt_utils package provides <code>dbt_utils.generate_surrogate_key(['natural_key_column'])</code>, which produces a deterministic MD5 or SHA-256 hash of the natural key. The same natural key always produces the same surrogate key — making pipelines idempotent (re-running never creates duplicates, because the key is derived rather than generated). The downside: hash strings are wider than integers (16–32 bytes vs 4–8 bytes) and are marginally slower on joins at extreme scale. At most Gold layer volumes, this is not a meaningful difference.</p>
+              <p><strong>Sequence-based surrogate keys (Azure Synapse Analytics / SQL):</strong> Use an <code>IDENTITY</code> column or <code>ROW_NUMBER() OVER (ORDER BY natural_key)</code> for compact integers. Integer joins are faster and compress better in columnar storage. The complication: sequence-based keys are not deterministic — if you rerun the load with a new natural key, you must look up whether that key already has a surrogate assigned, which requires a lookup table or upsert pattern. More moving parts, but worth it for tables where join performance at billions of rows matters.</p>
+              <p><strong>Pattern recommendation:</strong> Use hash-based keys for tables managed by dbt (idempotent by default, no lookup table needed). Use sequence-based identity keys for tables managed directly in Synapse Analytics or SQL Database where columnar compression and join performance justify the extra engineering. In both cases: always store the natural key alongside the surrogate key in the dimension table — never throw it away.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- =====================================================
+             4.1.4 — Four Types of Fact Tables
+        ====================================================== -->
+        <div class="sec-head">
+          <span class="sec-tag">4.1.4</span>
+          <h2 class="sec-title">Four Types of Fact Tables</h2>
+        </div>
+
+        <p>Not every measurable event fits the same fact table pattern. Kimball identified four distinct fact table types, each suited to a different analytical scenario. Choosing the wrong type is a common design mistake — usually discovered when someone needs to answer a question the design cannot support.</p>
+
+        <h3 class="subsec">1. Transaction Fact Table (Most Common)</h3>
+        <p>Records individual events at the moment they occur. One row per event: one sale, one insurance claim, one page view, one call. Grain is always fine — each row is a discrete, atomic event. Measures are the properties of that event: revenue, quantity, duration, amount. Transaction fact tables grow continuously and are almost always the largest tables in the warehouse. When someone says "fact table" without qualification, they almost certainly mean this type.</p>
+
+        <h3 class="subsec">2. Periodic Snapshot Fact Table</h3>
+        <p>Records the state of something at regular intervals, regardless of whether anything happened. One row per period per entity: daily inventory level per SKU (Stock Keeping Unit — the unique identifier for each product-variant-location combination) per warehouse, monthly account balance per customer, weekly headcount per department. Unlike transaction facts, periodic snapshots are populated even if nothing changed — the inventory level at end of Tuesday is recorded even if no stock moved. This allows analysts to answer "what was the state of X on date Y?" without needing to reconstruct it from a transaction log, which is both complex and error-prone.</p>
+
+        <h3 class="subsec">3. Accumulating Snapshot Fact Table</h3>
+        <p>Records one row per process instance, updated as the process moves through defined stages. Used for workflows with a known sequence of milestones: order placed → picked → packed → shipped → delivered → returned. The row is created when the process starts and updated in-place as each stage completes. Contains multiple date foreign keys — one per stage — many of which are NULL until their milestone is reached. Enables analysis of process duration and bottleneck identification: "on average, how long does the picked-to-shipped stage take?" is answerable directly from the accumulated row.</p>
+
+        <h3 class="subsec">4. Factless Fact Table</h3>
+        <p>Records that an event occurred — but carries no numeric measures. Used when the event itself is the meaningful data: a student enrolled in a course, an employee attended a training session, a promotion was active on a given day in a given store. The table contains only foreign keys. Measures are derived by counting rows, or by joining to other facts. The name is counterintuitive — a fact table with no facts — but the pattern is the only correct one when what you need to answer is "did event X happen?" rather than "how much of X happened?"</p>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>The grain trap — why "one row per order" reliably breaks in production</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>The most common dimensional modeling mistake: stating a grain imprecisely, discovering the ambiguity after the table is live and the business has started trusting the numbers.</p>
+              <p><strong>How it typically unfolds:</strong> A team designs fact_orders with the stated grain "one row per order." Six months later, an analyst reports that revenue figures don't match the source system. Investigation reveals: multi-product orders were being counted at order-header level, so an order for £100 (two items × £50 each) had one fact row with revenue = £100. The finance team had always understood "one row per order" to mean "one row per line" — a distinction the data team hadn't surfaced at design time. The source system matches. The warehouse is wrong.</p>
+              <p><strong>Why a coarser grain cannot be patched later:</strong> A coarser grain cannot be drilled to a finer level without rebuilding the table from scratch. If your fact is at order-header level and the business later needs product-level revenue analysis, you cannot derive it — you must rebuild. You cannot reconstruct line-level data from header-level aggregates. The cost of getting the grain wrong is not a hotfix; it is a rebuild during a period when the business already trusts the wrong numbers.</p>
+              <p><strong>The grain statement template:</strong> "One row per [event] for each [entity] at [level of detail]." Example: "One row per order line item for each individual product sold in each customer order." This precision eliminates ambiguity before a single column is named. Run this statement past at least two business stakeholders before designing the fact table. Their reactions will tell you whether the grain is unambiguous — or whether four different departments have four different interpretations of the same word.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- =====================================================
+             4.1.5 — Dimension Patterns
+        ====================================================== -->
+        <div class="sec-head">
+          <span class="sec-tag">4.1.5</span>
+          <h2 class="sec-title">Dimension Patterns</h2>
+        </div>
+
+        <p>Beyond the basic dimension table, four patterns appear repeatedly in real dimensional models. Each solves a design problem that the basic star schema description does not address directly.</p>
+
+        <h3 class="subsec">Conformed Dimensions</h3>
+
+        <p>A conformed dimension is defined once and shared across multiple fact tables — using identical column names, identical surrogate key values, and identical business definitions. The canonical example is dim_date: one authoritative date dimension shared by fact_sales, fact_inventory, fact_claims, and every other subject area in the warehouse. Because all facts reference the same dim_date with the same date_sk values, a Power BI report can compare sales volume against inventory levels on the same calendar date, with no reconciliation needed — the shared key is the join. This is what Kimball called the "enterprise bus": the shared dimensional infrastructure that makes cross-subject-area analysis possible without custom integration work for every new report.</p>
+
+        <h3 class="subsec">Role-Playing Dimensions</h3>
+
+        <p>A role-playing dimension is a single physical table that is joined to a fact table multiple times in the same query, each time in a different logical role. The most common example: an order fact table with order_date_sk, ship_date_sk, and delivery_date_sk — all three reference dim_date, but represent different points in the order lifecycle. In SQL, handled with aliased joins: <code>JOIN dim_date AS order_date ON f.order_date_sk = order_date.date_sk</code>. In Power BI: one physical dim_date table with multiple relationships to the fact — all but one inactive by default, activated in DAX (Data Analysis Expressions — the formula language of Power BI) using <code>USERELATIONSHIP()</code> when needed.</p>
+
+        <h3 class="subsec">Junk Dimensions</h3>
+
+        <p>Low-cardinality flags and codes that do not naturally belong to a main dimension create a design problem: adding them directly to the fact table produces a wide, poorly documented mess of boolean columns. A junk dimension consolidates these attributes into a single purpose-built dimension table. Example: is_online (Y/N), order_type (Standard/Rush/Return), payment_method (Card/Cash/BNPL), is_gift_order (Y/N). These four attributes have 2 × 3 × 3 × 2 = 36 possible combinations. The junk dimension has 36 rows — one per unique combination — and the fact table stores a single FK. Cleaner fact table, fully queryable in Power BI, no change to the fact schema when a new flag is added.</p>
+
+        <h3 class="subsec">Degenerate Dimensions</h3>
+
+        <p>A degenerate dimension is a dimension identifier stored directly in the fact table — with no associated dimension table. The classic example is invoice_number, transaction_id, or ticket_number: highly granular identifiers that carry no attributes worth dimensioning separately. Storing the invoice number directly in the fact avoids a dimension table with a single column and no rows joining to anything useful. Degenerate dimensions are also used when you need to group or filter on a transaction identifier: "show me all line items from order INV-20240815-00142" — the order number lives in the fact, not in a dimension.</p>
+
+        <!-- Field Note 2 -->
+        <div class="field-note">
+          <div class="field-note-header">
+            <div class="field-note-eyebrow"><span class="field-note-icon">&#127970;</span><span class="field-note-tag">Field Note</span></div>
+            <span class="field-note-company">A Financial Services Firm &nbsp;&middot;&nbsp; The Grain Conversation</span>
+          </div>
+          <div class="field-note-body">
+            <p>A financial services data team was designing a new fact table to support regulatory reporting and analytics across three business areas: trading, settlements, and risk. The initial requirements document stated the grain as "one row per transaction." The data engineer ran a structured grain validation session with a representative from each area.</p>
+            <p>Trading defined "transaction" as one row per trade execution — a single filled order, even if executed across multiple parts in the market. Settlements defined it as one row per settlement instruction — which could map one-to-many with trade executions. Risk defined it as one row per end-of-day position — an entirely different concept that aggregated across all activity in a security. All three had used the word "transaction" in the requirements document and meant three completely different things.</p>
+            <p>The outcome was three separate fact tables at three different grains — fact_executions, fact_settlement_instructions, and fact_eod_positions — all linked by conformed dimensions. This was the correct answer. It required one additional two-hour scoping session to reach. Without that session, the team would have built a single fact table that satisfied none of the three use cases correctly, and the error would have been discovered only after the tables were live and the regulatory reporting cycle had begun.</p>
+          </div>
+          <div class="field-note-lesson">
+            <span class="field-note-lesson-label">The Lesson</span>
+            <p>The grain conversation is not a technical exercise — it is a stakeholder alignment exercise. Different business areas use the same words to mean different things. The data engineer's job is to surface that ambiguity before it becomes a production defect.</p>
+          </div>
+        </div>
+
+        <!-- =====================================================
+             4.1.6 — Schema Variants
+        ====================================================== -->
+        <div class="sec-head">
+          <span class="sec-tag">4.1.6</span>
+          <h2 class="sec-title">Schema Variants: Star, Snowflake, and Data Vault</h2>
+        </div>
+
+        <p>Dimensional modeling is not a single rigid pattern — it is a family of related approaches. The star schema is the baseline. Two significant variants exist: the snowflake schema and Data Vault. Each makes different trade-offs between query performance, storage efficiency, auditability, and implementation complexity.</p>
+
+        <h3 class="subsec">Star Schema (Recommended Default)</h3>
+
+        <p>Dimension tables are fully denormalized. All attributes related to a dimension — including hierarchical relationships between categories, sub-categories, and departments — are collapsed into a single wide table. A dim_product with 40 columns beats a 3NF product schema with eight tables for analytical workloads every time. Maximum of two joins for any query. The Microsoft-recommended pattern for Power BI: VertiPaq, Power BI's in-memory columnar engine, compresses repeated string values in denormalized dimension tables exceptionally efficiently. The counterintuitive result is that denormalized star schemas often consume less memory in Power BI than equivalent snowflake schemas, despite the apparent data redundancy.</p>
+
+        <h3 class="subsec">Snowflake Schema</h3>
+
+        <p>Dimension tables are partially or fully normalized. A dim_product in a snowflake schema might join to a dim_category, which joins to a dim_department. This reduces storage (no repeated category name for every product row) but adds joins and complexity. Power BI handles snowflake schemas but with query performance penalties that worsen as nesting depth increases. Use snowflake schema only when a taxonomy is genuinely deep and volatile enough that maintaining a denormalized copy is impractical to keep synchronized. In most Azure warehouse scenarios, the storage savings do not justify the query performance cost or the increased model complexity in Power BI Desktop.</p>
+
+        <h3 class="subsec">Galaxy Schema (Enterprise Bus)</h3>
+
+        <p>Not a distinct schema type — the natural result of a mature dimensional model. Multiple fact tables at different grains sharing conformed dimensions. Sales, inventory, and HR each have their own fact table; all share dim_date, dim_store, and dim_employee. The "enterprise bus matrix" is a planning tool: a grid mapping which conformed dimensions each fact table uses. Useful for communicating the intended scope of a warehouse design to stakeholders, and for identifying which dimensions need to be conformed before the next subject area can be built.</p>
+
+        <!-- Figure 4.2 — Schema Comparison -->
+        <div class="figure" data-scroll-figure>
+          <div class="fig-body">
+            <svg viewBox="0 0 700 256" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+              <defs>
+                <filter id="f42sh"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="rgba(0,0,0,0.11)"/></filter>
+              </defs>
+              <rect width="700" height="256" fill="#F4F6FB" rx="6"/>
+              <text x="350" y="18" fill="#1B3A6B" font-family="Inter,sans-serif" font-size="11.5" font-weight="700" text-anchor="middle">Schema Patterns &mdash; 3NF vs Star vs Snowflake</text>
+
+              <!-- PANEL 1: 3NF/OLTP -->
+              <rect x="10" y="26" width="216" height="220" rx="5" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f42sh)"/>
+              <rect x="10" y="26" width="216" height="24" rx="5" fill="#6B3FA0"/>
+              <rect x="10" y="40" width="216" height="10" fill="#6B3FA0"/>
+              <text x="118" y="43" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">3NF / OLTP</text>
+              <!-- mini normalized tables -->
+              <rect x="60" y="60" width="72" height="18" rx="3" fill="#F3EEF9" stroke="#9B6FD0" stroke-width="1"/>
+              <text x="96" y="73" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">orders</text>
+              <rect x="18" y="90" width="68" height="18" rx="3" fill="#F3EEF9" stroke="#9B6FD0" stroke-width="1"/>
+              <text x="52" y="103" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">customers</text>
+              <rect x="106" y="90" width="68" height="18" rx="3" fill="#F3EEF9" stroke="#9B6FD0" stroke-width="1"/>
+              <text x="140" y="103" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">order_lines</text>
+              <rect x="18" y="122" width="68" height="18" rx="3" fill="#F3EEF9" stroke="#9B6FD0" stroke-width="1"/>
+              <text x="52" y="135" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">addresses</text>
+              <rect x="106" y="122" width="68" height="18" rx="3" fill="#F3EEF9" stroke="#9B6FD0" stroke-width="1"/>
+              <text x="140" y="135" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">products</text>
+              <rect x="130" y="154" width="62" height="18" rx="3" fill="#F3EEF9" stroke="#9B6FD0" stroke-width="1"/>
+              <text x="161" y="167" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">categories</text>
+              <rect x="62" y="154" width="62" height="18" rx="3" fill="#F3EEF9" stroke="#9B6FD0" stroke-width="1"/>
+              <text x="93" y="167" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="7.5" font-weight="700" text-anchor="middle">promotions</text>
+              <!-- join lines -->
+              <line x1="96" y1="78" x2="52" y2="90" stroke="#9B6FD0" stroke-width="1" opacity="0.5"/>
+              <line x1="96" y1="78" x2="140" y2="90" stroke="#9B6FD0" stroke-width="1" opacity="0.5"/>
+              <line x1="52" y1="108" x2="52" y2="122" stroke="#9B6FD0" stroke-width="1" opacity="0.5"/>
+              <line x1="140" y1="108" x2="140" y2="122" stroke="#9B6FD0" stroke-width="1" opacity="0.5"/>
+              <line x1="140" y1="140" x2="161" y2="154" stroke="#9B6FD0" stroke-width="1" opacity="0.5"/>
+              <line x1="126" y1="108" x2="93" y2="154" stroke="#9B6FD0" stroke-width="1" opacity="0.5"/>
+              <text x="118" y="192" fill="#6B3FA0" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">8&ndash;12 joins per query</text>
+              <text x="118" y="205" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Write-optimized &middot; Minimal storage</text>
+              <text x="118" y="217" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Slow for analytics &middot; Power BI hostile</text>
+              <text x="118" y="236" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">&#10007; Wrong for Gold layer</text>
+              <rect x="62" y="226" width="112" height="18" rx="3" fill="#6B3FA0"/>
+              <text x="118" y="238" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">&#10007; Wrong for Gold layer</text>
+
+              <!-- PANEL 2: Star Schema -->
+              <rect x="242" y="26" width="216" height="220" rx="5" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f42sh)"/>
+              <rect x="242" y="26" width="216" height="24" rx="5" fill="#0F2447"/>
+              <rect x="242" y="40" width="216" height="10" fill="#0F2447"/>
+              <text x="350" y="43" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Star Schema &#11088;</text>
+              <!-- central fact -->
+              <rect x="300" y="100" width="100" height="54" rx="4" fill="#0060AA" filter="url(#f42sh)"/>
+              <text x="350" y="118" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">fact_sales</text>
+              <text x="350" y="130" fill="#A8D4F8" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">date_sk &middot; cust_sk</text>
+              <text x="350" y="141" fill="#A8D4F8" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">prod_sk &middot; revenue</text>
+              <!-- dims -->
+              <rect x="292" y="56" width="116" height="16" rx="3" fill="#254F8F"/>
+              <text x="350" y="67" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">dim_date (wide, 50 columns)</text>
+              <rect x="248" y="100" width="46" height="40" rx="3" fill="#254F8F"/>
+              <text x="271" y="117" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">dim_</text>
+              <text x="271" y="128" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">cust</text>
+              <rect x="406" y="100" width="46" height="40" rx="3" fill="#254F8F"/>
+              <text x="429" y="117" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">dim_</text>
+              <text x="429" y="128" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">prod</text>
+              <rect x="292" y="162" width="116" height="16" rx="3" fill="#254F8F"/>
+              <text x="350" y="173" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">dim_store</text>
+              <!-- arrows -->
+              <line x1="350" y1="72" x2="350" y2="100" stroke="#0076CC" stroke-width="1.5" opacity="0.8"/>
+              <line x1="294" y1="120" x2="300" y2="120" stroke="#0076CC" stroke-width="1.5" opacity="0.8"/>
+              <line x1="452" y1="120" x2="400" y2="120" stroke="#0076CC" stroke-width="1.5" opacity="0.8"/>
+              <line x1="350" y1="154" x2="350" y2="162" stroke="#0076CC" stroke-width="1.5" opacity="0.8"/>
+              <text x="350" y="198" fill="#0F2447" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">1&ndash;2 joins per query</text>
+              <text x="350" y="211" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Denormalized dims &middot; VertiPaq-optimized</text>
+              <text x="350" y="223" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Excellent Power BI performance</text>
+              <rect x="280" y="230" width="140" height="18" rx="3" fill="#0F2447"/>
+              <text x="350" y="242" fill="white" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">&#10003; Recommended for Gold</text>
+
+              <!-- PANEL 3: Snowflake Schema -->
+              <rect x="474" y="26" width="216" height="220" rx="5" fill="white" stroke="#D4DAF0" stroke-width="1" filter="url(#f42sh)"/>
+              <rect x="474" y="26" width="216" height="24" rx="5" fill="#1A5A78"/>
+              <rect x="474" y="40" width="216" height="10" fill="#1A5A78"/>
+              <text x="582" y="43" fill="white" font-family="Inter,sans-serif" font-size="10" font-weight="700" text-anchor="middle">Snowflake Schema</text>
+              <!-- central fact -->
+              <rect x="530" y="108" width="104" height="42" rx="4" fill="#0060AA" filter="url(#f42sh)"/>
+              <text x="582" y="126" fill="white" font-family="Inter,sans-serif" font-size="9" font-weight="700" text-anchor="middle">fact_sales</text>
+              <text x="582" y="139" fill="#A8D4F8" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">date_sk &middot; prod_sk &middot; revenue</text>
+              <!-- dim_product — first level -->
+              <rect x="600" y="72" width="82" height="24" rx="3" fill="#1A5A78"/>
+              <text x="641" y="88" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">dim_product</text>
+              <!-- dim_category — second level -->
+              <rect x="608" y="46" width="66" height="18" rx="3" fill="#2A7898" stroke="#88C8E0" stroke-width="0.8"/>
+              <text x="641" y="58" fill="white" font-family="Inter,sans-serif" font-size="7" text-anchor="middle">dim_category</text>
+              <!-- dim_dept — third level -->
+              <rect x="612" y="26" width="58" height="14" rx="3" fill="#3A8EA8" stroke="#88C8E0" stroke-width="0.8"/>
+              <text x="641" y="36" fill="white" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">dim_department</text>
+              <!-- dim_date — left -->
+              <rect x="480" y="72" width="82" height="24" rx="3" fill="#1A5A78"/>
+              <text x="521" y="88" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">dim_date</text>
+              <!-- dim_store — bottom-left -->
+              <rect x="480" y="162" width="82" height="24" rx="3" fill="#1A5A78"/>
+              <text x="521" y="178" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">dim_store</text>
+              <!-- dim_region — sub-level -->
+              <rect x="480" y="194" width="66" height="16" rx="3" fill="#2A7898" stroke="#88C8E0" stroke-width="0.8"/>
+              <text x="513" y="205" fill="white" font-family="Inter,sans-serif" font-size="6.5" text-anchor="middle">dim_region</text>
+              <!-- arrows -->
+              <line x1="582" y1="108" x2="582" y2="96" stroke="#0076CC" stroke-width="1.2" opacity="0.6"/>
+              <line x1="530" y1="128" x2="562" y2="96" stroke="#0076CC" stroke-width="1.2" opacity="0.6"/>
+              <line x1="634" y1="108" x2="634" y2="96" stroke="#0076CC" stroke-width="1.2" opacity="0.6"/>
+              <line x1="530" y1="162" x2="530" y2="186" stroke="#0076CC" stroke-width="1.2" opacity="0.6"/>
+              <line x1="641" y1="72" x2="641" y2="64" stroke="#0076CC" stroke-width="1" opacity="0.5"/>
+              <line x1="641" y1="46" x2="641" y2="40" stroke="#0076CC" stroke-width="1" opacity="0.5"/>
+              <line x1="513" y1="186" x2="513" y2="194" stroke="#0076CC" stroke-width="1" opacity="0.5"/>
+              <text x="582" y="207" fill="#1A5A78" font-family="Inter,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">3&ndash;6 joins per query</text>
+              <text x="582" y="219" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Lower storage &middot; Deeper hierarchy</text>
+              <text x="582" y="231" fill="#4A6080" font-family="Inter,sans-serif" font-size="7.5" text-anchor="middle">Worse Power BI performance</text>
+              <rect x="506" y="238" width="152" height="14" rx="3" fill="#1A5A78" opacity="0.7"/>
+              <text x="582" y="248" fill="white" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" text-anchor="middle">&#9888; Use only when justified</text>
+            </svg>
+          </div>
+          <div class="fig-caption">
+            <strong>Figure 4.2</strong>
+            <span>Three schema patterns compared at a glance. 3NF (left): correct for transactional OLTP systems, wrong for analytical Gold layers — too many joins, too slow, Power BI hostile. Star schema (centre): the Microsoft-recommended pattern; denormalized dimensions, 1–2 joins maximum, VertiPaq-optimized for excellent Power BI performance. Snowflake (right): normalized sub-dimensions reduce storage but add join depth and degrade Power BI query performance. Use the star schema by default. Adopt snowflake only when a taxonomy is deep and genuinely volatile — not simply because it looks more "normalized."</span>
+          </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <h3 class="subsec">Schema Comparison</h3>
+        <p class="table-hint">Click any column header to sort.</p>
+        <table class="data-table sortable">
+          <thead>
+            <tr>
+              <th>Schema</th>
+              <th>Joins Per Query</th>
+              <th>Storage Use</th>
+              <th>Power BI Performance</th>
+              <th>Full History / Audit</th>
+              <th>Best Used For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Star Schema</strong></td>
+              <td>1&ndash;2</td>
+              <td>Medium (denormalized)</td>
+              <td>Excellent &mdash; VertiPaq-optimized</td>
+              <td>Good with SCD Type 2</td>
+              <td>Most Gold layer analytics; Power BI; Synapse</td>
+            </tr>
+            <tr>
+              <td><strong>Snowflake Schema</strong></td>
+              <td>3&ndash;6</td>
+              <td>Low (normalized dims)</td>
+              <td>Poor &mdash; extra join resolution</td>
+              <td>Good with SCD Type 2</td>
+              <td>Deep volatile taxonomies; storage-constrained envs</td>
+            </tr>
+            <tr>
+              <td><strong>3NF / OLTP</strong></td>
+              <td>8&ndash;15</td>
+              <td>Minimal</td>
+              <td>Very poor &mdash; not designed for reads</td>
+              <td>Excellent (by design)</td>
+              <td>Transactional source systems only; never Gold layer</td>
+            </tr>
+            <tr>
+              <td><strong>Data Vault</strong></td>
+              <td>4&ndash;8 (via mart)</td>
+              <td>High (raw + business vault)</td>
+              <td>Poor direct; needs Gold star mart</td>
+              <td>Excellent &mdash; full history by design</td>
+              <td>Regulated enterprise; complex multi-source audit requirements</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="deep-dive">
+          <div class="deep-dive-trigger">
+            <div class="deep-dive-icon">+</div>
+            <div class="deep-dive-label"><span class="tag">Go Deeper</span>Data Vault &mdash; the alternative architecture for regulated enterprise environments</div>
+          </div>
+          <div class="deep-dive-body">
+            <div class="deep-dive-content">
+              <p>Data Vault is a modeling methodology developed by Dan Linstedt, designed for environments where auditability, parallel loading, and full historical accuracy are non-negotiable — financial institutions, insurance companies, healthcare organizations. It is genuinely different from Kimball dimensional modeling; not an extension or a variant, but an alternative approach to raw data storage.</p>
+              <p><strong>Data Vault has three component types:</strong></p>
+              <p><strong>Hubs</strong> store business keys — the core identities (Customer, Product, Policy). One row per unique business key, with a load timestamp and a record source column. No descriptive attributes in the Hub itself — just the key and its provenance.</p>
+              <p><strong>Links</strong> record relationships between Hubs — the equivalent of a many-to-many association table. A sale linking a Customer to a Product at a Store on a Date would be a Link table, with FK references to each Hub's surrogate key.</p>
+              <p><strong>Satellites</strong> store descriptive attributes and their complete history. When a customer's email changes, a new Satellite row is inserted with a new load timestamp — the old row is never updated or deleted. All versions are preserved permanently. This is full historical tracking by design, not a special case handled by SCD logic.</p>
+              <p><strong>When Data Vault is the right choice:</strong> Organizations with regulatory obligations to maintain an immutable audit trail of every change (Solvency II, Basel III, HIPAA). Environments with many source systems feeding the same entities — a customer may exist in the CRM, the ERP, and the billing platform, each with slightly different attributes. Teams that need to load from multiple sources in parallel without coordinating load order (Data Vault's Hub-Link-Satellite structure makes parallel loading safe by design).</p>
+              <p><strong>The critical caveat:</strong> Raw Vault tables are not directly consumable by Power BI or business analysts. They are a storage and governance layer. You must build a Business Vault (applying business rules and data quality) and then a Gold mart (a star schema) on top before anything is queryable. Data Vault changes how you store and audit data — you still end up with a star schema at the consumption layer. It is a more expensive path to the same destination, justified only when the auditability and parallel loading properties are required.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="info-box green" style="margin-top:38px;">
+          <div class="info-label">&#10003; Section Summary</div>
+          <p>Dimensional modeling exists because 3NF schemas optimized for write integrity perform poorly at analytical read workloads. The star schema — a central fact table plus surrounding dimension tables — is the standard Gold layer pattern. Grain (what one row means precisely) is always the first design decision. Every dimension table has a surrogate key as its PK; the fact table stores surrogate keys as FKs. Natural keys are preserved in the dimension for lineage and debugging. Four fact table types: transaction (most common — discrete events), periodic snapshot (state at regular intervals), accumulating snapshot (process pipeline milestones), factless (events with no numeric measure). Four dimension patterns: conformed (shared across subject areas), role-playing (same table in multiple join roles), junk (low-cardinality flags consolidated), degenerate (key stored in fact, no dimension table). Star schema is the Power BI default — VertiPaq compresses denormalized columns efficiently. Snowflake adds joins and degrades performance. Data Vault is the enterprise alternative for regulated environments but always requires a Gold star mart on top for consumption.</p>
+        </div>
+
+        <div class="info-box gold" style="margin-top:14px;">
+          <div class="info-label">Coming in Section 4.2 &mdash; Slowly Changing Dimensions (SCDs)</div>
+          <p>The surrogate key foundation built in this section is exactly what makes SCDs possible. Section 4.2 covers all seven SCD types (0 through 6 plus a hybrid Type 7): when a customer moves region, when a product is recategorized, when a price changes — does that change overwrite history, append a new version, or something else entirely? The answer determines whether your historical reports are accurate or quietly wrong. Every SCD type maps directly back to the key and dimension concepts introduced here.</p>
+        </div>
+
+        <!-- =====================================================
+             LEARNING CHECK
+        ====================================================== -->
+        <section class="quiz-section" id="learningCheck">
+          <div class="quiz-header">
+            <div class="quiz-badge">?</div>
+            <div class="quiz-header-text">
+              <h3>Learning Check</h3>
+              <p>Section 4.1 &nbsp;&middot;&nbsp; Dimensional Modeling</p>
+            </div>
+            <div class="quiz-score-wrap">
+              <div class="quiz-score-num">0/5</div>
+              <div class="quiz-score-label">Score</div>
+            </div>
+          </div>
+
+          <!-- Q1 -->
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 1 of 5</span></div>
+            <p class="q-text">Which of the following is the most accurate definition of "grain" in a dimensional model?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">The total number of rows in the fact table at any point in time</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">The set of foreign keys that together uniquely identify each fact row</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">A precise statement of what one row in the fact table represents — the exact level of detail captured by each record</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">The smallest numeric measure stored in the fact table</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> Grain is the precise declaration of what one row means — for example: "one row per individual order line item for each product sold in each customer order." It is the first decision for any fact table design and determines which measures are valid, which dimensions can be attached, and how large the table will grow. Getting grain wrong — or leaving it ambiguous — is the most common dimensional modeling failure mode, typically discovered only after the table is in production and business users begin comparing numbers. The foreign key set (B) is a consequence of the grain decision, not the definition of grain itself.</p></div></div>
+          </div>
+
+          <!-- Q2 -->
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 2 of 5</span></div>
+            <p class="q-text">Why are surrogate keys architecturally required for SCD (Slowly Changing Dimension) Type 2, rather than natural keys from source systems?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Natural keys contain PII (Personally Identifiable Information) that cannot be stored in a dimension table</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">SCD Type 2 creates multiple dimension rows for the same entity (one per historical version) — surrogate keys give each version a unique PK while the natural key remains the same across all versions</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Surrogate keys are required because Power BI cannot create relationships on string columns</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Natural keys cannot serve as primary keys in Azure Data Lake Storage</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> SCD Type 2 preserves history by inserting a new row for each version of a dimension record. A customer who moves from London to Manchester gets two rows in dim_customer — one for each address version. Both rows share the same natural key (customer_id = 12345) but must have different surrogate keys (customer_sk = 1001 and 1002). The fact table FK references the surrogate key, so historical sales facts correctly point to the "London version" of the customer, while new sales point to the "Manchester version." Without surrogate keys, two rows for the same customer_id would create a non-unique primary key — which makes the join semantics undefined and the design architecturally invalid.</p></div></div>
+          </div>
+
+          <!-- Q3 -->
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 3 of 5</span></div>
+            <p class="q-text">A supermarket needs to track the stock level of every SKU in every store at the end of each day — including days when no stock movement occurred. Which fact table type is correct?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Transaction fact table — one row is inserted per stock movement event</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">B</div><div class="option-text">Periodic snapshot fact table — one row per day per SKU per store, regardless of whether any movement occurred</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Accumulating snapshot fact table — one row per SKU, updated daily with the latest stock level</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">Factless fact table — inventory presence is an event, not a measure</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>B is correct.</strong> The key phrase is "including days when no stock movement occurred." A transaction fact records only events — it cannot represent the absence of activity. If no stock moved on Tuesday, a transaction fact has no Tuesday rows for that SKU, making it impossible to answer "what was the stock level on Tuesday?" without reconstructing it from all prior transactions. A periodic snapshot is designed exactly for this: it photographs the state of the entity (stock level) at a regular interval (end of day), always creating a row whether or not anything changed. This makes point-in-time queries trivially simple — SELECT * WHERE date_sk = 'Tuesday' AND sku_sk = X.</p></div></div>
+          </div>
+
+          <!-- Q4 -->
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 4 of 5</span></div>
+            <p class="q-text">A fact table has three date columns: order_date_sk, ship_date_sk, and delivery_date_sk — all three referencing dim_date. What dimension design pattern does this represent?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">A conformed dimension — dim_date is being shared across multiple fact tables</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">A junk dimension — date-related flags are consolidated into a single table</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">C</div><div class="option-text">A role-playing dimension — the same physical dim_date table is joined multiple times to the same fact, each in a different logical role</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">D</div><div class="option-text">A degenerate dimension — date keys are stored in the fact with no associated dimension table</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>C is correct.</strong> A role-playing dimension is a single physical table joined to a fact multiple times, each time serving a distinct analytical purpose. In SQL: three separate JOINs to dim_date, each with a different alias (AS order_date, AS ship_date, AS delivery_date). In Power BI: one physical dim_date table with multiple relationships to the fact — only one active by default, additional roles activated using DAX USERELATIONSHIP(). The physical table is not duplicated — the same table plays multiple logical roles. A conformed dimension (A) refers specifically to sharing the same dim_date across multiple subject areas (fact_sales AND fact_inventory), which is a related but different concept.</p></div></div>
+          </div>
+
+          <!-- Q5 -->
+          <div class="quiz-question">
+            <div class="q-num-row"><span class="q-num">Question 5 of 5</span></div>
+            <p class="q-text">Microsoft recommends star schemas over snowflake schemas for Power BI semantic models. What is the primary technical reason for this recommendation?</p>
+            <div class="quiz-options">
+              <div class="quiz-option" data-correct="false"><div class="option-letter">A</div><div class="option-text">Star schemas consume less storage than snowflake schemas, reducing Azure data lake costs</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">B</div><div class="option-text">Snowflake schemas are incompatible with Power BI's row-level security (RLS) feature</div></div>
+              <div class="quiz-option" data-correct="false"><div class="option-letter">C</div><div class="option-text">Star schemas support more simultaneous users because Power BI caches dimension joins at load time</div></div>
+              <div class="quiz-option" data-correct="true"><div class="option-letter">D</div><div class="option-text">Power BI's VertiPaq in-memory engine compresses repeated string values in denormalized dimension columns extremely efficiently, and fewer join relationships means the query engine can fully leverage its columnar storage advantage without cross-table resolution overhead</div></div>
+            </div>
+            <div class="quiz-explanation"><div class="quiz-explanation-inner"><p><strong>D is correct.</strong> Power BI uses the VertiPaq columnar in-memory engine (the same engine as Analysis Services). VertiPaq applies value encoding and run-length compression to columns — it compresses repeated string values (product category, customer region, month name) in denormalized dimension tables to a small fraction of their logical size. A wide dim_product with 40 columns and 50,000 rows may compress to a few megabytes in memory. Snowflake schemas force the engine to resolve additional join relationships across tables at query time, adding overhead that negates the columnar advantage. The counterintuitive result: in Power BI's Import mode, denormalized star schemas typically consume less memory and return results faster than equivalent snowflake schemas — despite the apparent redundancy in the data.</p></div></div>
+          </div>
+
+          <div class="quiz-final">
+            <div class="quiz-final-score">&mdash;</div>
+            <p class="quiz-final-msg"></p>
+            <button class="quiz-retry-btn">Try Again</button>
+          </div>
+        </section>
+
+        <!-- Mark as Read -->
+        <div class="progress-wrap">
+          <button class="mark-read-btn" id="markReadBtn">
+            <span class="read-icon">&#9675;</span>
+            <span class="read-label">Mark as Read</span>
+          </button>
+        </div>
+
+        <!-- Prev / Next Navigation -->
+        <nav class="sec-nav">
+          <a href="../03-compute-and-transformation/3-7-dbt.html" class="sec-nav-btn sec-nav-prev">
+            <span class="sec-nav-arrow">&#8592;</span>
+            <span class="sec-nav-text">
+              <span class="sec-nav-tag">Previous</span>
+              <span class="sec-nav-name">3.7 dbt &mdash; data build tool</span>
+            </span>
+          </a>
+          <a href="4-2-slowly-changing-dimensions.html" class="sec-nav-btn sec-nav-next">
+            <span class="sec-nav-text">
+              <span class="sec-nav-tag">Next</span>
+              <span class="sec-nav-name">4.2 Slowly Changing Dimensions</span>
+            </span>
+            <span class="sec-nav-arrow">&#8594;</span>
+          </a>
+        </nav>
+
+        <footer class="page-foot">
+          <div class="fl">Part 4 &nbsp;&middot;&nbsp; Analytics &amp; Visualisation</div>
+          <div class="fc">The Data Engineering &amp; AI Practitioner's Guide</div>
+          <div class="fr">17</div>
+        </footer>
+
+      </article>
+
+      <!-- ======================================================
+           MARGIN COLUMN — sticky notes
+      ====================================================== -->
+      <aside class="margin-col">
+        <div class="ms" style="height:120px;"></div>
+
+        <div class="mnote key">
+          <div class="mnote-label">Grain First, Always</div>
+          <p>State the grain in one sentence before designing any column. Every downstream decision — which measures are valid, which dimensions attach, how large the table grows — flows from the grain statement.</p>
+        </div>
+
+        <div class="ms" style="height:200px;"></div>
+
+        <div class="mnote tip">
+          <div class="mnote-label">Surrogate Key Rule</div>
+          <p>Every dimension table has a surrogate key as its PK. The fact table stores surrogate keys as FKs. Keep the natural key in the dimension for lineage — never discard it, and never put it in the fact table.</p>
+        </div>
+
+        <div class="ms" style="height:200px;"></div>
+
+        <div class="mnote warn">
+          <div class="mnote-label">Snowflake Penalty</div>
+          <p>Each additional join depth in a snowflake schema degrades VertiPaq performance in Power BI. Denormalize dimensions into a single wide table unless there is a specific, justified reason not to.</p>
+        </div>
+
+        <div class="ms" style="height:200px;"></div>
+
+        <div class="mnote key">
+          <div class="mnote-label">Interview Insight</div>
+          <p>"Design a data model for X" is a standard senior data engineering interview question. Start by stating the grain. Then name the fact table type. Then list the dimensions. Grain-first thinking is the signal interviewers are watching for.</p>
+        </div>
+
+        <div class="ms" style="height:200px;"></div>
+      </aside>
+
+    </div>
+  </div>
+
+  <!-- Glossary tooltip and definition card -->
+  <div id="tooltip"></div>
+  <div id="def-card">
+    <div class="def-card-head"><span id="def-term"></span><button class="def-close" id="defClose">&#10005;</button></div>
+    <p id="def-body"></p>
+    <div class="def-foot">&#128218; Full entry in Section 2.4 &mdash; Glossary</div>
+  </div>
+
+  <script>window.GUIDE_ROOT = '../';</script>
+  <script src="../assets/guide.js"></script>
+  <script>initGuide('4.1');</script>
+</body>
+</html>
