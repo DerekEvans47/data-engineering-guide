@@ -33,7 +33,7 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
     executablePath: '/opt/pw-browsers/chromium',
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
-  const ctx  = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const ctx  = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await ctx.newPage();
 
   const errors = [];
@@ -63,9 +63,11 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
   if (!mapCard) throw new Error('No unlocked map card found');
   await mapCard.click();
   await page.waitForTimeout(800);
-  const runNode = await page.$('.rn-available');
-  if (!runNode) throw new Error('No available run node found');
-  await runNode.click({ force: true });
+  const runNodes = await page.$$('.rn-available');
+  if (runNodes.length < 3) throw new Error(`Expected 3 rn-available nodes, found ${runNodes.length} — stuck-active bug or missing nodes`);
+  console.log('✅ All 3 starting nodes available:', runNodes.length);
+  const runNode = runNodes[0];
+  await runNode.click();
   await page.waitForTimeout(800);
   const playBtn = await page.$('.tdcp-btn-play');
   if (!playBtn) throw new Error('No TD play button found');
