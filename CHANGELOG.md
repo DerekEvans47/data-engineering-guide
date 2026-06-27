@@ -6,14 +6,14 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### ✨ Features
 
-- Tutorial modal, tower inspect card, gold kill floaters
+- TD tutorial, tower inspect card, and gold float labels (U-1, U-10, U-11)
 
 
 ### 🐛 Bug Fixes
 
-- Bump SW cache to v38 (v37 taken by questions PR)
-
 - Changelog auto-generation, no-PII commit rule, C-1 status update
+
+- Pre-push hook skips deletes, only verifies drill changes
 
 
 ### 📚 Content
