@@ -1,5 +1,7 @@
 'use strict';
 
+const APP_VERSION = '0.1.0';
+
 // ── Storage keys ──────────────────────────────────────────────
 const SEEN_KEY         = 'drill_seen_ids';
 const FILTER_KEY       = 'drill_filter_parts';
@@ -734,6 +736,7 @@ function showHome() {
         <div class="home-logo-mark">🛡️</div>
         <h1 class="home-title">Quiz Defense</h1>
         <p class="home-subtitle">Data Engineering · Tower Defense</p>
+        <p class="home-version">v${APP_VERSION}</p>
       </div>
       <div class="home-stats">
         <div class="home-stat" id="home-stat-xp">⚡ ${xp.toLocaleString()} XP</div>
