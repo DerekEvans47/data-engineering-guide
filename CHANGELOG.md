@@ -33,6 +33,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Changelog auto-generation, no-PII commit rule, C-1 status update
 
+- Crash in AudioContext unlock + retry on failure
+
 - Dedup changelog entries from retry commits
 
 - Pre-push hook skips deletes, only verifies drill changes
