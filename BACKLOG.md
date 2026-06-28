@@ -52,6 +52,11 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 | V-18 | Directional muzzle flash toward last target | 12 | P2 | TODO | V-1 | Short line segment from tower center toward last-fired target position, visible for ~60 ms. Replaces omnidirectional fire-pulse ring with a directional cue. Store `t.lastTargetAngle` in tdFireTowers. |
 | V-19 | Type-specific enemy death animations | 25 | P2 | TODO | V-3 | Goblins scatter gold coins (spinning quads), orcs leave a brief smoke puff, scouts streak off-screen, trolls crumble (slow expanding ring). Boss gets a shockwave + screen-filling flash. Replace uniform particle burst. |
 | V-20 | Enemy status effect visuals (freeze / burn / stun) | 15 | P2 | TODO | G-2 | Overlay sprites on enemies with active status: freeze = blue crystal ring, burn = orange ember orbit, stun = yellow stars. Required visual layer for G-2 special enemy types. |
+| V-21 | Run-map: perturbed node positions + bezier connectors | 20 | P2 | TODO | — | Each tier's nodes get small random x/y offsets (seeded per run so layout is stable on re-open). Connectors become quadratic bezier curves using the midpoint as control. Breaks the perfect-column flowchart look. |
+| V-22 | Run-map: traveled / untraveled path distinction | 10 | P2 | TODO | V-21 | Two-pass connector draw: thick desaturated line for future paths, thinner bright line for already-visited segments. Adds journey history at a glance. |
+| V-23 | Run-map: themed node shapes per type | 20 | P2 | TODO | V-21 | Replace generic circles: battle nodes → shield pentagon, quiz nodes → scroll silhouette, shop → coin hex, boss → skull diamond, event → star burst. Drawn with Path2D; player can scan the map without reading emoji. |
+| V-24 | Run-map background: parchment + gothic/steampunk overlay | 30 | P2 | TODO | — | Warm sepia/tan base drawn with noise pass (many small semi-transparent quads). Ink-stain vignette at edges. One or two procedural decorations (gear, compass rose, or crossed-swords) in corner cells. Connectors become ink-line strokes. Theme: adventure map parchment with medieval/steampunk details — matches the goblin/orc enemy aesthetic without requiring any image assets. |
+| V-25 | Run-map fog of war on unreachable nodes | 15 | P2 | TODO | V-21 | Nodes and connectors beyond any reachable path are drawn at 25% opacity with a desaturated palette. Revealed when the player's active path reaches the preceding node. Adds tension and makes earned progress feel visible. |
 
 ---
 
@@ -175,7 +180,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 
 All items in this backlog are compatible with a static GitHub Pages deployment (no server, no bundler). Specific notes:
 
-- **V-13 through V-20, U-9 through U-11**: Pure Canvas 2D API + CSS. No external assets or server calls required.
+- **V-13 through V-25, U-9 through U-11**: Pure Canvas 2D API + CSS. No external assets or server calls required.
 - **V-14 (themed palettes)**: Palette objects are inline JS — no image files needed.
 - **V-15 (landmark sprites)**: Inline pixel-art arrays like the existing `TD_SPRITES` entries. No uploads.
 - **P-6 (leaderboards)**: Only item requiring a backend. GitHub Gist API workaround exists but needs OAuth — flag before implementing.
@@ -184,4 +189,4 @@ All items in this backlog are compatible with a static GitHub Pages deployment (
 
 ---
 
-*Last updated: 2026-06-28. Merged from BACKLOG.md + TODO.md — single source of truth. Picking order: filter `Status = TODO`, sort by Priority then Effort ascending, take the first item whose dependencies are all `DONE` or `—`.*
+*Last updated: 2026-06-28. Single source of truth. Picking order: filter `Status = TODO`, sort by Priority then Effort ascending, take the first item whose dependencies are all `DONE` or `—`.*
