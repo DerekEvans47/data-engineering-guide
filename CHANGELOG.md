@@ -47,11 +47,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Ban session URLs and Generated-by footers in all PR bodies
 
+- Harden nightly prompt — handoff file, inline PRs, conflict resolution
+
 - Make .claude/skills scripts executable
 
 - Merge TODO.md into BACKLOG.md as single nightly source
 
-- Ramp nightly session target to 150 effort points per run
+- Ramp nightly session target to 150 effort points per run (#19)
 
 - Update nightly prompt to use dynamic backlog picking (#18)
 
