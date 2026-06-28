@@ -1967,6 +1967,13 @@ const tdAudio = (() => {
     get muted() { return muted; },
     get ctx()   { return actx; },
     toggleMute() { muted = !muted; return muted; },
+    // Call within a user gesture to create + resume the shared AudioContext (iOS requirement).
+    unlock() {
+      if (!actx) {
+        try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+      }
+      if (actx && actx.state !== 'running') actx.resume().catch(() => {});
+    },
   };
 })();
 
@@ -2000,7 +2007,7 @@ const tdMusic = (() => {
         try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return null; }
       }
     }
-    if (actx.state === 'suspended') actx.resume();
+    if (actx.state === 'suspended') actx.resume().catch(() => {});
     if (!masterGain) {
       masterGain = actx.createGain();
       masterGain.gain.value = tdAudio.muted ? 0 : 0.16;
@@ -2102,7 +2109,7 @@ const tdMusic = (() => {
 // ── Menu / map background music ────────────────────────────────
 const menuMusic = (() => {
   let actx = null, masterGain = null;
-  let playing = false, timer = null;
+  let playing = false, pending = false, timer = null;
   let beat = 0, nextBeat = 0;
 
   const BPM  = 100;
@@ -2112,20 +2119,21 @@ const menuMusic = (() => {
   // A minor pentatonic: A2, E3, A3, C4, E4
   const ROOT = 110.00, FIFTH = 164.81, OCT = 220.00;
 
+  // Never create a standalone AudioContext — only share the one tdAudio owns.
+  // On iOS, AudioContext must be created/resumed within a user gesture; if
+  // tdAudio.ctx isn't ready yet (no gesture has fired) we return null and
+  // set a pending flag so onUnlock() can restart us.
   function ac() {
-    if (!actx) {
-      actx = tdAudio.ctx;
-      if (!actx) {
-        try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return null; }
-      }
-    }
-    if (actx.state === 'suspended') actx.resume();
+    const shared = tdAudio.ctx;
+    if (!shared) return null;
+    if (actx !== shared) { actx = shared; masterGain = null; }
+    if (actx.state === 'suspended') actx.resume().catch(() => {});
     if (!masterGain) {
       masterGain = actx.createGain();
       masterGain.gain.value = tdAudio.muted ? 0 : 0.13;
       masterGain.connect(actx.destination);
     }
-    return actx;
+    return actx.state === 'running' ? actx : null;
   }
 
   function schedBass(freq, start, dur) {
@@ -2160,17 +2168,21 @@ const menuMusic = (() => {
     o.start(start); o.stop(start + 0.14);
   }
 
-  // 8-step pattern (each step = 1 8th note)
-  // kick on 0, 4; hihat every step; bass alternates root/fifth
+  // 8-step pattern: kick on 0,4; hihat every step; bass root/fifth/octave
   const BASS_STEPS = [ROOT, 0, FIFTH, 0, OCT, 0, FIFTH, 0];
+
+  function doStart(c) {
+    playing = true; pending = false;
+    beat = 0; nextBeat = c.currentTime + 0.15;
+    pump();
+  }
 
   function pump() {
     if (!playing) return;
     const c = ac(); if (!c) return;
     const now = c.currentTime;
     while (nextBeat < now + LOOK) {
-      const b = beat % 8;
-      const t = nextBeat;
+      const b = beat % 8, t = nextBeat;
       if (b === 0 || b === 4) schedKick(t);
       schedHat(t);
       if (BASS_STEPS[b]) schedBass(BASS_STEPS[b], t, S * 0.85);
@@ -2182,14 +2194,20 @@ const menuMusic = (() => {
 
   return {
     start() {
-      const c = ac(); if (!c || playing) return;
-      playing = true;
-      beat = 0; nextBeat = c.currentTime + 0.15;
-      pump();
+      if (playing) return;
+      const c = ac();
+      if (!c) { pending = true; return; }   // defer until onUnlock()
+      doStart(c);
     },
     stop() {
-      playing = false;
+      playing = false; pending = false;
       clearTimeout(timer); timer = null;
+    },
+    // Called by the global iOS unlock handler after tdAudio.unlock() fires.
+    onUnlock() {
+      if (!pending) return;
+      const c = ac(); if (!c) return;
+      doStart(c);
     },
     setMuted(m) {
       if (!masterGain || !actx) return;
@@ -2197,6 +2215,19 @@ const menuMusic = (() => {
     },
   };
 })();
+
+// iOS Safari requires AudioContext creation/resume inside a user gesture.
+// This capture-phase listener fires before any element handler on first touch,
+// unlocks the shared AudioContext, then starts any music that was pending.
+let _audioUnlocked = false;
+function _audioUnlock() {
+  if (_audioUnlocked) return;
+  _audioUnlocked = true;
+  tdAudio.unlock();
+  menuMusic.onUnlock();
+}
+document.addEventListener('touchstart', _audioUnlock, { capture: true, once: true });
+document.addEventListener('mousedown',  _audioUnlock, { capture: true, once: true });
 
 function tdComputePathSet(wps) {
   const s = new Set();
