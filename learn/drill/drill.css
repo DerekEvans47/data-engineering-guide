@@ -580,6 +580,13 @@ html, body {
   text-transform: uppercase;
   color: var(--text-subtle);
 }
+.home-version {
+  font-size: .65rem;
+  color: var(--text-subtle);
+  opacity: .45;
+  margin-top: .3rem;
+  letter-spacing: .05em;
+}
 .home-stats {
   display: flex;
   justify-content: center;

@@ -33,6 +33,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Pre-push hook skips deletes, only verifies drill changes
 
+- Proper async iOS audio unlock + session activation (#25)
+
 - Reset stuck-active run nodes when showing run map
 
 - Unlock Web Audio on iOS via shared context + gesture listener (#24)
