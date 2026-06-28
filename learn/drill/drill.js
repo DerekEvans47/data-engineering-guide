@@ -784,6 +784,26 @@ function showHome() {
   });
   document.getElementById('home-stat-xp').addEventListener('click', openProfile);
   menuMusic.start();
+
+  // Live audio-state badge — shows what the AudioContext is actually doing.
+  // Tapping anywhere updates it immediately; auto-clears when leaving home.
+  const _vEl = document.querySelector('.home-version');
+  function _updateAudioBadge() {
+    if (!_vEl || !_vEl.isConnected) return;
+    const ctx = tdAudio.ctx;
+    _vEl.textContent = `v${APP_VERSION} · ${ctx ? ctx.state : 'no ctx'}`;
+  }
+  _updateAudioBadge();
+  const _audioStatusTimer = setInterval(_updateAudioBadge, 600);
+  document.addEventListener('touchstart', _updateAudioBadge, { passive: true });
+  // Attach cleanup to a property so it can be found on re-render
+  _vEl._cleanup = () => {
+    clearInterval(_audioStatusTimer);
+    document.removeEventListener('touchstart', _updateAudioBadge);
+  };
+  // Clean up previous home render's listeners if any
+  const _prev = document.querySelector('.home-version[data-ac-cleanup]');
+  if (_prev && _prev._cleanup) _prev._cleanup();
 }
 
 // ── Tab switching ──────────────────────────────────────────────

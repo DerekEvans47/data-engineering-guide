@@ -27,6 +27,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Audio not working in TD drill + pre-commit changelog hook (#22)
 
+- Auto-reload page when service worker updates (#27)
+
 - Block session URLs in pre-push hook
 
 - Changelog auto-generation, no-PII commit rule, C-1 status update
