@@ -10,6 +10,16 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Replace SMIL pulse with CSS animation on run-map nodes
 
+- Replace SMIL pulse with CSS animation on run-map nodes
+
+- Replace SMIL pulse with CSS animation on run-map nodes
+
+- Replace SMIL pulse with CSS animation on run-map nodes
+
+- Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
+
+- Tutorial modal, tower inspect card, gold kill floaters
+
 
 ### 🐛 Bug Fixes
 
