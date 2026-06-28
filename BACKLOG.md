@@ -118,7 +118,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
-| U-2 | Touch target size audit (≥48 px tap zones) | 10 | P1 | TODO | — | Canvas tap and HUD buttons need minimum 48 px hit areas for mobile. |
+| U-2 | Touch target size audit (≥48 px tap zones) | 10 | P1 | DONE | — | Canvas tap and HUD buttons need minimum 48 px hit areas for mobile. |
 | U-3 | Keyboard / gamepad support | 40 | P3 | TODO | — | Arrow keys to navigate world map; 1–4 to select towers; Space to start wave. |
 | U-4 | Color-blind mode (shape indicators alongside color) | 20 | P2 | TODO | — | Overlay pattern fill (diagonal lines, dots) on towers so color isn't sole differentiator. |
 | U-5 | Reduced-motion respect (`prefers-reduced-motion`) | 8 | P2 | TODO | — | Disable CSS animations and canvas particle effects if system preference is set. |
