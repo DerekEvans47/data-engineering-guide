@@ -1903,15 +1903,23 @@ const tdAudio = (() => {
     return actx;
   }
 
+  // Schedule notes this far ahead so hardware has time to initialise.
+  // Without this, the first tone (on a brand-new, just-resumed AudioContext
+  // where currentTime ≈ 0) can be silently dropped when startup latency
+  // exceeds the note's scheduled stop time. The music engine already uses
+  // a 0.15 s lookahead for the same reason.
+  const OFFSET = 0.05;
+
   // pan: -1 (left) … 0 (centre) … +1 (right); omit or pass 0 for no panning
   function tone(freq, type, dur, gainPeak, freqEnd, pan) {
     const c = ac(); if (!c || muted) return;
+    const t = c.currentTime + OFFSET;
     const g = c.createGain(), o = c.createOscillator();
     o.type = type;
-    o.frequency.setValueAtTime(freq, c.currentTime);
-    if (freqEnd !== undefined) o.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 20), c.currentTime + dur);
-    g.gain.setValueAtTime(gainPeak, c.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+    o.frequency.setValueAtTime(freq, t);
+    if (freqEnd !== undefined) o.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 20), t + dur);
+    g.gain.setValueAtTime(gainPeak, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     o.connect(g);
     if (pan) {
       try {
@@ -1922,13 +1930,13 @@ const tdAudio = (() => {
     } else {
       g.connect(c.destination);
     }
-    o.start(c.currentTime); o.stop(c.currentTime + dur + 0.02);
+    o.start(t); o.stop(t + dur + 0.02);
   }
 
   function arpeggio(notes, type, noteDur, gain) {
     const c = ac(); if (!c || muted) return;
     notes.forEach((freq, i) => {
-      const t = c.currentTime + i * noteDur;
+      const t = c.currentTime + OFFSET + i * noteDur;
       const g = c.createGain(), o = c.createOscillator();
       o.type = type; o.frequency.setValueAtTime(freq, t);
       g.gain.setValueAtTime(gain, t);

@@ -21,11 +21,15 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - U-2 touch target audit — enforce ≥48 px on all interactive elements
 
+- Add 50ms schedule offset to SFX so first tone is not dropped
+
 - Block session URLs in pre-push hook
 
 - Changelog auto-generation, no-PII commit rule, C-1 status update
 
 - Dedup changelog entries from retry commits
+
+- Move changelog generation to pre-commit hook
 
 - Pre-push hook skips deletes, only verifies drill changes
 
@@ -45,6 +49,10 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Initial commit
 
+- Add Web Audio API spy to Playwright verifier
+
+- Add post-push hook to auto-push trailing changelog commit
+
 - Ban session URLs and Generated-by footers in all PR bodies
 
 - Harden nightly prompt — handoff file, inline PRs, conflict resolution (#20)
@@ -55,7 +63,7 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Ramp nightly session target to 150 effort points per run (#19)
 
-- Strip session URLs from all PR bodies, not just questions/*
+- Strip session URLs from all PR bodies, not just questions/* (#21)
 
 - Update nightly prompt to use dynamic backlog picking (#18)
 
