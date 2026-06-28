@@ -14,8 +14,25 @@ elif [ -z "$PUSH_INFO" ]; then
   exit 0  # nothing being pushed
 fi
 
-# Only run browser verifier when learn/drill/ files are in the push
+# Compute commit range for this push
 RANGE=$(echo "$PUSH_INFO" | awk '{print $4 ".." $2}' | head -1)
+
+# Block any commit whose message or body contains a session URL
+if [ -n "$RANGE" ]; then
+  bad=$(git log --format="%h %s" "$RANGE" 2>/dev/null | grep -iE "claude\.ai/code/session_[A-Za-z0-9]" || true)
+  if [ -n "$bad" ]; then
+    echo "ERROR: commit(s) contain session URLs (violates CLAUDE.md PII rule):" >&2
+    echo "$bad" >&2
+    exit 1
+  fi
+  bad_body=$(git log --format="%h%n%B" "$RANGE" 2>/dev/null | grep -iE "claude\.ai/code/session_[A-Za-z0-9]" || true)
+  if [ -n "$bad_body" ]; then
+    echo "ERROR: commit body/trailer contains a session URL (violates CLAUDE.md PII rule)" >&2
+    exit 1
+  fi
+fi
+
+# Only run browser verifier when learn/drill/ files are in the push
 DRILL_CHANGED=false
 if [ -n "$RANGE" ] && git diff --name-only "$RANGE" 2>/dev/null | grep -q "^learn/drill/"; then
   DRILL_CHANGED=true
