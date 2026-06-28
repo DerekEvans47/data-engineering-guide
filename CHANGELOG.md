@@ -67,6 +67,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Ramp nightly session target to 150 effort points per run (#19)
 
+- Show live AudioContext state in version badge (#28)
+
 - Strip session URLs from all PR bodies, not just questions/* (#21)
 
 - Update nightly prompt to use dynamic backlog picking (#18)
