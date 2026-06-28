@@ -31,10 +31,27 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
 (async () => {
   const browser = await chromium.launch({
     executablePath: '/opt/pw-browsers/chromium',
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--autoplay-policy=no-user-gesture-required']
   });
   const ctx  = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await ctx.newPage();
+
+  // Spy on Web Audio API — intercept OscillatorNode.start() to verify sound fires
+  await page.addInitScript(() => {
+    window.__oscCount = 0;
+    const _AC = window.AudioContext || window.webkitAudioContext;
+    if (!_AC) return;
+    class SpyAC extends _AC {
+      createOscillator() {
+        const osc = super.createOscillator();
+        const orig = osc.start.bind(osc);
+        osc.start = (...a) => { window.__oscCount++; return orig(...a); };
+        return osc;
+      }
+    }
+    window.AudioContext = SpyAC;
+    window.webkitAudioContext = SpyAC;
+  });
 
   const errors = [];
   page.on('pageerror',  err => errors.push(`PAGEERROR: ${err.message}`));
@@ -95,7 +112,35 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
   if (!waveBtnText?.includes('Start Wave')) throw new Error(`Wave button text unexpected: ${waveBtnText}`);
   console.log('✅ Wave button:', waveBtnText);
 
-  // ── 6. Quiz opens on wave start; preview hides after answer ────────────
+  // ── 6. Place a tower and verify placement sound fires ──────────────────
+  await page.click('.td-tool-btn[data-tool="bastion"]', { force: true });
+  await page.waitForTimeout(200);
+  // Find the first non-path, non-occupied cell and click its canvas position
+  const cell = await page.evaluate(() => {
+    const c = document.getElementById('td-canvas');
+    const r = c.getBoundingClientRect();
+    const sx = r.width / c.width, sy = r.height / c.height;
+    for (let row = 0; row < 7; row++) {
+      for (let col = 0; col < 9; col++) {
+        if (!td.pathSet.has(`${col},${row}`) && !td.towers.some(t => t.col === col && t.row === row)) {
+          return { x: r.left + (col + 0.5) * td.cellSize * sx, y: r.top + (row + 0.5) * td.cellSize * sy };
+        }
+      }
+    }
+    return null;
+  });
+  if (!cell) throw new Error('No valid cell found for tower placement');
+  await page.mouse.click(cell.x, cell.y);
+  await page.waitForTimeout(300);
+  const chip = await page.$('.td-chip-ok');
+  if (!chip) throw new Error('.td-chip-ok confirm button not found after tower tap');
+  await chip.click({ force: true });
+  await page.waitForTimeout(400);
+  const oscAfterPlace = await page.evaluate(() => window.__oscCount);
+  if (oscAfterPlace === 0) throw new Error('No oscillator notes fired on tower placement — audio silent');
+  console.log(`✅ Tower placement audio: ${oscAfterPlace} oscillator note(s) fired`);
+
+  // ── 7. Quiz opens on wave start; preview hides after answer ────────────
   await page.click('#td-wave-btn');
   await page.waitForTimeout(600);
   const quizOpen = await page.$eval('.td-q-overlay', el => el.classList.contains('open')).catch(() => false);
@@ -114,7 +159,12 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
   if (previewAfter !== 'none') throw new Error(`Preview should be none during wave, got: ${previewAfter}`);
   console.log('✅ Wave preview hides once wave starts');
 
-  // ── 7. SW registered ───────────────────────────────────────────────────
+  const oscTotal = await page.evaluate(() => window.__oscCount);
+  // place(1) + correct/wrong(1-3) + waveStart(3) = at least 5
+  if (oscTotal < 5) throw new Error(`Too few oscillator notes fired (${oscTotal}) — audio engine broken`);
+  console.log(`✅ Audio engine: ${oscTotal} total oscillator note(s) across placement + quiz + wave start`);
+
+  // ── 9. SW registered ───────────────────────────────────────────────────
   const swState = await page.evaluate(async () => {
     const reg = await navigator.serviceWorker.getRegistration();
     return (reg?.active || reg?.waiting || reg?.installing)?.state || null;
