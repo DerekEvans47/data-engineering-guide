@@ -35,4 +35,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Make .claude/skills scripts executable
 
+- Merge TODO.md into BACKLOG.md as single nightly source
+
 

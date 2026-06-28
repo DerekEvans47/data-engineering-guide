@@ -148,12 +148,12 @@ Append the validated batch to content/question-bank.json:
   print(f'Bank now has {len(bank)} questions')
   "
 
-Then update TODO.md / BACKLOG.md to reflect questions added.
+Then update BACKLOG.md to reflect questions added.
 
 ═══════════════════════════════════════════════════════
 STEP 7 — COMMIT
 ═══════════════════════════════════════════════════════
-git add content/question-bank.json TODO.md BACKLOG.md
+git add content/question-bank.json BACKLOG.md
 git commit -m "questions: add <N> <theme> syntax questions (bank now <total>)"
 
 Branch naming: questions/syntax-<theme>   (e.g. questions/syntax-sql)

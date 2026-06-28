@@ -54,19 +54,18 @@ Read all of these files in full before writing a single line of code:
 
   1. CLAUDE.md
   2. BACKLOG.md
-  3. TODO.md
-  4. learn/drill/drill.js          ← read the ENTIRE file; do not skim
-  5. learn/drill/drill.css
-  6. content/question-bank.json    ← note the exact schema of existing questions
+  3. learn/drill/drill.js          ← read the ENTIRE file; do not skim
+  4. learn/drill/drill.css
+  5. content/question-bank.json    ← note the exact schema of existing questions
 
 The git log from Phase 0 tells you what the last nightly session completed. Mark
-anything already merged as DONE in BACKLOG.md or TODO.md before proceeding.
+anything already merged as DONE in BACKLOG.md before proceeding.
 
 ════════════════════════════════════════
 PHASE 2 — SESSION PLAN  (write this out before any code)
 ════════════════════════════════════════
 
-1. Filter BACKLOG.md + TODO.md: Status = TODO, all Dependencies = DONE or —
+1. Filter BACKLOG.md: Status = TODO, all Dependencies = DONE or —
 2. Sort by Priority (P0 first) then Effort ascending
 3. For each candidate ask: "Can I implement this completely and correctly without
    leaving the codebase in a broken intermediate state?" If no → skip it, note why.
@@ -109,7 +108,7 @@ Rules:
   - No partial implementations — if a feature needs three functions, add all three
     or add none; never leave a half-wired code path
   - If you discover the item is larger than its effort estimate (>2× overshoot):
-    commit nothing for it, skip to the next item, add a note in TODO.md
+    commit nothing for it, skip to the next item, add a note in BACKLOG.md
 
 Codebase-specific pitfalls — verify each one before committing:
 
@@ -186,7 +185,7 @@ Then do a manual logic pass:
   □ Check for: off-by-one errors, unguarded null dereferences, unreachable code,
     variables used before assignment, missing return values
   □ Confirm sw.js cache version is bumped if learn/drill/ was touched
-  □ Confirm BACKLOG.md or TODO.md entry is marked DONE with today's date
+  □ Confirm BACKLOG.md entry is marked DONE with today's date
 
 If any check fails: fix it before moving on.
 
@@ -284,37 +283,37 @@ actual available list may differ depending on what previous sessions completed.
 
 | Order | ID | Title | Effort | Priority | Unblocks |
 |-------|----|-------|--------|----------|----------|
-| 1 | S-1 | Extract storage layer | 15 | P0 | I-1, I-2, I-3, I-4 |
-| 2 | S-8 | Error handling at system boundaries | 10 | P0 | A-3 |
-| 3 | Q-1 | 30 new questions, Parts 1–3 | 20 | P0 | Q-2 |
-| 4 | I-1 | Save export / import (JSON blob) | 12 | P0 | I-2, P-3, P-7 |
-| 5 | I-4 | Auto-save every 30 s | 10 | P0 | — |
-| 6 | S-5 | Cache DOM element references | 8 | P1 | — |
-| 7 | S-9 | Question bank JSON schema validation | 12 | P1 | — |
-| 8 | S-2 | Extract question-logic module | 20 | P1 | — |
-| 9 | I-3 | Offline question-bank versioning | 18 | P1 | — |
-| 10 | A-1 | Touch target audit (≥48 px) | 10 | P1 | — |
-| 11 | C-4 | Explanation on wrong answer | 18 | P1 | — |
-| 12 | U-6 | Pause / resume mid-wave | 18 | P1 | — |
-| 13 | U-7 | Tower placement confirmation | 12 | P1 | — |
-| 14 | U-8 | Free sell pre-wave | 15 | P1 | U-7 |
-| 15 | P-2 | XP tied to quiz correctness | 22 | P1 | P-1 |
-| 16 | P-8 | Question mastery tracking | 30 | P1 | I-1 |
-| 17 | Q-2 | 30 new questions, Parts 4–6 | 20 | P1 | Q-1 |
-| 18 | G-1 | Boss enemies | 35 | P1 | — |
-| 19 | G-2 | Enemy special types | 42 | P1 | G-1 |
-| 20 | S-3 | Extract TD engine block | 40 | P1 | — |
-| 21 | S-4 | Extract canvas render block | 30 | P1 | S-3 |
-| 22 | A-2 | prefers-reduced-motion | 8 | P2 | — |
-| 23 | V-8 | Floating damage numbers | 14 | P2 | — |
-| 24 | V-9 | Screen shake | 8 | P2 | — |
-| 25 | S-6 | Data-drive TD level/tower/enemy config | 18 | P2 | — |
-| 26 | S-7 | Split drill.css into logical layers | 25 | P2 | — |
-| 27 | Q-3 | 20 new questions, Parts 7–9 + Appendix | 15 | P1 | Q-2 |
+| 1 | U-2 | Touch target audit (≥48 px) | 10 | P1 | — |
+| 2 | S-2 | Extract question-logic module | 20 | P1 | — |
+| 3 | I-3 | Offline question-bank versioning | 18 | P1 | — |
+| 4 | P-2 | XP tied to quiz correctness | 22 | P1 | P-1 |
+| 5 | P-8 | Question mastery tracking | 30 | P1 | I-1 |
+| 6 | G-2 | Enemy special types | 42 | P1 | G-1 |
+| 7 | S-4 | Extract canvas render block | 30 | P1 | S-3 |
+| 8 | S-3 | Extract TD engine block | 40 | P1 | — |
+| 9 | EQ-1 | Gold economy reform | 20 | P1 | — |
+| 10 | V-14 | DE-themed map palettes | 35 | P1 | — |
+| 11 | V-16 | Level-gated tower sprite evolution | 25 | P1 | — |
+| 12 | EQ-2 | Power-up system — data model + pre-wave tray | 35 | P1 | EQ-1 |
+| 13 | EQ-4 | Relic system — data model + equip menu | 45 | P1 | EQ-1 |
+| 14 | EQ-6 | Store node | 30 | P1 | EQ-2, EQ-4 |
+| 15 | EQ-7 | Inventory & equip UI | 35 | P1 | EQ-2, EQ-4 |
+| 16 | P-1 | Skill tree / upgrade meta-progression | 60 | P1 | — |
+| 17 | U-5 | prefers-reduced-motion | 8 | P2 | — |
+| 18 | C-7 | Review and update stale questions | 10 | P2 | — |
+| 19 | S-6 | Data-drive TD level/tower/enemy config | 18 | P2 | — |
+| 20 | V-13 | Animated data-flow indicators on path | 15 | P2 | V-12 |
+| 21 | V-17 | Tower idle animation | 15 | P2 | V-16 |
+| 22 | V-18 | Directional muzzle flash | 12 | P2 | V-1 |
+| 23 | S-7 | Split drill.css into logical layers | 25 | P2 | — |
+| 24 | V-15 | Landmark anchor objects | 25 | P2 | V-12 |
+| 25 | C-6 | Add scenario/case-study question type | 25 | P2 | C-1 |
+| 26 | G-7 | Endless mode | 30 | P2 | — |
+| 27 | P-7 | Achievement system | 35 | P2 | I-1 |
 | … | … | Continue through remaining TODO items | … | … | … |
 
-A solid session completes items 1–6.
-An excellent session adds 7–10 and one UX quick-win.
+A solid session completes items 1–3.
+An excellent session adds 4–7 and one UX quick-win.
 
 ---
 
