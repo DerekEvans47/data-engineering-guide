@@ -1,7 +1,6 @@
-# Game Design Backlog
+# Game Design & Technical Backlog
 
-Items are organized by category, each with an effort score (1–100), priority tier, and dependency notes.
-A nightly agent should pick the **highest-priority, lowest-effort** item with no unresolved dependencies.
+This is the single source of truth for all game improvement work — both structural/technical-debt items and game design features. The nightly agent picks the **highest-priority, lowest-effort** item with no unresolved dependencies.
 
 ---
 
@@ -9,10 +8,25 @@ A nightly agent should pick the **highest-priority, lowest-effort** item with no
 
 | Tier | Description |
 |------|-------------|
-| P0   | Critical — blocks meaningful play or retention |
-| P1   | High — significantly improves experience |
-| P2   | Medium — polish and depth |
+| P0   | Critical — blocks meaningful play or retention, or causes data loss/crashes |
+| P1   | High — significantly improves experience or maintainability |
+| P2   | Medium — polish, depth, or debt reduction |
 | P3   | Low — nice-to-have, schedule opportunistically |
+
+---
+
+## S — Structure & Modularization
+
+Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448-line monolith with 126+ functions and zero module boundaries.
+
+| ID  | Title | Effort | Priority | Status | Dependencies | Notes |
+|-----|-------|--------|----------|--------|--------------|-------|
+| S-2 | Extract question-logic module | 20 | P1 | TODO | S-1 | Pull shuffle, filter, accuracy tracking, and session-queue logic out of drill.js into a self-contained section or file. Reduces coupling to game loop. |
+| S-3 | Extract tower-defense engine block | 40 | P1 | TODO | — | Move enemy AI, tower targeting, projectile physics, and wave-spawn logic into a clearly delimited section of drill.js (or separate file if bundler added). Give it a clean `TDGame` interface. |
+| S-4 | Extract canvas render block | 30 | P1 | TODO | S-3 | Move all `tdRender` sub-functions (sprites, terrain, HUD, particles) into a renderer section. Separate draw logic from game-state mutation. |
+| S-6 | Data-drive TD level/tower/enemy config | 18 | P2 | TODO | — | Move `TD_LEVEL_DEFS`, tower cost/stat tables, and enemy stat tables out of drill.js into a config block or JSON file. Makes tuning accessible without touching game logic. |
+| S-7 | Split drill.css into logical layers | 25 | P2 | TODO | — | Reorganize into clearly labelled sections: variables/reset, layout, components (cards, buttons, HUD), screens (home, world-map, game, study), animations. Currently 2,016 lines mixed together. |
+| S-10 | TypeScript migration (stretch goal) | 80 | P3 | TODO | S-1,S-2,S-3,S-4 | Adds compile-time safety for game state and question objects. Only worthwhile after modules are extracted. Optional — assess after S-1 through S-4 are done. |
 
 ---
 
@@ -20,10 +34,8 @@ A nightly agent should pick the **highest-priority, lowest-effort** item with no
 
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
-| I-1 | Save export / import (JSON blob) | 12 | P0 | DONE | — | Export localStorage as downloadable JSON; import via file picker. Protects against cache wipe. |
 | I-2 | Cloud sync via GitHub Gist | 35 | P1 | TODO | I-1 | Serialize save to a private Gist keyed by user email. Requires OAuth scope gist. |
 | I-3 | Offline question-bank versioning | 18 | P1 | TODO | SW | Embed a `qb_version` field in question-bank.json; SW compares and refreshes only on version bump. |
-| I-4 | Per-run auto-save every 30 s | 10 | P0 | DONE | — | `setInterval` writes `td_autosave` to localStorage during a live game. Resume prompt on re-open. |
 | I-5 | Account system (Supabase / Clerk) | 90 | P3 | TODO | I-2 | Full auth + cloud DB. Enables leaderboards, cross-device sync. High effort, needs infra decision. |
 
 ---
@@ -32,18 +44,6 @@ A nightly agent should pick the **highest-priority, lowest-effort** item with no
 
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
-| V-1 | Animation pass (towers, enemies, projectiles) | 28 | P1 | DONE | — | Tower fire-pulse ring; enemy hit-flash white overlay; projectile trail line. |
-| V-2 | Animated world map (SVG nodes pulse, path shimmer) | 22 | P1 | DONE | — | Completed: CSS `@keyframes tdm-glow` on SVG ring nodes; 3-layer road with dashes. |
-| V-3 | Enemy variety (sprite/emoji per type, death burst) | 32 | P1 | DONE | V-1 | Distinct emoji per type (👺👹💨🧌); tinted backing circle; enhanced 16-particle death burst. |
-| V-4 | Tower placement ghost (drag preview) | 20 | P2 | DONE | — | Semi-transparent tower icon follows finger/cursor before placing; red/yellow/green tint feedback. |
-| V-5 | HUD polish (lives bar, wave progress bar, gold coins) | 15 | P2 | DONE | — | Lives fill bar (green→yellow→red), wave dot progress indicators in HUD. |
-| V-6 | Level complete screen with animated stars | 18 | P1 | DONE | — | Stars bounce in one-by-one with CSS spring animation; gold reward + next/map CTAs. |
-| V-7 | Parallax terrain layers on canvas | 45 | P2 | DONE | V-3 | Pre-computed grass blades + pebbles on non-path cells, animated via bgTime; breathing vignette overlay. |
-| V-8 | Damage numbers (floating text) | 14 | P2 | DONE | — | `+22` floats upward and fades on enemy hit. |
-| V-9 | Screen shake on boss spawn / life lost | 8 | P2 | DONE | — | CSS `transform: translate` jitter for 300 ms via class toggle. |
-| V-10 | Dark/light theme applied to canvas elements | 12 | P2 | DONE | — | Canvas reads `data-theme` at render time; dark/light terrain palettes; CSS wrap bg swap. |
-| V-11 | Stylized non-path terrain (trees, shacks, mountains, river) | 35 | P1 | DONE | — | Replace blank off-path cells with procedurally placed decorations drawn on canvas: pixel-art tree clusters, a log shack, rocky outcrops, a winding river stripe. Seeded per level so layout is deterministic. |
-| V-12 | Path tile border stitching (cobblestone road rendering) | 20 | P1 | DONE | — | Draw directional edge tiles on path cells based on neighbor topology (straight, inner corner, outer corner). Transforms flat rectangles into cobblestone roads. Pure canvas, fully GitHub Pages compatible. |
 | V-13 | Animated data-flow indicators on path | 15 | P2 | TODO | V-12 | Small glowing dots drift along path direction at ~1 cell/s, 30% opacity. Reinforces "data moving through a pipeline" narrative. Computed from waypoint direction vectors in tdRender. |
 | V-14 | DE-themed map palettes (6 themes tied to guide topics) | 35 | P1 | TODO | — | Per-map color palette + tileset accent: Data Warehouse (stone/candlelight), Cloud (sky blue/lightning), Swamp (dark green/fog), Streaming Delta (teal/water), ML Lab (white/neon), Legacy Dungeon (grey/rust). Palette object injected at level load; no additional assets. |
 | V-15 | Landmark anchor objects (entry portal, mid-structure, exit gate) | 25 | P2 | TODO | V-12 | 2×2 multi-cell canvas sprites at map start, midpoint, and exit. Watchtower at entry, castle gate at exit; theme-specific mid landmark (e.g. server rack for warehouse, cauldron for swamp). Drawn in tdRender before towers. |
@@ -55,22 +55,10 @@ A nightly agent should pick the **highest-priority, lowest-effort** item with no
 
 ---
 
-## T — Audio
-
-| ID  | Title | Effort | Priority | Status | Dependencies | Notes |
-|-----|-------|--------|----------|--------|--------------|-------|
-| T-1 | Web Audio sound layer (shoot, hit, wave start, victory) | 30 | P1 | DONE | — | Procedural tones via `AudioContext` — no file downloads required. Mute toggle in HUD. |
-| T-2 | Background music (procedural chiptune loop) | 55 | P2 | DONE | T-1 | OscillatorNode melody/harmony loop. Looping 8-bar phrase per act. |
-| T-3 | Spatial audio (sounds pan L/R by tower x-position) | 22 | P2 | DONE | T-1 | `StereoPannerNode` keyed to `tower.col / TD_COLS`. |
-| T-4 | Adaptive music intensity (more layers as wave progresses) | 40 | P3 | DONE | T-2 | Add percussion/harmony oscillators when enemy count crosses thresholds. |
-
----
-
 ## G — Gameplay Depth
 
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
-| G-1 | Boss enemies (every 3rd wave, 5× HP, unique ability) | 35 | P1 | DONE | — | Boss object with `isBoss` flag, larger canvas render, special onReach effect (e.g. -3 lives). |
 | G-2 | Enemy special types (fast/armored/flying/healer) | 42 | P1 | TODO | G-1 | Armored: halved splash dmg. Flying: ignores certain towers. Healer: restores nearby HP. |
 | G-3 | Tower special abilities (active skills, cooldowns) | 50 | P2 | TODO | — | E.g. Arcane: AoE freeze 5 s (cooldown 30 s) triggered by tap. Requires ability UI. |
 | G-4 | Power-up cards (superseded by EQ-2/EQ-3 — see EQ section) | 38 | P2 | TODO | G-3 | Original spec: draw 2 cards at level start. Full design in EQ-2/EQ-3; scope expanded to wave/node dual-mode with store purchasing. |
@@ -117,11 +105,12 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
-| C-1 | Expand question bank to 300+ questions | 50 | P0 | ONGOING | — | Handled exclusively by QUESTION_GENERATION_PROMPT.md sessions — skip in game improvement runs. Current bank: 160 questions; target: 300+. |
+| C-1 | Expand question bank to 300+ questions | 50 | P0 | ONGOING | — | Handled exclusively by QUESTION_GENERATION_PROMPT.md sessions — skip in game improvement runs. Current bank: 200 questions (as of 2026-06-27); target: 300+. |
 | C-2 | Question editor UI (add/edit/delete in-app) | 40 | P2 | TODO | I-1 | Modal form to add custom questions; stores to localStorage override list. |
 | C-3 | Question categories / tags visible in quiz overlay | 15 | P2 | TODO | — | Show topic tag (e.g. "Spark", "Kafka") on quiz card for context. |
-| C-4 | Explanation / hint on wrong answer | 18 | P1 | DONE | — | After wrong MC answer, show a 1–2 sentence explanation before continuing. |
 | C-5 | Question difficulty auto-calibration (ELO-style) | 55 | P3 | TODO | P-3 | Track per-question success rate; reclassify easy/medium/hard dynamically. |
+| C-6 | Add scenario/case-study question type | 25 | P2 | TODO | C-1 | Multi-sentence scenario followed by 4 options. Requires new `type: "scenario"` in schema and a wider card render. More realistic to real-world DE decision-making. |
+| C-7 | Review and update stale questions | 10 | P2 | TODO | — | Audit questions for outdated services or API versions. Run annually. |
 
 ---
 
@@ -129,17 +118,10 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
-| U-1 | Tutorial / first-run walkthrough (3 steps) | 25 | P0 | DONE | — | 3-step static modal (localStorage-gated); pauses game until dismissed; sets td_tutorial_v1. |
 | U-2 | Touch target size audit (≥48 px tap zones) | 10 | P1 | TODO | — | Canvas tap and HUD buttons need minimum 48 px hit areas for mobile. |
 | U-3 | Keyboard / gamepad support | 40 | P3 | TODO | — | Arrow keys to navigate world map; 1–4 to select towers; Space to start wave. |
 | U-4 | Color-blind mode (shape indicators alongside color) | 20 | P2 | TODO | — | Overlay pattern fill (diagonal lines, dots) on towers so color isn't sole differentiator. |
 | U-5 | Reduced-motion respect (`prefers-reduced-motion`) | 8 | P2 | TODO | — | Disable CSS animations and canvas particle effects if system preference is set. |
-| U-6 | Pause / resume mid-wave | 18 | P1 | DONE | — | Pause button stops `requestAnimationFrame` loop; resume continues. Essential for interruptions. |
-| U-7 | Tower placement confirmation tap | 12 | P1 | DONE | — | After selecting a cell, show a confirm chip ("Place — 60g ✓ / ✗") before deducting gold and committing. Prevents mis-taps. |
-| U-8 | Free sell / undo for pre-wave placements | 15 | P1 | DONE | U-7 | Towers placed during the build phase (before wave start) can be sold for full refund until the wave begins. Track `placedThisBuild` flag per tower; clear on wave start. |
-| U-9 | Wave preview card ("Incoming: 6 Goblins + 1 Troll") | 10 | P1 | DONE | — | Persistent card above wave button showing next wave enemy composition (type emoji + count chips, boss-wave red styling). Updates on HUD refresh; hides during active wave and when all waves done. |
-| U-10 | Tap-to-inspect tower stats card | 15 | P1 | DONE | — | Tap tower with no tool selected → floating card shows DPS, range, upgrade cost, sell value. Dismiss via tap elsewhere or tool select. |
-| U-11 | Gold floaters on enemy kill (+5🪙 text) | 8 | P2 | DONE | V-8 | Reuses damageNumbers with `label` field; +Ng🪙 floats above enemy on kill in gold color. |
 
 ---
 
@@ -147,6 +129,13 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 
 | ID  | Title | Effort | Completed |
 |-----|-------|--------|-----------|
+| —   | 9-level TD with tower upgrades | — | 2026-06-25 |
+| —   | Question difficulty auto-rating (T/F → easy, MC length heuristic) | — | 2026-06-25 |
+| —   | Star rating system (3★/2★/1★) persisted to localStorage | — | 2026-06-25 |
+| —   | Star-gated level locking | — | 2026-06-25 |
+| —   | Optional quiz cap (3 questions per wave) | — | 2026-06-25 |
+| —   | Service worker cache-busting (de-drill-v10) | — | 2026-06-25 |
+| —   | Repo structure audit | — | 2026-06-25 |
 | V-2 | Animated SVG world map | 22 | 2026-06-25 |
 | T-1 | Web Audio sound layer | 30 | 2026-06-25 |
 | V-8 | Floating damage numbers | 14 | 2026-06-25 |
@@ -158,24 +147,24 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | V-1 | Tower fire pulse + enemy hit flash + projectile trail | 28 | 2026-06-25 |
 | V-3 | Enemy emoji variety + enhanced death burst | 32 | 2026-06-25 |
 | V-7 | Parallax terrain: animated grass + pebbles + vignette | 45 | 2026-06-25 |
-| —   | 9-level TD with tower upgrades | — | 2026-06-25 |
-| —   | Question difficulty auto-rating (T/F → easy, MC length heuristic) | — | 2026-06-25 |
-| —   | Star rating system (3★/2★/1★) persisted to localStorage | — | 2026-06-25 |
-| —   | Star-gated level locking | — | 2026-06-25 |
-| —   | Optional quiz cap (3 questions per wave) | — | 2026-06-25 |
-| —   | Service worker cache-busting (de-drill-v10) | — | 2026-06-25 |
 | V-11 | Stylized non-path terrain (8 sprite types, 9 hand-crafted maps) | 35 | 2026-06-25 |
-| I-4  | Auto-save every 30 s + resume prompt on re-enter | 10 | 2026-06-26 |
-| I-1  | Save export / import (JSON blob download + file-picker restore) | 12 | 2026-06-26 |
-| C-4  | Explanation / hint on wrong answer | 18 | 2026-06-26 |
-| U-6  | Pause / resume mid-wave | 18 | 2026-06-26 |
-| U-7  | Tower placement confirmation chip | 12 | 2026-06-26 |
-| U-8  | Free sell for pre-wave placements | 15 | 2026-06-26 |
-| G-1  | Boss enemies (every 3rd wave, pulsing ring, 💀 skull, +3 lives on leak) | 35 | 2026-06-26 |
-| T-2  | Background chiptune music (C minor pentatonic, 8-step lookahead scheduler) | 55 | 2026-06-27 |
-| T-3  | Spatial audio: StereoPannerNode on shoot/hit/death/place keyed to x-position | 22 | 2026-06-27 |
-| T-4  | Adaptive music: 3 intensity layers (melody→+harmony→+percussion) by enemy count | 40 | 2026-06-27 |
-| U-1  | Tutorial / first-run walkthrough (3-step modal, localStorage-gated) | 25 | 2026-06-27 |
+| V-12 | Path tile border stitching (cobblestone road rendering) | 20 | 2026-06-25 |
+| U-9 | Wave preview card ("Incoming: 6 Goblins + 1 Troll") | 10 | 2026-06-25 |
+| I-4 | Auto-save every 30 s + resume prompt on re-enter | 10 | 2026-06-26 |
+| I-1 | Save export / import (JSON blob download + file-picker restore) | 12 | 2026-06-26 |
+| C-4 | Explanation / hint on wrong answer | 18 | 2026-06-26 |
+| U-6 | Pause / resume mid-wave | 18 | 2026-06-26 |
+| U-7 | Tower placement confirmation chip | 12 | 2026-06-26 |
+| U-8 | Free sell for pre-wave placements | 15 | 2026-06-26 |
+| G-1 | Boss enemies (every 3rd wave, pulsing ring, 💀 skull, +3 lives on leak) | 35 | 2026-06-26 |
+| S-1 | Extract storage layer (StorageManager wrapping 39 localStorage calls) | 15 | 2026-06-26 |
+| S-5 | Cache DOM refs in EL object (bindUI + initTDGame; 38 hot-path lookups eliminated) | 8 | 2026-06-26 |
+| S-8 | Error handling at system boundaries (res.ok check + try/catch) | 10 | 2026-06-26 |
+| S-9 | validateQuestionBank(): schema check on load, warns + skips malformed entries | 12 | 2026-06-26 |
+| T-2 | Background chiptune music (C minor pentatonic, 8-step lookahead scheduler) | 55 | 2026-06-27 |
+| T-3 | Spatial audio: StereoPannerNode on shoot/hit/death/place keyed to x-position | 22 | 2026-06-27 |
+| T-4 | Adaptive music: 3 intensity layers (melody→+harmony→+percussion) by enemy count | 40 | 2026-06-27 |
+| U-1 | Tutorial / first-run walkthrough (3-step modal, localStorage-gated) | 25 | 2026-06-27 |
 | U-10 | Tap-to-inspect tower stats card (floating card, dismisses on tap elsewhere) | 15 | 2026-06-27 |
 | U-11 | Gold floaters on enemy kill (+Ng🪙 float via damageNumbers label field) | 8 | 2026-06-27 |
 
@@ -185,7 +174,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 
 All items in this backlog are compatible with a static GitHub Pages deployment (no server, no bundler). Specific notes:
 
-- **V-12 through V-20, U-9 through U-11**: Pure Canvas 2D API + CSS. No external assets or server calls required.
+- **V-13 through V-20, U-9 through U-11**: Pure Canvas 2D API + CSS. No external assets or server calls required.
 - **V-14 (themed palettes)**: Palette objects are inline JS — no image files needed.
 - **V-15 (landmark sprites)**: Inline pixel-art arrays like the existing `TD_SPRITES` entries. No uploads.
 - **P-6 (leaderboards)**: Only item requiring a backend. GitHub Gist API workaround exists but needs OAuth — flag before implementing.
@@ -194,4 +183,4 @@ All items in this backlog are compatible with a static GitHub Pages deployment (
 
 ---
 
-*Last updated: 2026-06-27 (T-2, T-3, T-4 marked DONE; V-12–V-20 and U-9–U-11 added; V-12 and U-9 DONE; EQ section added — EQ-1 through EQ-8 for economy, power-ups, relics, store, and inventory). To pick the next nightly task: filter `Status = TODO`, sort by Priority then Effort ascending, take the first item with no TODO dependencies.*
+*Last updated: 2026-06-28. Merged from BACKLOG.md + TODO.md — single source of truth. Picking order: filter `Status = TODO`, sort by Priority then Effort ascending, take the first item whose dependencies are all `DONE` or `—`.*
