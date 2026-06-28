@@ -10,10 +10,6 @@
           {
             "type": "command",
             "command": "cp .claude/skills/pre-push-hook.sh .git/hooks/pre-push && chmod +x .git/hooks/pre-push"
-          },
-          {
-            "type": "command",
-            "command": "cp .claude/skills/post-push-hook.sh .git/hooks/post-push && chmod +x .git/hooks/post-push"
           }
         ]
       }
