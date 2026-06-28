@@ -29,6 +29,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Dedup changelog entries from retry commits
 
+- Move changelog generation to pre-commit hook
+
 - Pre-push hook skips deletes, only verifies drill changes
 
 - Reset stuck-active run nodes when showing run map
