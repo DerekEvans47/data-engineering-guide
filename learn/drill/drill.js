@@ -1137,7 +1137,7 @@ function renderMapNodes(container) {
   let nodesHTML = '';
   for (const nd of nodes) {
     const pos = nodePos(nd);
-    const nr  = nd.roomType === 'boss' ? 26 : 22;
+    const nr  = nd.roomType === 'boss' ? 26 : 24;
     const isAvail   = avail.includes(nd.id);
     const isCleared = dungeonClearedNodes.has(nd.id);
     const cls = ['map-node', nd.roomType, isAvail ? 'available' : '', isCleared ? 'cleared' : ''].filter(Boolean).join(' ');
@@ -2782,7 +2782,7 @@ function renderRunMap(run) {
 
     if (state === 'available') {
       return `<g class="rn-available" data-id="${id}" style="cursor:pointer">
-        <circle class="rn-pulse" cx="${x}" cy="${y}" r="21" fill="${col}18" stroke="${col}50" stroke-width="1.5"/>
+        <circle class="rn-pulse" cx="${x}" cy="${y}" r="24" fill="${col}18" stroke="${col}50" stroke-width="1.5"/>
         <circle cx="${x}" cy="${y}" r="16" fill="#0c1020" stroke="${col}" stroke-width="2.5"/>
         <text x="${x}" y="${y+5}" font-size="12" text-anchor="middle">${icon}</text>
         ${stars ? `<text x="${x}" y="${aboveY}" font-size="5.5" text-anchor="middle" fill="${col}ee" font-weight="700">${stars}</text>` :

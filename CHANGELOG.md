@@ -6,7 +6,7 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### ✨ Features
 
-- EQ-1 gold economy reform — carry-over, wave-clear bonus
+- EQ-1 gold economy reform (carry-over, wave-clear bonus)
 
 - TD tutorial, tower inspect card, gold kill floaters (U-1, U-10, U-11)
 
@@ -22,6 +22,8 @@ A record of every feature, fix, and improvement shipped to the app.
 - Changelog auto-generation, no-PII commit rule, C-1 status update
 
 - Dedup changelog entries from retry commits
+
+- Enforce ≥48 px tap targets on all interactive elements
 
 - Pre-push hook skips deletes, only verifies drill changes
 
