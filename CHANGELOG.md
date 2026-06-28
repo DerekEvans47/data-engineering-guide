@@ -18,6 +18,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
 
+- Show app version on home screen (#26)
+
 
 ### 🐛 Bug Fixes
 
