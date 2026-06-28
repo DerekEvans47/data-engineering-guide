@@ -2653,7 +2653,7 @@ function generateRun(mapId) {
   nodes.find(n => n.id === 'start').state = 'completed';
   ['a1','b1','c1'].forEach(id => { const n = nodes.find(x => x.id === id); if (n) n.state = 'available'; });
 
-  const run = { mapId, seed, nodes, currentId:'start', visitedIds:['start'], activeId:null, stats:{battlesWon:0,goldEarned:0,xpEarned:0} };
+  const run = { mapId, seed, nodes, currentId:'start', visitedIds:['start'], activeId:null, stats:{battlesWon:0,goldEarned:0,xpEarned:0,carryGold:0} };
   tdSaveRun(run);
   return run;
 }
@@ -3243,6 +3243,7 @@ function showTDWorldMap() { showMapSelection(); }
 
 function showLevelConfirmPanel(levelDef, nodeId, run) {
   const restBonus = tdLoadRestBonus();
+  const carryGold = (run && run.stats && run.stats.carryGold) || 0;
   const dw = levelDef.diffWeights;
   const diffStars = dw.hard >= 0.4 ? '⭐⭐⭐' : dw.hard >= 0.2 || dw.medium >= 0.5 ? '⭐⭐' : '⭐';
   const diffLabel = dw.hard >= 0.4 ? 'Hard' : dw.hard >= 0.2 || dw.medium >= 0.5 ? 'Medium' : 'Easy';
@@ -3277,7 +3278,7 @@ function showLevelConfirmPanel(levelDef, nodeId, run) {
       </div>
       <div class="tdcp-stats">
         <div class="tdcp-stat"><span>❤️</span><span>${levelDef.startLives}${restBonus&&restBonus.type==='lives'?`+${restBonus.value}`:''}</span><span class="tdcp-stat-label">Lives</span></div>
-        <div class="tdcp-stat"><span>🪙</span><span>${levelDef.startGold}${restBonus&&restBonus.type==='gold'?`+${restBonus.value}`:''}</span><span class="tdcp-stat-label">Gold</span></div>
+        <div class="tdcp-stat"><span>🪙</span><span>${levelDef.startGold}${carryGold>0?`+${carryGold}🔁`:''}${restBonus&&restBonus.type==='gold'?`+${restBonus.value}`:''}</span><span class="tdcp-stat-label">Gold</span></div>
         <div class="tdcp-stat"><span>${diffStars}</span><span>${diffLabel}</span><span class="tdcp-stat-label">Difficulty</span></div>
       </div>
       ${restBannerHtml}
@@ -3550,9 +3551,11 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
 
   // Apply and clear any pending rest bonus
   const restBonus = tdLoadRestBonus();
+  const carryGold = (run && run.stats && run.stats.carryGold) || 0;
   const startLives = levelDef.startLives + (restBonus && restBonus.type === 'lives' ? Math.max(0, restBonus.value) : 0);
-  const startGold  = levelDef.startGold  + (restBonus && restBonus.type === 'gold'  ? Math.max(0, restBonus.value) : 0);
+  const startGold  = levelDef.startGold + carryGold + (restBonus && restBonus.type === 'gold' ? Math.max(0, restBonus.value) : 0);
   tdClearRestBonus();
+  if (run && run.stats) { run.stats.carryGold = 0; tdSaveRun(run); }
 
   EL.cardArea.style.display    = 'none';
   EL.bottomBar.style.display   = 'none';
@@ -3891,6 +3894,8 @@ function tdUpdate(dt) {
 
   if (td.waveActive && td.spawnQueue.length === 0 && td.enemies.length === 0) {
     td.waveActive = false;
+    td.gold += 15;
+    td.damageNumbers.push({ x: td.canvas ? td.canvas.width / 2 : 160, y: td.canvas ? td.canvas.height * 0.18 : 80, label: '+15🪙 Wave Clear!', life: 1.6, maxLife: 1.6, color: '#FBBF24' });
     if (td.waveIdx >= td.levelDef.waveDefs.length - 1) tdVictory();
     else { tdUpdateHUD(); tdUpdateWaveBtn(); }
   }
@@ -4454,6 +4459,7 @@ function tdVictory() {
     markNodeCompleted(run, nodeId);
     run.stats.battlesWon++;
     run.stats.goldEarned += goldReward;
+    run.stats.carryGold = td.gold;
     tdSaveRun(run);
     if (isRunComplete(run)) {
       tdMarkMapBeaten(run.mapId);
