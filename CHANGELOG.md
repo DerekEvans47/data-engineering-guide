@@ -12,6 +12,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - TD tutorial, tower inspect card, gold kill floaters (U-1, U-10, U-11)
 
+- Background music on home, map, and battle screens (#23)
+
 - Float tower placement chip near tower, larger buttons
 
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
@@ -21,15 +23,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - U-2 touch target audit — enforce ≥48 px on all interactive elements
 
-- Add 50ms schedule offset to SFX so first tone is not dropped
+- Audio not working in TD drill + pre-commit changelog hook (#22)
 
 - Block session URLs in pre-push hook
 
 - Changelog auto-generation, no-PII commit rule, C-1 status update
 
 - Dedup changelog entries from retry commits
-
-- Move changelog generation to pre-commit hook
 
 - Pre-push hook skips deletes, only verifies drill changes
 
@@ -48,10 +48,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Eliminate scroll during TD gameplay (#15)
 
 - Initial commit
-
-- Add Web Audio API spy to Playwright verifier
-
-- Add post-push hook to auto-push trailing changelog commit
 
 - Ban session URLs and Generated-by footers in all PR bodies
 
