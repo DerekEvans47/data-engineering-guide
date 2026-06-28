@@ -20,31 +20,57 @@ finish cleanly. Depth beats breadth.
 Follow every rule in CLAUDE.md exactly.
 
 ════════════════════════════════════════
-PHASE 0 — SELF-HEAL PENDING PRS  (before anything else)
+PHASE 0 — ORIENT AND SELF-HEAL  (before anything else)
 ════════════════════════════════════════
 
-Run these commands first:
+─── 0a. Read the handoff from the previous session ───────────
+
+  Read HANDOFF.md if it exists.
+
+  This is the only persistent memory between sessions. It tells you what was
+  completed, what was partial, what was skipped, and which PRs need manual
+  attention. If HANDOFF.md does not exist, this is the first run — proceed.
+
+─── 0b. Sync with remote ─────────────────────────────────────
 
   git fetch origin
   git log --oneline origin/main -10
 
-Then check for open PRs from previous nightly runs using the GitHub MCP tool:
+─── 0c. Resolve open PRs ─────────────────────────────────────
 
-  mcp__github__list_pull_requests  (owner: REPO_OWNER, repo: data-engineering-guide, state: open)
+  List open PRs:
+    mcp__github__list_pull_requests (owner: derekevans47, repo: data-engineering-guide, state: open)
 
-For each open PR from a nightly/claude branch:
-  1. Read its mergeable state via mcp__github__pull_request_read
-  2. If conflict-free → merge it immediately via mcp__github__merge_pull_request
-     before doing any new work
-  3. If conflicted → note it in the Phase 5 handoff; do not redo work already
-     in that PR, and do not create a new branch that overlaps its files
+  For each open PR:
+    1. Read its details via mcp__github__pull_request_read
+    2. If mergeable → merge immediately via mcp__github__merge_pull_request (squash)
+    3. If conflicted:
+       a. Check out the PR's branch locally: git checkout <branch> && git pull origin <branch>
+       b. Rebase onto main: git rebase origin/main
+       c. If rebase succeeds → git push --force-with-lease origin <branch> → merge via API
+       d. If rebase has conflicts you cannot resolve cleanly → leave PR open, record
+          its number and conflicting files in HANDOFF.md; do not start any item this
+          session that touches those same files
 
-After merging any pending PRs, run:
-  git pull origin main
+─── 0d. Find orphaned branches ───────────────────────────────
 
-This ensures tonight's branches start from a fully up-to-date base. Skipping this
-step means any file touched by a pending PR will produce a merge conflict when your
-new PRs are eventually merged.
+  List all remote branches:
+    git branch -r | grep -v HEAD | grep -v origin/main
+
+  Cross-reference against open PRs from step 0c. Any branch with no open PR
+  and no recent merge commit is orphaned (pushed but PR was never opened).
+
+  For each orphaned branch:
+    1. Open a PR via mcp__github__create_pull_request
+    2. Attempt to merge (same conflict flow as 0c step 3)
+    3. If unresolvable → note in HANDOFF.md for manual review
+
+─── 0e. Finalise base ────────────────────────────────────────
+
+  After all pending PRs are resolved:
+    git pull origin main
+
+  This ensures tonight's branches start from a fully up-to-date base.
 
 ════════════════════════════════════════
 PHASE 1 — ORIENT  (read before touching anything)
@@ -185,9 +211,19 @@ Playwright visual verification (required for EVERY learn/drill/ change):
   drives Chromium through the full app flow (home → map → run node → TD battle),
   and validates: home renders, filter drawer builds, canvas initialises, wave
   preview shows, wave preview hides on start, service worker registers.
-  If any check fails: fix the regression before committing.
   Screenshot is saved to /tmp/drill-verify-*/verify-pass.png — include the path
   in the PR body.
+
+  **Verifier escape hatch** — if the verifier fails:
+    Attempt 1: diagnose the failure output, fix the specific check that failed,
+               re-run the verifier.
+    Attempt 2: if still failing, check for EL self-reference bugs:
+               grep -n "EL\.\w* = EL\." learn/drill/drill.js  (must return empty)
+               Fix any matches, re-run the verifier.
+    Give up:   if still failing after two fix attempts, revert ALL changes for
+               this item (git checkout -- <files>), mark the item PARTIAL in
+               BACKLOG.md with a note on what failed, and move to the next item.
+               Never commit code that fails the verifier.
 
 Then do a manual logic pass:
   □ Re-read every function you added or modified
@@ -202,7 +238,12 @@ If any check fails: fix it before moving on.
 
 ─── 3e. COMMIT ───────────────────────────────────────────────
 
-Stage only files for this item — never git add . or git add -A.
+Before staging: update BACKLOG.md — mark this item's Status as DONE and add
+today's date to the Completed column. This MUST be in the same commit as the
+implementation. If the next nightly run opens without this update, it will
+re-pick and re-implement the same item.
+
+Stage only the implementation files plus BACKLOG.md — never git add . or git add -A.
 
 Commit message format:
   type(ID): imperative summary under 72 chars
@@ -219,31 +260,71 @@ NEVER include in commit messages or PR bodies:
   - Personal email addresses or usernames
 Only attribution allowed: Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 
-─── 3f. PUSH ─────────────────────────────────────────────────
+─── 3f. PUSH AND MERGE ───────────────────────────────────────
 
   git push -u origin <branch-name>
 
 Network failure → retry up to 4× with 2 s / 4 s / 8 s / 16 s backoff.
 Any other failure → investigate before retrying.
 
+Immediately after a successful push:
+
+  1. Open a PR via mcp__github__create_pull_request
+       owner: derekevans47, repo: data-engineering-guide
+       head: <branch-name>, base: main
+       title: ≤70 chars, imperative (see Phase 4 for body format)
+
+  2. Read mergeable state via mcp__github__pull_request_read
+     (GitHub may need a moment to compute mergeability — if `mergeable` is null,
+      wait 5 s and re-read before acting)
+
+  3a. If mergeable → merge via mcp__github__merge_pull_request (squash)
+        → git pull origin main       ← keep local main current
+        → git branch -D <branch>     ← clean up local branch
+
+  3b. If conflicted:
+        → git rebase origin/main on the branch
+        → If rebase succeeds → git push --force-with-lease → go to step 3a
+        → If rebase fails → leave PR open, record PR number + conflicting files,
+          do not start any further item this session that touches those files;
+          the next run's Phase 0 will resolve it
+
 ─── 3g. LOOP ─────────────────────────────────────────────────
 
-Move to the next item on the session plan.
-Do not open PRs yet — batch them all at the end.
+Update your running effort total: `runningTotal += item.effort`
+If `runningTotal < 150` and token usage is below 70% → pick the next item.
+Otherwise → proceed to Phase 5.
 
 ════════════════════════════════════════
-PHASE 4 — OPEN PRs  (after all commits are pushed)
+PHASE 4 — FINAL PR TRIAGE
 ════════════════════════════════════════
 
-For questions/* branches — follow CLAUDE.md PR format exactly:
+PRs were opened and merged inline in Phase 3f. This phase handles anything
+that did not merge cleanly during the session.
+
+List open PRs one more time:
+  mcp__github__list_pull_requests (owner: derekevans47, repo: data-engineering-guide, state: open)
+
+For each still-open PR from this session:
+  1. Re-check mergeability (main may have moved since step 3f)
+  2. If now mergeable → merge it
+  3. If still conflicted → do a final rebase attempt:
+       git fetch origin && git rebase origin/main
+       If it succeeds → force-push → merge
+       If it fails → record in HANDOFF.md for manual resolution;
+         note exactly which files conflict so the next session avoids them
+
+─── PR body format ───────────────────────────────────────────
+
+questions/* branches:
   Title:  Add questions: Parts N, N, N
   Body:   parts covered, question count by part, question types used
 
-For all other branches:
+All other branches:
   Title:  ≤70 chars, imperative
   Body:
     ## What
-    - Bullet list of items completed (ID + title)
+    - Bullet list of BACKLOG IDs + titles completed on this branch
 
     ## Why
     One paragraph on the motivation.
@@ -252,30 +333,56 @@ For all other branches:
     - file — reason
 
     ## Unblocks
-    - Any TODO/BACKLOG items whose dependencies are now satisfied
+    - Any TODO items whose dependencies are now satisfied
 
 NEVER include in any PR title or body:
-  - claude.ai links of any kind (session URLs, chat links, etc.)
-  - "_Generated by Claude Code" or "_Generated with Claude Code" footers
+  - claude.ai links, session URLs, or "_Generated by Claude Code" footers
   - Session identifiers or internal task IDs
-  - Any claude.ai/code/session_* URL
 
-The pre-push hook does NOT intercept GitHub API calls — PR body content
-is entirely self-enforced. Check every PR body before calling
-mcp__github__create_pull_request.
+The pre-push hook does NOT intercept GitHub API calls — self-enforce this.
 
 ════════════════════════════════════════
 PHASE 5 — SESSION HANDOFF
 ════════════════════════════════════════
 
-Write a brief handoff note for the next nightly run:
+Overwrite HANDOFF.md with the following content (replace every field):
 
-  COMPLETED:        [IDs and titles]
-  PARTIAL:          [ID — what was done, what remains, why it stopped]
-  SKIPPED:          [ID — reason: too complex / dependency missing / conflicted PR]
-  CONFLICTED PRS:   [PR numbers that could not be auto-merged and need manual review]
-  NEXT RUN:         [recommended first item and why]
-  SW VERSION:       [current cache string in sw.js after this session]
+---
+# Nightly Handoff — {YYYY-MM-DD}
+
+## Completed ({N} items, {total} effort points)
+| ID | Title | Effort | Branch | PR |
+|----|-------|--------|--------|----|
+| {ID} | {title} | {n} | {branch} | #{pr} merged |
+
+## Partial (started but not committed)
+| ID | What was done | What remains | Why stopped |
+|----|---------------|--------------|-------------|
+| {ID} | {desc} | {desc} | verifier failed / effort overrun / token limit |
+
+## Skipped (never started)
+| ID | Reason |
+|----|--------|
+| {ID} | dependency unresolved / effort too large / files blocked by conflict |
+
+## Conflicted PRs (need manual review before next run)
+| PR # | Branch | Conflicting files | Notes |
+|------|--------|-------------------|-------|
+| #{n} | {branch} | {files} | {what to do} |
+
+## State for next run
+- Recommended first item: {ID} — {one-line reason}
+- SW cache version after this session: {de-drill-vNN}
+- Running effort total this session: {n} / 150
+---
+
+Commit HANDOFF.md on main directly (it is not production code):
+  git add HANDOFF.md
+  git commit -m "chore: session handoff {YYYY-MM-DD}"
+  git push origin main
+
+If pushing to main is blocked (branch protection), push to a chore/handoff-{date}
+branch and merge it immediately via mcp__github__merge_pull_request.
 
 ════════════════════════════════════════
 ABSOLUTE GUARDRAILS
