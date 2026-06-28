@@ -50,13 +50,20 @@ new PRs are eventually merged.
 PHASE 1 — ORIENT  (read before touching anything)
 ════════════════════════════════════════
 
-Read all of these files in full before writing a single line of code:
+Read all of these files before writing a single line of code:
 
-  1. CLAUDE.md
-  2. BACKLOG.md
-  3. learn/drill/drill.js          ← read the ENTIRE file; do not skim
-  4. learn/drill/drill.css
-  5. content/question-bank.json    ← note the exact schema of existing questions
+  1. CLAUDE.md                     ← read in full; rules are non-negotiable
+  2. BACKLOG.md                    ← read in full; derive picking order here
+  3. learn/drill/drill.js          ← do NOT read the entire file upfront;
+                                      use Grep/Glob to locate the specific
+                                      functions your chosen item touches, then
+                                      Read only those sections in full.
+                                      (The file is 4 500+ lines — a full read
+                                      wastes context before you start coding.)
+  4. learn/drill/drill.css         ← read in full if your item touches CSS
+  5. content/question-bank.json    ← read in full only if adding questions;
+                                      otherwise just check the max `num` and
+                                      `id` values to avoid collisions
 
 The git log from Phase 0 tells you what the last nightly session completed. Mark
 anything already merged as DONE in BACKLOG.md before proceeding.
@@ -121,8 +128,13 @@ Codebase-specific pitfalls — verify each one before committing:
   │  DOM queries, or heavy computation inside tdRender() or its sub-functions.
   ├─ ctx.save() / ctx.restore() must bracket any canvas state changes (transform,
   │  fillStyle, globalAlpha, etc.) or state leaks into unrelated draw calls.
-  ├─ No bundler — ES2017 max (async/await OK; avoid optional chaining ?. and
-  │  nullish coalescing ?? unless confirmed safe for target browsers).
+  ├─ No bundler — ES2020 features in use (optional chaining `?.`, nullish
+  │  coalescing `??`, async/await). Do not add top-level `await` or dynamic
+  │  `import()` — the file is loaded as a plain script tag, not a module.
+  ├─ Sprite sheet assets live in `learn/drill/assets/map/`. The manifest at
+  │  `learn/drill/assets/map/manifest.json` describes all 6 deco sheets
+  │  (deco-verdant-1/2, deco-decay-1/2, deco-void-1/2). Any new asset added
+  │  there must also be added to the sw.js ASSETS array.
   └─ Every localStorage.getItem() can return null on first run; every setItem()
      can throw in private browsing. Handle both.
 
@@ -167,16 +179,15 @@ SW version check (required for EVERY learn/drill/ change — no exceptions):
 
 Playwright visual verification (required for EVERY learn/drill/ change):
 
-  npm install playwright --prefix /tmp/pw-install 2>/dev/null || true
-  python3 -m http.server 8765 --directory . &
-  SERVER_PID=$!
-  node scripts/verify-drill.js --port 8765 --shots /tmp/drill-verify-$(date +%s)
-  VERIFY_EXIT=$?
-  kill $SERVER_PID
-  exit $VERIFY_EXIT
+  bash .claude/skills/verifier-browser.sh
 
-  Must exit 0 (PASS) — all 20 checks green. If any check fails: fix the
-  regression before committing. Include the shot directory path in the PR body.
+  Must exit 0 (PASS) — all checks green. The script starts its own server,
+  drives Chromium through the full app flow (home → map → run node → TD battle),
+  and validates: home renders, filter drawer builds, canvas initialises, wave
+  preview shows, wave preview hides on start, service worker registers.
+  If any check fails: fix the regression before committing.
+  Screenshot is saved to /tmp/drill-verify-*/verify-pass.png — include the path
+  in the PR body.
 
 Then do a manual logic pass:
   □ Re-read every function you added or modified
@@ -290,45 +301,35 @@ ABSOLUTE GUARDRAILS
 
 ---
 
-## Expected Picking Order
+## How to Derive the Picking Order (do this in Phase 2, not from memory)
 
-Items sorted by Priority then Effort. Merge pending PRs in Phase 0 first — the
-actual available list may differ depending on what previous sessions completed.
+The static table that used to live here was removed because it became stale
+within days of being written. Derive the live list from BACKLOG.md instead:
 
-| Order | ID | Title | Effort | Priority | Unblocks |
-|-------|----|-------|--------|----------|----------|
-| 1 | U-2 | Touch target audit (≥48 px) | 10 | P1 | — |
-| 2 | S-2 | Extract question-logic module | 20 | P1 | — |
-| 3 | I-3 | Offline question-bank versioning | 18 | P1 | — |
-| 4 | P-2 | XP tied to quiz correctness | 22 | P1 | P-1 |
-| 5 | P-8 | Question mastery tracking | 30 | P1 | I-1 |
-| 6 | G-2 | Enemy special types | 42 | P1 | G-1 |
-| 7 | S-4 | Extract canvas render block | 30 | P1 | S-3 |
-| 8 | S-3 | Extract TD engine block | 40 | P1 | — |
-| 9 | EQ-1 | Gold economy reform | 20 | P1 | — |
-| 10 | V-14 | DE-themed map palettes | 35 | P1 | — |
-| 11 | V-16 | Level-gated tower sprite evolution | 25 | P1 | — |
-| 12 | EQ-2 | Power-up system — data model + pre-wave tray | 35 | P1 | EQ-1 |
-| 13 | EQ-4 | Relic system — data model + equip menu | 45 | P1 | EQ-1 |
-| 14 | EQ-6 | Store node | 30 | P1 | EQ-2, EQ-4 |
-| 15 | EQ-7 | Inventory & equip UI | 35 | P1 | EQ-2, EQ-4 |
-| 16 | P-1 | Skill tree / upgrade meta-progression | 60 | P1 | — |
-| 17 | U-5 | prefers-reduced-motion | 8 | P2 | — |
-| 18 | C-7 | Review and update stale questions | 10 | P2 | — |
-| 19 | S-6 | Data-drive TD level/tower/enemy config | 18 | P2 | — |
-| 20 | V-13 | Animated data-flow indicators on path | 15 | P2 | V-12 |
-| 21 | V-17 | Tower idle animation | 15 | P2 | V-16 |
-| 22 | V-18 | Directional muzzle flash | 12 | P2 | V-1 |
-| 23 | S-7 | Split drill.css into logical layers | 25 | P2 | — |
-| 24 | V-15 | Landmark anchor objects | 25 | P2 | V-12 |
-| 25 | C-6 | Add scenario/case-study question type | 25 | P2 | C-1 |
-| 26 | G-7 | Endless mode | 30 | P2 | — |
-| 27 | P-7 | Achievement system | 35 | P2 | I-1 |
-| … | … | Continue through remaining TODO items | … | … | … |
+1. Open `BACKLOG.md` — it is the single source of truth.
+2. Filter rows where `Status = TODO`.
+3. For each candidate, check its `Dependencies` column: every listed ID must
+   have `Status = DONE` or `—` in BACKLOG.md, OR must be in a merged PR you
+   confirmed in Phase 0. If any dependency is unresolved → skip the item.
+4. Sort the remaining candidates: **Priority ascending (P0 → P3), then Effort
+   ascending within the same tier**.
+5. The first item on that sorted list is your next task.
 
-A solid session completes items 1–3.
-An excellent session adds 4–7 and one UX quick-win.
+This means the session plan is always correct regardless of what previous
+sessions completed — no manual table maintenance required.
+
+### Heuristics for session throughput
+
+- Effort ≤ 15 → typically 3–5 of these fit in one session
+- Effort 16–35 → typically 2–3 fit
+- Effort 36–55 → typically 1–2 fit; one is safe
+- Effort > 55 → treat as a full session by itself; do not start a second item
+  unless the first is fully committed and verified
+
+A solid session finishes 2–3 items cleanly.
+An excellent session finishes 4–6 items and leaves no broken intermediate state.
+Quality beats quantity — a verified two-item session beats an unverified five.
 
 ---
 
-*Last updated: 2026-06-25*
+*Last updated: 2026-06-28*
