@@ -49,6 +49,9 @@
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+    // When a new SW takes over (skipWaiting + clients.claim), reload so the
+    // page runs the freshly cached assets rather than whatever was in memory.
+    navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
   }
 </script>
 </body>
