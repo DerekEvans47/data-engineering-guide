@@ -51,6 +51,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Ban session URLs and Generated-by footers in all PR bodies
 
+- Document TD map visual overhaul tasks in backlog (V-26 through V-33)
+
 - Make .claude/skills scripts executable
 
 - Merge TODO.md into BACKLOG.md as single nightly source
