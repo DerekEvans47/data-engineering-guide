@@ -3038,5 +3038,303 @@
     "explanation": "Strong interview answers for motivation questions demonstrate intrinsic alignment between personal values and the role's core function. Option C identifies the specific things that make data engineering distinct — reliability, measurable correctness, and the business impact of trusted data — and links them to personal motivation. This shows the candidate understands what data engineers actually do beyond the tools. Option A mentions tools, which are means not ends, and is too generic. Option B frames DE negatively relative to other roles. Option D cites extrinsic motivations (growth, pay) which raise concerns about long-term commitment and passion for the work.",
     "difficulty": 20,
     "num": 200
+  },
+  {
+    "id": "p2-partitions-001",
+    "part": 2,
+    "topic": "Partitions",
+    "type": "mc",
+    "stem": "A data team stores clickstream events in ADLS partitioned by `event_date` and `event_type`. After six months they have 7,200 folders (180 dates × 40 event types), each containing files averaging 80 KB. Delta Lake queries are noticeably slower than expected. What is the ROOT CAUSE?",
+    "options": [
+      "Delta Lake's transaction log cannot handle more than 5,000 partitions and degrades past that threshold",
+      "The small files problem: 7,200 directories with 80 KB files causes Spark to spend more time on metadata enumeration and task scheduling than on actual data reads",
+      "ADLS Gen2 throttles hierarchical namespace write operations above 1,000 folders per hour",
+      "Delta Lake automatically disables Z-ordering when a table has more than 1,000 partitions"
+    ],
+    "correct": 1,
+    "explanation": "The small files problem occurs when high-cardinality partition keys create thousands of tiny files. With 7,200 directories at 80 KB average, each file is far below the target 128–256 MB for Parquet/Delta. Spark must contact the ADLS listing API for every folder to discover files, then schedule a separate task per file — the overhead of metadata enumeration and task scheduling vastly exceeds what partition pruning saves. Option A is false: Delta Lake's transaction log handles arbitrarily many partitions without a hard limit. Option C is fabricated: ADLS Gen2 does not impose a folder-write throttle of that kind. Option D is also false: Delta Lake ACID guarantees and Z-ordering are unrelated to partition count. The fix is to reduce partition cardinality (e.g., remove `event_type` from the key) and run periodic OPTIMIZE to compact files into larger chunks.",
+    "difficulty": 57,
+    "num": 201
+  },
+  {
+    "id": "p2-partitions-002",
+    "part": 2,
+    "topic": "Partitions",
+    "type": "tf",
+    "stem": "True or False: In Databricks, Liquid Clustering allows you to change the clustering columns at any time using ALTER TABLE ... CLUSTER BY without rewriting all existing data immediately.",
+    "correct": true,
+    "explanation": "The statement is TRUE. Databricks Liquid Clustering, available in Delta Lake 3.x, decouples the clustering definition from a mandatory full rewrite. When you run ALTER TABLE t CLUSTER BY (new_col), Databricks updates the table metadata to record the new clustering columns but does not immediately rewrite existing data. Files are progressively reclustered during future OPTIMIZE runs, which can be scheduled as background maintenance. This contrasts sharply with traditional Hive-style storage partitioning, where changing the partition key requires dropping and recreating the entire table and rewriting all data. The operational flexibility of Liquid Clustering is its primary advantage: evolving query patterns no longer require expensive, disruptive migrations. The trade-off is that pruning effectiveness builds up gradually as OPTIMIZE passes recluster more files over time.",
+    "difficulty": 37,
+    "num": 202
+  },
+  {
+    "id": "p2-partitions-003",
+    "part": 2,
+    "topic": "Partitions",
+    "type": "mc",
+    "stem": "Which statement about Spark's `spark.sql.shuffle.partitions` configuration is TRUE?",
+    "options": [
+      "It sets the number of files Spark reads per task when loading a partitioned Parquet table from ADLS",
+      "It controls the number of output partitions produced after wide transformations such as groupBy, join, and distinct",
+      "Calling `repartition(n)` on a DataFrame overrides this setting and guarantees that all n output partitions contain exactly equal amounts of data",
+      "Spark shuffle partitions persist across SparkSession instances so that data does not need to be re-read between jobs"
+    ],
+    "correct": 1,
+    "explanation": "Correct answer is B. `spark.sql.shuffle.partitions` determines how many partitions Spark creates after a wide transformation — operations that require shuffling data across executors, such as groupBy, join, distinct, and window aggregations. The default is 200, which is often too large for small datasets (creating many tiny tasks) and too small for very large ones (causing data skew per partition). Option A is wrong: input partitioning when reading files is controlled differently, primarily by the number of files and Spark's parallelism settings, not this config. Option C is false: repartition(n) creates exactly n partitions by count, but it uses round-robin or hash distribution, which does not guarantee equal data volume per partition — skewed keys produce skewed partitions. Option D is false: Spark partitions are in-memory constructs scoped to a single job; they do not persist between SparkSession instances.",
+    "difficulty": 46,
+    "num": 203
+  },
+  {
+    "id": "p2-partitions-004",
+    "part": 2,
+    "topic": "Partitions",
+    "type": "mc",
+    "stem": "A data engineer is designing a Delta Lake table for 2 years of retail transactions (150 store IDs). Queries almost always filter by date range. Which partitioning strategy is MOST appropriate?",
+    "options": [
+      "Partition by store_id only — 150 values gives clean, manageable separation per store",
+      "Partition by transaction_date (daily) — date-range queries dominate, so pruning by date eliminates the vast majority of files at the folder-listing stage",
+      "Partition by both transaction_date and store_id — double partitioning maximises pruning for all query patterns simultaneously",
+      "Apply no partitioning and rely solely on Z-ordering by store_id and transaction_date to optimise reads"
+    ],
+    "correct": 1,
+    "explanation": "Correct answer is B. When date-range queries dominate, partitioning by transaction_date (daily) is the standard choice: a query for 'last 7 days' scans at most 7 of 730 date folders. This is strong partition pruning at the file-listing stage before any data is read. Option A (store_id only) fails for date-range queries — every query must scan all 150 store directories regardless of the date filter. Option C (double partitioning) creates 150 × 730 = 109,500 directories averaging very few rows each — a severe small files problem that costs more in metadata overhead than it saves in pruning. Option D (Z-ordering only, no partitioning) is a valid modern Databricks approach for some use cases, but Z-ordering works within files, not across directory listings; it cannot replace the folder-level skip that date partitioning provides when 95%+ of files can be eliminated before reading.",
+    "difficulty": 69,
+    "num": 204
+  },
+  {
+    "id": "p2-partitions-005",
+    "part": 2,
+    "topic": "Partitions",
+    "type": "tf",
+    "stem": "True or False: SQL table partitioning improves query performance only when the query's WHERE clause includes a filter on the partition key column.",
+    "correct": true,
+    "explanation": "The statement is TRUE. SQL table partitioning — whether RANGE, LIST, or HASH — physically organises rows into sub-tables based on the partition key value. The query optimiser uses partition elimination (also called pruning) to skip entire sub-tables when a WHERE clause filters on the partition key, because it knows which partitions can contain matching rows. If the filter references a different column, the planner has no basis to exclude any partition and must scan all of them. This is why choosing the right partition key is critical: it must match the dominant filter predicate of real workloads. Secondary indexes, Z-ordering (Databricks), or data skipping statistics on non-partition columns can partially compensate, but they operate within partitions rather than skipping them at the folder-listing level.",
+    "difficulty": 24,
+    "num": 205
+  },
+  {
+    "id": "p3-dbt-tool-001",
+    "part": 3,
+    "topic": "dbt — data build tool",
+    "type": "mc",
+    "stem": "A dbt model joins and transforms 600 million rows and is referenced by 50 downstream models and 5 BI dashboards. It is currently materialised as a `view`. What change should the team make and why?",
+    "options": [
+      "Switch to `ephemeral` so the logic compiles as a CTE in each consumer's SQL, reducing the number of warehouse objects",
+      "Switch to `table` or `incremental` — a view re-executes the 600M-row scan on every downstream reference, so persisting the result eliminates redundant full scans",
+      "Switch to `incremental` and set `full_refresh: true` so that every run stays perfectly synchronised with the source table",
+      "Keep it as a `view` and add dbt data quality tests — materialisation choice does not affect query performance"
+    ],
+    "correct": 1,
+    "explanation": "Correct answer is B. A dbt view is a saved SELECT statement — every downstream query re-executes the full 600M-row scan independently. With 50 downstream models and 5 dashboards, the same expensive transformation runs dozens of times per refresh cycle. Materialising as a table or incremental model computes the result once and persists it, so consumers read from an already-computed object. Option A (ephemeral) makes this dramatically worse: ephemeral models compile as CTEs inlined into each consumer's SQL, meaning the 600M-row scan runs once per consumer per query rather than once globally. Option C misuses full_refresh: setting it permanently defeats the purpose of incremental loading, forcing a full rebuild every run with no benefit. Option D is factually wrong: materialisation choice is one of the most significant levers for dbt performance and cost.",
+    "difficulty": 54,
+    "num": 206
+  },
+  {
+    "id": "p3-dbt-tool-002",
+    "part": 3,
+    "topic": "dbt — data build tool",
+    "type": "tf",
+    "stem": "True or False: In a dbt project, `{{ ref('staging_orders') }}` resolves the model's physical warehouse name at compile time AND adds a dependency edge from the current model to staging_orders in the project DAG.",
+    "correct": true,
+    "explanation": "The statement is TRUE. The ref() function in dbt serves two equally important purposes. First, at compile time dbt replaces {{ ref('staging_orders') }} with the fully qualified warehouse object name for the active target environment (e.g., analytics_dev.staging_orders in development, analytics_prod.staging_orders in production), so engineers never hard-code environment-specific schema or database names. Second, dbt parses every ref() call across the entire project to build its directed acyclic graph of model dependencies. An edge from the current model to staging_orders tells dbt's runner to execute staging_orders before the current model. This DAG is also what powers commands like dbt run --select +my_model (run all ancestors) or state:modified+ (run changed models plus their descendants). The model referenced does not need to be pre-materialized before the run — dbt's execution order is derived entirely from this graph.",
+    "difficulty": 31,
+    "num": 207
+  },
+  {
+    "id": "p3-dbt-tool-003",
+    "part": 3,
+    "topic": "dbt — data build tool",
+    "type": "mc",
+    "stem": "Which dbt generic test asserts that every value in a column exists in a specified column of another model — the equivalent of a soft foreign-key check?",
+    "options": [
+      "not_null",
+      "unique",
+      "accepted_values",
+      "relationships"
+    ],
+    "correct": 3,
+    "explanation": "Correct answer is D — relationships. The relationships generic test checks referential integrity: for every non-null value in the specified column of the model under test, it asserts that the value also exists in the referenced column of another model (typically a primary key). This is described as a 'soft' foreign-key check because dbt runs it as a query and logs failures rather than blocking writes, unlike a database-enforced FOREIGN KEY constraint. Option A (not_null) verifies that a column contains no NULL values. Option B (unique) verifies that all values in a column are distinct. Option C (accepted_values) checks that every value belongs to a hard-coded allowed list defined in schema.yml. When the relationships test fails in CI, it typically means a dimension table was not loaded before the fact table, or records were deleted from the parent table without cascading to children.",
+    "difficulty": 34,
+    "num": 208
+  },
+  {
+    "id": "p3-dbt-tool-004",
+    "part": 3,
+    "topic": "dbt — data build tool",
+    "type": "mc",
+    "stem": "A CI pipeline runs `dbt run --select state:modified+`. A developer has modified only `stg_orders.sql`. Which models will dbt run?",
+    "options": [
+      "Only `stg_orders` — state:modified selects exactly the changed model",
+      "`stg_orders` and all models that are downstream of it in the DAG",
+      "All models in the project whose SQL contains the string 'orders'",
+      "`stg_orders` and all models that were included in the previous successful CI run"
+    ],
+    "correct": 1,
+    "explanation": "Correct answer is B. The state:modified selector compares the current project against a previously compiled state artifact (typically production's manifest.json) and selects models whose compiled SQL or configuration has changed. The + suffix is dbt's graph operator meaning 'plus all downstream nodes' — it expands the selection to include every model that depends on stg_orders, directly or transitively, through the full depth of the DAG. The purpose is to catch downstream breakage: if stg_orders renames a column or changes a join, the models built on top of it may fail silently without this expanded selection. Option A describes state:modified without the + operator. Option C describes a text-search approach dbt does not use — selectors are graph-based, not string-based. Option D is unrelated to dbt's state functionality, which compares against a specific compiled artifact, not execution history.",
+    "difficulty": 72,
+    "num": 209
+  },
+  {
+    "id": "p3-dbt-tool-005",
+    "part": 3,
+    "topic": "dbt — data build tool",
+    "type": "tf",
+    "stem": "True or False: A dbt `ephemeral` model creates a temporary table in the data warehouse that exists only for the duration of the dbt run and is dropped automatically when the run completes.",
+    "correct": false,
+    "explanation": "The statement is FALSE. A dbt ephemeral model is never materialized as any physical object in the warehouse — not a table, not a view, and not a temporary table. Instead, dbt compiles the ephemeral model's SQL into a Common Table Expression (CTE) and inlines it directly into the SQL of every downstream model that references it via ref(). The ephemeral model exists only at compile time within dbt's process; the SQL sent to the warehouse contains a WITH clause embedding the logic. This means ephemeral models do not appear in the warehouse's object catalog and cannot be queried directly outside of a dbt run. They are suited for lightweight intermediate logic shared across a small number of consumers. The key trade-off: because the CTE is inlined, the ephemeral model's computation is re-executed once per downstream consumer per query — making it expensive for heavy transformations referenced frequently.",
+    "difficulty": 49,
+    "num": 210
+  },
+  {
+    "id": "p6-mcp-001",
+    "part": 6,
+    "topic": "MCP — Model Context Protocol",
+    "type": "mc",
+    "stem": "Before MCP, connecting N AI models to M external tools required how many custom integrations, and what does MCP reduce this to?",
+    "options": [
+      "N + M integrations; MCP reduces this to N or M (whichever is smaller)",
+      "N × M integrations; MCP reduces this to N + M — one client per model, one server per tool",
+      "M integrations, because tools expose generic REST APIs that any AI model can call without custom code",
+      "N × M integrations; MCP eliminates tool calls entirely by replacing them with retrieval-augmented context"
+    ],
+    "correct": 1,
+    "explanation": "Correct answer is B. Before MCP, every AI model that needed to call an external tool required a custom integration: its own authentication logic, API client, error handling, and data formatting specific to that tool. With N models and M tools, that produces N × M unique codebases to build, maintain, and update whenever either side changes. MCP solves this with a standard protocol: each AI model (or rather, the host application running it) implements one MCP client, and each tool provider implements one MCP server. Total integration surface shrinks to N + M. Option A mischaracterises the reduction — the point is eliminating cross-product duplication, not halving it. Option C is false — generic REST does not exist across tools; each has unique auth schemes, data shapes, and error models. Option D is false — MCP standardises tool calling, it does not replace tools with retrieval.",
+    "difficulty": 21,
+    "num": 211
+  },
+  {
+    "id": "p6-mcp-002",
+    "part": 6,
+    "topic": "MCP — Model Context Protocol",
+    "type": "mc",
+    "stem": "A team builds a Claude-based assistant that can query a Databricks metastore, call the dbt Cloud API, and write to Confluence. In MCP architecture, what is the correct description of these three capabilities?",
+    "options": [
+      "Each capability should be a separate MCP Host; Claude is the Client that connects to all three",
+      "Each capability is a Tool primitive exposed by an MCP Server; Claude (via the Host) invokes them through the Client",
+      "Databricks and dbt are Resources because they return data; Confluence is a Tool because it involves writing",
+      "All three are Prompt primitives because the assistant needs pre-written instructions for interacting with each system"
+    ],
+    "correct": 1,
+    "explanation": "Correct answer is B. In MCP architecture, capabilities that an AI assistant can invoke — whether reading from Databricks, calling an API, or writing to Confluence — are Tool primitives exposed by MCP Servers. The Host (the application running Claude, such as Claude Desktop or a custom app) holds the conversation context and decides when to invoke a tool. The Client (embedded in the Host) communicates with MCP Servers over the transport protocol. Option A is wrong: the Host is the runtime application, not a per-capability construct; you don't create separate Hosts for each integration. Option C applies an incorrect read/write distinction — Resources in MCP are data exposed passively for the LLM's context, while Tools perform actions; both Databricks queries and Confluence writes are actions and therefore Tools. Option D is wrong: Prompts are pre-written instruction templates that the server offers; they are not the correct primitive for runtime callable capabilities.",
+    "difficulty": 67,
+    "num": 212
+  },
+  {
+    "id": "p6-mcp-003",
+    "part": 6,
+    "topic": "MCP — Model Context Protocol",
+    "type": "tf",
+    "stem": "True or False: MCP Tools are stateful — each tool call automatically carries context from all previous tool calls in the same session so the server can reference prior results.",
+    "correct": false,
+    "explanation": "The statement is FALSE. MCP Tools are designed to be stateless. Each tool call is self-contained: the Host includes all necessary inputs in the call payload, and the Server returns a result without retaining any memory between invocations. This is a deliberate architectural choice — stateless servers are easier to scale horizontally, simpler to restart on failure, and prevent hidden coupling between tool calls that would make reasoning about the system difficult. Conversation context, intermediate results, and memory of prior tool calls all live in the MCP Host application layer, not in the Server. If an MCP workflow needs to pass the result of one tool call into a subsequent call, the Host is responsible for extracting that result and including it in the next call's parameters. Understanding this distinction is important for debugging multi-step AI workflows where state management is a common source of errors.",
+    "difficulty": 53,
+    "num": 213
+  },
+  {
+    "id": "p6-mcp-004",
+    "part": 6,
+    "topic": "MCP — Model Context Protocol",
+    "type": "mc",
+    "stem": "A security-conscious team is deploying an MCP server that exposes their Azure SQL database to an AI coding assistant. Which practice is MOST critical for safe deployment?",
+    "options": [
+      "Use SSE transport instead of stdio to prevent the AI process from reading environment variables on the host machine",
+      "Grant the MCP server only the minimum database permissions needed (e.g., read-only on specific schemas), and authenticate using OAuth 2.1",
+      "Rotate the database password every 24 hours and inject a fresh credential into the MCP server configuration each morning",
+      "Run the MCP server behind a corporate VPN to ensure the AI model cannot send data to external endpoints"
+    ],
+    "correct": 1,
+    "explanation": "Correct answer is B — least-privilege combined with OAuth 2.1 authentication. An MCP server with broad database permissions becomes a high-value attack surface: prompt injection in the AI's input could manipulate it into issuing destructive queries within its permitted scope. Limiting permissions to exactly what is needed (read-only on specific schemas, no DDL, no cross-database access) contains the blast radius of any compromise. OAuth 2.1 is MCP's recommended authentication standard and provides auditable, scoped access tokens. Option A (SSE vs stdio transport) is a deployment topology choice, not a primary security control; environment variable exposure is not the dominant risk. Option C (daily password rotation) is operationally cumbersome and addresses credential theft, not authorization scope — a stolen short-lived token with broad permissions is still dangerous. Option D (VPN) reduces network exposure but does not prevent the AI from making authorized but harmful queries within its allowed scope.",
+    "difficulty": 76,
+    "num": 214
+  },
+  {
+    "id": "p6-mcp-005",
+    "part": 6,
+    "topic": "MCP — Model Context Protocol",
+    "type": "mc",
+    "stem": "Which statement BEST distinguishes an MCP Resource from an MCP Tool?",
+    "options": [
+      "Resources are callable with input parameters and return structured output; Tools provide static, read-only reference data",
+      "Resources expose data for the LLM to use as context (read-only); Tools are invokable actions that can perform computation or have side effects",
+      "Resources are scoped to a single conversation turn and discarded after; Tools persist their outputs across sessions",
+      "Resources require OAuth 2.1 authentication; Tools can use any authentication mechanism the server supports"
+    ],
+    "correct": 1,
+    "explanation": "Correct answer is B. MCP defines three server primitives with distinct roles: Tools, Resources, and Prompts. A Resource is data the server exposes for the LLM to consume as context — think of it as a structured data source: a file's contents, the results of a database query pre-fetched for background reading, or an API response the model should incorporate into its reasoning. Resources flow data to the LLM passively. A Tool is an action the LLM can invoke at runtime; it can perform computation, call external APIs, write to databases, or have other side effects. Tools are called actively by the LLM via the Host. Option A reverses the definitions entirely. Option C is wrong: neither Resources nor Tools are designed to persist state across sessions — MCP is stateless by design. Option D is false: authentication is a deployment concern, not a primitive-type constraint; both Resources and Tools can require authentication.",
+    "difficulty": 61,
+    "num": 215
+  },
+  {
+    "id": "p7-jira-cflu-001",
+    "part": 7,
+    "topic": "Jira, Confluence & Figma in Practice",
+    "type": "mc",
+    "stem": "A data team's Jira project has 400 tickets; 250 have not been updated in more than six months. At sprint planning the team cannot tell which tickets are still relevant. What should they do FIRST?",
+    "options": [
+      "Increase sprint capacity by adding team members so the old tickets can be closed more quickly",
+      "Run a backlog grooming session to archive or close irrelevant tickets before planning the next sprint",
+      "Use a Jira automation rule to close all tickets older than 90 days automatically",
+      "Convert all outstanding tickets to Epics so they no longer appear in the sprint backlog view"
+    ],
+    "correct": 1,
+    "explanation": "Correct answer is B. A stale backlog where 62% of tickets are untouched for six months is a prioritisation crisis, not a capacity crisis. Sprint planning becomes unreliable because the team cannot distinguish genuinely relevant work from abandoned ideas, resolved problems, or superseded requirements. The correct first step is a grooming (or refinement) session: deliberate human review to archive irrelevant tickets, re-estimate still-valid ones, and establish a manageable active backlog. Option A (add team members) does not fix the underlying problem — more people executing unvalidated work faster makes things worse. Option C (auto-close by age) is risky because some deferred tickets may represent legitimate future work; blanket automation destroys context without judgment. Option D (convert to Epics) hides tickets from sprint views without actually resolving the ambiguity about what is worth doing — it moves the problem, not solves it.",
+    "difficulty": 29,
+    "num": 216
+  },
+  {
+    "id": "p7-jira-cflu-002",
+    "part": 7,
+    "topic": "Jira, Confluence & Figma in Practice",
+    "type": "tf",
+    "stem": "True or False: In Jira's agile issue hierarchy, an Epic can span multiple sprints, but a Story should be completed within a single sprint.",
+    "correct": true,
+    "explanation": "The statement is TRUE. Jira's agile hierarchy is designed around predictable delivery cadences. An Epic represents a large body of work — a feature, a project phase, or a goal — that typically spans multiple sprints and may take weeks or months to complete. Stories (User Stories) are sized to fit within a single sprint, which is a core agile principle: if a story cannot be finished within the sprint, it should be broken down into smaller stories or moved back to the backlog for re-estimation. Tasks and Sub-tasks sit below Stories for finer-grained work tracking. While Jira technically allows a story to remain open across sprint boundaries, doing so repeatedly signals poor estimation and erodes the team's velocity reliability and sprint commitment. Epics serve as the umbrella that groups related stories and tracks progress toward a larger delivery milestone.",
+    "difficulty": 14,
+    "num": 217
+  },
+  {
+    "id": "p7-jira-cflu-003",
+    "part": 7,
+    "topic": "Jira, Confluence & Figma in Practice",
+    "type": "mc",
+    "stem": "A saved Jira filter contains: `project = DATA AND status = \"In Progress\" AND assignee = currentUser()`. What does `currentUser()` evaluate to when the filter is opened?",
+    "options": [
+      "The Jira project administrator's account",
+      "The service account used by active Jira automation rules in the project",
+      "The account of the person opening and running the filter at that moment",
+      "The user who most recently modified any issue in the project"
+    ],
+    "correct": 2,
+    "explanation": "Correct answer is C. currentUser() is a dynamic JQL function that evaluates to the Jira account of the person executing the query at the moment it runs — not a static user hardcoded at filter creation time. This makes it invaluable for shared filters and dashboard gadgets: every team member who opens the same saved filter sees only their own In Progress tickets, even though the filter definition is identical for all users. Option A (project administrator) is wrong — the admin's account is not implicitly associated with query execution. Option B (automation service account) is wrong — automation rules run under a service account, but currentUser() in a standard JQL query is evaluated in the context of the human user running the query, not any background process. Option D describes a different concept altogether. Understanding currentUser() prevents a common mistake where a developer hardcodes their own username and accidentally shares a filter that only shows their work to everyone.",
+    "difficulty": 23,
+    "num": 218
+  },
+  {
+    "id": "p7-jira-cflu-004",
+    "part": 7,
+    "topic": "Jira, Confluence & Figma in Practice",
+    "type": "mc",
+    "stem": "A data team is about to build a new Power BI dashboard for the finance department. In which order should they use Figma and Jira to minimise rework?",
+    "options": [
+      "Build the full dashboard in Power BI → present to finance → mark the Jira ticket done → document the layout in Figma afterwards",
+      "Write the Jira story with acceptance criteria → create a low-fidelity Figma wireframe → get stakeholder sign-off on the layout → build in Power BI",
+      "Create a high-fidelity Figma prototype using real data → present it as the near-final product → skip Jira for BI work since it is not software engineering",
+      "Open a Jira ticket → build the dashboard immediately → use Figma only if stakeholders request visual changes after delivery"
+    ],
+    "correct": 1,
+    "explanation": "Correct answer is B. The correct sequence is: capture requirements in a Jira story (with acceptance criteria) → validate the layout with a low-fidelity Figma wireframe → get stakeholder sign-off before building. This sequence exists because design alignment is cheapest when it is earliest. A Figma wireframe takes hours to revise; a Power BI report with a built-out data model, DAX measures, and formatted visuals can take days to restructure after stakeholder feedback. Option A (build first, document after) is the most expensive path — rework after delivery is the norm, not the exception. Option C (high-fidelity prototype first) conflates a design artefact with the deliverable and front-loads expensive design effort before requirements are confirmed; also, skipping Jira removes the audit trail and acceptance criteria. Option D (build immediately, use Figma only for complaints) is the second most common failure mode: it skips alignment and uses Figma reactively for damage control.",
+    "difficulty": 64,
+    "num": 219
+  },
+  {
+    "id": "p7-jira-cflu-005",
+    "part": 7,
+    "topic": "Jira, Confluence & Figma in Practice",
+    "type": "tf",
+    "stem": "True or False: A Confluence page's edit history is a sufficient substitute for a 'last verified' date stamp, because readers can check when the page was last changed to assess whether the content is current.",
+    "correct": false,
+    "explanation": "The statement is FALSE. A Confluence page's edit history records when the page was changed, not whether its content was reviewed and confirmed as accurate. A page can go unedited for 18 months because nobody noticed it was outdated — the edit history shows it as 'unchanged,' which superficially looks like stability but actually represents a staleness risk. A 'last verified' date stamp (implemented as a page property, a dated note at the top, or a page review workflow) signals that a human deliberately read the content on a specific date and confirmed it remained accurate even if no text changes were needed. This distinction matters in a data platform context where Confluence often holds runbooks, onboarding guides, and SLA documentation that can silently become dangerous when infrastructure changes. Without explicit ownership signals, readers cannot distinguish a well-maintained page from an abandoned one — a fundamental failure mode of unmanaged wikis.",
+    "difficulty": 26,
+    "num": 220
   }
 ]
