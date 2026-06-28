@@ -21,6 +21,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - U-2 touch target audit — enforce ≥48 px on all interactive elements
 
+- Add 50ms schedule offset to SFX so first tone is not dropped
+
 - Block session URLs in pre-push hook
 
 - Changelog auto-generation, no-PII commit rule, C-1 status update
@@ -55,7 +57,7 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Ramp nightly session target to 150 effort points per run (#19)
 
-- Strip session URLs from all PR bodies, not just questions/*
+- Strip session URLs from all PR bodies, not just questions/* (#21)
 
 - Update nightly prompt to use dynamic backlog picking (#18)
 
