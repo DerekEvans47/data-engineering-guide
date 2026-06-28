@@ -1968,11 +1968,22 @@ const tdAudio = (() => {
     get ctx()   { return actx; },
     toggleMute() { muted = !muted; return muted; },
     // Call within a user gesture to create + resume the shared AudioContext (iOS requirement).
+    // Returns a Promise that resolves once the context is confirmed running.
     unlock() {
       if (!actx) {
-        try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+        try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return Promise.resolve(); }
       }
-      if (actx && actx.state !== 'running') actx.resume().catch(() => {});
+      const p = actx.state !== 'running' ? actx.resume() : Promise.resolve();
+      // Play a 1-sample silent buffer — activates the iOS audio session so
+      // subsequent notes don't get dropped on the first hardware wakeup.
+      return p.then(() => {
+        if (!actx) return;
+        try {
+          const buf = actx.createBuffer(1, 1, actx.sampleRate);
+          const src = actx.createBufferSource();
+          src.buffer = buf; src.connect(actx.destination); src.start(0);
+        } catch(_) {}
+      }).catch(() => {});
     },
   };
 })();
@@ -2120,20 +2131,17 @@ const menuMusic = (() => {
   const ROOT = 110.00, FIFTH = 164.81, OCT = 220.00;
 
   // Never create a standalone AudioContext — only share the one tdAudio owns.
-  // On iOS, AudioContext must be created/resumed within a user gesture; if
-  // tdAudio.ctx isn't ready yet (no gesture has fired) we return null and
-  // set a pending flag so onUnlock() can restart us.
+  // Returns null only if tdAudio hasn't been unlocked yet (no gesture fired).
   function ac() {
     const shared = tdAudio.ctx;
     if (!shared) return null;
     if (actx !== shared) { actx = shared; masterGain = null; }
-    if (actx.state === 'suspended') actx.resume().catch(() => {});
     if (!masterGain) {
       masterGain = actx.createGain();
       masterGain.gain.value = tdAudio.muted ? 0 : 0.13;
       masterGain.connect(actx.destination);
     }
-    return actx.state === 'running' ? actx : null;
+    return actx;
   }
 
   function schedBass(freq, start, dur) {
@@ -2203,7 +2211,8 @@ const menuMusic = (() => {
       playing = false; pending = false;
       clearTimeout(timer); timer = null;
     },
-    // Called by the global iOS unlock handler after tdAudio.unlock() fires.
+    get playing() { return playing; },
+    // Called after tdAudio.unlock() Promise resolves — context is confirmed running.
     onUnlock() {
       if (!pending) return;
       const c = ac(); if (!c) return;
@@ -2217,17 +2226,27 @@ const menuMusic = (() => {
 })();
 
 // iOS Safari requires AudioContext creation/resume inside a user gesture.
-// This capture-phase listener fires before any element handler on first touch,
-// unlocks the shared AudioContext, then starts any music that was pending.
+// Capture-phase so this fires before any element handler on the very first tap.
+// unlock() returns a Promise that resolves once the context is confirmed running;
+// only THEN do we call onUnlock() so the state check inside ac() passes.
 let _audioUnlocked = false;
 function _audioUnlock() {
   if (_audioUnlocked) return;
   _audioUnlocked = true;
-  tdAudio.unlock();
-  menuMusic.onUnlock();
+  tdAudio.unlock().then(() => menuMusic.onUnlock());
 }
 document.addEventListener('touchstart', _audioUnlock, { capture: true, once: true });
 document.addEventListener('mousedown',  _audioUnlock, { capture: true, once: true });
+
+// Re-resume on every subsequent touch in case iOS auto-suspends the context
+// (e.g. after a phone call, locking the screen, or backgrounding the app).
+document.addEventListener('touchstart', () => {
+  const ctx = tdAudio.ctx;
+  if (ctx && ctx.state === 'suspended') {
+    ctx.resume().catch(() => {});
+    if (!menuMusic.playing) menuMusic.onUnlock();
+  }
+}, { passive: true });
 
 function tdComputePathSet(wps) {
   const s = new Set();
