@@ -47,6 +47,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Initial commit
 
+- Add Web Audio API spy to Playwright verifier
+
 - Add post-push hook to auto-push trailing changelog commit
 
 - Ban session URLs and Generated-by footers in all PR bodies
