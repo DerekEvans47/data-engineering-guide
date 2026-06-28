@@ -45,7 +45,7 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
 | V-13 | Animated data-flow indicators on path | 15 | P2 | TODO | V-12 | Small glowing dots drift along path direction at ~1 cell/s, 30% opacity. Reinforces "data moving through a pipeline" narrative. Computed from waypoint direction vectors in tdRender. |
-| V-14 | DE-themed map palettes (6 themes tied to guide topics) | 35 | P1 | TODO | — | Per-map color palette + tileset accent: Data Warehouse (stone/candlelight), Cloud (sky blue/lightning), Swamp (dark green/fog), Streaming Delta (teal/water), ML Lab (white/neon), Legacy Dungeon (grey/rust). Palette object injected at level load; no additional assets. |
+| V-14 | DE-themed map palettes (6 themes tied to guide topics) | 35 | P1 | SUPERSEDED | — | Superseded by V-26 (three-act theme data) + V-31 (sprite render loop). Original spec called for 6 palette-only themes; replaced by verdant/decay/void with actual sprite sheet assets. |
 | V-15 | Landmark anchor objects (entry portal, mid-structure, exit gate) | 25 | P2 | TODO | V-12 | 2×2 multi-cell canvas sprites at map start, midpoint, and exit. Watchtower at entry, castle gate at exit; theme-specific mid landmark (e.g. server rack for warehouse, cauldron for swamp). Drawn in tdRender before towers. |
 | V-16 | Level-gated tower sprite evolution (L1/L2/L3 distinct look) | 25 | P1 | TODO | — | L1 = wood/basic, L2 = stone/reinforced, L3 = enchanted/glowing. New pixel-art frame sets per upgrade tier rather than just a ring color change. The tower visually transforms on upgrade. |
 | V-17 | Tower idle animation (barrel rotation / turret pulse) | 15 | P2 | TODO | V-16 | Slow sin-wave rotation on tower top or breathing scale effect between shots. Adds life to the board without impacting perf — angle stored per-tower, updated in tdUpdate. |
@@ -57,6 +57,11 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 | V-23 | Run-map: themed node shapes per type | 20 | P2 | TODO | V-21 | Replace generic circles: battle nodes → shield pentagon, quiz nodes → scroll silhouette, shop → coin hex, boss → skull diamond, event → star burst. Drawn with Path2D; player can scan the map without reading emoji. |
 | V-24 | Run-map background: parchment + gothic/steampunk overlay | 30 | P2 | TODO | — | Warm sepia/tan base drawn with noise pass (many small semi-transparent quads). Ink-stain vignette at edges. One or two procedural decorations (gear, compass rose, or crossed-swords) in corner cells. Connectors become ink-line strokes. Theme: adventure map parchment with medieval/steampunk details — matches the goblin/orc enemy aesthetic without requiring any image assets. |
 | V-25 | Run-map fog of war on unreachable nodes | 15 | P2 | TODO | V-21 | Nodes and connectors beyond any reachable path are drawn at 25% opacity with a desaturated palette. Revealed when the player's active path reaches the preceding node. Adds tension and makes earned progress feel visible. |
+| V-29 | Sprite sheet asset loader (manifest + Image cache) | 25 | P1 | TODO | V-26 | At level start, read `learn/drill/assets/map/manifest.json`, resolve the two sheets for the active theme (`deco-{theme}-1.png`, `deco-{theme}-2.png`), and preload them via `new Image()` into `td.spriteSheets[key]`. Slice formula: `ctx.drawImage(sheet, col*256, row*256, 256, 256, dx, dy, renderSize, renderSize)`. Manifest already committed to branch. |
+| V-30 | Manifest-driven terrainDeco generation | 40 | P2 | TODO | V-29 | Replace the grass/pebble seed loop in `initTDGame` (~line 3697) with a manifest-driven placement pass. Seeded RNG: `let s=(mapId*2654435761)>>>0`. Pick sprites by `themeName`; honour placement rules — `anywhere` (any open cell), `path-adjacent` (within 1 cell of path), `open` (requires clear radius). Target 35–40% of non-path cells. Each entry in `td.terrainDeco`: `{sheetKey, spriteIdx, col, row, fx, fy, phase, size}`. |
+| V-31 | Sprite drawImage render loop (replace parallax grass) | 30 | P2 | TODO | V-29, V-30, V-28 | In `tdRender()`, replace the parallax grass/pebble loop with a `drawImage` loop over `td.terrainDeco`. Call `applyDecoAnimation(ctx, spriteDef, d.phase, bgT)` where `spriteDef.animate` is set, wrapped in `ctx.save()`/`ctx.restore()`. Render scale per size field: `large=0.85`, `medium=0.60`, `small=0.35` of `cellSize`. Also remove the old `levelDef.deco` / `tdDrawSprite` block (~lines 4593–4602). |
+| V-32 | sw.js ASSETS — add 6 deco PNG paths + manifest | 3 | P1 | TODO | V-31 | Add `'./assets/map/manifest.json'` and all six `'./assets/map/deco-{theme}-{N}.png'` paths to the `ASSETS` array in `sw.js`. Cache version already bumped to v48 for Tasks 1/5/6; bump again to v49 for this commit. |
+| V-33 | Decommission dungeon mode | 65 | P3 | TODO | — | Remove all dungeon-mode screens, level defs, CSS, and DOM injection (`showDungeonScreen`, dungeon `TD_LEVEL_DEFS` entries, related buttons). Keep TD battle map, world map, and run-map intact. Work on a separate branch: `chore/decom-dungeon-mode`. |
 
 ---
 
@@ -173,6 +178,9 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | U-10 | Tap-to-inspect tower stats card (floating card, dismisses on tap elsewhere) | 15 | 2026-06-27 |
 | U-11 | Gold floaters on enemy kill (+Ng🪙 float via damageNumbers label field) | 8 | 2026-06-27 |
 | EQ-1 | Gold economy reform (carry-over +15g wave-clear bonus, gold carry between nodes) | 20 | 2026-06-28 |
+| V-26 | Update TD_MAPS three-act structure (decay/void names, icons, colors, bgZones, themeName) | 8 | 2026-06-28 |
+| V-27 | Canvas-math deco animation system (`applyDecoAnimation` + `TD_THEME_CELLS` palette table) | 18 | 2026-06-28 |
+| V-28 | Per-cell themed background fills + remove grid lines | 10 | 2026-06-28 |
 
 ---
 
@@ -189,4 +197,4 @@ All items in this backlog are compatible with a static GitHub Pages deployment (
 
 ---
 
-*Last updated: 2026-06-28. Single source of truth. Picking order: filter `Status = TODO`, sort by Priority then Effort ascending, take the first item whose dependencies are all `DONE` or `—`.*
+*Last updated: 2026-06-28. Single source of truth. Picking order: filter `Status = TODO`, sort by Priority then Effort ascending, take the first item whose dependencies are all `DONE` or `—`. V-27 (`applyDecoAnimation`) and V-28 (per-cell background) are prerequisites for V-31.*
