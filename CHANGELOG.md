@@ -10,8 +10,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - TD tutorial, tower inspect card, gold kill floaters (U-1, U-10, U-11)
 
-- Eliminate scroll during TD gameplay
-
 - Float tower placement chip near tower, larger buttons
 
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
@@ -40,6 +38,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 
 ### 🔧 Infrastructure
+
+- Eliminate scroll during TD gameplay (#15)
 
 - Initial commit
 
