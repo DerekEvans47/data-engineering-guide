@@ -17,6 +17,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Changelog auto-generation, no-PII commit rule, C-1 status update
 
+- Dedup changelog — skip SMIL pulse retry commits and TD tutorial original
+
 - Pre-push hook skips deletes, only verifies drill changes
 
 - Reset stuck-active run nodes when showing run map
