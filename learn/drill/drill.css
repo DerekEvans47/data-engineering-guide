@@ -1743,12 +1743,32 @@ html, body {
 
 /* ── Tower Defense ─────────────────────────────────────────── */
 #app[data-mode="tower"] {
-  padding-bottom: calc(var(--tab-h) + env(safe-area-inset-bottom));
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100%, 540px);
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 0;
+}
+#app[data-mode="tower"] #content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 #td-wrap {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* HUD bar */
@@ -1821,11 +1841,16 @@ html, body {
 
 /* Canvas */
 #td-canvas-wrap {
-  width: 100%;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
+  width: 100%;
   background: #162016;
   line-height: 0;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 :root[data-theme="light"] #td-canvas-wrap {
   background: #D4E8D4;
@@ -1868,10 +1893,7 @@ html, body {
 
 /* Action bar */
 #td-actions {
-  display: flex;
-  flex-direction: column;
-  gap: .35rem;
-  padding: .45rem .6rem;
+  padding: .3rem .5rem;
   background: var(--bg-surface);
   border-top: 1px solid var(--border);
 }
@@ -1930,20 +1952,39 @@ html, body {
 .td-quiz-btn:active { transform: scale(.95); }
 .td-wave-btn {
   flex: 1;
-  padding: .52rem .5rem;
+  padding: .4rem .5rem;
   background: rgba(16,185,129,.14);
   border: 1.5px solid rgba(16,185,129,.5);
   color: #10B981;
-  font-size: .85rem;
-  font-weight: 700;
   border-radius: 10px;
   cursor: pointer;
   transition: background .12s, transform .1s;
   -webkit-tap-highlight-color: transparent;
   min-height: 48px;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: .1rem;
+}
+.td-wave-btn-main {
+  font-size: .85rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+/* wave preview chips embedded inside the start-wave button */
+.td-wave-btn .td-wave-preview {
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  animation: none;
+  justify-content: center;
+  font-size: .65rem;
+}
+.td-wave-btn .td-wave-preview-boss {
+  background: none;
+  border: none;
 }
 .td-wave-btn:active  { transform: scale(.96); }
 .td-wave-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }

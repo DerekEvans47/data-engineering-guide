@@ -3603,10 +3603,12 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
       </div>
       <div id="td-inspect-card" class="td-inspect-card" style="display:none"></div>
       <div id="td-actions">
-        <div id="td-wave-preview" class="td-wave-preview" style="display:none"></div>
         <div class="td-actions-row">
           <button class="td-quiz-btn" id="td-quiz-btn">📝 +25🪙 (3)</button>
-          <button class="td-wave-btn" id="td-wave-btn">⚔️ Start Wave 1</button>
+          <button class="td-wave-btn" id="td-wave-btn">
+            <span class="td-wave-btn-main">⚔️ Start Wave 1</span>
+            <span id="td-wave-preview" class="td-wave-preview" style="display:none"></span>
+          </button>
         </div>
       </div>
       <div class="td-q-overlay" id="td-q-overlay">
@@ -3683,7 +3685,10 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   EL.tdInspectCard  = document.getElementById('td-inspect-card');
 
   const W = Math.min(wrap.clientWidth || window.innerWidth, 500);
-  td.cellSize   = Math.floor(W / TD_COLS);
+  const H = wrap.clientHeight || 0;
+  const cellByW = Math.floor(W / TD_COLS);
+  const cellByH = H > 0 ? Math.floor(H / TD_ROWS) : cellByW;
+  td.cellSize   = Math.min(cellByW, cellByH);
   canvas.width  = td.cellSize * TD_COLS;
   canvas.height = td.cellSize * TD_ROWS;
   canvas.style.width  = canvas.width  + 'px';
@@ -4395,7 +4400,9 @@ function tdUpdateWaveBtn() {
   const btn = EL.tdWaveBtn;
   if (!btn) return;
   const next = td.waveIdx + 1;
-  if (next >= td.levelDef.waveDefs.length) btn.disabled = true;
+  if (next >= td.levelDef.waveDefs.length) { btn.disabled = true; return; }
+  const mainSpan = btn.querySelector('.td-wave-btn-main');
+  if (mainSpan) mainSpan.textContent = `⚔️ Start Wave ${next + 1}`;
   else btn.textContent = `⚔️ Start Wave ${next + 1}`;
 }
 
