@@ -51,6 +51,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Merge TODO.md into BACKLOG.md as single nightly source
 
-- Update nightly prompt to use dynamic backlog picking
+- Ramp nightly session target to 150 effort points per run
+
+- Update nightly prompt to use dynamic backlog picking (#18)
 
 
