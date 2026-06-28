@@ -10,8 +10,47 @@ permissions:
   pull-requests: write
 
 jobs:
+  # Runs on every PR — strips session URLs and forbidden footers from the body
+  sanitize-pr-body:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Strip session URLs and forbidden footers
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            const FORBIDDEN = [
+              /claude\.ai\/code\/session[^\s]*/gi,
+              /Claude-Session:[^\n]*/gi,
+              /_?Generated (by|with) \[?Claude Code\]?[^\n]*/gi,
+              /https?:\/\/claude\.ai[^\s]*/gi,
+            ];
+
+            let body = pr.body || '';
+            let changed = false;
+
+            for (const pattern of FORBIDDEN) {
+              const cleaned = body.replace(pattern, '').replace(/\n{3,}/g, '\n\n');
+              if (cleaned !== body) { body = cleaned; changed = true; }
+            }
+
+            if (changed) {
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                body: body.trim(),
+              });
+              console.log(`PR #${pr.number}: removed forbidden content from body.`);
+            } else {
+              console.log(`PR #${pr.number}: body is clean.`);
+            }
+
+  # Runs only on questions/* branches within the allowed file scope
   check-and-merge:
     runs-on: ubuntu-latest
+    needs: sanitize-pr-body
     steps:
       - name: Check branch and changed files
         id: changed
@@ -48,29 +87,12 @@ jobs:
 
             core.setOutput('eligible', String(eligible));
 
-      - name: Strip session URLs and merge
+      - name: Merge eligible questions PR
         if: steps.changed.outputs.eligible == 'true'
         uses: actions/github-script@v8
         with:
           script: |
             const pr = context.payload.pull_request;
-
-            // Strip any Claude session URLs or identifying links from PR body
-            const cleanBody = (pr.body || '')
-              .split('\n')
-              .filter(line => !line.match(/claude\.ai\/code\/session|Claude-Session:/i))
-              .join('\n')
-              .trim();
-
-            if (cleanBody !== (pr.body || '').trim()) {
-              await github.rest.pulls.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                body: cleanBody,
-              });
-              console.log('Removed session URL from PR body.');
-            }
 
             await github.rest.pulls.createReview({
               owner: context.repo.owner,
