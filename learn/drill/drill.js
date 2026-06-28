@@ -780,11 +780,13 @@ function showHome() {
     showTutorial(() => {});
   });
   document.getElementById('home-stat-xp').addEventListener('click', openProfile);
+  menuMusic.start();
 }
 
 // ── Tab switching ──────────────────────────────────────────────
 function switchTab(newMode) {
   if (td && td.running) { cancelAnimationFrame(td.animFrame); td.running = false; td = null; tdMusic.stop(); }
+  menuMusic.stop();
 
   mode = newMode; dailyActive = false; studyPart = null;
   answered = false; sessionCorrect = 0; sessionTotal = 0; sessionXpEarned = 0;
@@ -2097,6 +2099,105 @@ const tdMusic = (() => {
   };
 })();
 
+// ── Menu / map background music ────────────────────────────────
+const menuMusic = (() => {
+  let actx = null, masterGain = null;
+  let playing = false, timer = null;
+  let beat = 0, nextBeat = 0;
+
+  const BPM  = 100;
+  const S    = (60 / BPM) / 2;   // 8th-note step
+  const LOOK = 0.25;
+
+  // A minor pentatonic: A2, E3, A3, C4, E4
+  const ROOT = 110.00, FIFTH = 164.81, OCT = 220.00;
+
+  function ac() {
+    if (!actx) {
+      actx = tdAudio.ctx;
+      if (!actx) {
+        try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return null; }
+      }
+    }
+    if (actx.state === 'suspended') actx.resume();
+    if (!masterGain) {
+      masterGain = actx.createGain();
+      masterGain.gain.value = tdAudio.muted ? 0 : 0.13;
+      masterGain.connect(actx.destination);
+    }
+    return actx;
+  }
+
+  function schedBass(freq, start, dur) {
+    const g = actx.createGain(), o = actx.createOscillator();
+    o.type = 'triangle'; o.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(0.9, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.connect(g); g.connect(masterGain);
+    o.start(start); o.stop(start + dur + 0.01);
+  }
+
+  function schedHat(start) {
+    const buf = actx.createBuffer(1, Math.ceil(actx.sampleRate * 0.04), actx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = actx.createBufferSource(), g = actx.createGain();
+    const f = actx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000;
+    g.gain.setValueAtTime(0.055, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.03);
+    src.buffer = buf; src.connect(f); f.connect(g); g.connect(masterGain);
+    src.start(start); src.stop(start + 0.05);
+  }
+
+  function schedKick(start) {
+    const g = actx.createGain(), o = actx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(120, start);
+    o.frequency.exponentialRampToValueAtTime(36, start + 0.08);
+    g.gain.setValueAtTime(0.45, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.12);
+    o.connect(g); g.connect(masterGain);
+    o.start(start); o.stop(start + 0.14);
+  }
+
+  // 8-step pattern (each step = 1 8th note)
+  // kick on 0, 4; hihat every step; bass alternates root/fifth
+  const BASS_STEPS = [ROOT, 0, FIFTH, 0, OCT, 0, FIFTH, 0];
+
+  function pump() {
+    if (!playing) return;
+    const c = ac(); if (!c) return;
+    const now = c.currentTime;
+    while (nextBeat < now + LOOK) {
+      const b = beat % 8;
+      const t = nextBeat;
+      if (b === 0 || b === 4) schedKick(t);
+      schedHat(t);
+      if (BASS_STEPS[b]) schedBass(BASS_STEPS[b], t, S * 0.85);
+      beat++;
+      nextBeat += S;
+    }
+    timer = setTimeout(pump, 50);
+  }
+
+  return {
+    start() {
+      const c = ac(); if (!c || playing) return;
+      playing = true;
+      beat = 0; nextBeat = c.currentTime + 0.15;
+      pump();
+    },
+    stop() {
+      playing = false;
+      clearTimeout(timer); timer = null;
+    },
+    setMuted(m) {
+      if (!masterGain || !actx) return;
+      masterGain.gain.setTargetAtTime(m ? 0 : 0.13, actx.currentTime, 0.08);
+    },
+  };
+})();
+
 function tdComputePathSet(wps) {
   const s = new Set();
   for (let i = 0; i < wps.length - 1; i++) {
@@ -3221,6 +3322,7 @@ function _renderMapSelection() {
       </div>
       <div class="map-select-cards">${cardsHtml}</div>
     </div>`;
+  menuMusic.start();
 
   document.querySelectorAll('.map-card:not([disabled])').forEach(card => {
     card.addEventListener('click', () => {
@@ -3764,6 +3866,7 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   EL.tdMuteBtn.addEventListener('click', () => {
     const muted = tdAudio.toggleMute();
     tdMusic.setMuted(muted);
+    menuMusic.setMuted(muted);
     EL.tdMuteBtn.textContent = muted ? '🔇' : '🔊';
   });
 
@@ -4354,6 +4457,7 @@ function tdStartWave(idx) {
   tdUpdatePlaceChip();
   tdUpdateWavePreview();
   tdAudio.waveStart();
+  menuMusic.stop();
   tdMusic.start(); // no-op if already playing
 }
 
