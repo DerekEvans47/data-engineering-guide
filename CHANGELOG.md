@@ -10,6 +10,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - TD tutorial, tower inspect card, gold kill floaters (U-1, U-10, U-11)
 
+- Eliminate scroll during TD gameplay
+
 - Float tower placement chip near tower, larger buttons
 
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
@@ -17,13 +19,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### 🐛 Bug Fixes
 
+- U-2 touch target audit — enforce ≥48 px on all interactive elements
+
 - Block session URLs in pre-push hook
 
 - Changelog auto-generation, no-PII commit rule, C-1 status update
 
 - Dedup changelog entries from retry commits
-
-- Enforce ≥48 px tap targets on all interactive elements
 
 - Pre-push hook skips deletes, only verifies drill changes
 
