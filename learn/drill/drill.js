@@ -788,10 +788,12 @@ function showHome() {
   // Live audio-state badge — shows what the AudioContext is actually doing.
   // Tapping anywhere updates it immediately; auto-clears when leaving home.
   const _vEl = document.querySelector('.home-version');
+  const _hasAC = typeof AudioContext !== 'undefined' ? 'AC' : typeof webkitAudioContext !== 'undefined' ? 'wAC' : 'NONE';
   function _updateAudioBadge() {
     if (!_vEl || !_vEl.isConnected) return;
     const ctx = tdAudio.ctx;
-    _vEl.textContent = `v${APP_VERSION} · ${ctx ? ctx.state : 'no ctx'}`;
+    const state = ctx ? ctx.state : 'no ctx';
+    _vEl.textContent = `v${APP_VERSION} · ${_hasAC} · ${state}`;
   }
   _updateAudioBadge();
   const _audioStatusTimer = setInterval(_updateAudioBadge, 600);
@@ -1991,22 +1993,27 @@ const tdAudio = (() => {
     get ctx()   { return actx; },
     toggleMute() { muted = !muted; return muted; },
     // Call within a user gesture to create + resume the shared AudioContext (iOS requirement).
-    // Returns a Promise that resolves once the context is confirmed running.
+    // Returns a Promise<boolean> — true if the context is confirmed running, false on any failure.
     unlock() {
       if (!actx) {
-        try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return Promise.resolve(); }
+        try {
+          actx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {
+          return Promise.resolve(false); // API unavailable or blocked
+        }
       }
+      if (!actx) return Promise.resolve(false);
       const p = actx.state !== 'running' ? actx.resume() : Promise.resolve();
       // Play a 1-sample silent buffer — activates the iOS audio session so
       // subsequent notes don't get dropped on the first hardware wakeup.
       return p.then(() => {
-        if (!actx) return;
         try {
           const buf = actx.createBuffer(1, 1, actx.sampleRate);
           const src = actx.createBufferSource();
           src.buffer = buf; src.connect(actx.destination); src.start(0);
         } catch(_) {}
-      }).catch(() => {});
+        return true;
+      }).catch(() => false);
     },
   };
 })();
@@ -2252,14 +2259,24 @@ const menuMusic = (() => {
 // Capture-phase so this fires before any element handler on the very first tap.
 // unlock() returns a Promise that resolves once the context is confirmed running;
 // only THEN do we call onUnlock() so the state check inside ac() passes.
+// iOS Safari requires AudioContext creation/resume inside a user gesture.
+// We listen on touchstart, touchend, AND click for maximum compatibility.
+// _audioUnlocked is only set true on success — so if creation fails on the
+// first tap (e.g. brief race) the next tap will retry automatically.
 let _audioUnlocked = false;
 function _audioUnlock() {
   if (_audioUnlocked) return;
-  _audioUnlocked = true;
-  tdAudio.unlock().then(() => menuMusic.onUnlock());
+  tdAudio.unlock().then(ok => {
+    if (!ok) return; // creation failed — leave _audioUnlocked false so we retry
+    _audioUnlocked = true;
+    menuMusic.onUnlock();
+    // Remove ourselves once we've succeeded
+    ['touchstart', 'touchend', 'click'].forEach(e =>
+      document.removeEventListener(e, _audioUnlock, true));
+  });
 }
-document.addEventListener('touchstart', _audioUnlock, { capture: true, once: true });
-document.addEventListener('mousedown',  _audioUnlock, { capture: true, once: true });
+['touchstart', 'touchend', 'click'].forEach(e =>
+  document.addEventListener(e, _audioUnlock, { capture: true, passive: true }));
 
 // Re-resume on every subsequent touch in case iOS auto-suspends the context
 // (e.g. after a phone call, locking the screen, or backgrounding the app).
