@@ -10,7 +10,11 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - TD tutorial, tower inspect card, gold kill floaters (U-1, U-10, U-11)
 
+- Add map asset manifest with all 6 deco sheets
+
 - Float tower placement chip near tower, larger buttons
+
+- Implement TD map visual overhaul — Tasks 1, 5, 6
 
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
 
@@ -39,6 +43,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### 🔧 Infrastructure
 
+- Added 3 map decoration files
+
 - Eliminate scroll during TD gameplay (#15)
 
 - Initial commit
@@ -48,5 +54,7 @@ A record of every feature, fix, and improvement shipped to the app.
 - Make .claude/skills scripts executable
 
 - Merge TODO.md into BACKLOG.md as single nightly source
+
+- Scaffold map assets folder structure
 
 
