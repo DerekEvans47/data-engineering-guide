@@ -2350,10 +2350,10 @@ const TD_MAPS = [
     ],
   },
   {
-    id: 1, name: 'The Iron Wastes', icon: '⚙️', color: '#FB923C',
+    id: 1, name: 'The Cursed Graveyard', icon: '⚰️', color: '#6B7280',
     subtitle: 'Parts 4–6 · Warehousing, Streaming & Cloud',
     parts: [4,5,6], unlockRequirement: 1,
-    bgZones: ['#3d1a08','#251005','#100603'], themeName: 'wastes',
+    bgZones: ['#1a1a14','#1e1a10','#161410'], themeName: 'decay',
     diffByDepth: [
       {easy:0.40, medium:0.50, hard:0.10},
       {easy:0.15, medium:0.55, hard:0.30},
@@ -2362,10 +2362,10 @@ const TD_MAPS = [
     ],
   },
   {
-    id: 2, name: 'The Shadow Realm', icon: '👹', color: '#C084FC',
+    id: 2, name: 'The Void', icon: '🌀', color: '#7C3AED',
     subtitle: 'Parts 7–9 · Orchestration, Quality & Performance',
     parts: [7,8,9], unlockRequirement: 2,
-    bgZones: ['#200836','#100320','#050010'], themeName: 'shadow',
+    bgZones: ['#0e0818','#12081e','#0a0614'], themeName: 'void',
     diffByDepth: [
       {easy:0.10, medium:0.50, hard:0.40},
       {easy:0.00, medium:0.35, hard:0.65},
@@ -3617,8 +3617,9 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
     </div>`;
 
   initTDGame(levelDef, levelIdx, startLives, startGold);
-  td.__run   = run || null;
+  td.__run    = run || null;
   td.__nodeId = nodeId;
+  td.mapId    = run ? run.mapId : 0;
 
   if (!StorageManager.get(TD_TUTORIAL_KEY)) {
     tdShowTutorial();
@@ -3815,7 +3816,7 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
     quizOpen:false, quizQ:null, quizAnswered:false, quizDone:null, quizOptional:false,
     tapCol:-1, tapRow:-1,
     over:false, won:false, shake:0, lastShootSnd:0, hoverCol:-1, hoverRow:-1,
-    bgTime: 0, terrainDeco: [],
+    bgTime: 0, terrainDeco: [], mapId: -1,
     levelDef, levelIdx,
     pathSet: tdComputePathSet(levelDef.wps),
     optQuizUsed: 0,
@@ -4493,6 +4494,59 @@ function tdVictory() {
   }
 }
 
+// ── Deco animation helper ──────────────────────────────────────
+// Applies canvas-math animation transforms for a deco sprite.
+// Call with ctx.save() already in effect; restores are caller's responsibility.
+function applyDecoAnimation(ctx, spriteDef, phase, bgTime) {
+  const t = bgTime + phase;
+  switch (spriteDef.animate) {
+    case 'glow-pulse': {
+      const alpha = 0.55 + 0.45 * Math.sin(t * 1.8);
+      ctx.globalAlpha = (ctx.globalAlpha ?? 1) * alpha;
+      break;
+    }
+    case 'flicker': {
+      const alpha = 0.6 + 0.4 * (Math.sin(t * 6.3) * Math.sin(t * 11.7 + 1.2));
+      ctx.globalAlpha = (ctx.globalAlpha ?? 1) * Math.max(0.2, alpha);
+      break;
+    }
+    case 'flicker-rotate': {
+      const angle = Math.sin(t * 7.1) * 0.18;
+      ctx.rotate(angle);
+      const alpha = 0.65 + 0.35 * Math.sin(t * 5.5);
+      ctx.globalAlpha = (ctx.globalAlpha ?? 1) * Math.max(0.25, alpha);
+      break;
+    }
+    case 'scale-breathe': {
+      const scale = 0.90 + 0.10 * Math.sin(t * 1.3);
+      ctx.scale(scale, scale);
+      break;
+    }
+    case 'rotate': {
+      ctx.rotate(t * 0.6);
+      break;
+    }
+    case 'ripple': {
+      const scale = 1.0 + 0.06 * Math.sin(t * 2.1);
+      ctx.scale(1, scale);
+      break;
+    }
+    case 'blink':
+      // Deferred — needs frame strips. Treat as static for now.
+      console.warn('applyDecoAnimation: blink not yet implemented');
+      break;
+    default:
+      break;
+  }
+}
+
+// Per-theme background cell colour palettes (3 shades, picked by cell seed)
+const TD_THEME_CELLS = {
+  verdant: ['#162a10', '#122409', '#1a3012'],
+  decay:   ['#18180f', '#1c1c12', '#141409'],
+  void:    ['#0d0818', '#0f0a1c', '#0b0615'],
+};
+
 // ── Rendering ──────────────────────────────────────────────────
 
 function tdRender() {
@@ -4507,8 +4561,23 @@ function tdRender() {
     : { bg:'#162016', path1:'#5a3a12', path2:'#7a5225', mortar:'#28110a', stone:'rgba(80,38,8,.55)',
         grid:'rgba(255,255,255,.03)', inLbl:'#4ADE80', outLbl:'#EF4444' };
 
-  ctx.fillStyle = PAL.bg;
-  ctx.fillRect(0, 0, W, H);
+  // ── Per-cell themed background ─────────────────────────────────
+  {
+    const mapDef = TD_MAPS[td.mapId] ?? TD_MAPS[0];
+    const palette = isLight ? null : (TD_THEME_CELLS[mapDef.themeName] ?? TD_THEME_CELLS.verdant);
+    if (palette) {
+      for (let r = 0; r < TD_ROWS; r++) {
+        for (let c = 0; c < TD_COLS; c++) {
+          const seed = ((c * 2654435761 + r * 1234567891) >>> 0);
+          ctx.fillStyle = palette[seed % 3];
+          ctx.fillRect(c * cs, r * cs, cs, cs);
+        }
+      }
+    } else {
+      ctx.fillStyle = PAL.bg;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
 
   // ── Parallax terrain decoration ────────────────────────────────
   const bgT = td.bgTime;
@@ -4548,11 +4617,6 @@ function tdRender() {
   }
   ctx.save();
   ctx.translate(sx, sy);
-
-  ctx.strokeStyle = PAL.grid;
-  ctx.lineWidth = .5;
-  for (let c = 1; c < TD_COLS; c++) { ctx.beginPath(); ctx.moveTo(c*cs,0); ctx.lineTo(c*cs,H); ctx.stroke(); }
-  for (let r = 1; r < TD_ROWS; r++) { ctx.beginPath(); ctx.moveTo(0,r*cs); ctx.lineTo(W,r*cs); ctx.stroke(); }
 
   // ── Cobblestone path tiles (V-12) ──────────────────────────────
   for (const key of td.pathSet) {
