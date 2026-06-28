@@ -3576,7 +3576,10 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
         <button id="td-mute-btn" class="td-mute-btn" title="Toggle sound">🔊</button>
         <button id="td-pause-btn" class="td-mute-btn" title="Pause/Resume">⏸</button>
       </div>
-      <div id="td-canvas-wrap"><canvas id="td-canvas"></canvas></div>
+      <div id="td-canvas-wrap">
+        <canvas id="td-canvas"></canvas>
+        <div id="td-place-chip" class="td-place-chip" style="display:none"></div>
+      </div>
       <div id="td-tools">
         ${TD_TOWER_DEFS.map(t => `
           <button class="td-tool-btn" data-tool="${t.id}">
@@ -3595,7 +3598,6 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
           <span class="td-tool-cost">×0.6</span>
         </button>
       </div>
-      <div id="td-place-chip" class="td-place-chip" style="display:none"></div>
       <div id="td-inspect-card" class="td-inspect-card" style="display:none"></div>
       <div id="td-actions">
         <div id="td-wave-preview" class="td-wave-preview" style="display:none"></div>
@@ -4078,10 +4080,27 @@ function tdUpdatePlaceChip() {
   const def = TD_TOWER_DEFS.find(d => d.id === td.selectedTool);
   if (!def) { chip.style.display = 'none'; return; }
   chip.style.display = 'flex';
+
+  // Position the chip floating near the tower cell
+  const cs = td.cellSize;
+  const col = td.pendingCol, row = td.pendingRow;
+  const chipH = 88; // label + buttons row
+  const centerY = row * cs + cs / 2;
+  chip.style.top = Math.max(4, Math.min(centerY - chipH / 2, (td.canvas ? td.canvas.height : cs * TD_ROWS) - chipH - 4)) + 'px';
+  if (col <= Math.floor(TD_COLS / 2)) {
+    chip.style.left = ((col + 1) * cs + 6) + 'px';
+    chip.style.right = 'auto';
+  } else {
+    chip.style.left = 'auto';
+    chip.style.right = ((TD_COLS - col) * cs + 6) + 'px';
+  }
+
   chip.innerHTML = `
-    <span class="td-chip-label">${def.icon || def.id} ${def.name} — ${def.cost}🪙</span>
-    <button class="td-chip-ok" title="Confirm">✓</button>
-    <button class="td-chip-cancel" title="Cancel">✗</button>`;
+    <span class="td-chip-label">${def.icon || ''} ${def.name}<br><span class="td-chip-cost">${def.cost}🪙</span></span>
+    <div class="td-chip-btns">
+      <button class="td-chip-ok" title="Confirm">✓</button>
+      <button class="td-chip-cancel" title="Cancel">✗</button>
+    </div>`;
   chip.querySelector('.td-chip-ok').addEventListener('click', () => {
     const col = td.pendingCol, row = td.pendingRow;
     if (col < 0) return;

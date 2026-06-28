@@ -8,6 +8,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - TD tutorial, tower inspect card, gold kill floaters (U-1, U-10, U-11)
 
+- Float placement chip near tower instead of bottom bar
+
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
 
 
