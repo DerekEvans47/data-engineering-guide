@@ -6,17 +6,7 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### ✨ Features
 
-- TD tutorial, tower inspect card, and gold float labels (U-1, U-10, U-11)
-
 - TD tutorial, tower inspect card, gold kill floaters (U-1, U-10, U-11)
-
-- Replace SMIL pulse with CSS animation on run-map nodes
-
-- Replace SMIL pulse with CSS animation on run-map nodes
-
-- Replace SMIL pulse with CSS animation on run-map nodes
-
-- Replace SMIL pulse with CSS animation on run-map nodes
 
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
 
@@ -40,7 +30,5 @@ A record of every feature, fix, and improvement shipped to the app.
 ### 🔧 Infrastructure
 
 - Initial commit
-
-- Verify git push works without MCP
 
 
