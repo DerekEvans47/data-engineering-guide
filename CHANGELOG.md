@@ -8,6 +8,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - TD tutorial, tower inspect card, and gold float labels (U-1, U-10, U-11)
 
+- TD tutorial, tower inspect card, gold kill floaters (U-1, U-10, U-11)
+
 - Replace SMIL pulse with CSS animation on run-map nodes
 
 - Replace SMIL pulse with CSS animation on run-map nodes
@@ -18,10 +20,10 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
 
-- Tutorial modal, tower inspect card, gold kill floaters
-
 
 ### 🐛 Bug Fixes
+
+- Block session URLs in pre-push hook
 
 - Changelog auto-generation, no-PII commit rule, C-1 status update
 
@@ -38,5 +40,7 @@ A record of every feature, fix, and improvement shipped to the app.
 ### 🔧 Infrastructure
 
 - Initial commit
+
+- Verify git push works without MCP
 
 
