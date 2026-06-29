@@ -44,12 +44,12 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
-| V-13 | Animated data-flow indicators on path | 15 | P2 | TODO | V-12 | Small glowing dots drift along path direction at ~1 cell/s, 30% opacity. Reinforces "data moving through a pipeline" narrative. Computed from waypoint direction vectors in tdRender. |
+| V-13 | Animated data-flow indicators on path | 15 | P2 | DONE | V-12 | Small glowing dots drift along path direction at ~1 cell/s, 30% opacity. Reinforces "data moving through a pipeline" narrative. Computed from waypoint direction vectors in tdRender. |
 | V-14 | DE-themed map palettes (6 themes tied to guide topics) | 35 | P1 | SUPERSEDED | — | Superseded by V-26 (three-act theme data) + V-31 (sprite render loop). Original spec called for 6 palette-only themes; replaced by verdant/decay/void with actual sprite sheet assets. |
 | V-15 | Landmark anchor objects (entry portal, mid-structure, exit gate) | 25 | P2 | TODO | V-12 | 2×2 multi-cell canvas sprites at map start, midpoint, and exit. Watchtower at entry, castle gate at exit; theme-specific mid landmark (e.g. server rack for warehouse, cauldron for swamp). Drawn in tdRender before towers. |
 | V-16 | Level-gated tower sprite evolution (L1/L2/L3 distinct look) | 25 | P1 | TODO | — | L1 = wood/basic, L2 = stone/reinforced, L3 = enchanted/glowing. New pixel-art frame sets per upgrade tier rather than just a ring color change. The tower visually transforms on upgrade. |
 | V-17 | Tower idle animation (barrel rotation / turret pulse) | 15 | P2 | TODO | V-16 | Slow sin-wave rotation on tower top or breathing scale effect between shots. Adds life to the board without impacting perf — angle stored per-tower, updated in tdUpdate. |
-| V-18 | Directional muzzle flash toward last target | 12 | P2 | TODO | V-1 | Short line segment from tower center toward last-fired target position, visible for ~60 ms. Replaces omnidirectional fire-pulse ring with a directional cue. Store `t.lastTargetAngle` in tdFireTowers. |
+| V-18 | Directional muzzle flash toward last target | 12 | P2 | DONE | V-1 | Short line segment from tower center toward last-fired target position, visible for ~60 ms. Replaces omnidirectional fire-pulse ring with a directional cue. Store `t.lastTargetAngle` in tdFireTowers. |
 | V-19 | Type-specific enemy death animations | 25 | P2 | TODO | V-3 | Goblins scatter gold coins (spinning quads), orcs leave a brief smoke puff, scouts streak off-screen, trolls crumble (slow expanding ring). Boss gets a shockwave + screen-filling flash. Replace uniform particle burst. |
 | V-20 | Enemy status effect visuals (freeze / burn / stun) | 15 | P2 | TODO | G-2 | Overlay sprites on enemies with active status: freeze = blue crystal ring, burn = orange ember orbit, stun = yellow stars. Required visual layer for G-2 special enemy types. |
 | V-21 | Run-map: perturbed node positions + bezier connectors | 20 | P2 | TODO | — | Each tier's nodes get small random x/y offsets (seeded per run so layout is stable on re-open). Connectors become quadratic bezier curves using the midpoint as control. Breaks the perfect-column flowchart look. |
@@ -131,7 +131,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | U-2 | Touch target size audit (≥48 px tap zones) | 10 | P1 | DONE | — | Canvas tap and HUD buttons need minimum 48 px hit areas for mobile. |
 | U-3 | Keyboard / gamepad support | 40 | P3 | TODO | — | Arrow keys to navigate world map; 1–4 to select towers; Space to start wave. |
 | U-4 | Color-blind mode (shape indicators alongside color) | 20 | P2 | TODO | — | Overlay pattern fill (diagonal lines, dots) on towers so color isn't sole differentiator. |
-| U-5 | Reduced-motion respect (`prefers-reduced-motion`) | 8 | P2 | TODO | — | Disable CSS animations and canvas particle effects if system preference is set. |
+| U-5 | Reduced-motion respect (`prefers-reduced-motion`) | 8 | P2 | DONE | — | Disable CSS animations and canvas particle effects if system preference is set. |
 
 ---
 
@@ -185,6 +185,9 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | V-30 | Manifest-driven terrainDeco generation | 40 | 2026-06-29 |
 | V-31 | Sprite drawImage render loop (replace parallax grass) | 30 | 2026-06-29 |
 | V-32 | sw.js ASSETS — add 6 deco PNG paths + manifest | 3 | 2026-06-29 |
+| V-13 | Animated data-flow indicators on path | 15 | 2026-06-29 |
+| V-18 | Directional muzzle flash toward last target | 12 | 2026-06-29 |
+| U-5  | Reduced-motion respect (prefers-reduced-motion) | 8 | 2026-06-29 |
 
 ---
 
