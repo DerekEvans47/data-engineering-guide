@@ -119,9 +119,19 @@ grep "const CACHE" learn/drill/sw.js
 If you skip this, browsers with a cached service worker will continue serving
 the old files even after GitHub Pages deploys the new ones.
 
+### Display version (APP_VERSION) — auto-derived, do not set manually
+
+`APP_VERSION` in `drill.js` is **not a hardcoded constant**. On startup, it reads
+`caches.keys()` and extracts the numeric part from the active `de-drill-v*` cache name.
+This means the home-screen version badge (`v61`, `v62`, etc.) tracks the SW cache
+automatically — bumping `sw.js` is the only step required.
+
+**Do not** set `APP_VERSION` to a hardcoded string. It will be overwritten at runtime anyway.
+
 **Checklist for every learn/drill PR:**
 - [ ] `sw.js` cache version incremented (e.g. `v27` → `v28`)
 - [ ] All changed asset filenames are present in the `ASSETS` array in `sw.js`
+- [ ] `APP_VERSION` **not** manually edited (it auto-derives from the SW cache)
 - [ ] Playwright verification passed (see Verification Gate below)
 - [ ] PR merged to `main` so GitHub Pages picks up the change
 

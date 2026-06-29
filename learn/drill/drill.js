@@ -1,6 +1,17 @@
 'use strict';
 
-const APP_VERSION = '0.1.0';
+let APP_VERSION = '?';
+(async () => {
+  if (!('caches' in window)) return;
+  try {
+    const keys = await caches.keys();
+    const hit = keys.find(k => k.startsWith('de-drill-'));
+    if (!hit) return;
+    APP_VERSION = hit.replace('de-drill-v', '');
+    const el = document.querySelector('.home-version');
+    if (el) el.textContent = el.textContent.replace(/^v[\w.?]+/, `v${APP_VERSION}`);
+  } catch (_) {}
+})();
 
 // ── Storage keys ──────────────────────────────────────────────
 const SEEN_KEY         = 'drill_seen_ids';
