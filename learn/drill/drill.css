@@ -2265,6 +2265,21 @@ html, body {
   text-transform: uppercase;
   letter-spacing: .04em;
 }
+.td-mastery-badge {
+  font-size: .62rem;
+  font-weight: 700;
+  padding: .15rem .42rem;
+  border-radius: 6px;
+  background: #fbbf2420;
+  color: #d97706;
+  border: 1px solid #fbbf2455;
+}
+.td-mastery-toast {
+  margin-top: .35rem;
+  font-size: .78rem;
+  color: #d97706;
+  font-weight: 600;
+}
 
 /* ── Reduced-motion accessibility ───────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

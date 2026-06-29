@@ -34,6 +34,7 @@ const TD_INTER_KEY       = 'td_inter_v1';
 const TD_REST_BONUS_KEY  = 'td_rest_bonus';
 const TD_RUN_KEY         = 'td_run_v1';
 const TD_MAPS_BEATEN_KEY = 'td_maps_beaten';
+const MASTERY_KEY        = 'question_mastery';
 
 // ── Storage layer (private-browsing-safe) ─────────────────────
 const StorageManager = {
@@ -356,6 +357,27 @@ function awardXP(isCorrect, context) {
   return earned;
 }
 
+// ── Question mastery tracking ──────────────────────────────────
+const MASTERY_THRESHOLD = 3;
+
+function getMasteryData() {
+  try { return JSON.parse(StorageManager.get(MASTERY_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function recordQuizResult(qId, correct) {
+  const data = getMasteryData();
+  if (!data[qId]) data[qId] = { correct: 0, seen: 0 };
+  data[qId].seen++;
+  if (correct) data[qId].correct++;
+  StorageManager.set(MASTERY_KEY, JSON.stringify(data));
+}
+
+function isMastered(qId) {
+  const data = getMasteryData();
+  return (data[qId]?.correct ?? 0) >= MASTERY_THRESHOLD;
+}
+
 function refreshTopBarStats() {
   const badge = document.getElementById('xp-badge');
   if (badge) { const l = getLevel(xp); badge.textContent = `${l.icon} ${xp.toLocaleString()}`; }
@@ -676,7 +698,7 @@ function exportSave() {
     SEEN_KEY, FILTER_KEY, THEME_KEY, XP_KEY, STREAK_KEY, BEST_STREAK_KEY,
     ACHIEVEMENTS_KEY, DUNGEON_KEY, DAILY_KEY, ACCURACY_KEY, RELIC_KEY,
     GOLD_KEY, ITEMS_KEY, TUTORIAL_KEY, AUTOSAVE_KEY, TD_STARS_KEY, TD_INTER_KEY, TD_REST_BONUS_KEY,
-    TD_RUN_KEY, TD_MAPS_BEATEN_KEY,
+    TD_RUN_KEY, TD_MAPS_BEATEN_KEY, MASTERY_KEY,
   ];
   for (let p = 1; p <= 9; p++) EXPORT_KEYS.push('study_seen_p' + p);
   const data = {};
@@ -2696,18 +2718,27 @@ function tdPickQuestion(levelDef) {
     ? allQuestions.filter(q => levelDef.parts.includes(q.part))
     : allQuestions;
   const src = pool.length >= 10 ? pool : allQuestions;
-  const buckets = { easy:[], medium:[], hard:[] };
-  for (const q of src) buckets[tdQDifficulty(q)].push(q);
+
+  function bucketize(qs) {
+    const b = { easy:[], medium:[], hard:[] };
+    for (const q of qs) b[tdQDifficulty(q)].push(q);
+    return b;
+  }
+
+  // Prefer questions the player hasn't mastered yet; fall back to all if buckets empty
+  const fresh   = src.filter(q => !isMastered(q.id));
+  const primary = bucketize(fresh.length >= 5 ? fresh : src);
+  const fallback = bucketize(src);
 
   const r = Math.random();
   let pick;
-  if (r < weights.easy && buckets.easy.length)                         pick = 'easy';
-  else if (r < weights.easy + weights.medium && buckets.medium.length) pick = 'medium';
-  else if (buckets.hard.length)                                         pick = 'hard';
-  else                                                                   pick = 'medium';
+  if (r < weights.easy && (primary.easy.length || fallback.easy.length))                                 pick = 'easy';
+  else if (r < weights.easy + weights.medium && (primary.medium.length || fallback.medium.length))       pick = 'medium';
+  else if (primary.hard.length || fallback.hard.length)                                                  pick = 'hard';
+  else                                                                                                    pick = 'medium';
 
-  const picked = buckets[pick].length ? buckets[pick] : allQuestions;
-  return picked[Math.floor(Math.random() * picked.length)];
+  const bucket = primary[pick].length ? primary[pick] : (fallback[pick].length ? fallback[pick] : src);
+  return bucket[Math.floor(Math.random() * bucket.length)];
 }
 
 function tdLoadStars() {
@@ -4501,6 +4532,7 @@ function tdOpenQuiz(goldReward, isOptional, onDone) {
   }
 
   const diffColors = { easy:'#4ADE80', medium:'#FBBF24', hard:'#EF4444' };
+  const mastered   = isMastered(q.id);
 
   const overlay = EL.tdQOverlay;
   const sheet   = EL.tdQSheet;
@@ -4509,10 +4541,11 @@ function tdOpenQuiz(goldReward, isOptional, onDone) {
       <div style="display:flex;gap:.5rem;align-items:center">
         <span class="td-q-reward">📝 Correct = +${reward}🪙</span>
         <span class="td-diff-badge" style="background:${diffColors[diff]}20;color:${diffColors[diff]};border:1px solid ${diffColors[diff]}55">${diff}</span>
+        ${mastered ? '<span class="td-mastery-badge">⭐ Mastered</span>' : ''}
       </div>
       ${isOptional ? `<button id="td-skip" class="td-q-skip">✕</button>` : ''}
     </div>
-    <div class="td-q-meta">Part ${q.part} — ${PART_NAMES[q.part] || ''}</div>
+    <div class="td-q-meta">Part ${q.part} — ${PART_NAMES[q.part] || ''}${q.topic ? ` · ${q.topic}` : ''}</div>
     <div class="td-q-text">${q.stem}</div>
     <div class="td-q-opts">${opts}</div>
     <div id="td-q-fb" style="display:none" class="td-q-fb"></div>
@@ -4531,12 +4564,18 @@ function tdOpenQuiz(goldReward, isOptional, onDone) {
         b.disabled = true;
       });
 
+      recordQuizResult(q.id, correct);
+
       const fb = sheet.querySelector('#td-q-fb');
       fb.style.display = 'block';
       if (correct) {
         td.gold += reward; tdUpdateHUD();
-        fb.innerHTML = `<span class="td-fb-ok">✓ Correct! +${reward}🪙</span>`;
-        awardXP(true, 'drill');
+        const earned = awardXP(true, 'drill');
+        const streakTag = streak >= 3 ? ` · 🔥${streak} streak` : '';
+        fb.innerHTML = `<span class="td-fb-ok">✓ Correct! +${reward}🪙 · +${earned} XP${streakTag}</span>`;
+        if (!mastered && isMastered(q.id)) {
+          fb.innerHTML += '<div class="td-mastery-toast">⭐ Question mastered!</div>';
+        }
         unlockIfNew('first_blood');
         tdAudio.correct();
       } else {
