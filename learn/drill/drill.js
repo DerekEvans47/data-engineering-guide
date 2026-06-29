@@ -222,7 +222,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const res = await fetch('../../content/question-bank.json');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const raw = await res.json();
-    allQuestions = validateQuestionBank(raw);
+    const questions = Array.isArray(raw) ? raw : (raw.questions || raw);
+    allQuestions = validateQuestionBank(questions);
+    if (!Array.isArray(raw) && raw.version) {
+      const QB_VER_KEY = 'qb_version';
+      const prevVer = StorageManager.get(QB_VER_KEY);
+      if (prevVer !== raw.version) StorageManager.set(QB_VER_KEY, raw.version);
+    }
   } catch (_) {
     document.getElementById('app').innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:1rem;padding:2rem;text-align:center;font-family:system-ui">' +
       '<div style="font-size:2rem">📡</div>' +

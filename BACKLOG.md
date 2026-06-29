@@ -35,7 +35,7 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
 | I-2 | Cloud sync via GitHub Gist | 35 | P1 | TODO | I-1 | Serialize save to a private Gist keyed by user email. Requires OAuth scope gist. |
-| I-3 | Offline question-bank versioning | 18 | P1 | TODO | SW | Embed a `qb_version` field in question-bank.json; SW compares and refreshes only on version bump. |
+| I-3 | Offline question-bank versioning | 18 | P1 | DONE | SW | Embed a `qb_version` field in question-bank.json; SW compares and refreshes only on version bump. |
 | I-5 | Account system (Supabase / Clerk) | 90 | P3 | TODO | I-2 | Full auth + cloud DB. Enables leaderboards, cross-device sync. High effort, needs infra decision. |
 
 ---
