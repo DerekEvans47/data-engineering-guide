@@ -3869,6 +3869,7 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
   td.__run    = run || null;
   td.__nodeId = nodeId;
   td.mapId    = run ? run.mapId : 0;
+  tdLoadSpriteAssets(td);
 
   if (!StorageManager.get(TD_TUTORIAL_KEY)) {
     tdShowTutorial();
@@ -3943,26 +3944,6 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   canvas.height = td.cellSize * TD_ROWS;
   canvas.style.width  = canvas.width  + 'px';
   canvas.style.height = canvas.height + 'px';
-
-  // Pre-compute terrain decorations (deterministic, no per-frame random)
-  for (let row = 0; row < TD_ROWS; row++) {
-    for (let col = 0; col < TD_COLS; col++) {
-      if (td.pathSet.has(`${col},${row}`)) continue;
-      const base = ((col * 2654435761 + row * 1234567891) >>> 0);
-      const n = 2 + (base % 3);
-      for (let i = 0; i < n; i++) {
-        const seed = ((base ^ (i * 987654321)) >>> 0);
-        td.terrainDeco.push({
-          col, row,
-          fx: ((seed & 0xFF) / 255) * 0.80 + 0.10,
-          fy: (((seed >> 8) & 0xFF) / 255) * 0.80 + 0.10,
-          phase: (((seed >> 16) & 0xFF) / 255) * Math.PI * 2,
-          h: 0.09 + (((seed >> 24) & 0x0F) / 15) * 0.11,
-          isPebble: ((seed >> 28) & 3) === 0,
-        });
-      }
-    }
-  }
 
   document.querySelectorAll('.td-tool-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -4066,7 +4047,7 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
     quizOpen:false, quizQ:null, quizAnswered:false, quizDone:null, quizOptional:false,
     tapCol:-1, tapRow:-1,
     over:false, won:false, shake:0, lastShootSnd:0, hoverCol:-1, hoverRow:-1,
-    bgTime: 0, terrainDeco: [], mapId: -1,
+    bgTime: 0, terrainDeco: [], mapId: -1, spriteSheets: {},
     levelDef, levelIdx,
     pathSet: tdComputePathSet(levelDef.wps),
     optQuizUsed: 0,
@@ -4074,6 +4055,7 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
 }
 
 let td = null;
+let tdSpriteManifest = null;
 
 // ── Game loop ──────────────────────────────────────────────────
 
@@ -4745,6 +4727,94 @@ function tdVictory() {
   }
 }
 
+// ── Sprite sheet asset loader (V-29) ──────────────────────────
+
+function tdGenerateTerrainDeco(mapId, pathSet, manifest, themeName) {
+  const decos = [];
+  let s = (mapId * 2654435761) >>> 0;
+  function rng() { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0x100000000; }
+
+  const sheetKeys = [`${themeName}-1`, `${themeName}-2`];
+  const spritePool = [];
+  for (const sheetKey of sheetKeys) {
+    const sheet = manifest.sheets[sheetKey];
+    if (!sheet) continue;
+    for (const [spriteKey, spriteDef] of Object.entries(sheet.sprites)) {
+      if (spriteDef.animate === 'blink') continue;
+      spritePool.push({ sheetKey, spriteKey, spriteDef });
+    }
+  }
+  if (!spritePool.length) return decos;
+
+  const nonPathCells = [];
+  for (let row = 0; row < TD_ROWS; row++) {
+    for (let col = 0; col < TD_COLS; col++) {
+      if (!pathSet.has(`${col},${row}`)) nonPathCells.push({ col, row });
+    }
+  }
+
+  const targetCount = Math.floor(nonPathCells.length * (0.35 + rng() * 0.05));
+  const largeOccupied = new Set();
+
+  function isPathAdjacent(col, row) {
+    return [[-1,0],[1,0],[0,-1],[0,1]].some(([dc,dr]) => pathSet.has(`${col+dc},${row+dr}`));
+  }
+  function isOpen(col, row) {
+    for (let dr = -1; dr <= 1; dr++)
+      for (let dc = -1; dc <= 1; dc++)
+        if (largeOccupied.has(`${col+dc},${row+dr}`)) return false;
+    return true;
+  }
+
+  let placed = 0;
+  const maxAttempts = nonPathCells.length * 6;
+  for (let attempt = 0; attempt < maxAttempts && placed < targetCount; attempt++) {
+    const { col, row } = nonPathCells[Math.floor(rng() * nonPathCells.length)];
+    const { sheetKey, spriteKey, spriteDef } = spritePool[Math.floor(rng() * spritePool.length)];
+
+    if (spriteDef.placement === 'path-adjacent' && !isPathAdjacent(col, row)) continue;
+    if (spriteDef.placement === 'open' && !isOpen(col, row)) continue;
+    if (spriteDef.size === 'large' && !isOpen(col, row)) continue;
+
+    decos.push({ sheetKey, spriteKey, col, row,
+      fx: 0.1 + rng() * 0.8, fy: 0.1 + rng() * 0.8,
+      phase: rng() * Math.PI * 2, size: spriteDef.size });
+
+    if (spriteDef.size === 'large' || spriteDef.placement === 'open')
+      largeOccupied.add(`${col},${row}`);
+    placed++;
+  }
+  return decos;
+}
+
+async function tdLoadSpriteAssets(tdState) {
+  if (!tdSpriteManifest) {
+    try {
+      const res = await fetch('./assets/map/manifest.json');
+      if (!res.ok) return;
+      tdSpriteManifest = await res.json();
+    } catch (_) { return; }
+  }
+
+  const mapDef = TD_MAPS[tdState.mapId] ?? TD_MAPS[0];
+  tdState.terrainDeco = tdGenerateTerrainDeco(
+    tdState.mapId, tdState.pathSet, tdSpriteManifest, mapDef.themeName
+  );
+
+  const sheetKeys = [`${mapDef.themeName}-1`, `${mapDef.themeName}-2`];
+  for (const key of sheetKeys) {
+    if (tdState.spriteSheets[key]) continue;
+    const sheetDef = tdSpriteManifest.sheets[key];
+    if (!sheetDef) continue;
+    await new Promise(resolve => {
+      const img = new Image();
+      img.onload  = () => { tdState.spriteSheets[key] = img; resolve(); };
+      img.onerror = resolve;
+      img.src = `./assets/map/${sheetDef.file}`;
+    });
+  }
+}
+
 // ── Deco animation helper ──────────────────────────────────────
 // Applies canvas-math animation transforms for a deco sprite.
 // Call with ctx.save() already in effect; restores are caller's responsibility.
@@ -4830,26 +4900,26 @@ function tdRender() {
     }
   }
 
-  // ── Parallax terrain decoration ────────────────────────────────
+  // ── Sprite-sheet terrain decoration (V-31) ────────────────────
   const bgT = td.bgTime;
-  ctx.lineCap = 'round';
+  const DECO_SCALE = { large: 0.85, medium: 0.60, small: 0.35 };
   for (const d of td.terrainDeco) {
-    const bx = d.col * cs + d.fx * cs;
-    const by = d.row * cs + d.fy * cs;
-    if (d.isPebble) {
-      ctx.beginPath();
-      ctx.arc(bx, by, cs * d.h * 0.55, 0, Math.PI * 2);
-      ctx.fillStyle = isLight ? 'rgba(130,108,72,.20)' : 'rgba(28,58,28,.26)';
-      ctx.fill();
-    } else {
-      const sway = Math.sin(bgT * 1.05 + d.phase) * cs * 0.055;
-      ctx.beginPath();
-      ctx.moveTo(bx, by);
-      ctx.lineTo(bx + sway, by - cs * d.h);
-      ctx.strokeStyle = isLight ? 'rgba(58,108,40,.26)' : 'rgba(38,88,38,.22)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
+    const sheet = td.spriteSheets?.[d.sheetKey];
+    if (!sheet?.complete) continue;
+    const sheetData = tdSpriteManifest?.sheets?.[d.sheetKey];
+    if (!sheetData) continue;
+    const spriteDef = sheetData.sprites[d.spriteKey];
+    if (!spriteDef) continue;
+    const [sc, sr] = spriteDef.pos;
+    const scale = DECO_SCALE[d.size] ?? 0.60;
+    const rSize = cs * scale;
+    const cx = d.col * cs + d.fx * cs;
+    const cy = d.row * cs + d.fy * cs;
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (spriteDef.animate) applyDecoAnimation(ctx, spriteDef, d.phase, bgT);
+    ctx.drawImage(sheet, sc * 256, sr * 256, 256, 256, -rSize / 2, -rSize / 2, rSize, rSize);
+    ctx.restore();
   }
   // Subtle edge vignette that breathes slowly
   const vig = 0.06 + 0.022 * Math.sin(bgT * 0.28);
@@ -4903,17 +4973,6 @@ function tdRender() {
     if (!hasS) ctx.fillRect(x, y + cs - 2, cs, 2);
     if (!hasW) ctx.fillRect(x, y, 2, cs);
     if (!hasE) ctx.fillRect(x + cs - 2, y, 2, cs);
-  }
-
-  if (td.levelDef.deco) {
-    for (const [type, col, row] of td.levelDef.deco) {
-      if (td.pathSet.has(`${col},${row}`)) continue;
-      const spr = TD_SPRITES[type];
-      if (!spr) continue;
-      const cx = col*cs + cs/2, cy = row*cs + cs/2;
-      const ps = Math.max(1, Math.floor(cs * 0.82 / Math.max(spr.pw, spr.ph)));
-      tdDrawSprite(ctx, spr.frames, 0, spr.pal, cx, cy, ps);
-    }
   }
 
   const wps      = td.levelDef.wps;
