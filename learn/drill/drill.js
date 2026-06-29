@@ -4099,7 +4099,7 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
     selectedTool:null, pendingCol:-1, pendingRow:-1, eid:0, inspectTower:null,
     quizOpen:false, quizQ:null, quizAnswered:false, quizDone:null, quizOptional:false,
     tapCol:-1, tapRow:-1,
-    over:false, won:false, shake:0, lastShootSnd:0, hoverCol:-1, hoverRow:-1,
+    over:false, won:false, shake:0, bossFlash:0, lastShootSnd:0, hoverCol:-1, hoverRow:-1,
     bgTime: 0, terrainDeco: [], mapId: -1, spriteSheets: {},
     levelDef, levelIdx,
     pathSet: tdComputePathSet(levelDef.wps),
@@ -4164,6 +4164,58 @@ function tdUpdate(dt) {
       tdSpawnParticles(e.x, e.y, '#FFFFFF', 16);
       tdSpawnParticles(e.x, e.y, '#FBBF24', 24);
       td.shake = 0.9;
+      td.bossFlash = 0.35;
+    } else if (e.type === 'goblin') {
+      // Goblins scatter spinning gold coin quads
+      if (!reducedMotionQuery?.matches) {
+        for (let i = 0; i < 8; i++) {
+          const a = Math.random() * Math.PI * 2, spd = 40 + Math.random() * 60;
+          const life = 0.4 + Math.random() * 0.25;
+          td.particles.push({ x: e.x, y: e.y, vx: Math.cos(a)*spd, vy: Math.sin(a)*spd,
+            life, maxLife: life, r: 3 + Math.random()*2, color: '#FBBF24', shape: 'coin', angle: Math.random()*Math.PI });
+        }
+      }
+      tdSpawnParticles(e.x, e.y, e.color, 6);
+    } else if (e.type === 'scout') {
+      // Scouts streak off fast in their travel direction
+      const dir = e.dir || 0;
+      if (!reducedMotionQuery?.matches) {
+        for (let i = 0; i < 10; i++) {
+          const spread = (Math.random() - 0.5) * 0.6;
+          const spd = 120 + Math.random() * 80;
+          const life = 0.18 + Math.random() * 0.12;
+          td.particles.push({ x: e.x, y: e.y,
+            vx: Math.cos(dir + spread) * spd, vy: Math.sin(dir + spread) * spd,
+            life, maxLife: life, r: 1.5 + Math.random(), color: e.color });
+        }
+      }
+      tdSpawnParticles(e.x, e.y, '#FFFFFF', 3);
+    } else if (e.type === 'orc') {
+      // Orcs leave a smoke puff — large slow upward gray particles
+      if (!reducedMotionQuery?.matches) {
+        for (let i = 0; i < 8; i++) {
+          const spd = 8 + Math.random() * 20;
+          const life = 0.5 + Math.random() * 0.35;
+          td.particles.push({ x: e.x + (Math.random()-0.5)*10, y: e.y,
+            vx: (Math.random()-0.5) * spd, vy: -spd * (0.7 + Math.random()),
+            life, maxLife: life, r: 5 + Math.random()*6, color: '#94A3B8' });
+        }
+      }
+      tdSpawnParticles(e.x, e.y, e.color, 8);
+    } else if (e.type === 'troll') {
+      // Trolls crumble — expanding ring + heavy slow particles
+      if (!reducedMotionQuery?.matches) {
+        td.particles.push({ x: e.x, y: e.y, vx: 0, vy: 0,
+          life: 0.55, maxLife: 0.55, r: e.r * td.cellSize * 1.8, color: e.color, shape: 'ring' });
+        for (let i = 0; i < 12; i++) {
+          const a = Math.random() * Math.PI * 2, spd = 15 + Math.random() * 30;
+          const life = 0.6 + Math.random() * 0.4;
+          td.particles.push({ x: e.x, y: e.y, vx: Math.cos(a)*spd, vy: Math.sin(a)*spd,
+            life, maxLife: life, r: 3 + Math.random()*4, color: e.color });
+        }
+      }
+      tdSpawnParticles(e.x, e.y, '#C084FC', 6);
+      td.shake = 0.3;
     } else {
       tdSpawnParticles(e.x, e.y, e.color, 12);
       tdSpawnParticles(e.x, e.y, '#FFFFFF', 4);
@@ -4224,6 +4276,7 @@ function tdMoveEnemy(e, dt) {
     const dx = tx - e.x, dy = ty - e.y;
     const d  = Math.hypot(dx, dy);
     if (d < 0.5) { e.wpIdx++; continue; }
+    e.dir = Math.atan2(dy, dx);
     if (rem >= d) { e.x = tx; e.y = ty; e.dist += d; rem -= d; e.wpIdx++; }
     else          { const f = rem / d; e.x += dx*f; e.y += dy*f; e.dist += rem; rem = 0; }
   }
@@ -5298,8 +5351,24 @@ function tdRender() {
   for (const p of td.particles) {
     const a = p.life / p.maxLife;
     ctx.globalAlpha = a;
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r * a, 0, Math.PI*2);
-    ctx.fillStyle = p.color; ctx.fill();
+    ctx.fillStyle = p.color;
+    if (p.shape === 'coin') {
+      const spin = (1 - a) * Math.PI * 3 + (p.angle || 0);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(spin);
+      ctx.fillRect(-p.r, -p.r * 0.4, p.r * 2, p.r * 0.8);
+      ctx.restore();
+    } else if (p.shape === 'ring') {
+      const rr = p.r * (2 - a);
+      ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, Math.PI*2);
+      ctx.strokeStyle = p.color; ctx.lineWidth = 2;
+      ctx.globalAlpha = a * 0.7;
+      ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * a, 0, Math.PI*2);
+      ctx.fill();
+    }
   }
   ctx.globalAlpha = 1;
 
@@ -5314,6 +5383,12 @@ function tdRender() {
   ctx.globalAlpha = 1;
 
   ctx.restore();
+
+  if ((td.bossFlash || 0) > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${td.bossFlash * 0.6})`;
+    ctx.fillRect(0, 0, W, H);
+    td.bossFlash = Math.max(0, td.bossFlash - 0.016);
+  }
 
   if (td.paused && !td.quizOpen && !td.over && !td.won) {
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0,0,W,H);

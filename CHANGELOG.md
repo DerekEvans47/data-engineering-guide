@@ -32,6 +32,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Topic tag, XP feedback, question mastery tracking
 
+- Tower idle breathing animation (V-17)
+
 
 ### 🐛 Bug Fixes
 
