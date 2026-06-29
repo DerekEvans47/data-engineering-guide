@@ -37,11 +37,11 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Dedup changelog entries from retry commits
 
+- IOS audio session escalation + statechange realignment
+
 - Pre-push hook skips deletes, only verifies drill changes
 
 - Proper async iOS audio unlock + session activation (#25)
-
-- Realign menuMusic on AudioContext statechange (iOS silent-after-unlock)
 
 - Reset stuck-active run nodes when showing run map
 
