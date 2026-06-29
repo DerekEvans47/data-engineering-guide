@@ -4358,7 +4358,7 @@ function tdHandleTap(col, row) {
   if (td.pendingCol === col && td.pendingRow === row) {
     // Confirmed — commit the placement
     td.gold -= def.cost;
-    td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true });
+    td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true, idlePhase: Math.random() * Math.PI * 2 });
     td.pendingCol = td.pendingRow = -1;
     tdUpdatePlaceChip();
     tdUpdateHUD();
@@ -4407,7 +4407,7 @@ function tdUpdatePlaceChip() {
     if (col < 0) return;
     if (!td.pathSet.has(`${col},${row}`) && !td.towers.some(t => t.col === col && t.row === row) && td.gold >= def.cost) {
       td.gold -= def.cost;
-      td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true });
+      td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true, idlePhase: Math.random() * Math.PI * 2 });
       tdUpdateHUD();
       tdAudio.place(col / (TD_COLS - 1));
     }
@@ -5213,10 +5213,14 @@ function tdRender() {
 
     const tSpr = TD_SPRITES[t.type];
     if (tSpr) {
-      const tPal = tSpr.pals[lvl] || tSpr.pals[0];
-      const tPs  = Math.max(2, Math.floor(cs * 0.82 / Math.max(tSpr.pw, tSpr.ph)));
-      const fIdx = (t.firePulse || 0) > 0.12 ? 1 : 0;
+      const tPal   = tSpr.pals[lvl] || tSpr.pals[0];
+      const tPs    = Math.max(2, Math.floor(cs * 0.82 / Math.max(tSpr.pw, tSpr.ph)));
+      const fIdx   = (t.firePulse || 0) > 0.12 ? 1 : 0;
+      const idle   = (t.firePulse || 0) < 0.05 ? 1 + 0.04 * Math.sin(bgT * 1.8 + (t.idlePhase || 0)) : 1;
+      ctx.save();
+      ctx.translate(px, py); ctx.scale(idle, idle); ctx.translate(-px, -py);
       tdDrawSprite(ctx, tSpr.frames, fIdx, tPal, px, py, tPs);
+      ctx.restore();
     }
 
     if (lvl > 0) {

@@ -22,6 +22,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
 
+- Run-map fog of war on deeply-locked nodes (V-25)
+
 - Seeded node position jitter on run map
 
 - Show app version on home screen (#26)
