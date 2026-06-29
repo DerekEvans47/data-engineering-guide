@@ -20,6 +20,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Float tower placement chip near tower, larger buttons
 
+- Offline question-bank versioning (I-3)
+
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
 
 - Run-map fog of war on deeply-locked nodes (V-25)
