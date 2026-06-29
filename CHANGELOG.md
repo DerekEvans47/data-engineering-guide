@@ -20,6 +20,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Show app version on home screen (#26)
 
+- Sprite sheet deco pipeline replacing parallax grass (#32)
+
 
 ### 🐛 Bug Fixes
 

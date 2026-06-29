@@ -4127,7 +4127,10 @@ function tdUpdate(dt) {
     n.y -= 28 * dt; n.life -= dt; return n.life > 0;
   });
 
-  for (const t of td.towers)  if (t.firePulse)  t.firePulse  = Math.max(0, t.firePulse  - dt);
+  for (const t of td.towers) {
+    if (t.firePulse) t.firePulse = Math.max(0, t.firePulse - dt);
+    if (t.flashLife) t.flashLife = Math.max(0, t.flashLife - dt);
+  }
   for (const e of td.enemies) if (e.hitFlash)   e.hitFlash   = Math.max(0, e.hitFlash   - dt);
 
   if (td.waveActive && td.spawnQueue.length === 0 && td.enemies.length === 0) {
@@ -4197,7 +4200,9 @@ function tdFireTowers(dt) {
         color: stats.glow || stats.color,
       });
       t.cd = 1 / stats.rate;
-      t.firePulse = 0.22;
+      t.firePulse  = 0.22;
+      t.flashAngle = Math.atan2(target.y - ty, target.x - tx);
+      t.flashLife  = 0.06;
       const now = performance.now();
       if (now - td.lastShootSnd > 80) { tdAudio.shoot(t.col / (TD_COLS - 1)); td.lastShootSnd = now; }
     }
@@ -4975,6 +4980,46 @@ function tdRender() {
     if (!hasE) ctx.fillRect(x + cs - 2, y, 2, cs);
   }
 
+  // ── Animated data-flow dots on path (V-13) ───────────────────
+  {
+    const wpsArr = td.levelDef.wps;
+    const segs = [];
+    let totalLen = 0;
+    for (let i = 0; i < wpsArr.length - 1; i++) {
+      const [c0, r0] = wpsArr[i], [c1, r1] = wpsArr[i+1];
+      const x0 = c0*cs + cs/2, y0 = r0*cs + cs/2;
+      const x1 = c1*cs + cs/2, y1 = r1*cs + cs/2;
+      const len = Math.hypot(x1-x0, y1-y0);
+      segs.push({ x0, y0, x1, y1, len });
+      totalLen += len;
+    }
+    if (totalLen > 0) {
+      const spacing  = totalLen / 4;
+      const dotSpeed = cs * 1.0;
+      for (let i = 0; i < 4; i++) {
+        let rem = ((bgT * dotSpeed + i * spacing) % totalLen);
+        let dx = null, dy = null;
+        for (const seg of segs) {
+          if (rem <= seg.len) {
+            const f = rem / seg.len;
+            dx = seg.x0 + (seg.x1 - seg.x0) * f;
+            dy = seg.y0 + (seg.y1 - seg.y0) * f;
+            break;
+          }
+          rem -= seg.len;
+        }
+        if (dx == null) continue;
+        ctx.save();
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = '#4ADE80';
+        ctx.beginPath(); ctx.arc(dx, dy, cs * 0.20, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.35;
+        ctx.beginPath(); ctx.arc(dx, dy, cs * 0.08, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
   const wps      = td.levelDef.wps;
   const entryRow = wps[0][1], exitRow = wps[wps.length-1][1];
 
@@ -5082,16 +5127,20 @@ function tdRender() {
       ctx.globalAlpha = 1;
     }
 
-    if ((t.firePulse || 0) > 0) {
-      const prog   = 1 - t.firePulse / 0.22;
-      const pulseR = cs * (0.35 + prog * 0.55);
-      const alpha  = (t.firePulse / 0.22) * 0.65;
-      ctx.beginPath(); ctx.arc(px, py, pulseR, 0, Math.PI*2);
+    if ((t.flashLife || 0) > 0) {
+      const frac     = t.flashLife / 0.06;
+      const flashLen = cs * (0.30 + 0.25 * frac);
+      const angle    = t.flashAngle || 0;
+      ctx.save();
+      ctx.globalAlpha = frac * 0.85;
       ctx.strokeStyle = stats.glow || def.color;
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = alpha;
+      ctx.lineWidth   = 2.5;
+      ctx.lineCap     = 'round';
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + Math.cos(angle) * flashLen, py + Math.sin(angle) * flashLen);
       ctx.stroke();
-      ctx.globalAlpha = 1;
+      ctx.restore();
     }
 
     ctx.fillStyle = 'rgba(0,0,0,.5)';
