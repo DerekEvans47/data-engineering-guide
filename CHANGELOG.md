@@ -41,6 +41,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Proper async iOS audio unlock + session activation (#25)
 
+- Realign menuMusic on AudioContext statechange (iOS silent-after-unlock)
+
 - Reset stuck-active run nodes when showing run map
 
 - Unlock Web Audio on iOS via shared context + gesture listener (#24)

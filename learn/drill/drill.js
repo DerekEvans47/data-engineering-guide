@@ -1920,7 +1920,7 @@ const TD_STARS_KEY = 'td_stars_v1';
 // ── Audio engine ───────────────────────────────────────────────
 
 const tdAudio = (() => {
-  let actx = null, muted = false, _stateChangeFn = null;
+  let actx = null, muted = false, _stateChangeFn = null, _htmlUnlocked = false;
 
   function ac() {
     if (!actx) {
@@ -2016,9 +2016,30 @@ const tdAudio = (() => {
         };
         actx.addEventListener('statechange', _stateChangeFn);
       }
+      // Play a silent HTML <audio> element once per page load.  iOS routes Web Audio
+      // through AVAudioSessionCategoryAmbient (muted by the silent switch) unless an
+      // HTML media element is also playing, which escalates the session to
+      // AVAudioSessionCategoryPlayback (ignores the silent switch) — the same
+      // category Reddit/YouTube use, which is why their audio works in silent mode.
+      if (!_htmlUnlocked) {
+        _htmlUnlocked = true;
+        try {
+          // Build a minimal valid 46-byte WAV (1 silent sample, 22050 Hz, 16-bit mono)
+          const wb = new ArrayBuffer(46), wv = new DataView(wb),
+                ws = (o, s) => [...s].forEach((c, i) => wv.setUint8(o + i, c.charCodeAt(0)));
+          ws(0,'RIFF'); wv.setUint32(4,38,true); ws(8,'WAVE');
+          ws(12,'fmt '); wv.setUint32(16,16,true); wv.setUint16(20,1,true); wv.setUint16(22,1,true);
+          wv.setUint32(24,22050,true); wv.setUint32(28,44100,true);
+          wv.setUint16(32,2,true); wv.setUint16(34,16,true);
+          ws(36,'data'); wv.setUint32(40,2,true); wv.setInt16(44,0,true);
+          const url = URL.createObjectURL(new Blob([wb], {type:'audio/wav'}));
+          const ha = new Audio(url);
+          ha.play().then(() => URL.revokeObjectURL(url)).catch(() => URL.revokeObjectURL(url));
+        } catch(_) {}
+      }
       const p = actx.state !== 'running' ? actx.resume() : Promise.resolve();
-      // Play a 1-sample silent buffer — activates the iOS audio session so
-      // subsequent notes don't get dropped on the first hardware wakeup.
+      // Play a 1-sample silent Web Audio buffer — warms up the hardware pipeline
+      // so the first scheduled note isn't dropped on initial wakeup.
       return p.then(() => {
         try {
           const buf = actx.createBuffer(1, 1, actx.sampleRate);
