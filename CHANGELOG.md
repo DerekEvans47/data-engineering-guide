@@ -22,9 +22,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
 
+- Seeded node position jitter on run map
+
 - Show app version on home screen (#26)
 
 - Sprite sheet deco pipeline replacing parallax grass (#32)
+
+- Topic tag, XP feedback, question mastery tracking
 
 
 ### 🐛 Bug Fixes
