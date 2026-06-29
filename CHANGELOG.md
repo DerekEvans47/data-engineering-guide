@@ -14,6 +14,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Background music on home, map, and battle screens (#23)
 
+- Data-flow dots, directional muzzle flash, reduced-motion (#33)
+
 - Float tower placement chip near tower, larger buttons
 
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
