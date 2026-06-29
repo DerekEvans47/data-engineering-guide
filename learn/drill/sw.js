@@ -1,10 +1,17 @@
-const CACHE = 'de-drill-v58';
+const CACHE = 'de-drill-v59';
 const ASSETS = [
   './index.html',
   './drill.css',
   './drill.js',
   '../../content/question-bank.json',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
+  './assets/map/manifest.json',
+  './assets/map/deco-verdant-1.png',
+  './assets/map/deco-verdant-2.png',
+  './assets/map/deco-decay-1.png',
+  './assets/map/deco-decay-2.png',
+  './assets/map/deco-void-1.png',
+  './assets/map/deco-void-2.png',
 ];
 
 self.addEventListener('install', e => {
