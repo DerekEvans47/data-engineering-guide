@@ -34,6 +34,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Tower idle breathing animation (V-17)
 
+- Type-specific enemy death animations (V-19)
+
 
 ### 🐛 Bug Fixes
 

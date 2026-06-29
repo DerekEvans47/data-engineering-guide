@@ -1,4 +1,4 @@
-const CACHE = 'de-drill-v66';
+const CACHE = 'de-drill-v67';
 const ASSETS = [
   './index.html',
   './drill.css',
@@ -29,6 +29,17 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // Question bank: network-first so content updates don't need a SW bump
+  if (e.request.url.endsWith('question-bank.json')) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
       const clone = res.clone();
