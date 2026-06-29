@@ -52,7 +52,7 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 | V-18 | Directional muzzle flash toward last target | 12 | P2 | DONE | V-1 | Short line segment from tower center toward last-fired target position, visible for ~60 ms. Replaces omnidirectional fire-pulse ring with a directional cue. Store `t.lastTargetAngle` in tdFireTowers. |
 | V-19 | Type-specific enemy death animations | 25 | P2 | TODO | V-3 | Goblins scatter gold coins (spinning quads), orcs leave a brief smoke puff, scouts streak off-screen, trolls crumble (slow expanding ring). Boss gets a shockwave + screen-filling flash. Replace uniform particle burst. |
 | V-20 | Enemy status effect visuals (freeze / burn / stun) | 15 | P2 | TODO | G-2 | Overlay sprites on enemies with active status: freeze = blue crystal ring, burn = orange ember orbit, stun = yellow stars. Required visual layer for G-2 special enemy types. |
-| V-21 | Run-map: perturbed node positions + bezier connectors | 20 | P2 | TODO | — | Each tier's nodes get small random x/y offsets (seeded per run so layout is stable on re-open). Connectors become quadratic bezier curves using the midpoint as control. Breaks the perfect-column flowchart look. |
+| V-21 | Run-map: perturbed node positions + bezier connectors | 20 | P2 | DONE | — | Each tier's nodes get small random x/y offsets (seeded per run so layout is stable on re-open). Connectors become quadratic bezier curves using the midpoint as control. Breaks the perfect-column flowchart look. |
 | V-22 | Run-map: traveled / untraveled path distinction | 10 | P2 | TODO | V-21 | Two-pass connector draw: thick desaturated line for future paths, thinner bright line for already-visited segments. Adds journey history at a glance. |
 | V-23 | Run-map: themed node shapes per type | 20 | P2 | TODO | V-21 | Replace generic circles: battle nodes → shield pentagon, quiz nodes → scroll silhouette, shop → coin hex, boss → skull diamond, event → star burst. Drawn with Path2D; player can scan the map without reading emoji. |
 | V-24 | Run-map background: parchment + gothic/steampunk overlay | 30 | P2 | TODO | — | Warm sepia/tan base drawn with noise pass (many small semi-transparent quads). Ink-stain vignette at edges. One or two procedural decorations (gear, compass rose, or crossed-swords) in corner cells. Connectors become ink-line strokes. Theme: adventure map parchment with medieval/steampunk details — matches the goblin/orc enemy aesthetic without requiring any image assets. |
@@ -191,6 +191,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | C-3  | Question topic tag in TD quiz overlay | 15 | 2026-06-29 |
 | P-2  | XP shown in quiz feedback + streak multiplier tag | 22 | 2026-06-29 |
 | P-8  | Question mastery tracking (3 correct = mastered, deprioritised) | 30 | 2026-06-29 |
+| V-21 | Run-map: perturbed node positions + bezier connectors | 20 | 2026-06-29 |
 
 ---
 

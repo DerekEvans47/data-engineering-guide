@@ -2903,9 +2903,17 @@ function generateRun(mapId) {
   }
   let poolIdx = 0;
 
+  // Structural nodes kept at their fixed positions; regular path nodes get a
+  // seeded jitter so the map looks hand-placed rather than a perfect grid.
+  const FIXED_NODE_IDS = new Set(['start', 'merge1', 'postmerge', 'fork2l', 'fork2r', 'preboss', 'boss']);
+
   function makeNode(id, depth, pathId, forcedType, nextIds, prevIds) {
-    const type     = forcedType || typePool[poolIdx++] || 'battle';
-    const [x, y]   = RUN_NODE_POS[id];
+    const type       = forcedType || typePool[poolIdx++] || 'battle';
+    let   [x, y]    = RUN_NODE_POS[id];
+    if (!FIXED_NODE_IDS.has(id)) {
+      x += Math.round((rng() - 0.5) * 20);
+      y += Math.round((rng() - 0.5) * 16);
+    }
     const needsDef = (type === 'battle' || type === 'elite') && id !== 'start';
     const levelDef = needsDef ? generateBattleLevel(mapDef, depth, pathId < 0 ? 0 : pathId, rng, id === 'boss') : null;
     return { id, type, x, y, depth, pathId, nextIds, prevIds, levelDef, state: 'locked' };
