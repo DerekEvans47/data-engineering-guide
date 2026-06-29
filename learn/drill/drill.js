@@ -1920,7 +1920,7 @@ const TD_STARS_KEY = 'td_stars_v1';
 // ── Audio engine ───────────────────────────────────────────────
 
 const tdAudio = (() => {
-  let actx = null, muted = false;
+  let actx = null, muted = false, _stateChangeFn = null, _htmlUnlocked = false;
 
   function ac() {
     if (!actx) {
@@ -2003,9 +2003,43 @@ const tdAudio = (() => {
         }
       }
       if (!actx) return Promise.resolve(false);
+      // iOS often resolves resume() before the context is actually outputting audio.
+      // Watch for the real state transition so we can realign music scheduling then.
+      if (actx.state !== 'running' && !_stateChangeFn) {
+        _stateChangeFn = () => {
+          if (actx.state !== 'running') return;
+          actx.removeEventListener('statechange', _stateChangeFn);
+          _stateChangeFn = null;
+          // If music is already pumping, realign nextBeat; otherwise honour pending.
+          if (menuMusic.playing) menuMusic.restart();
+          else menuMusic.onUnlock();
+        };
+        actx.addEventListener('statechange', _stateChangeFn);
+      }
+      // Play a silent HTML <audio> element once per page load.  iOS routes Web Audio
+      // through AVAudioSessionCategoryAmbient (muted by the silent switch) unless an
+      // HTML media element is also playing, which escalates the session to
+      // AVAudioSessionCategoryPlayback (ignores the silent switch) — the same
+      // category Reddit/YouTube use, which is why their audio works in silent mode.
+      if (!_htmlUnlocked) {
+        _htmlUnlocked = true;
+        try {
+          // Build a minimal valid 46-byte WAV (1 silent sample, 22050 Hz, 16-bit mono)
+          const wb = new ArrayBuffer(46), wv = new DataView(wb),
+                ws = (o, s) => [...s].forEach((c, i) => wv.setUint8(o + i, c.charCodeAt(0)));
+          ws(0,'RIFF'); wv.setUint32(4,38,true); ws(8,'WAVE');
+          ws(12,'fmt '); wv.setUint32(16,16,true); wv.setUint16(20,1,true); wv.setUint16(22,1,true);
+          wv.setUint32(24,22050,true); wv.setUint32(28,44100,true);
+          wv.setUint16(32,2,true); wv.setUint16(34,16,true);
+          ws(36,'data'); wv.setUint32(40,2,true); wv.setInt16(44,0,true);
+          const url = URL.createObjectURL(new Blob([wb], {type:'audio/wav'}));
+          const ha = new Audio(url);
+          ha.play().then(() => URL.revokeObjectURL(url)).catch(() => URL.revokeObjectURL(url));
+        } catch(_) {}
+      }
       const p = actx.state !== 'running' ? actx.resume() : Promise.resolve();
-      // Play a 1-sample silent buffer — activates the iOS audio session so
-      // subsequent notes don't get dropped on the first hardware wakeup.
+      // Play a 1-sample silent Web Audio buffer — warms up the hardware pipeline
+      // so the first scheduled note isn't dropped on initial wakeup.
       return p.then(() => {
         try {
           const buf = actx.createBuffer(1, 1, actx.sampleRate);
@@ -2219,11 +2253,16 @@ const menuMusic = (() => {
     if (!playing) return;
     const c = ac(); if (!c) return;
     const now = c.currentTime;
+    // If nextBeat has fallen more than 1 s behind (e.g. context was suspended while
+    // currentTime advanced), jump ahead so we don't try to schedule past notes.
+    if (nextBeat < now - 1.0) nextBeat = now + 0.05;
     while (nextBeat < now + LOOK) {
       const b = beat % 8, t = nextBeat;
-      if (b === 0 || b === 4) schedKick(t);
-      schedHat(t);
-      if (BASS_STEPS[b]) schedBass(BASS_STEPS[b], t, S * 0.85);
+      try {
+        if (b === 0 || b === 4) schedKick(t);
+        schedHat(t);
+        if (BASS_STEPS[b]) schedBass(BASS_STEPS[b], t, S * 0.85);
+      } catch(_) {}
       beat++;
       nextBeat += S;
     }
@@ -2247,6 +2286,15 @@ const menuMusic = (() => {
       if (!pending) return;
       const c = ac(); if (!c) return;
       doStart(c);
+    },
+    // Called by tdAudio when the AudioContext statechange fires 'running'.
+    // Realigns nextBeat so we don't replay or skip beats after a long suspension.
+    restart() {
+      if (!playing) return;
+      clearTimeout(timer); timer = null;
+      const c = ac(); if (!c) return;
+      nextBeat = c.currentTime + 0.05;
+      pump();
     },
     setMuted(m) {
       if (!masterGain || !actx) return;
@@ -2280,11 +2328,12 @@ function _audioUnlock() {
 
 // Re-resume on every subsequent touch in case iOS auto-suspends the context
 // (e.g. after a phone call, locking the screen, or backgrounding the app).
+// The statechange listener in tdAudio.unlock() handles music realignment once
+// the context transitions back to 'running'.
 document.addEventListener('touchstart', () => {
   const ctx = tdAudio.ctx;
   if (ctx && ctx.state === 'suspended') {
-    ctx.resume().catch(() => {});
-    if (!menuMusic.playing) menuMusic.onUnlock();
+    tdAudio.unlock();
   }
 }, { passive: true });
 
