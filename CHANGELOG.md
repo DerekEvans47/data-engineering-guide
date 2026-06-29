@@ -16,6 +16,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Data-flow dots, directional muzzle flash, reduced-motion (#33)
 
+- Derive APP_VERSION from SW cache name
+
 - Float tower placement chip near tower, larger buttons
 
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)

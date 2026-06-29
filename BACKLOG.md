@@ -101,13 +101,13 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
 | P-1 | Skill tree / upgrade meta-progression | 60 | P1 | TODO | — | Persistent tree (unlocked with XP): unlock new tower types, start-gold bonuses, extra lives. |
-| P-2 | XP → level-up tied to quiz correctness | 22 | P1 | TODO | — | Bonus XP for correct answers; correct-streak multiplier. Feeds P-1 tree. |
+| P-2 | XP → level-up tied to quiz correctness | 22 | P1 | DONE | — | Bonus XP for correct answers; correct-streak multiplier. Feeds P-1 tree. |
 | P-3 | Spaced repetition tracker (SM-2 per question) | 65 | P2 | TODO | I-1 | Per-question interval/ease stored in localStorage. Drill mode surfaces due cards. |
 | P-4 | Daily challenge level (new layout every 24 h) | 45 | P2 | TODO | I-1 | Seeded-random layout from `Date.toDateString()`. Bonus XP for first clear. |
 | P-5 | Run-based roguelite structure (Act I → II → III draft) | 70 | P2 | TODO | G-4, P-1 | Each "run" drafts 3 towers, 1 relic from random offerings. Permadeath = restart run, keep XP. |
 | P-6 | Leaderboards (daily / all-time score) | 80 | P3 | TODO | I-5 | Requires backend. Could use GitHub Gist as poor-man's leaderboard for small audience. |
 | P-7 | Achievement system (first 3★, 10-win streak, etc.) | 35 | P2 | TODO | I-1 | Badge unlocks stored locally; displayed in profile panel. |
-| P-8 | Question mastery tracking ("mastered" vs "learning") | 30 | P1 | TODO | I-1 | Per-question correct-count threshold; mastered Qs retire from pool or appear less often. |
+| P-8 | Question mastery tracking ("mastered" vs "learning") | 30 | P1 | DONE | I-1 | Per-question correct-count threshold; mastered Qs retire from pool or appear less often. |
 
 ---
 
@@ -117,7 +117,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 |-----|-------|--------|----------|--------|--------------|-------|
 | C-1 | Expand question bank to 300+ questions | 50 | P0 | ONGOING | — | Handled exclusively by QUESTION_GENERATION_PROMPT.md sessions — skip in game improvement runs. Current bank: 200 questions (as of 2026-06-27); target: 300+. |
 | C-2 | Question editor UI (add/edit/delete in-app) | 40 | P2 | TODO | I-1 | Modal form to add custom questions; stores to localStorage override list. |
-| C-3 | Question categories / tags visible in quiz overlay | 15 | P2 | TODO | — | Show topic tag (e.g. "Spark", "Kafka") on quiz card for context. |
+| C-3 | Question categories / tags visible in quiz overlay | 15 | P2 | DONE | — | Show topic tag (e.g. "Spark", "Kafka") on quiz card for context. |
 | C-5 | Question difficulty auto-calibration (ELO-style) | 55 | P3 | TODO | P-3 | Track per-question success rate; reclassify easy/medium/hard dynamically. |
 | C-6 | Add scenario/case-study question type | 25 | P2 | TODO | C-1 | Multi-sentence scenario followed by 4 options. Requires new `type: "scenario"` in schema and a wider card render. More realistic to real-world DE decision-making. |
 | C-7 | Review and update stale questions | 10 | P2 | TODO | — | Audit questions for outdated services or API versions. Run annually. |
@@ -188,6 +188,9 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | V-13 | Animated data-flow indicators on path | 15 | 2026-06-29 |
 | V-18 | Directional muzzle flash toward last target | 12 | 2026-06-29 |
 | U-5  | Reduced-motion respect (prefers-reduced-motion) | 8 | 2026-06-29 |
+| C-3  | Question topic tag in TD quiz overlay | 15 | 2026-06-29 |
+| P-2  | XP shown in quiz feedback + streak multiplier tag | 22 | 2026-06-29 |
+| P-8  | Question mastery tracking (3 correct = mastered, deprioritised) | 30 | 2026-06-29 |
 
 ---
 
