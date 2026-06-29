@@ -3089,8 +3089,11 @@ function renderRunMap(run) {
       </g>`;
     }
 
-    // future (was 'locked') — fully visible, difficulty-colored, no click, no padlock
-    return `<g class="rn-future" data-id="${id}">
+    // future (was 'locked') — fog of war: deeply unreachable nodes shown at low opacity
+    const prevNodes = (node.prevIds || []).map(pid => run.nodes.find(n => n.id === pid));
+    const nearReachable = prevNodes.some(p => p && (p.state === 'completed' || p.state === 'available' || p.state === 'active'));
+    const fogOpacity = nearReachable ? '1' : '0.28';
+    return `<g class="rn-future" data-id="${id}" opacity="${fogOpacity}">
       <circle cx="${x}" cy="${y}" r="15" fill="${col}0a" stroke="${col}30" stroke-width="1.5"/>
       <text x="${x}" y="${y+4}" font-size="11" text-anchor="middle" opacity="0.4">${icon}</text>
       ${tier ? `<text x="${x}" y="${aboveY}" font-size="4.5" text-anchor="middle" fill="${col}45" font-weight="700">${tier}</text>` : ''}
