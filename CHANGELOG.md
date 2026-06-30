@@ -18,6 +18,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Derive APP_VERSION from SW cache name
 
+- Difficulty modifier toggles on level confirm panel (G-8) (#50)
+
 - Endless mode — procedural waves after victory with kill/batch score (#47)
 
 - Float tower placement chip near tower, larger buttons
