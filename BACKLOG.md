@@ -54,7 +54,7 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 | V-20 | Enemy status effect visuals (freeze / burn / stun) | 15 | P2 | TODO | G-2 | Overlay sprites on enemies with active status: freeze = blue crystal ring, burn = orange ember orbit, stun = yellow stars. Required visual layer for G-2 special enemy types. |
 | V-21 | Run-map: perturbed node positions + bezier connectors | 20 | P2 | DONE | — | Each tier's nodes get small random x/y offsets (seeded per run so layout is stable on re-open). Connectors become quadratic bezier curves using the midpoint as control. Breaks the perfect-column flowchart look. |
 | V-22 | Run-map: traveled / untraveled path distinction | 10 | P2 | DONE | V-21 | Two-pass connector draw: thick desaturated line for future paths, thinner bright line for already-visited segments. Adds journey history at a glance. |
-| V-23 | Run-map: themed node shapes per type | 20 | P2 | TODO | V-21 | Replace generic circles: battle nodes → shield pentagon, quiz nodes → scroll silhouette, shop → coin hex, boss → skull diamond, event → star burst. Drawn with Path2D; player can scan the map without reading emoji. |
+| V-23 | Run-map: themed node shapes per type | 20 | P2 | DONE | V-21 | Replace generic circles: battle nodes → shield pentagon, quiz nodes → scroll silhouette, shop → coin hex, boss → skull diamond, event → star burst. Drawn with Path2D; player can scan the map without reading emoji. |
 | V-24 | Run-map background: parchment + gothic/steampunk overlay | 30 | P2 | TODO | — | Warm sepia/tan base drawn with noise pass (many small semi-transparent quads). Ink-stain vignette at edges. One or two procedural decorations (gear, compass rose, or crossed-swords) in corner cells. Connectors become ink-line strokes. Theme: adventure map parchment with medieval/steampunk details — matches the goblin/orc enemy aesthetic without requiring any image assets. |
 | V-25 | Run-map fog of war on unreachable nodes | 15 | P2 | DONE | V-21 | Nodes and connectors beyond any reachable path are drawn at 25% opacity with a desaturated palette. Revealed when the player's active path reaches the preceding node. Adds tension and makes earned progress feel visible. |
 | V-29 | Sprite sheet asset loader (manifest + Image cache) | 25 | P1 | DONE | V-26 | At level start, read `learn/drill/assets/map/manifest.json`, resolve the two sheets for the active theme (`deco-{theme}-1.png`, `deco-{theme}-2.png`), and preload them via `new Image()` into `td.spriteSheets[key]`. Slice formula: `ctx.drawImage(sheet, col*256, row*256, 256, 256, dx, dy, renderSize, renderSize)`. Manifest already committed to branch. |
@@ -194,6 +194,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | P-8  | Question mastery tracking (3 correct = mastered, deprioritised) | 30 | 2026-06-29 |
 | V-16 | Level-gated tower sprite evolution (already implemented via pals[lvl]) | 25 | 2026-06-29 |
 | V-21 | Run-map: perturbed node positions + bezier connectors | 20 | 2026-06-29 |
+| V-23 | Run-map: themed node shapes per type | 20 | 2026-06-30 |
 
 ---
 

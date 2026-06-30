@@ -22,6 +22,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Offline question-bank versioning (I-3)
 
+- Power-up system — data model, pre-wave tray, effect engine (#45)
+
 - Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
 
 - Run-map fog of war on deeply-locked nodes (V-25)
