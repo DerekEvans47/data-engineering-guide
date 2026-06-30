@@ -4159,6 +4159,7 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
     optQuizUsed: 0,
     activePowerUps: [],
     powerUpMods: { towerRateMult:1, enemySpeedMult:1, killGoldMult:1 },
+    endless: false, endlessWave: 0, endlessKills: 0,
   };
 }
 
@@ -4278,7 +4279,7 @@ function tdUpdate(dt) {
     }
     tdAudio.death(td.canvas ? e.x / td.canvas.width : 0.5);
   }
-  if (died.length) { td.enemies = td.enemies.filter(e => e.hp > 0); tdUpdateHUD(); }
+  if (died.length) { if (td.endless) td.endlessKills += died.length; td.enemies = td.enemies.filter(e => e.hp > 0); tdUpdateHUD(); }
 
   td.particles = td.particles.filter(p => {
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; return p.life > 0;
@@ -4298,8 +4299,13 @@ function tdUpdate(dt) {
     td.waveActive = false;
     td.gold += 15;
     td.damageNumbers.push({ x: td.canvas ? td.canvas.width / 2 : 160, y: td.canvas ? td.canvas.height * 0.18 : 80, label: '+15🪙 Wave Clear!', life: 1.6, maxLife: 1.6, color: '#FBBF24' });
-    if (td.waveIdx >= td.levelDef.waveDefs.length - 1) tdVictory();
-    else { tdClearWavePowerUps(); tdUpdateHUD(); tdUpdateWaveBtn(); tdUpdatePowerUpTray(); }
+    if (td.waveIdx >= td.levelDef.waveDefs.length - 1) {
+      if (td.endless) {
+        td.endlessWave++;
+        tdEndlessNextBatch();
+        tdClearWavePowerUps(); tdUpdateHUD(); tdUpdateWaveBtn(); tdUpdatePowerUpTray();
+      } else { tdVictory(); }
+    } else { tdClearWavePowerUps(); tdUpdateHUD(); tdUpdateWaveBtn(); tdUpdatePowerUpTray(); }
   }
 }
 
@@ -4822,6 +4828,45 @@ function tdActivatePowerUp(idx) {
   tdUpdatePowerUpTray();
 }
 
+function tdEndlessNextBatch() {
+  const mult = td.levelDef.enemyMult * Math.pow(1.18, td.endlessWave);
+  const seed = ((td.mapId + 1) * 31337 + (td.endlessWave + 1) * 99991) >>> 0;
+  const rng  = makeSeedRng(seed);
+  const waves = generateWaves(mult, 3, rng);
+  if (td.endlessWave > 0 && td.endlessWave % 3 === 2) {
+    waves.push([['boss', 1, 4.0], ['goblin', 4 + td.endlessWave, 0.8]]);
+  }
+  td.levelDef.waveDefs.push(...waves);
+}
+
+function tdEnterEndless() {
+  td.won = false; td.endless = true; td.optQuizUsed = 0;
+  tdEndlessNextBatch();
+  const actDiv = EL.tdActions;
+  if (!actDiv) return;
+  actDiv.innerHTML = `
+    <div id="td-powerup-tray" class="td-powerup-tray" style="display:none"></div>
+    <div class="td-actions-row">
+      <button class="td-quiz-btn" id="td-quiz-btn">📝 +25🪙 (3)</button>
+      <button class="td-wave-btn" id="td-wave-btn">
+        <span class="td-wave-btn-main">⚔️ Start Wave 1</span>
+        <span id="td-wave-preview" class="td-wave-preview" style="display:none"></span>
+      </button>
+    </div>`;
+  EL.tdPowerUpTray = document.getElementById('td-powerup-tray');
+  EL.tdWavePreview = document.getElementById('td-wave-preview');
+  EL.tdWaveBtn     = document.getElementById('td-wave-btn');
+  EL.tdQuizBtn     = document.getElementById('td-quiz-btn');
+  EL.tdWaveBtn.addEventListener('click', tdOnWaveBtn);
+  EL.tdQuizBtn.addEventListener('click', function() {
+    if (!td || td.quizOpen || td.waveActive || td.over || td.won) return;
+    if (td.optQuizUsed >= 3) { const b = EL.tdQuizBtn; if (b) { b.textContent = '📝 Max 3/wave'; setTimeout(tdUpdateHUD, 1500); } return; }
+    td.optQuizUsed++;
+    tdOpenQuiz(25, true, function() { earnGold(25); tdUpdateHUD(); });
+  });
+  tdUpdateHUD(); tdUpdateWaveBtn(); tdUpdatePowerUpTray(); tdMusic.start();
+}
+
 function tdUpdateHUD() {
   const gEl = EL.tdGoldVal;  if (gEl) gEl.textContent = td.gold;
 
@@ -4841,7 +4886,9 @@ function tdUpdateHUD() {
   const wEl = EL.tdWaveLbl;
   const wc  = td.levelDef.waveDefs.length;
   if (wEl) {
-    if (td.waveIdx < 0)           wEl.textContent = 'Place towers, then start!';
+    if (td.endless) {
+      wEl.textContent = td.waveActive ? `⚡ Endless · Wave ${td.waveIdx + 1}` : `⚡ Wave clear! ${td.endlessKills} kills`;
+    } else if (td.waveIdx < 0)           wEl.textContent = 'Place towers, then start!';
     else if (td.waveActive)       wEl.textContent = `Wave ${td.waveIdx + 1} / ${wc}`;
     else if (td.waveIdx < wc - 1) wEl.textContent = `Wave ${td.waveIdx + 1} cleared!`;
     else                          wEl.textContent = 'All waves cleared!';
@@ -4849,10 +4896,13 @@ function tdUpdateHUD() {
 
   const dotsEl = EL.tdWaveDots;
   if (dotsEl) {
-    dotsEl.innerHTML = Array.from({length: wc}, (_, i) => {
-      const cls = i < td.waveIdx ? 'done' : (i === td.waveIdx && td.waveActive ? 'active' : '');
-      return `<span class="td-wdot ${cls}"></span>`;
-    }).join('');
+    if (td.endless) { dotsEl.innerHTML = ''; }
+    else {
+      dotsEl.innerHTML = Array.from({length: wc}, (_, i) => {
+        const cls = i < td.waveIdx ? 'done' : (i === td.waveIdx && td.waveActive ? 'active' : '');
+        return `<span class="td-wdot ${cls}"></span>`;
+      }).join('');
+    }
   }
 
   const quizBtn = EL.tdQuizBtn;
@@ -4909,12 +4959,19 @@ function tdGameOver() {
   earnGold(15);
   const actDiv = EL.tdActions;
   if (actDiv) {
-    actDiv.innerHTML = `
-      <div class="td-end-msg td-end-lose">💀 Defeated — the horde broke through</div>
-      <button class="td-wave-btn" id="td-retry">🔄 Retry</button>
-      <button class="td-map-btn" id="td-map">🗺️ Map</button>`;
-    document.getElementById('td-retry').addEventListener('click', () => showTowerDefenseScreen(td.levelDef, td.__nodeId, td.__run));
-    document.getElementById('td-map').addEventListener('click', () => { const r=td.__run; if (r) { const n=r.nodes.find(x=>x.id===td.__nodeId); if(n&&n.state==='active'){n.state='available';r.activeId=null;tdSaveRun(r);} showRunMap(r); } else showTDWorldMap(); });
+    if (td.endless) {
+      actDiv.innerHTML = `
+        <div class="td-end-msg td-end-lose">⚡ Endless over — ${td.endlessKills} kills · ${td.endlessWave} batch${td.endlessWave !== 1 ? 'es' : ''} cleared</div>
+        <button class="td-map-btn" id="td-map">🗺️ Map</button>`;
+      document.getElementById('td-map').addEventListener('click', () => { const r=td.__run; if (r) showRunMap(r); else showTDWorldMap(); });
+    } else {
+      actDiv.innerHTML = `
+        <div class="td-end-msg td-end-lose">💀 Defeated — the horde broke through</div>
+        <button class="td-wave-btn" id="td-retry">🔄 Retry</button>
+        <button class="td-map-btn" id="td-map">🗺️ Map</button>`;
+      document.getElementById('td-retry').addEventListener('click', () => showTowerDefenseScreen(td.levelDef, td.__nodeId, td.__run));
+      document.getElementById('td-map').addEventListener('click', () => { const r=td.__run; if (r) { const n=r.nodes.find(x=>x.id===td.__nodeId); if(n&&n.state==='active'){n.state='available';r.activeId=null;tdSaveRun(r);} showRunMap(r); } else showTDWorldMap(); });
+    }
   }
 }
 
@@ -4961,9 +5018,11 @@ function tdVictory() {
         <div class="td-star-reward">+${goldReward}🪙 earned</div>
         <div class="td-star-btns">
           <button class="td-map-btn" id="td-map">🗺️ Map</button>
+          <button class="td-wave-btn" id="td-endless" style="flex:1">⚡ Endless</button>
         </div>
       </div>`;
     document.getElementById('td-map').addEventListener('click', () => { if (run) showRunMap(run); else showTDWorldMap(); });
+    document.getElementById('td-endless')?.addEventListener('click', tdEnterEndless);
   }
 }
 

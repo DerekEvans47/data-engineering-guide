@@ -74,7 +74,7 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 | G-4 | Power-up cards (superseded by EQ-2/EQ-3 — see EQ section) | 38 | P2 | TODO | G-3 | Original spec: draw 2 cards at level start. Full design in EQ-2/EQ-3; scope expanded to wave/node dual-mode with store purchasing. |
 | G-5 | Relic passive system (superseded by EQ-4/EQ-5 — see EQ section) | 55 | P2 | TODO | EQ-1 | Original spec: permanent relics earned post-level. Full design in EQ-4/EQ-5 with category exclusivity, upkeep costs, and rarity tiers. |
 | G-6 | Wave editor / sandbox mode | 28 | P3 | TODO | — | Dev/debug mode to test enemy combos and tower loadouts without question gating. |
-| G-7 | Endless mode (procedural waves beyond wave 5) | 30 | P2 | TODO | — | After final wave, spawn escalating procedural waves until lives = 0; score leaderboard. |
+| G-7 | Endless mode (procedural waves beyond wave 5) | 30 | P2 | DONE | — | After final wave, spawn escalating procedural waves until lives = 0; score leaderboard. |
 | G-8 | Difficulty modifier toggles (Ironman, No-Gold, Speed+) | 20 | P2 | TODO | — | Toggles on level select that multiply star rewards if enabled. |
 
 ---
@@ -195,6 +195,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | V-16 | Level-gated tower sprite evolution (already implemented via pals[lvl]) | 25 | 2026-06-29 |
 | V-21 | Run-map: perturbed node positions + bezier connectors | 20 | 2026-06-29 |
 | V-23 | Run-map: themed node shapes per type | 20 | 2026-06-30 |
+| G-7 | Endless mode (procedural waves + kill/batch score) | 30 | 2026-06-30 |
 
 ---
 
