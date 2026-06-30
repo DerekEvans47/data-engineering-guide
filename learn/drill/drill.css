@@ -1995,6 +1995,52 @@ html, body {
 }
 .td-wave-btn:active  { transform: scale(.96); }
 .td-wave-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.td-powerup-tray {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+  padding: .25rem .4rem;
+  margin-bottom: .25rem;
+  background: rgba(251,191,36,.06);
+  border: 1px solid rgba(251,191,36,.2);
+  border-radius: .45rem;
+  animation: td-chip-in .18s ease;
+}
+.td-pu-label {
+  font-size: .6rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: rgba(251,191,36,.6);
+  flex-shrink: 0;
+  margin-right: .1rem;
+}
+.td-pu-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .25rem .5rem;
+  background: rgba(251,191,36,.12);
+  border: 1.5px solid rgba(251,191,36,.45);
+  border-radius: .4rem;
+  color: #FBBF24;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .1s, transform .08s;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 36px;
+}
+.td-pu-chip:active { transform: scale(.94); background: rgba(251,191,36,.22); }
+.td-pu-scope {
+  font-size: .58rem;
+  font-weight: 400;
+  color: rgba(255,255,255,.45);
+  background: rgba(0,0,0,.25);
+  padding: .05rem .28rem;
+  border-radius: .2rem;
+  margin-left: .1rem;
+}
 .td-end-msg {
   flex: 1;
   font-size: .78rem;

@@ -2702,6 +2702,16 @@ const TD_SHOP_ITEMS = [
   { id:'gold_boost',   label:'+100 Gold Next',  icon:'💰',  cost:90,  effect:'rest_gold+100' },
 ];
 
+// ── Power-up definitions (EQ-2) ───────────────────────────────
+// Subset of the full 12-item list; EQ-3 will add the remainder.
+const TD_POWER_UPS = {
+  gold_rush:  { id:'gold_rush',  name:'Gold Rush',  icon:'💰', cost:40, scope:'wave', effect:{ type:'gold-now',    value:50    } },
+  rapid_fire: { id:'rapid_fire', name:'Rapid Fire', icon:'🏹', cost:50, scope:'wave', effect:{ type:'tower-rate',  value:0.30  } },
+  pathsalt:   { id:'pathsalt',   name:'Pathsalt',   icon:'🧂', cost:80, scope:'wave', effect:{ type:'enemy-speed', value:-0.25 } },
+  fortify:    { id:'fortify',    name:'Fortify',    icon:'🛡️', cost:80, scope:'node', effect:{ type:'lives',       value:3     } },
+  scavenger:  { id:'scavenger',  name:'Scavenger',  icon:'🪝', cost:70, scope:'node', effect:{ type:'kill-gold',   value:1.5   } },
+};
+
 // ── Helpers ────────────────────────────────────────────────────
 
 function tdQDifficulty(q) {
@@ -2957,7 +2967,7 @@ function generateRun(mapId) {
   nodes.find(n => n.id === 'start').state = 'completed';
   ['a1','b1','c1'].forEach(id => { const n = nodes.find(x => x.id === id); if (n) n.state = 'available'; });
 
-  const run = { mapId, seed, nodes, currentId:'start', visitedIds:['start'], activeId:null, stats:{battlesWon:0,goldEarned:0,xpEarned:0,carryGold:0} };
+  const run = { mapId, seed, nodes, currentId:'start', visitedIds:['start'], activeId:null, powerUps:['gold_rush'], stats:{battlesWon:0,goldEarned:0,xpEarned:0,carryGold:0} };
   tdSaveRun(run);
   return run;
 }
@@ -3911,6 +3921,7 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
       </div>
       <div id="td-inspect-card" class="td-inspect-card" style="display:none"></div>
       <div id="td-actions">
+        <div id="td-powerup-tray" class="td-powerup-tray" style="display:none"></div>
         <div class="td-actions-row">
           <button class="td-quiz-btn" id="td-quiz-btn">📝 +25🪙 (3)</button>
           <button class="td-wave-btn" id="td-wave-btn">
@@ -3993,6 +4004,7 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   EL.tdPlaceChip    = document.getElementById('td-place-chip');
   EL.tdWavePreview  = document.getElementById('td-wave-preview');
   EL.tdInspectCard  = document.getElementById('td-inspect-card');
+  EL.tdPowerUpTray  = document.getElementById('td-powerup-tray');
 
   const W = Math.min(wrap.clientWidth || window.innerWidth, 500);
   const H = wrap.clientHeight || 0;
@@ -4110,6 +4122,8 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
     levelDef, levelIdx,
     pathSet: tdComputePathSet(levelDef.wps),
     optQuizUsed: 0,
+    activePowerUps: [],
+    powerUpMods: { towerRateMult:1, enemySpeedMult:1, killGoldMult:1 },
   };
 }
 
@@ -4163,8 +4177,9 @@ function tdUpdate(dt) {
 
   const died = td.enemies.filter(e => e.hp <= 0);
   for (const e of died) {
-    td.gold += e.reward;
-    td.damageNumbers.push({ x: e.x + 8, y: e.y - e.r * td.cellSize - 10, label: '+' + e.reward + '🪙', life: 0.85, maxLife: 0.85, color: '#FBBF24' });
+    const killReward = Math.round(e.reward * (td.powerUpMods?.killGoldMult || 1));
+    td.gold += killReward;
+    td.damageNumbers.push({ x: e.x + 8, y: e.y - e.r * td.cellSize - 10, label: '+' + killReward + '🪙', life: 0.85, maxLife: 0.85, color: '#FBBF24' });
     if (e.isBoss) {
       tdSpawnParticles(e.x, e.y, e.color, 40);
       tdSpawnParticles(e.x, e.y, '#FFFFFF', 16);
@@ -4249,7 +4264,7 @@ function tdUpdate(dt) {
     td.gold += 15;
     td.damageNumbers.push({ x: td.canvas ? td.canvas.width / 2 : 160, y: td.canvas ? td.canvas.height * 0.18 : 80, label: '+15🪙 Wave Clear!', life: 1.6, maxLife: 1.6, color: '#FBBF24' });
     if (td.waveIdx >= td.levelDef.waveDefs.length - 1) tdVictory();
-    else { tdUpdateHUD(); tdUpdateWaveBtn(); }
+    else { tdClearWavePowerUps(); tdUpdateHUD(); tdUpdateWaveBtn(); tdUpdatePowerUpTray(); }
   }
 }
 
@@ -4263,7 +4278,7 @@ function tdSpawnEnemy(type) {
   td.enemies.push({
     id: td.eid++, type,
     hp: def.maxHp * mult, maxHp: def.maxHp * mult,
-    spd: def.spd, color: def.color, r: def.r, reward: def.reward,
+    spd: def.spd * (td.powerUpMods?.enemySpeedMult || 1), color: def.color, r: def.r, reward: def.reward,
     isBoss: def.isBoss || false, lifeLoss: def.lifeLoss || 1,
     hitFlash: 0, animOffset: Math.random() * 100, wpIdx: 1,
     x: c0 * cs + cs / 2,
@@ -4293,7 +4308,7 @@ function tdMoveEnemy(e, dt) {
 
 function tdFireTowers(dt) {
   for (const t of td.towers) {
-    t.cd = (t.cd || 0) - dt;
+    t.cd = (t.cd || 0) - dt * (td.powerUpMods?.towerRateMult || 1);
     if (t.cd > 0) continue;
     const stats   = tdGetTowerStats(t);
     const cs      = td.cellSize;
@@ -4705,6 +4720,71 @@ function tdStartWave(idx) {
   tdAudio.waveStart();
   menuMusic.stop();
   tdMusic.start(); // no-op if already playing
+}
+
+// ── Power-up runtime (EQ-2) ────────────────────────────────────
+
+function tdRecomputePowerUpMods() {
+  const m = td.powerUpMods;
+  m.towerRateMult = 1; m.enemySpeedMult = 1; m.killGoldMult = 1;
+  for (const active of td.activePowerUps) {
+    const pu = TD_POWER_UPS[active.id];
+    if (!pu) continue;
+    const { type, value } = pu.effect;
+    if (type === 'tower-rate')  m.towerRateMult  *= (1 + value);
+    if (type === 'enemy-speed') m.enemySpeedMult *= (1 + value);
+    if (type === 'kill-gold')   m.killGoldMult   *= value;
+  }
+}
+
+function tdClearWavePowerUps() {
+  td.activePowerUps = td.activePowerUps.filter(p => p.scope !== 'wave');
+  tdRecomputePowerUpMods();
+}
+
+function tdUpdatePowerUpTray() {
+  const el = EL.tdPowerUpTray;
+  if (!el) return;
+  const run      = td?.__run;
+  const powerUps = run?.powerUps || [];
+  const between  = !td.waveActive && td.waveIdx >= 0 && td.waveIdx < td.levelDef.waveDefs.length - 1;
+  if (!between || !powerUps.length) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.innerHTML = `<span class="td-pu-label">Power-ups</span>` +
+    powerUps.map((pid, i) => {
+      const pu = TD_POWER_UPS[pid];
+      if (!pu) return '';
+      return `<button class="td-pu-chip" data-idx="${i}">` +
+        `${pu.icon} ${pu.name}<span class="td-pu-scope">${pu.scope === 'wave' ? '1 wave' : 'this node'}</span></button>`;
+    }).join('');
+  el.querySelectorAll('.td-pu-chip').forEach(btn => {
+    btn.addEventListener('click', () => tdActivatePowerUp(+btn.dataset.idx));
+  });
+}
+
+function tdActivatePowerUp(idx) {
+  const run = td?.__run;
+  if (!run?.powerUps) return;
+  const pid = run.powerUps[idx];
+  const pu  = TD_POWER_UPS[pid];
+  if (!pu) return;
+  run.powerUps.splice(idx, 1);
+  tdSaveRun(run);
+  const { type, value } = pu.effect;
+  if (type === 'gold-now') {
+    td.gold += value;
+    td.damageNumbers.push({ x: td.canvas ? td.canvas.width / 2 : 160, y: 60,
+      label: `+${value}🪙 ${pu.name}!`, life: 1.4, maxLife: 1.4, color: '#FBBF24' });
+  } else if (type === 'lives') {
+    td.lives   += value;
+    td.maxLives += value;
+    td.activePowerUps.push({ id: pid, scope: pu.scope });
+  } else {
+    td.activePowerUps.push({ id: pid, scope: pu.scope });
+    tdRecomputePowerUpMods();
+  }
+  tdUpdateHUD();
+  tdUpdatePowerUpTray();
 }
 
 function tdUpdateHUD() {
