@@ -34,6 +34,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Sprite sheet deco pipeline replacing parallax grass (#32)
 
+- Themed node shapes on run map (#46)
+
 - Topic tag, XP feedback, question mastery tracking
 
 - Tower idle breathing animation (V-17)
