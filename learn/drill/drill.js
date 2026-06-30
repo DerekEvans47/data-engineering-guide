@@ -3068,6 +3068,41 @@ function renderRunMap(run) {
     return `<text x="${x}" y="${y}" font-size="5.5" text-anchor="middle" fill="#FBBF24" opacity="${alpha}" font-weight="600">🪙${g}</text>`;
   }
 
+  // Returns an SVG shape element for a node type (V-23).
+  // boss → diamond, shop → hexagon, event → star, battle/elite → pentagon, rest → circle.
+  function nodeShape(type, nodeId, cx, cy, r, fill, stroke, sw, extraAttrs) {
+    const a = extraAttrs || '';
+    const s = `fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${a}`;
+    if (nodeId === 'boss') {
+      const ry = r, rx = r * 0.72;
+      const d = `M${cx},${cy-ry} L${cx+rx},${cy} L${cx},${cy+ry} L${cx-rx},${cy}Z`;
+      return `<path d="${d}" ${s}/>`;
+    }
+    if (type === 'shop') {
+      const pts = Array.from({length:6}, (_, i) => {
+        const angle = (i * Math.PI / 3) - Math.PI / 6;
+        return `${(cx + r * Math.cos(angle)).toFixed(2)},${(cy + r * Math.sin(angle)).toFixed(2)}`;
+      }).join(' ');
+      return `<polygon points="${pts}" ${s}/>`;
+    }
+    if (type === 'event') {
+      const pts = Array.from({length:8}, (_, i) => {
+        const angle = (i * Math.PI / 4) - Math.PI / 2;
+        const ri = i % 2 === 0 ? r : r * 0.52;
+        return `${(cx + ri * Math.cos(angle)).toFixed(2)},${(cy + ri * Math.sin(angle)).toFixed(2)}`;
+      }).join(' ');
+      return `<polygon points="${pts}" ${s}/>`;
+    }
+    if (type === 'battle' || type === 'elite') {
+      const pts = Array.from({length:5}, (_, i) => {
+        const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
+        return `${(cx + r * Math.cos(angle)).toFixed(2)},${(cy + r * Math.sin(angle)).toFixed(2)}`;
+      }).join(' ');
+      return `<polygon points="${pts}" ${s}/>`;
+    }
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" ${s}/>`;
+  }
+
   const nodesHtml = run.nodes.map(node => {
     if (node.id === 'start') return '';
     const { x, y, state, type, id, levelDef } = node;
@@ -3088,7 +3123,7 @@ function renderRunMap(run) {
     if (state === 'active') {
       return `<g class="rn-active" data-id="${id}">
         <circle cx="${x}" cy="${y}" r="23" fill="${col}20" stroke="${col}60" stroke-width="2"/>
-        <circle cx="${x}" cy="${y}" r="16" fill="#0c1020" stroke="${col}" stroke-width="2.5"/>
+        ${nodeShape(type, id, x, y, 16, '#0c1020', col, '2.5')}
         <text x="${x}" y="${y+5}" font-size="12" text-anchor="middle">${icon}</text>
         ${stars ? `<text x="${x}" y="${aboveY}" font-size="5.5" text-anchor="middle" fill="${col}bb">${stars}</text>` : ''}
       </g>`;
@@ -3097,7 +3132,7 @@ function renderRunMap(run) {
     if (state === 'available') {
       return `<g class="rn-available" data-id="${id}" style="cursor:pointer">
         <circle class="rn-pulse" cx="${x}" cy="${y}" r="24" fill="${col}18" stroke="${col}50" stroke-width="1.5"/>
-        <circle cx="${x}" cy="${y}" r="16" fill="#0c1020" stroke="${col}" stroke-width="2.5"/>
+        ${nodeShape(type, id, x, y, 16, '#0c1020', col, '2.5')}
         <text x="${x}" y="${y+5}" font-size="12" text-anchor="middle">${icon}</text>
         ${stars ? `<text x="${x}" y="${aboveY}" font-size="5.5" text-anchor="middle" fill="${col}ee" font-weight="700">${stars}</text>` :
                   `<text x="${x}" y="${aboveY}" font-size="5" text-anchor="middle" fill="${col}bb" font-weight="600">${type.toUpperCase()}</text>`}
@@ -3110,7 +3145,7 @@ function renderRunMap(run) {
     const nearReachable = prevNodes.some(p => p && (p.state === 'completed' || p.state === 'available' || p.state === 'active'));
     const fogOpacity = nearReachable ? '1' : '0.28';
     return `<g class="rn-future" data-id="${id}" opacity="${fogOpacity}">
-      <circle cx="${x}" cy="${y}" r="15" fill="${col}0a" stroke="${col}30" stroke-width="1.5"/>
+      ${nodeShape(type, id, x, y, 15, `${col}0a`, `${col}30`, '1.5')}
       <text x="${x}" y="${y+4}" font-size="11" text-anchor="middle" opacity="0.4">${icon}</text>
       ${tier ? `<text x="${x}" y="${aboveY}" font-size="4.5" text-anchor="middle" fill="${col}45" font-weight="700">${tier}</text>` : ''}
       ${goldBadge(node, x, belowY, '0.25')}
