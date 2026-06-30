@@ -72,6 +72,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add questions: Parts 2, 3, 6, 7
 
+- Add questions: Parts 3, 4, 6, 7
+
 - Add questions: Parts 7, 8, 9 and Interview Prep (20 questions, bank → 200)
 
 
