@@ -75,7 +75,7 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 | G-5 | Relic passive system (superseded by EQ-4/EQ-5 — see EQ section) | 55 | P2 | TODO | EQ-1 | Original spec: permanent relics earned post-level. Full design in EQ-4/EQ-5 with category exclusivity, upkeep costs, and rarity tiers. |
 | G-6 | Wave editor / sandbox mode | 28 | P3 | TODO | — | Dev/debug mode to test enemy combos and tower loadouts without question gating. |
 | G-7 | Endless mode (procedural waves beyond wave 5) | 30 | P2 | DONE | — | After final wave, spawn escalating procedural waves until lives = 0; score leaderboard. |
-| G-8 | Difficulty modifier toggles (Ironman, No-Gold, Speed+) | 20 | P2 | TODO | — | Toggles on level select that multiply star rewards if enabled. |
+| G-8 | Difficulty modifier toggles (Ironman, No-Gold, Speed+) | 20 | P2 | DONE | — | Toggles on level select that multiply star rewards if enabled. |
 
 ---
 
@@ -198,6 +198,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | G-7 | Endless mode (procedural waves + kill/batch score) | 30 | 2026-06-30 |
 | S-2 | Extract question-logic module (module header + shuffle/queue consolidation) | 20 | 2026-06-30 |
 | S-6 | TD Game Config section (tower/enemy/shop/power-up defs consolidated) | 18 | 2026-06-30 |
+| G-8 | Difficulty modifier toggles — Ironman, No Gold, Speed+ (+15🪙 per modifier) | 20 | 2026-06-30 |
 
 ---
 

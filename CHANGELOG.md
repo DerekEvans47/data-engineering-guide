@@ -91,6 +91,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Ban session URLs and Generated-by footers in all PR bodies
 
+- Extract TD Game Config section — tower/enemy/shop/power-up defs (#49)
+
 - Extract question-logic module section in drill.js (#48)
 
 - Harden nightly prompt — handoff file, inline PRs, conflict resolution (#20)
