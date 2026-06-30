@@ -93,6 +93,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Session handoff 2026-06-29 (#34)
 
+- Session handoff 2026-06-29 session 2
+
 - Show live AudioContext state in version badge (#28)
 
 - Strip session URLs from all PR bodies, not just questions/* (#21)

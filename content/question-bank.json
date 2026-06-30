@@ -3630,6 +3630,298 @@
       "explanation": "Hallucination is a structural property of autoregressive language models, not a data quality defect. LLMs generate text by predicting the next token based on probability distributions learned during training \u2014 they optimize for plausibility, not factual accuracy. Even a model trained exclusively on verified, correct text will hallucinate, because generation has no ground-truth lookup mechanism: it interpolates from learned statistical patterns, and those patterns break down in novel or underrepresented combinations. Fine-tuning on cleaner data reduces hallucination frequency but does not eliminate it. Effective mitigation uses architectural patterns \u2014 RAG to ground generation in retrieved documents, citation enforcement, output verification pipelines, and Constitutional AI techniques \u2014 that shift rather than remove the structural risk. Teams expecting zero hallucination from 'better training data' build on a false premise; robust architectures must treat hallucination as a residual risk and add verification layers accordingly.",
       "difficulty": 72,
       "num": 240
+    },
+    {
+      "id": "p3-yaml-config-languages-001",
+      "part": 3,
+      "topic": "YAML & Configuration Languages",
+      "type": "mc",
+      "stem": "A data engineering team is configuring a GitHub Actions workflow to run dbt tests on every pull request. A new team member asks why the workflow file must be in YAML rather than JSON, since their CI tool supports both.\n\nWhich reason most accurately explains why YAML is preferred for human-authored configuration files in modern data tooling?",
+      "options": [
+        "YAML files parse faster than JSON at runtime, so using YAML reduces pipeline startup latency.",
+        "YAML supports inline comments, multi-line string blocks, and uses indentation instead of brackets \u2014 making intent clearer to the author without adding syntax noise.",
+        "YAML is a strict superset of JSON, so any existing JSON configuration automatically becomes valid YAML with no changes required.",
+        "YAML schemas are enforced by default on all major CI/CD platforms, preventing misconfiguration before a pipeline ever runs."
+      ],
+      "correct": 1,
+      "explanation": "YAML became the dominant configuration format because it optimises for human readability. It allows inline comments (using #), supports multi-line block strings with the literal (|) and folded (>) operators, and uses indentation rather than curly braces and commas \u2014 reducing visual noise in files developers read daily. JSON requires explicit quoting for all keys and strings, forbids comments, and becomes hard to scan at depth. While YAML is technically a superset of JSON \u2014 meaning valid JSON is also valid YAML \u2014 this is not why practitioners prefer it for hand-authored configs. Runtime parsing speed is negligible in CI contexts. Schema enforcement is optional (via yamllint) and is not a built-in platform feature. Practical takeaway: choose YAML for any configuration that humans author or read frequently; use JSON for machine-to-machine data interchange.",
+      "difficulty": 43,
+      "num": 241
+    },
+    {
+      "id": "p3-yaml-config-languages-002",
+      "part": 3,
+      "topic": "YAML & Configuration Languages",
+      "type": "tf",
+      "stem": "Statement: Any valid JSON document is also valid YAML, because YAML is designed as a superset of JSON and its specification guarantees that well-formed JSON can be parsed by any compliant YAML parser.",
+      "correct": true,
+      "explanation": "TRUE. The YAML 1.2 specification explicitly positions YAML as a superset of JSON \u2014 any well-formed JSON document is valid YAML and produces the same logical data structure when parsed. This means teams can rename a .json config to .yml and incrementally add YAML-specific features (comments, anchors, multi-line strings) without reformatting existing content. The relationship is one-directional: YAML's indentation-based block syntax has no JSON equivalent. Minor edge cases exist around certain JSON float representations and the null keyword, but these do not violate the specification. Understanding this superset relationship matters when migrating tool configurations: an ADF linked-service JSON file can serve as a starting point for a YAML-based config file without requiring full reformatting.",
+      "difficulty": 14,
+      "num": 242
+    },
+    {
+      "id": "p3-yaml-config-languages-003",
+      "part": 3,
+      "topic": "YAML & Configuration Languages",
+      "type": "mc",
+      "stem": "A data engineer is writing a dbt schema YAML file. One column's description must include a multi-line SQL snippet where every newline must be preserved exactly as written \u2014 including the line breaks between SELECT, FROM, and WHERE clauses.\n\nWhich YAML scalar style is correct for this requirement?",
+      "options": [
+        "Flow scalars using JSON-style double-quoted strings with \\n escape sequences embedded throughout.",
+        "Literal block scalars using the pipe (|) operator, which preserves newlines exactly as written.",
+        "Folded block scalars using the greater-than (>) operator, which replaces newlines with spaces.",
+        "Plain scalars without any quoting, letting the YAML parser decide how to handle embedded whitespace."
+      ],
+      "correct": 1,
+      "explanation": "The literal block scalar style (|) is correct when newlines must be preserved verbatim. Everything indented beneath the pipe operator is treated as a multi-line string with each line break retained exactly \u2014 ideal for SQL snippets, Markdown, or any structured text with meaningful formatting. The folded style (>) collapses single newlines into spaces and only preserves a line break when two consecutive newlines appear \u2014 suited for long prose that word-wraps, not for SQL. Flow scalars (double-quoted or single-quoted) require explicit \\n escape sequences for newlines, making them error-prone for long blocks. Plain scalars are parsed as single-line strings and strip surrounding whitespace. In practice, dbt column descriptions containing backtick-formatted SQL or numbered lists should always use the pipe operator to ensure the rendered output is correctly formatted.",
+      "difficulty": 48,
+      "num": 243
+    },
+    {
+      "id": "p3-yaml-config-languages-004",
+      "part": 3,
+      "topic": "YAML & Configuration Languages",
+      "type": "mc",
+      "stem": "Which of the following data engineering tools uses YAML as the ONLY supported format for defining its automation \u2014 including job steps, triggers, and environment variables?",
+      "options": [
+        "Azure Data Factory \u2014 pipeline definitions, linked services, and triggers are all authored in YAML files checked into source control.",
+        "Databricks Delta Live Tables \u2014 the pipeline graph of streaming and batch table dependencies is declared in YAML notebooks.",
+        "GitHub Actions \u2014 all workflow definitions are YAML files stored under .github/workflows/, specifying every job, step, and trigger.",
+        "dbt \u2014 model transformations, test logic, and materialisation strategies are all written in YAML inside the models/ directory."
+      ],
+      "correct": 2,
+      "explanation": "GitHub Actions uses YAML exclusively for workflow configuration \u2014 the .github/workflows/*.yml files define jobs, steps, on: triggers, runner environments, and secret references. There is no alternative format. Azure Data Factory serialises pipelines as JSON under the hood; the portal GUI and ARM templates use JSON, not YAML. Databricks Delta Live Tables uses Python or SQL notebook cells to declare the pipeline graph. dbt uses YAML for schema files, source definitions, and test configurations \u2014 but the actual transformations are SQL, not YAML. A data engineer setting up a dbt CI/CD pipeline will write YAML for the GitHub Actions workflow file AND YAML for the dbt schema.yml, but these serve different tools. Understanding which tool owns which format prevents misconfiguration when wiring up CI/CD for data projects.",
+      "difficulty": 34,
+      "num": 244
+    },
+    {
+      "id": "p3-yaml-config-languages-005",
+      "part": 3,
+      "topic": "YAML & Configuration Languages",
+      "type": "tf",
+      "stem": "Statement: YAML anchors (&) and aliases (*) allow a value to be defined once and reused multiple times within the same file, reducing duplication in configurations such as a dbt profiles.yml where multiple environments share a common base connection block.",
+      "correct": true,
+      "explanation": "TRUE. YAML anchors and aliases solve the DRY (Don't Repeat Yourself) problem in configuration files. Define an anchor with &name on any node, and reference it later with *name to insert the anchored value verbatim at that location. The merge key (<<: *anchorName) allows an anchored mapping to be deep-merged into a new mapping, enabling inheritance-like patterns. In dbt's profiles.yml, a team can anchor a shared connection block (host, port, database name) and alias it across dev, staging, and prod targets \u2014 each target then only overrides its specific fields. One caveat: anchor support varies across YAML processors. Some CI runners, Kubernetes manifest tools, and certain Databricks YAML config parsers do not expand anchors or silently ignore them. Always verify anchor support in your specific tooling before relying on them in production configurations.",
+      "difficulty": 29,
+      "num": 245
+    },
+    {
+      "id": "p6-rag-retrieval-001",
+      "part": 6,
+      "topic": "RAG \u2014 Retrieval-Augmented Generation",
+      "type": "mc",
+      "stem": "A team has deployed a RAG-based support chatbot over technical product documentation. Users report the chatbot handles general conceptual questions well but gives vague or wrong answers to queries like \"What does error code E4023 mean?\" or \"What is the default timeout for API version 2.3.1?\"\n\nThe embedding model is state-of-the-art (1536 dimensions) and chunk size has been carefully tuned. What is the most likely root cause?",
+      "options": [
+        "The embedding model dimensionality is too low \u2014 upgrading to a 3072-dimension model will better capture numerical and code-level semantics.",
+        "Pure dense vector search retrieves semantically similar passages but struggles with exact lexical matches like error codes and version numbers; implementing hybrid search combining dense vectors with BM25 keyword search would anchor retrieval to the precise tokens specified.",
+        "The system prompt does not instruct the LLM to focus on exact matches \u2014 adding an instruction like 'always quote error codes exactly' will resolve the retrieval gap.",
+        "The problem is a generation failure rather than a retrieval failure \u2014 switching to a larger LLM will improve exact-term recall even with the current retrieval stack unchanged."
+      ],
+      "correct": 1,
+      "explanation": "This is a classic hybrid search failure mode. Dense vector search encodes semantic meaning \u2014 it retrieves passages about connection failures when a user asks about network errors \u2014 but averages concepts into a single embedding vector, making exact lexical tokens like 'E4023' or 'v2.3.1' nearly invisible. BM25 keyword search scores documents on token-level matches and excels at named entities, error codes, product SKUs, and version strings. Hybrid search combines both signals (typically via reciprocal rank fusion) and consistently outperforms pure vector search on diverse real-world query distributions. Azure AI Search implements this natively. Increasing embedding dimensionality improves representation capacity but does not help with exact lexical retrieval. Prompt engineering cannot compensate for a retrieval gap \u2014 if the correct chunk was never retrieved, the LLM never sees it. Practical takeaway: always benchmark hybrid versus pure-vector retrieval on a real sample of your query logs before choosing a strategy.",
+      "difficulty": 67,
+      "num": 246
+    },
+    {
+      "id": "p6-rag-retrieval-002",
+      "part": 6,
+      "topic": "RAG \u2014 Retrieval-Augmented Generation",
+      "type": "tf",
+      "stem": "Statement: Large language models trained on public internet data can reliably answer questions about a company's internal processes and proprietary documentation, because their broad pre-training captures generalizable reasoning patterns that transfer to any domain.",
+      "correct": false,
+      "explanation": "FALSE. LLMs are trained exclusively on public data \u2014 they are categorically unable to answer questions about content that never appeared in their training corpus: internal documentation, proprietary workflows, confidential customer records, and any information created or updated after the model's training cutoff date. Generalizable reasoning is real but cannot substitute for missing information: if the model has never seen the company's approval workflow, it will generate a plausible-sounding description of a typical workflow that may be confidently wrong for the specific organisation. This gap is the core problem RAG addresses. By retrieving from a private, up-to-date document index and injecting relevant content into the prompt at query time, the system gives the model access to knowledge it could not have learned during training. Practical takeaway: never deploy a base LLM to answer organisation-specific questions without a retrieval layer \u2014 the results will sound authoritative but will fabricate domain-specific details.",
+      "difficulty": 17,
+      "num": 247
+    },
+    {
+      "id": "p6-rag-retrieval-003",
+      "part": 6,
+      "topic": "RAG \u2014 Retrieval-Augmented Generation",
+      "type": "mc",
+      "stem": "A data engineering team at a regulated bank is building a RAG system over internal compliance documents. The system must run entirely within Azure, meet strict data residency requirements, support both semantic and keyword search in a single query, and integrate with Azure Active Directory for row-level security on documents.\n\nWhich vector database solution is most appropriate?",
+      "options": [
+        "Pinecone \u2014 a fully managed cloud vector database with industry-leading benchmark performance and native semantic search.",
+        "Chroma \u2014 an open-source vector database that can be self-hosted inside Azure VMs at no licensing cost.",
+        "Azure AI Search \u2014 a native Azure PaaS service supporting hybrid vector and keyword search, RBAC integration with Azure AD, data residency within Azure regions, and enterprise SLAs.",
+        "Weaviate \u2014 an open-source vector database with strong multi-tenancy features suited to enterprise isolation requirements."
+      ],
+      "correct": 2,
+      "explanation": "Azure AI Search satisfies all four constraints simultaneously. As a native Azure PaaS service, data residency is guaranteed within the chosen Azure region with no cross-tenant data movement. It supports hybrid search in a single query \u2014 combining a vector index for dense semantic retrieval with a full-text BM25 index for keyword matching, merged via reciprocal rank fusion. It integrates natively with Azure Active Directory for RBAC and document-level security trimming, so users only retrieve documents they are authorised to see. Microsoft compliance certifications (ISO 27001, SOC 2, FedRAMP) and enterprise SLAs satisfy the bank's regulatory requirements. Pinecone is a third-party SaaS vendor that cannot satisfy Azure-only data residency requirements. Chroma lacks enterprise access control and SLA guarantees. Weaviate requires self-managed infrastructure and additional AAD integration work. Practical takeaway: for enterprise Azure RAG with compliance requirements, Azure AI Search is the default choice unless a specific benchmark or feature gap justifies a different vector store.",
+      "difficulty": 63,
+      "num": 248
+    },
+    {
+      "id": "p6-rag-retrieval-004",
+      "part": 6,
+      "topic": "RAG \u2014 Retrieval-Augmented Generation",
+      "type": "mc",
+      "stem": "A data engineer is building a RAG pipeline from scratch over a corpus of product documentation. Starting from raw source files, what is the correct order of pipeline stages before a user query can be answered?",
+      "options": [
+        "Embed \u2192 Index \u2192 Chunk \u2192 Retrieve \u2192 Augment \u2192 Generate",
+        "Chunk \u2192 Embed \u2192 Index \u2192 Retrieve \u2192 Augment \u2192 Generate",
+        "Retrieve \u2192 Chunk \u2192 Embed \u2192 Index \u2192 Augment \u2192 Generate",
+        "Index \u2192 Embed \u2192 Chunk \u2192 Retrieve \u2192 Generate \u2192 Augment"
+      ],
+      "correct": 1,
+      "explanation": "The canonical RAG pipeline follows a strict logical dependency chain: (1) Chunk \u2014 split raw source documents into passages using a chosen strategy (fixed-size, sentence-aware, or structure-aware). (2) Embed \u2014 run each chunk through an embedding model to produce a dense vector representing its semantic content. (3) Index \u2014 store the vectors alongside source text and metadata in a vector database for fast similarity search. (4) Retrieve \u2014 at query time, embed the user's question and fetch the top-k most similar chunks from the index. (5) Augment \u2014 inject the retrieved chunks into the LLM prompt as grounding context. (6) Generate \u2014 the LLM produces an answer grounded in the provided passages. The order is determined by data dependencies: you cannot embed before chunking (chunks are what get embedded), cannot index before embedding (vectors are what get indexed), and cannot retrieve before indexing. Any reordering of the ingestion stages (steps 1\u20133) would be technically impossible.",
+      "difficulty": 26,
+      "num": 249
+    },
+    {
+      "id": "p6-rag-retrieval-005",
+      "part": 6,
+      "topic": "RAG \u2014 Retrieval-Augmented Generation",
+      "type": "tf",
+      "stem": "Statement: For structured data sources such as financial tables or HTML data grids, fixed-size text-based chunking produces better RAG retrieval quality than structure-aware chunking, because it generates more consistent chunk lengths and simpler processing logic.",
+      "correct": false,
+      "explanation": "FALSE. Fixed-size text chunking is the simplest strategy but performs poorly on structured content. Financial tables, HTML grids, and CSV rows encode meaning through layout \u2014 the relationship between column headers and their row values is a semantic unit. Splitting a table at an arbitrary character count (say, mid-row) produces chunks that embed context-free fragments: the model sees 'Revenue | 2.1M' with no knowledge of which entity or time period it belongs to, making it nearly unmatchable to any real-world query. Structure-aware chunking preserves semantic units: full rows (with headers inlined) for tables, function bodies for code, paragraphs for prose. Studies consistently show structure-aware chunking improves retrieval precision for structured documents at the cost of more complex preprocessing. For mixed-content documents, hybrid chunking \u2014 structure-aware where markup exists, fixed-size elsewhere \u2014 provides the best results. Simpler processing logic is not a sufficient reason to choose a chunking strategy that degrades retrieval quality.",
+      "difficulty": 49,
+      "num": 250
+    },
+    {
+      "id": "p4-slowly-changing-dimensions-001",
+      "part": 4,
+      "topic": "Slowly Changing Dimensions",
+      "type": "mc",
+      "stem": "A product pricing team tracks list prices in a product dimension table. Products can change price up to four times per year. The team implemented SCD Type 3 by adding a `previous_price` column alongside `current_price`. Eighteen months after go-live, historical revenue analysis is producing incorrect results for some products.\n\nWhat is the most likely root cause?",
+      "options": [
+        "SCD Type 3 stores all previous prices in the previous_price column but the team incorrectly queried current_price for historical joins instead of previous_price.",
+        "SCD Type 3 retains only a single prior attribute value \u2014 once a product has changed price more than once, the original price is permanently overwritten and all earlier history is unrecoverable.",
+        "SCD Type 3 requires surrogate keys on the dimension table; the team failed to implement them, causing ambiguous joins on the natural key.",
+        "SCD Type 3 does not support joining to fact tables that carry the natural key, making historical revenue attribution technically impossible."
+      ],
+      "correct": 1,
+      "explanation": "SCD Type 3 stores exactly one previous value per tracked attribute \u2014 the previous_price column is overwritten with each successive change. A product priced at \u00a310, then \u00a312, then \u00a314 leaves only previous_price=12 and current_price=14 after the second change; the original \u00a310 is permanently lost. For any product that changed price more than once in 18 months, revenue analysis requiring the price valid at the time of an early sale is now impossible because that historical value no longer exists in the dimension. SCD Type 3 is only suitable when exactly one prior value needs to be tracked and the business accepts losing older history. For arbitrary price history depth, SCD Type 2 (a new row per change with effective/expiry dates and a surrogate key) is the correct choice. Options A, C, and D are factually wrong: Type 3 does not accumulate all previous values, does not require surrogate keys, and joins to fact tables normally on the natural key.",
+      "difficulty": 51,
+      "num": 251
+    },
+    {
+      "id": "p4-slowly-changing-dimensions-002",
+      "part": 4,
+      "topic": "Slowly Changing Dimensions",
+      "type": "tf",
+      "stem": "Statement: SCD Type 1 permanently overwrites the previous attribute value in-place and provides no mechanism within the dimension table itself to recover historical data after the pipeline runs.",
+      "correct": true,
+      "explanation": "TRUE. SCD Type 1 is the 'overwrite and forget' strategy \u2014 the column is updated in place and no history row, version column, or change log is maintained within the dimension itself. Once the ETL pipeline commits the update, the prior value is gone from the dimension table. Historical data can only be recovered if captured externally \u2014 through CDC logs, Delta Lake time travel, or a separate audit table \u2014 but only if such a mechanism was deliberately designed before the change occurred. This makes Type 1 appropriate for genuine corrections (fixing a data entry error where the old value was never valid) or attributes where historical accuracy is irrelevant (such as correcting a customer email address). Applying Type 1 to analytically significant attributes like customer segment or product category causes a silent retroactive restatement: every historical fact row now reports with today's dimension value, producing systematically wrong metrics without any error or warning in the pipeline.",
+      "difficulty": 22,
+      "num": 252
+    },
+    {
+      "id": "p4-slowly-changing-dimensions-003",
+      "part": 4,
+      "topic": "Slowly Changing Dimensions",
+      "type": "mc",
+      "stem": "A fact table stores a surrogate_key column that was populated with the dimension row valid at the time each event was recorded \u2014 a best-practice SCD Type 2 design. A separate legacy fact table stores only the customer's natural key (customer_id), without a surrogate key.\n\nWhich statement correctly describes how to retrieve the historically accurate dimension row for each scenario?",
+      "options": [
+        "In both scenarios, filter the dimension on current_flag = 'Y' and join on natural_key; this returns the customer's current attributes and applies them consistently to all historical fact rows.",
+        "In scenario 1, join on surrogate_key; the fact row carries the correct dimension row's key so the historical row is returned automatically with no date filtering.",
+        "In scenario 2, join on natural_key with WHERE effective_date <= fact_date AND (expiry_date > fact_date OR expiry_date IS NULL) to reconstruct the dimension row valid at event time.",
+        "Scenarios 1 and 2 require different join techniques: scenario 1 uses surrogate_key equality; scenario 2 uses a natural_key range join filtered by effective and expiry dates."
+      ],
+      "correct": 3,
+      "explanation": "Option D is the correct and complete answer. In scenario 1 (fact has surrogate key), a simple equality join on surrogate_key retrieves the exact dimension row that was valid when the ETL pipeline loaded the event \u2014 the pipeline stamped the correct row's key into the fact, so no date logic is needed. In scenario 2 (fact has only natural key), the surrogate key approach is unavailable; the historically correct row must be reconstructed using a date-range join: effective_date <= event_date AND expiry_date > event_date. Options B and C each describe only one scenario correctly and are incomplete. The date-range approach (scenario 2) is expensive at scale and is a key reason best-practice warehouse design stores the surrogate key in fact tables at load time \u2014 it avoids costly range joins on every analytical query. Filtering on current_flag = 'Y' always retrieves today's attributes, silently restating all historical facts with current dimension values.",
+      "difficulty": 64,
+      "num": 253
+    },
+    {
+      "id": "p4-slowly-changing-dimensions-004",
+      "part": 4,
+      "topic": "Slowly Changing Dimensions",
+      "type": "mc",
+      "stem": "A data engineering team uses dbt to manage their warehouse. They need to implement SCD Type 2 tracking on a vendor dimension that receives daily delta files from an ERP system. Which dbt feature is purpose-built for this pattern?",
+      "options": [
+        "dbt incremental models with a unique_key configuration \u2014 the model will upsert changed rows, keeping the dimension current.",
+        "dbt snapshots \u2014 configured with a unique_key and a strategy (timestamp or check), they automatically detect row-level changes and maintain effective/expiry date columns.",
+        "dbt tests with store_failures: true \u2014 failed test results log changed dimension rows for later manual review and retrospective correction.",
+        "dbt seeds \u2014 static CSV files with pre-computed effective and expiry dates loaded directly into the warehouse without change detection logic."
+      ],
+      "correct": 1,
+      "explanation": "dbt snapshots are the canonical SCD Type 2 implementation in the dbt ecosystem. You configure a snapshot with a unique_key (the natural key of the entity) and a change detection strategy \u2014 timestamp (compares an updated_at column between runs) or check (compares all specified columns). dbt automatically inserts a new history row when a change is detected, populating dbt_valid_from and dbt_valid_to columns; the active row has dbt_valid_to = NULL. dbt incremental models with unique_key perform upserts \u2014 they update the existing row in place, which is SCD Type 1 behaviour (history is overwritten, not preserved). Using test failures for change tracking is a data quality pattern, not a history-tracking mechanism. Seeds are for static reference data loaded from CSV files and have no change-detection capability. Practical takeaway: for SCD Type 2 in dbt, always use a snapshot \u2014 never an incremental model with unique_key.",
+      "difficulty": 46,
+      "num": 254
+    },
+    {
+      "id": "p4-slowly-changing-dimensions-005",
+      "part": 4,
+      "topic": "Slowly Changing Dimensions",
+      "type": "tf",
+      "stem": "Statement: SCD Type 6 (also called a 'hybrid' SCD) combines Types 1, 2, and 3 in a single table by inserting a new row per change (Type 2), overwriting a designated current-value column on every row for the same entity (Type 1), and maintaining a column for the immediately prior value (Type 3) \u2014 allowing both point-in-time and current-state queries from the same table.",
+      "correct": true,
+      "explanation": "TRUE. SCD Type 6 is named '6' because it is the product of Types 1 \u00d7 2 \u00d7 3. Its insight is that a single table can serve multiple query patterns simultaneously: the Type 2 row-per-change mechanism preserves the full audit trail for point-in-time analysis; the Type 1 current_value column (updated on all rows for the entity on each change) means any row can return the entity's current state without a self-join; and the Type 3 previous_value column captures the most recent prior value for quick before-versus-after comparisons. The tradeoff is write complexity: on every change, the pipeline must insert a new row AND update the current_value column on all existing rows for that entity \u2014 expensive at scale for high-cardinality dimensions. Type 6 is a useful pattern when both 'what was the value at the time of the event?' and 'what is the value today?' queries are frequent and a self-join is unacceptable for performance reasons.",
+      "difficulty": 57,
+      "num": 255
+    },
+    {
+      "id": "p7-ux-principles-data-products-001",
+      "part": 7,
+      "topic": "UX Principles for Data Products",
+      "type": "tf",
+      "stem": "Statement: In Design Thinking's double-diamond model, the Define phase immediately follows the Discover phase and is primarily concerned with synthesising research findings into a clear, agreed problem statement \u2014 not with generating or exploring solution ideas.",
+      "correct": true,
+      "explanation": "TRUE. The double-diamond has four phases: Discover (diverge \u2014 gather research, run user interviews, observe workflows), Define (converge \u2014 synthesise findings into a crisp problem statement), Develop (diverge \u2014 ideate and prototype multiple solution approaches), and Deliver (converge \u2014 test, refine, and release). Define is explicitly a convergence phase: turning raw qualitative research into insight artefacts such as personas, journey maps, and 'How Might We' questions that frame the problem precisely. Generating solution ideas belongs to Develop. The most common double-diamond failure is rushing from Discover directly to Develop \u2014 skipping Define means the team builds solutions to a problem that was never clearly articulated, often discovering after months of work that they solved the wrong problem. A well-executed Define phase produces a single, team-agreed problem statement that makes the subsequent Develop phase dramatically more focused and efficient.",
+      "difficulty": 31,
+      "num": 256
+    },
+    {
+      "id": "p7-ux-principles-data-products-002",
+      "part": 7,
+      "topic": "UX Principles for Data Products",
+      "type": "mc",
+      "stem": "A data product team already has a clear hypothesis: analysts spend excessive time manually reformatting exported CSV data before it becomes useful for reporting. They want to test this hypothesis quickly with real users before investing in a full solution.\n\nWhich UX approach best fits this context?",
+      "options": [
+        "Design Thinking Discover phase \u2014 run open-ended ethnographic interviews with analysts to fully understand their workflow before forming any hypothesis.",
+        "Lean UX \u2014 state the hypothesis explicitly, build a minimum experiment (a prototype, a wizard-of-oz test, or a low-fidelity mockup) to validate or refute it with real users, then iterate based on what you learn.",
+        "Jobs-to-be-Done interviews \u2014 conduct JTBD research to uncover what job analysts are hiring their current tool to do, independent of any prior hypothesis.",
+        "Agile user stories \u2014 translate the hypothesis directly into 'As an analyst, I want X so that Y' stories, add them to the backlog, and validate the assumption during sprint review."
+      ],
+      "correct": 1,
+      "explanation": "Lean UX is the right match when a hypothesis already exists and needs rapid validation with real users before full development begins. The Lean UX loop is: state the hypothesis \u2192 build the minimum experiment needed to test it (not the full product) \u2192 measure whether the hypothesis holds \u2192 learn and iterate. A wizard-of-oz prototype or low-fidelity mockup can invalidate a wrong assumption in a 30-minute test session, saving months of engineering effort. Design Thinking Discover is appropriate when the problem itself is unclear and the team needs broad exploration before forming any hypothesis \u2014 that situation does not apply here. JTBD interviews are a deeper research method useful when you want to understand the root job without a prior frame; they are slower and generate richer insight, not rapid validation. Agile user stories are development planning artefacts, not a validation method \u2014 writing a story confirms nothing about whether the problem is real or the proposed solution is the right one.",
+      "difficulty": 54,
+      "num": 257
+    },
+    {
+      "id": "p7-ux-principles-data-products-003",
+      "part": 7,
+      "topic": "UX Principles for Data Products",
+      "type": "mc",
+      "stem": "A data engineer has built an executive dashboard showing weekly revenue by region. During a design review, the UX lead says the dashboard fails the 'five-second rule.' What does this mean, and what is the most likely fix?",
+      "options": [
+        "The dashboard takes more than five seconds to load; the fix is to pre-aggregate the underlying data and cache query results in memory.",
+        "Within five seconds of viewing the dashboard, an executive cannot identify the single most important insight; the fix is to elevate the key metric through size, colour contrast, and visual position hierarchy.",
+        "The dashboard contains more than five charts on a single screen; the fix is to remove visualisations until exactly five remain.",
+        "Each chart must refresh every five seconds with live streaming data; the fix is to add a real-time WebSocket connection to the data source."
+      ],
+      "correct": 1,
+      "explanation": "The five-second rule is a dashboard usability heuristic: show the dashboard to a first-time viewer for exactly five seconds, hide it, and ask what they learned. If they cannot name the primary insight \u2014 'revenue is up 12% this week, led by APAC' \u2014 the visual hierarchy is broken. Executives form their mental model in the first few seconds; if that window is consumed by scanning a grid of equally weighted metrics, decorative elements, or cluttered legends, the tool fails its core purpose. Fixes include making the headline KPI the largest and most visually prominent element, using colour strategically to direct the eye, and moving secondary detail to a drill-down pane (progressive disclosure). The five-second rule has no connection to query performance, chart count, or data refresh frequency \u2014 these are common misreadings of the term. Practical takeaway: design every executive dashboard to pass the five-second test before shipping.",
+      "difficulty": 41,
+      "num": 258
+    },
+    {
+      "id": "p7-ux-principles-data-products-004",
+      "part": 7,
+      "topic": "UX Principles for Data Products",
+      "type": "mc",
+      "stem": "A data team is building analytics for two distinct groups: supply chain analysts (who need inventory variance at the SKU level) and supply chain directors (who need exception alerts and regional KPIs). The team debates whether to build one dashboard with a role filter or two separate products.\n\nWhich UX argument most strongly favours building two separate products?",
+      "options": [
+        "Fewer dashboards reduce maintenance overhead, so a single product with a filter lowers total support cost for the data team.",
+        "Analysts and directors differ not only in the data they need but in their cognitive model, the time they spend, and the decisions they make \u2014 designing for both in a single view inevitably compromises the experience for each.",
+        "Two separate products let the team use different BI tools for each group, reducing vendor dependency.",
+        "Role-based filters are technically complex to implement in Power BI, making separate dashboards the simpler engineering choice."
+      ],
+      "correct": 1,
+      "explanation": "The persona argument is the strongest case for two products. A supply chain analyst may spend 20 minutes drilling through SKU-level variance, exploring patterns, and forming hypotheses. A director opens a dashboard for 30 seconds to check whether an exception requires their attention. These are different jobs-to-be-done, different information densities, and fundamentally different interaction patterns. A single 'role filter' dashboard optimised for one group always degrades the other \u2014 analysts drown in aggregations while directors are confused by SKU-level detail. Option A treats engineering maintenance as more important than user outcomes \u2014 a common but mistaken trade-off. Option C conflates product design decisions with technology selection. Option D is factually wrong: row-level security and role-based filters are well-supported natively in Power BI. Practical takeaway: when two user groups have genuinely different jobs-to-be-done, build two distinct products rather than one with a visibility switch.",
+      "difficulty": 69,
+      "num": 259
+    },
+    {
+      "id": "p7-ux-principles-data-products-005",
+      "part": 7,
+      "topic": "UX Principles for Data Products",
+      "type": "tf",
+      "stem": "Statement: In the Jobs-to-be-Done framework, the 'job' that a user hires a product to perform is defined by their functional goal alone \u2014 the emotional and social dimensions of why they use a product are considered out of scope for JTBD analysis.",
+      "correct": false,
+      "explanation": "FALSE. Jobs-to-be-Done explicitly distinguishes three job types that all matter: functional (the practical task the user wants to accomplish), emotional (how the user wants to feel as a result), and social (how the user wants to be perceived by others). A data analyst's functional job is 'answer the revenue question by 9am.' Their emotional job is 'feel confident enough to present the number to the CFO without being challenged.' Their social job is 'be seen as credible and data-driven by leadership.' A self-service analytics tool that satisfies the functional job but leaves analysts uncertain about data quality will be abandoned \u2014 they return to the spreadsheet they trust emotionally, even if it takes longer. Understanding all three dimensions leads to different product decisions: it explains why confidence-building features (data freshness indicators, source citations, row counts, validation warnings) matter even when they do not affect the underlying analytical function.",
+      "difficulty": 36,
+      "num": 260
     }
   ]
 }
