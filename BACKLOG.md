@@ -24,7 +24,7 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 | S-2 | Extract question-logic module | 20 | P1 | DONE | S-1 | Pull shuffle, filter, accuracy tracking, and session-queue logic out of drill.js into a self-contained section or file. Reduces coupling to game loop. |
 | S-3 | Extract tower-defense engine block | 40 | P1 | TODO | — | Move enemy AI, tower targeting, projectile physics, and wave-spawn logic into a clearly delimited section of drill.js (or separate file if bundler added). Give it a clean `TDGame` interface. |
 | S-4 | Extract canvas render block | 30 | P1 | TODO | S-3 | Move all `tdRender` sub-functions (sprites, terrain, HUD, particles) into a renderer section. Separate draw logic from game-state mutation. |
-| S-6 | Data-drive TD level/tower/enemy config | 18 | P2 | TODO | — | Move `TD_LEVEL_DEFS`, tower cost/stat tables, and enemy stat tables out of drill.js into a config block or JSON file. Makes tuning accessible without touching game logic. |
+| S-6 | Data-drive TD level/tower/enemy config | 18 | P2 | DONE | — | Move `TD_LEVEL_DEFS`, tower cost/stat tables, and enemy stat tables out of drill.js into a config block or JSON file. Makes tuning accessible without touching game logic. |
 | S-7 | Split drill.css into logical layers | 25 | P2 | TODO | — | Reorganize into clearly labelled sections: variables/reset, layout, components (cards, buttons, HUD), screens (home, world-map, game, study), animations. Currently 2,016 lines mixed together. |
 | S-10 | TypeScript migration (stretch goal) | 80 | P3 | TODO | S-1,S-2,S-3,S-4 | Adds compile-time safety for game state and question objects. Only worthwhile after modules are extracted. Optional — assess after S-1 through S-4 are done. |
 
@@ -197,6 +197,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | V-23 | Run-map: themed node shapes per type | 20 | 2026-06-30 |
 | G-7 | Endless mode (procedural waves + kill/batch score) | 30 | 2026-06-30 |
 | S-2 | Extract question-logic module (module header + shuffle/queue consolidation) | 20 | 2026-06-30 |
+| S-6 | TD Game Config section (tower/enemy/shop/power-up defs consolidated) | 18 | 2026-06-30 |
 
 ---
 

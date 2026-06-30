@@ -2396,6 +2396,11 @@ function tdComputePathSet(wps) {
   return s;
 }
 
+// ╔══════════════════════════════════════════════════════════════
+//  TD GAME CONFIG — edit here to tune tower/enemy/shop/power-up stats
+// ╚══════════════════════════════════════════════════════════════
+
+// ── Tower definitions (cost, range, dmg, rate, upgrades) ──────
 const TD_TOWER_DEFS = [
   { id:'bastion', name:'Bastion', icon:'🏰', cost:60,  color:'#3B82F6', range:3.0, dmg:22,  rate:1.5,  splash:0,
     upgrades:[
@@ -2414,6 +2419,7 @@ const TD_TOWER_DEFS = [
     ]},
 ];
 
+// ── Enemy definitions (maxHp, spd, reward) ────────────────────
 const TD_ENEMY_DEFS = {
   goblin: { maxHp:80,  spd:1.6, reward:5,  color:'#4ADE80', r:0.28 },
   orc:    { maxHp:220, spd:1.0, reward:12, color:'#FBBF24', r:0.36 },
@@ -2421,6 +2427,27 @@ const TD_ENEMY_DEFS = {
   troll:  { maxHp:480, spd:0.7, reward:28, color:'#C084FC', r:0.42 },
   boss:   { maxHp:2000, spd:0.5, reward:100, color:'#EF4444', r:0.55, isBoss:true, lifeLoss:3 },
 };
+
+// ── Shop items (cost, effect) ──────────────────────────────────
+const TD_SHOP_ITEMS = [
+  { id:'extra_lives',  label:'+3 Lives',       icon:'❤️',  cost:80,  effect:'lives+3' },
+  { id:'gold_cache',   label:'+50 Gold',        icon:'🪙',  cost:60,  effect:'gold+50' },
+  { id:'rest_charge',  label:'Rest Next Battle',icon:'🔥',  cost:50,  effect:'rest_lives+2' },
+  { id:'gold_boost',   label:'+100 Gold Next',  icon:'💰',  cost:90,  effect:'rest_gold+100' },
+];
+
+// ── Power-up definitions (cost, scope, effect) ────────────────
+const TD_POWER_UPS = {
+  gold_rush:  { id:'gold_rush',  name:'Gold Rush',  icon:'💰', cost:40, scope:'wave', effect:{ type:'gold-now',    value:50    } },
+  rapid_fire: { id:'rapid_fire', name:'Rapid Fire', icon:'🏹', cost:50, scope:'wave', effect:{ type:'tower-rate',  value:0.30  } },
+  pathsalt:   { id:'pathsalt',   name:'Pathsalt',   icon:'🧂', cost:80, scope:'wave', effect:{ type:'enemy-speed', value:-0.25 } },
+  fortify:    { id:'fortify',    name:'Fortify',    icon:'🛡️', cost:80, scope:'node', effect:{ type:'lives',       value:3     } },
+  scavenger:  { id:'scavenger',  name:'Scavenger',  icon:'🪝', cost:70, scope:'node', effect:{ type:'kill-gold',   value:1.5   } },
+};
+
+// ╔══════════════════════════════════════════════════════════════
+//  TD CONTENT DATA — maps, sprites, events (not tuning targets)
+// ╚══════════════════════════════════════════════════════════════
 
 // ── Pixel-art sprite definitions ──────────────────────────────────────────
 // Enemy sprites: { pw, ph, pal:{char→hex}, frames:[[rowStr…],…] }
@@ -2699,23 +2726,6 @@ const TD_EVENTS = [
   { icon:'🪙', title:'Tax Refund',     desc:'Unexpected reimbursement arrives.',         effect:'gold+80' },
   { icon:'📡', title:'Signal Boost',   desc:'Your team gets extra starting funds.',      effect:'gold+50' },
 ];
-
-const TD_SHOP_ITEMS = [
-  { id:'extra_lives',  label:'+3 Lives',       icon:'❤️',  cost:80,  effect:'lives+3' },
-  { id:'gold_cache',   label:'+50 Gold',        icon:'🪙',  cost:60,  effect:'gold+50' },
-  { id:'rest_charge',  label:'Rest Next Battle',icon:'🔥',  cost:50,  effect:'rest_lives+2' },
-  { id:'gold_boost',   label:'+100 Gold Next',  icon:'💰',  cost:90,  effect:'rest_gold+100' },
-];
-
-// ── Power-up definitions (EQ-2) ───────────────────────────────
-// Subset of the full 12-item list; EQ-3 will add the remainder.
-const TD_POWER_UPS = {
-  gold_rush:  { id:'gold_rush',  name:'Gold Rush',  icon:'💰', cost:40, scope:'wave', effect:{ type:'gold-now',    value:50    } },
-  rapid_fire: { id:'rapid_fire', name:'Rapid Fire', icon:'🏹', cost:50, scope:'wave', effect:{ type:'tower-rate',  value:0.30  } },
-  pathsalt:   { id:'pathsalt',   name:'Pathsalt',   icon:'🧂', cost:80, scope:'wave', effect:{ type:'enemy-speed', value:-0.25 } },
-  fortify:    { id:'fortify',    name:'Fortify',    icon:'🛡️', cost:80, scope:'node', effect:{ type:'lives',       value:3     } },
-  scavenger:  { id:'scavenger',  name:'Scavenger',  icon:'🪝', cost:70, scope:'node', effect:{ type:'kill-gold',   value:1.5   } },
-};
 
 // ── Helpers ────────────────────────────────────────────────────
 
