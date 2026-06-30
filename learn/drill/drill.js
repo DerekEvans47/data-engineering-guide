@@ -189,7 +189,12 @@ let dungeonClearedNodes  = new Set();
 // getElementById calls in hot paths like tdUpdateHUD.
 const EL = {};
 
-// ── Question-bank schema validation ─────────────────────��──────
+// ╔══════════════════════════════════════════════════════════════
+//  QUESTION LOGIC MODULE
+//  validateQuestionBank · shuffle · queue · mastery · accuracy
+// ╚══════════════════════════════════════════════════════════════
+
+// ── Question-bank schema validation ───────────────────────────
 function validateQuestionBank(questions) {
   if (!Array.isArray(questions)) {
     console.warn('[QB] question-bank.json is not an array — using empty bank');
@@ -215,6 +220,33 @@ function validateQuestionBank(questions) {
   }
   return valid;
 }
+
+// ── Question shuffle helpers ───────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function seededShuffle(arr, seed) {
+  const a = [...arr]; let s = Math.abs(seed) || 1;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) & 0x7FFFFFFF;
+    const j = Math.abs(s) % (i + 1); [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ── Session queue ──────────────────────────────────────────────
+function buildDrillQueue() {
+  const seen = new Set(JSON.parse(StorageManager.get(SEEN_KEY) || '[]'));
+  queue = shuffle(allQuestions.filter(q => activeParts.includes(q.part) && !seen.has(q.id)));
+  currentQNum = 0; currentQTotal = queue.length; sessionXpEarned = 0;
+}
+function markDrillSeen(id) {
+  const seen = new Set(JSON.parse(StorageManager.get(SEEN_KEY) || '[]'));
+  seen.add(id); StorageManager.set(SEEN_KEY, JSON.stringify([...seen]));
+}
+function resetDrillSeen() { StorageManager.remove(SEEN_KEY); }
 
 // ── Boot ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -945,18 +977,6 @@ function startStudyPart(partNum) {
   EL.contentArea.innerHTML = '';
   showNext();
 }
-
-// ── Drill queue ────────────────────────────────────────────────
-function buildDrillQueue() {
-  const seen = new Set(JSON.parse(StorageManager.get(SEEN_KEY) || '[]'));
-  queue = shuffle(allQuestions.filter(q => activeParts.includes(q.part) && !seen.has(q.id)));
-  currentQNum = 0; currentQTotal = queue.length; sessionXpEarned = 0;
-}
-function markDrillSeen(id) {
-  const seen = new Set(JSON.parse(StorageManager.get(SEEN_KEY) || '[]'));
-  seen.add(id); StorageManager.set(SEEN_KEY, JSON.stringify([...seen]));
-}
-function resetDrillSeen() { StorageManager.remove(SEEN_KEY); }
 
 // ── Dungeon: floor list with acts ──────────────────────────────
 function showDungeonMap() {
@@ -1932,21 +1952,6 @@ function bindUI() {
     if (mode === 'dungeon') handleDungeonContinue();
     else showNext();
   });
-}
-
-// ── Helpers ────────────────────────────────────────────────────
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-  return a;
-}
-function seededShuffle(arr, seed) {
-  const a = [...arr]; let s = Math.abs(seed) || 1;
-  for (let i = a.length - 1; i > 0; i--) {
-    s = (s * 1664525 + 1013904223) & 0x7FFFFFFF;
-    const j = Math.abs(s) % (i + 1); [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
 }
 
 // ══════════════════════════════════════════════════════════════
