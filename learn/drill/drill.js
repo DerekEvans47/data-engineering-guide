@@ -3651,6 +3651,14 @@ function showLevelConfirmPanel(levelDef, nodeId, run) {
       </div>
       ${restBannerHtml}
       <div class="tdcp-q-section"><div class="tdcp-q-label">Question Mix</div>${qBar}</div>
+      <div class="tdcp-modifiers">
+        <div class="tdcp-mod-label">Challenge Modifiers <span class="tdcp-mod-hint">+15🪙 each</span></div>
+        <div class="tdcp-mod-row">
+          <button class="tdcp-mod-btn" data-mod="ironman" title="Enemies deal 2× lives damage">☠️ Ironman</button>
+          <button class="tdcp-mod-btn" data-mod="noGold" title="Start with 0 gold">🚫 No Gold</button>
+          <button class="tdcp-mod-btn" data-mod="speedPlus" title="Enemies move 25% faster">💨 Speed+</button>
+        </div>
+      </div>
       <div class="tdcp-actions">
         <button class="tdcp-btn-back">← Back</button>
         <button class="tdcp-btn-play">⚔️ Play</button>
@@ -3671,7 +3679,13 @@ function showLevelConfirmPanel(levelDef, nodeId, run) {
     panel.remove();
     if (run) showRunMap(run);
   });
+  panel.querySelectorAll('.tdcp-mod-btn').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('active'));
+  });
   panel.querySelector('.tdcp-btn-play').addEventListener('click', () => {
+    const mods = { ironman: false, noGold: false, speedPlus: false };
+    panel.querySelectorAll('.tdcp-mod-btn.active').forEach(b => { mods[b.dataset.mod] = true; });
+    levelDef.modifiers = mods;
     panel.remove();
     showTowerDefenseScreen(levelDef, nodeId, run);
   });
@@ -4156,8 +4170,9 @@ function tdClearAutosave() {
 // ── Game state ─────────────────────────────────────────────────
 
 function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
+  const mods = levelDef.modifiers || {};
   const initialLives = startLivesOverride != null ? startLivesOverride : levelDef.startLives;
-  const initialGold  = startGoldOverride  != null ? startGoldOverride  : levelDef.startGold;
+  const initialGold  = mods.noGold ? 0 : (startGoldOverride != null ? startGoldOverride : levelDef.startGold);
   return {
     running:false, paused:false, animFrame:null, lastTs:0,
     canvas:null, ctx:null, cellSize:40,
@@ -4173,7 +4188,8 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
     pathSet: tdComputePathSet(levelDef.wps),
     optQuizUsed: 0,
     activePowerUps: [],
-    powerUpMods: { towerRateMult:1, enemySpeedMult:1, killGoldMult:1 },
+    powerUpMods: { towerRateMult:1, enemySpeedMult: mods.speedPlus ? 1.25 : 1, killGoldMult:1 },
+    modifiers: { ironman: !!mods.ironman, noGold: !!mods.noGold, speedPlus: !!mods.speedPlus },
     endless: false, endlessWave: 0, endlessKills: 0,
   };
 }
@@ -4335,7 +4351,7 @@ function tdSpawnEnemy(type) {
     id: td.eid++, type,
     hp: def.maxHp * mult, maxHp: def.maxHp * mult,
     spd: def.spd * (td.powerUpMods?.enemySpeedMult || 1), color: def.color, r: def.r, reward: def.reward,
-    isBoss: def.isBoss || false, lifeLoss: def.lifeLoss || 1,
+    isBoss: def.isBoss || false, lifeLoss: (def.lifeLoss || 1) * (td.modifiers?.ironman ? 2 : 1),
     hitFlash: 0, animOffset: Math.random() * 100, wpIdx: 1,
     x: c0 * cs + cs / 2,
     y: r0 * cs + cs / 2,
@@ -4999,12 +5015,14 @@ function tdVictory() {
   const stars      = livesLost === 0 ? 3 : livesLost <= 5 ? 2 : 1;
   tdSaveStars(td.levelIdx, stars);
 
-  const goldReward = 30 + td.levelIdx * 10;
+  const modCount   = Object.values(td.modifiers || {}).filter(Boolean).length;
+  const goldReward = 30 + td.levelIdx * 10 + modCount * 15;
   earnGold(goldReward);
   unlockIfNew('td_win');
 
-  const starStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
-  showAchievementToast({ icon:'🛡️', name:'Victory!', desc:`${starStr} ${td.levelDef.name} cleared! +${goldReward}🪙` });
+  const starStr  = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+  const modBadge = modCount > 0 ? ` 🔥×${modCount}` : '';
+  showAchievementToast({ icon:'🛡️', name:'Victory!', desc:`${starStr} ${td.levelDef.name} cleared! +${goldReward}🪙${modBadge}` });
 
   const run   = td.__run;
   const nodeId = td.__nodeId;
