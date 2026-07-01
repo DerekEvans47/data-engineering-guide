@@ -57,19 +57,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Block session URLs in pre-push hook
 
-- Changelog auto-generation, no-PII commit rule, C-1 status update
-
 - Crash in AudioContext unlock + retry on failure
 
 - Dedup changelog entries from retry commits
 
 - IOS audio session escalation + statechange realignment
 
-- Pre-push hook skips deletes, only verifies drill changes
-
 - Proper async iOS audio unlock + session activation (#25)
-
-- Reset stuck-active run nodes when showing run map
 
 - Unlock Web Audio on iOS via shared context + gesture listener (#24)
 
@@ -82,14 +76,10 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add questions: Parts 3, 4, 6, 7
 
-- Add questions: Parts 7, 8, 9 and Interview Prep (20 questions, bank → 200)
-
 
 ### 🔧 Infrastructure
 
 - Eliminate scroll during TD gameplay (#15)
-
-- Initial commit
 
 - Ban session URLs and Generated-by footers in all PR bodies
 
@@ -102,6 +92,8 @@ A record of every feature, fix, and improvement shipped to the app.
 - Make .claude/skills scripts executable
 
 - Merge TODO.md into BACKLOG.md as single nightly source
+
+- Nightly handoff 2026-06-30 (143 pts — EQ-2, V-23, G-7, S-2, S-6, G-8) (#51)
 
 - Ramp nightly session target to 150 effort points per run (#19)
 
