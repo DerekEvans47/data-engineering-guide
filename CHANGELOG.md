@@ -22,6 +22,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Endless mode — procedural waves after victory with kill/batch score (#47)
 
+- Enemy special types — fast/armored/flying/healer (#54)
+
 - Float tower placement chip near tower, larger buttons
 
 - Offline question-bank versioning (I-3)
