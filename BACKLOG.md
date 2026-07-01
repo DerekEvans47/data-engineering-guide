@@ -69,7 +69,7 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 
 | ID  | Title | Effort | Priority | Status | Dependencies | Notes |
 |-----|-------|--------|----------|--------|--------------|-------|
-| G-2 | Enemy special types (fast/armored/flying/healer) | 42 | P1 | TODO | G-1 | Armored: halved splash dmg. Flying: ignores certain towers. Healer: restores nearby HP. |
+| G-2 | Enemy special types (fast/armored/flying/healer) | 42 | P1 | DONE | G-1 | Armored: halved splash dmg. Flying: ignores certain towers. Healer: restores nearby HP. |
 | G-3 | Tower special abilities (active skills, cooldowns) | 50 | P2 | TODO | — | E.g. Arcane: AoE freeze 5 s (cooldown 30 s) triggered by tap. Requires ability UI. |
 | G-4 | Power-up cards (superseded by EQ-2/EQ-3 — see EQ section) | 38 | P2 | TODO | G-3 | Original spec: draw 2 cards at level start. Full design in EQ-2/EQ-3; scope expanded to wave/node dual-mode with store purchasing. |
 | G-5 | Relic passive system (superseded by EQ-4/EQ-5 — see EQ section) | 55 | P2 | TODO | EQ-1 | Original spec: permanent relics earned post-level. Full design in EQ-4/EQ-5 with category exclusivity, upkeep costs, and rarity tiers. |
@@ -200,6 +200,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | S-6 | TD Game Config section (tower/enemy/shop/power-up defs consolidated) | 18 | 2026-06-30 |
 | G-8 | Difficulty modifier toggles — Ironman, No Gold, Speed+ (+15🪙 per modifier) | 20 | 2026-06-30 |
 | S-3 | TD engine section — enemy AI, tower targeting, projectile physics consolidated | 40 | 2026-07-01 |
+| G-2 | Enemy special types — raider (fast), brute (armored), wisp (flying), shaman (healer) | 42 | 2026-07-01 |
 
 ---
 

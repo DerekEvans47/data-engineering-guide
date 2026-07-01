@@ -85,6 +85,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Ban session URLs and Generated-by footers in all PR bodies
 
+- Consolidate TD engine into one delimited section (#53)
+
 - Extract TD Game Config section — tower/enemy/shop/power-up defs (#49)
 
 - Extract question-logic module section in drill.js (#48)
