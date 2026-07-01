@@ -1,3 +1,6 @@
+/* ╔══════════════════════════════════════════════════════════
+   VARIABLES & RESET
+   ╚══════════════════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ── Variables (dark default) ─────────────────────────────── */
@@ -61,6 +64,10 @@
 [data-theme="light"] .complete-screen p { color: var(--text-muted); }
 [data-theme="light"] .score-big { color: var(--accent); }
 [data-theme="light"] .btn-reset-all { border-color: var(--border); color: var(--text-muted); }
+
+/* ╔══════════════════════════════════════════════════════════
+   BASE & LAYOUT
+   ╚══════════════════════════════════════════════════════════ */
 
 /* ── Base ─────────────────────────────────────────────────── */
 html, body {
@@ -221,6 +228,10 @@ html, body {
   margin-top: .35rem;
   text-align: right;
 }
+
+/* ╔══════════════════════════════════════════════════════════
+   COMPONENTS — cards, buttons, badges, chips, HUD widgets
+   ╚══════════════════════════════════════════════════════════ */
 
 /* ── Part list (study tab) ───────────────────────────────── */
 .part-list { padding: .25rem .9rem 0; }
@@ -544,6 +555,10 @@ html, body {
 .btn-next  { background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border); display: none; }
 .btn-next.show { display: block; }
 .btn-next:active { transform: scale(.98); }
+
+/* ╔══════════════════════════════════════════════════════════
+   SCREENS — home, study, tutorial, filters, completion
+   ╚══════════════════════════════════════════════════════════ */
 
 /* ── Home screen ─────────────────────────────────────────── */
 .home-screen {
@@ -924,6 +939,10 @@ html, body {
   min-height: 48px;
 }
 
+/* ╔══════════════════════════════════════════════════════════
+   SCREENS — dungeon map, profile, run map (legacy dungeon UI)
+   ╚══════════════════════════════════════════════════════════ */
+
 /* ── Dungeon map ─────────────────────────────────────────── */
 .dungeon-map { padding: .25rem .9rem 0; }
 .dungeon-map-header { padding: .1rem 0 1rem; }
@@ -1155,32 +1174,6 @@ html, body {
   z-index: 10;
 }
 
-/* ── Animations ──────────────────────────────────────────── */
-@keyframes pulse-correct {
-  0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.4); }
-  50%  { box-shadow: 0 0 0 8px rgba(16,185,129,.0); transform: scale(1.01); }
-  100% { box-shadow: 0 0 0 0 rgba(16,185,129,.0); transform: scale(1); }
-}
-
-@keyframes shake-wrong {
-  0%,100% { transform: translateX(0); }
-  20%     { transform: translateX(-6px); }
-  40%     { transform: translateX(6px); }
-  60%     { transform: translateX(-4px); }
-  80%     { transform: translateX(4px); }
-}
-
-@keyframes xp-float {
-  0%   { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-48px); }
-}
-
-@keyframes heart-lose {
-  0%   { transform: scale(1); }
-  30%  { transform: scale(1.4); }
-  100% { transform: scale(1); }
-}
-
 /* ── Dungeon floor map screen ────────────────────────────────── */
 .dungeon-floor-map { padding: .25rem .9rem 0; }
 .dfm-header        { padding: .1rem 0 .8rem; }
@@ -1261,37 +1254,6 @@ html, body {
 .enemy-attack { animation: enemy-attack .46s ease forwards !important; }
 .enemy-die    { animation: enemy-die    .6s  ease forwards !important; }
 
-@keyframes enemy-idle {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50%      { transform: translateY(-7px) scale(1.06); }
-}
-@keyframes enemy-attack {
-  0%   { transform: translateX(0)    rotate(0deg)   scale(1); }
-  25%  { transform: translateX(-22px) rotate(-12deg) scale(1.18); }
-  55%  { transform: translateX(-28px) rotate(-6deg)  scale(1.14); }
-  100% { transform: translateX(0)    rotate(0deg)   scale(1); }
-}
-@keyframes enemy-die {
-  0%   { transform: scale(1)   rotate(0deg);  opacity: 1; filter: brightness(1); }
-  18%  { transform: scale(1.3) rotate(14deg); opacity: 1; filter: brightness(4) saturate(0); }
-  55%  { transform: scale(.8)  rotate(28deg); opacity: .6; }
-  100% { transform: scale(0)   rotate(45deg); opacity: 0; }
-}
-
-/* ── Node pulse animations ───────────────────────────────────── */
-@keyframes node-pulse {
-  0%, 100% { box-shadow: 0 0 0 0   rgba(99,102,241,.55); }
-  50%      { box-shadow: 0 0 0 9px rgba(99,102,241,0); }
-}
-@keyframes node-pulse-elite {
-  0%, 100% { box-shadow: 0 0 0 0   rgba(168,85,247,.55); }
-  50%      { box-shadow: 0 0 0 9px rgba(168,85,247,0); }
-}
-@keyframes node-pulse-boss {
-  0%, 100% { box-shadow: 0 0 0 0    rgba(245,158,11,.55); }
-  50%      { box-shadow: 0 0 0 11px rgba(245,158,11,0); }
-}
-
 /* ── Desktop border ──────────────────────────────────────── */
 @media (min-width: 541px) {
   #app {
@@ -1312,14 +1274,6 @@ html, body {
 .map-node.combat   { border-color: var(--accent); color: var(--accent); }
 .map-node.rest.available    { animation: node-pulse-rest    1.6s ease-in-out infinite; }
 .map-node.treasure.available{ animation: node-pulse-treasure 1.6s ease-in-out infinite; }
-@keyframes node-pulse-rest {
-  0%, 100% { box-shadow: 0 0 0 0   rgba(16,185,129,.55); }
-  50%      { box-shadow: 0 0 0 9px rgba(16,185,129,0); }
-}
-@keyframes node-pulse-treasure {
-  0%, 100% { box-shadow: 0 0 0 0   rgba(245,158,11,.55); }
-  50%      { box-shadow: 0 0 0 9px rgba(245,158,11,0); }
-}
 
 /* ── Map legend: rest / treasure ─────────────────────────── */
 .legend-node.rest     { border-color: #10B981; }
@@ -1532,10 +1486,6 @@ html, body {
   animation: node-pulse-shop 2.2s ease-in-out infinite;
 }
 .legend-node.shop { border-color: #EC4899; color: #EC4899; }
-@keyframes node-pulse-shop {
-  0%, 100% { box-shadow: 0 0 0 0   rgba(236,72,153,.5); }
-  50%       { box-shadow: 0 0 0 8px rgba(236,72,153,0); }
-}
 
 /* ── Item tray ─────────────────────────────────────────────── */
 .item-tray-wrap {
@@ -1615,10 +1565,10 @@ html, body {
   box-shadow: 0 0 5px #A855F7;
   pointer-events: none;
 }
-@keyframes item-pulse {
-  0%, 100% { box-shadow: 0 0 0 0   rgba(168,85,247,.5); }
-  50%       { box-shadow: 0 0 0 7px rgba(168,85,247,0); }
-}
+
+/* ╔══════════════════════════════════════════════════════════
+   SCREENS — shop
+   ╚══════════════════════════════════════════════════════════ */
 
 /* ── Shop screen ───────────────────────────────────────────── */
 .shop-screen-page {
@@ -1747,6 +1697,10 @@ html, body {
 }
 .btn-leave-shop:active { transform: scale(.97); }
 .btn-leave-shop:hover  { border-color: var(--accent); color: var(--text); }
+
+/* ╔══════════════════════════════════════════════════════════
+   SCREENS — tower defense (HUD, canvas, tools, quiz overlay)
+   ╚══════════════════════════════════════════════════════════ */
 
 /* ── Tower Defense ─────────────────────────────────────────── */
 #app[data-mode="tower"] {
@@ -2158,11 +2112,6 @@ html, body {
 .tdm-map-node:not(.locked):active { opacity: .75; }
 .tdm-map-node.locked { cursor: not-allowed; }
 
-/* Glow pulse on unlocked nodes */
-@keyframes tdm-glow {
-  0%, 100% { stroke-width: 2.5; opacity: .85; }
-  50%       { stroke-width: 3.5; opacity: 1;   }
-}
 .tdm-map-node:not(.locked) .tdm-ring {
   animation: tdm-glow 2.4s ease-in-out infinite;
 }
@@ -2231,14 +2180,6 @@ html, body {
   box-shadow: 0 4px 18px rgba(0,0,0,.55);
   animation: td-chip-fade .15s ease;
 }
-@keyframes td-chip-fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes td-chip-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 .td-chip-label {
   font-weight: 600;
   text-align: center;
@@ -2293,11 +2234,6 @@ html, body {
 }
 .td-star-anim.lit  { color: #F59E0B; filter: drop-shadow(0 0 8px #F59E0B88); }
 .td-star-anim.dim  { color: rgba(255,255,255,.18); filter: none; }
-@keyframes td-star-pop {
-  0%   { opacity: 0; transform: scale(3.5) translateY(-18px); }
-  65%  { opacity: 1; transform: scale(1.18) translateY(4px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
-}
 .td-star-level  { font-size: .78rem; font-weight: 700; color: var(--text); }
 .td-star-reward { font-size: .72rem; font-weight: 600; color: #F59E0B; }
 .td-star-btns   { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; }
@@ -2327,15 +2263,9 @@ html, body {
   font-weight: 600;
 }
 
-/* ── Reduced-motion accessibility ───────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-  .xp-popup,
-  .achievement-toast,
-  .td-star-anim,
-  .tdm-ring,
-  .enemy-sprite { animation: none !important; }
-  * { transition-duration: 0.01ms !important; }
-}
+/* ╔══════════════════════════════════════════════════════════
+   SCREENS — level confirm panel, inter-node panel, procedural run map
+   ╚══════════════════════════════════════════════════════════ */
 
 /* ── Level Confirm & Inter-node Panels ──────────────────────── */
 .tdcp-overlay {
@@ -2574,17 +2504,10 @@ html, body {
 .rn-completed { pointer-events: none; }
 .rn-active    { pointer-events: none; }
 
-@keyframes rn-pulse {
-  0%, 100% { transform: scale(0.90); opacity: 0.40; }
-  50%       { transform: scale(1.05); opacity: 0.85; }
-}
 .rn-pulse {
   animation: rn-pulse 2.4s ease-in-out infinite;
   transform-box: fill-box;
   transform-origin: center;
-}
-@media (prefers-reduced-motion: reduce) {
-  .rn-pulse { animation: none; opacity: 0.6; }
 }
 
 /* Map selection screen */
@@ -2765,4 +2688,120 @@ html, body {
   margin-top: .3rem;
   width: 100%;
   max-width: 240px;
+}
+
+/* ╔══════════════════════════════════════════════════════════
+   ANIMATIONS — all @keyframes + prefers-reduced-motion overrides,
+   consolidated here (S-7). Kept at the END of the file: the
+   reduced-motion override must come after every normal rule it
+   can override, or equal-specificity cascade order flips and the
+   override silently stops applying. Referencing component rules
+   (e.g. .rn-pulse, .enemy-idle) stay where they were; only the
+   keyframe/media definitions live here.
+   ╚══════════════════════════════════════════════════════════ */
+@keyframes pulse-correct {
+  0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.4); }
+  50%  { box-shadow: 0 0 0 8px rgba(16,185,129,.0); transform: scale(1.01); }
+  100% { box-shadow: 0 0 0 0 rgba(16,185,129,.0); transform: scale(1); }
+}
+
+@keyframes shake-wrong {
+  0%,100% { transform: translateX(0); }
+  20%     { transform: translateX(-6px); }
+  40%     { transform: translateX(6px); }
+  60%     { transform: translateX(-4px); }
+  80%     { transform: translateX(4px); }
+}
+
+@keyframes xp-float {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-48px); }
+}
+
+@keyframes heart-lose {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+@keyframes enemy-idle {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-7px) scale(1.06); }
+}
+@keyframes enemy-attack {
+  0%   { transform: translateX(0)    rotate(0deg)   scale(1); }
+  25%  { transform: translateX(-22px) rotate(-12deg) scale(1.18); }
+  55%  { transform: translateX(-28px) rotate(-6deg)  scale(1.14); }
+  100% { transform: translateX(0)    rotate(0deg)   scale(1); }
+}
+@keyframes enemy-die {
+  0%   { transform: scale(1)   rotate(0deg);  opacity: 1; filter: brightness(1); }
+  18%  { transform: scale(1.3) rotate(14deg); opacity: 1; filter: brightness(4) saturate(0); }
+  55%  { transform: scale(.8)  rotate(28deg); opacity: .6; }
+  100% { transform: scale(0)   rotate(45deg); opacity: 0; }
+}
+
+@keyframes node-pulse {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(99,102,241,.55); }
+  50%      { box-shadow: 0 0 0 9px rgba(99,102,241,0); }
+}
+@keyframes node-pulse-elite {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(168,85,247,.55); }
+  50%      { box-shadow: 0 0 0 9px rgba(168,85,247,0); }
+}
+@keyframes node-pulse-boss {
+  0%, 100% { box-shadow: 0 0 0 0    rgba(245,158,11,.55); }
+  50%      { box-shadow: 0 0 0 11px rgba(245,158,11,0); }
+}
+@keyframes node-pulse-rest {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(16,185,129,.55); }
+  50%      { box-shadow: 0 0 0 9px rgba(16,185,129,0); }
+}
+@keyframes node-pulse-treasure {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(245,158,11,.55); }
+  50%      { box-shadow: 0 0 0 9px rgba(245,158,11,0); }
+}
+@keyframes node-pulse-shop {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(236,72,153,.5); }
+  50%       { box-shadow: 0 0 0 8px rgba(236,72,153,0); }
+}
+
+@keyframes item-pulse {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(168,85,247,.5); }
+  50%       { box-shadow: 0 0 0 7px rgba(168,85,247,0); }
+}
+
+@keyframes tdm-glow {
+  0%, 100% { stroke-width: 2.5; opacity: .85; }
+  50%       { stroke-width: 3.5; opacity: 1;   }
+}
+
+@keyframes td-chip-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes td-chip-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes td-star-pop {
+  0%   { opacity: 0; transform: scale(3.5) translateY(-18px); }
+  65%  { opacity: 1; transform: scale(1.18) translateY(4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes rn-pulse {
+  0%, 100% { transform: scale(0.90); opacity: 0.40; }
+  50%       { transform: scale(1.05); opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xp-popup,
+  .achievement-toast,
+  .td-star-anim,
+  .tdm-ring,
+  .enemy-sprite { animation: none !important; }
+  .rn-pulse { animation: none; opacity: 0.6; }
+  * { transition-duration: 0.01ms !important; }
 }
