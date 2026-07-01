@@ -2605,6 +2605,74 @@ mortar: { pw:10, ph:12,
   ]},
 };
 
+// ─── LANDMARK ANCHORS (V-15) ──────────────────────────────────────────────
+// 2×2-cell pixel-art landmarks anchored at map entry, exit, and midpoint.
+// 'watchtower'/'gate' are universal; the mid landmark is picked per themeName.
+const TD_LANDMARKS = {
+  watchtower: {
+    pal: { K:'#241a0a', S:'#9c8a6a', s:'#6b5a42', R:'#7a2020', W:'#FDE68A', w:'#B45309', F:'#4ADE80', P:'#3a2a14' },
+    frames: [
+      ['......FF......', '.....FFFF.....', '......P.......', '......P.......',
+       '.....RRR......', '....RRRRR.....', '...RRRRRRR....', '..RRRRRRRRR...',
+       '.KKKKKKKKKKK..', '.KSSSSSSSSSK..', '.KSsSSSSSsSK..', '.KSSSWWSSSSK..',
+       '.KSSSWWSSSSK..', '.KSsSSSSSsSK..', '.KSSSSSSSSSK..', '.KSSSWWSSSSK..',
+       '.KSSSWWSSSSK..', '.KKKKKKKKKKK..'],
+      ['.....FF.......', '....FFFF......', '......P.......', '......P.......',
+       '.....RRR......', '....RRRRR.....', '...RRRRRRR....', '..RRRRRRRRR...',
+       '.KKKKKKKKKKK..', '.KSSSSSSSSSK..', '.KSsSSSSSsSK..', '.KSSSwwSSSSK..',
+       '.KSSSwwSSSSK..', '.KSsSSSSSsSK..', '.KSSSSSSSSSK..', '.KSSSwwSSSSK..',
+       '.KSSSwwSSSSK..', '.KKKKKKKKKKK..'],
+    ]},
+  gate: {
+    pal: { R:'#4a3018', K:'#241a0a', S:'#9c8a6a', s:'#6b5a42', g:'#3a2a1a', G:'#F59E0B' },
+    frames: [
+      ['RR..........RR', 'KK..........KK', 'SS..........SS', 'SS..........SS',
+       'SsKKKKKKKKKKsS', 'SSKgggggggggKS', 'SSKgGgGgGgGgKS', 'SSKgggggggggKS',
+       'SSKgGgGgGgGgKS', 'SSKgggggggggKS', 'SSK.........KS', 'SSK.........KS',
+       'SSK.........KS', 'SsKKKKKKKKKKsS', 'SS..........SS', 'SS..........SS'],
+      ['RR..........RR', 'KK..........KK', 'SS..........SS', 'SS..........SS',
+       'SsKKKKKKKKKKsS', 'SSKGgGgGgGgGKS', 'SSKgGgGgGgGgKS', 'SSKGgGgGgGgGKS',
+       'SSKgGgGgGgGgKS', 'SSKGgGgGgGgGKS', 'SSK.........KS', 'SSK.........KS',
+       'SSK.........KS', 'SsKKKKKKKKKKsS', 'SS..........SS', 'SS..........SS'],
+    ]},
+  // Verdant mid-landmark: stone circle with a glowing rune center.
+  shrine: {
+    pal: { K:'#4b5563', G:'#34D399', g:'#065f46' },
+    frames: [
+      ['..............', '...KKKKKKKK...', '..K........K..', '.K..K....K..K.',
+       '.K.K......K.K.', 'K.K...GG...K.K', 'K.K..GggG..K.K', 'K.K..GggG..K.K',
+       'K.K...GG...K.K', '.K.K......K.K.', '.K..K....K..K.', '..K........K..',
+       '...KKKKKKKK...', '..............'],
+      ['..............', '...KKKKKKKK...', '..K........K..', '.K..K....K..K.',
+       '.K.K......K.K.', 'K.K..GGGG..K.K', 'K.K.GggggG.K.K', 'K.K.GggggG.K.K',
+       'K.K..GGGG..K.K', '.K.K......K.K.', '.K..K....K..K.', '..K........K..',
+       '...KKKKKKKK...', '..............'],
+    ]},
+  // Decay mid-landmark: crumbling mausoleum entrance.
+  crypt: {
+    pal: { K:'#1a1410', s:'#4b4038', S:'#7a6a5a', b:'#0a0806' },
+    frames: [
+      ['....KKKKKK....', '...KssssssK...', '..KssssssssK..', '.KsssKKKKsssK.',
+       '.KssKSSSSKssK.', '.KssKSbbSKssK.', '.KssKSbbSKssK.', '.KssKSSSSKssK.',
+       '.KsssKKKKsssK.', '.KssssssssssK.', 'KsssssssssssK.', 'KKKKKKKKKKKKK.'],
+      ['....KKKKKK....', '...KssssssK...', '..KssssssssK..', '.KsssKKKKsssK.',
+       '.KssKSSSSKssK.', '.KssKSbbSKssK.', '.KssKSbbbSssK.', '.KssKSSSSKssK.',
+       '.KsssKKKKsssK.', '.KssssssssssK.', 'KsssssssssssK.', 'KKKKKKKKKKKKK.'],
+    ]},
+  // Void mid-landmark: dark obsidian obelisk with a glowing rune band.
+  obelisk: {
+    pal: { K:'#0a0510', V:'#3b2154', e:'#7C3AED', E:'#C084FC' },
+    frames: [
+      ['......KK......', '.....KVVK.....', '.....KVVK.....', '....KVVVVK....',
+       '....KVVVVK....', '...KVVeeVVK...', '...KVVeeVVK...', '...KVVVVVVK...',
+       '..KVVVVVVVVK..', '..KVVVVVVVVK..', '.KVVVVVVVVVVK.', 'KKKKKKKKKKKKKK'],
+      ['......KK......', '.....KVVK.....', '.....KVVK.....', '....KVVVVK....',
+       '....KVVVVK....', '...KVVEEVVK...', '...KVVEEVVK...', '...KVVVVVVK...',
+       '..KVVVVVVVVK..', '..KVVVVVVVVK..', '.KVVVVVVVVVVK.', 'KKKKKKKKKKKKKK'],
+    ]},
+};
+const TD_LANDMARK_MID = { verdant: 'shrine', decay: 'crypt', void: 'obelisk' };
+
 function tdDrawSprite(ctx, frames, fIdx, pal, cx, cy, ps) {
   const frame = frames[fIdx % frames.length];
   const ph = frame.length, pw = frame[0].length;
@@ -5429,6 +5497,25 @@ function tdRender() {
   ctx.textAlign = 'right';
   ctx.fillStyle = `rgba(251,146,60,${0.8 + pp2 * 0.2})`;
   ctx.fillText('OUT ▶', W - cs * 0.1, outCY);
+
+  // ── Landmark anchors (V-15) ─────────────────────────────────
+  {
+    const mapDef = TD_MAPS[td.mapId] ?? TD_MAPS[0];
+    const midWp  = wps[Math.floor(wps.length / 2)];
+    // bgT can be a hair negative on the very first render (rAF timestamp vs.
+    // the performance.now() call that seeded lastTs) — normalize before % 2,
+    // since JS % keeps the sign of its left operand instead of wrapping.
+    const frame  = Math.floor(((bgT % 2) + 2) % 2);
+    const drawLandmark = (key, cx, cy) => {
+      const lm = TD_LANDMARKS[key];
+      if (!lm) return;
+      const ps = (cs * 2.15) / lm.frames[0].length;
+      tdDrawSprite(ctx, lm.frames, frame, lm.pal, cx, cy, ps);
+    };
+    drawLandmark('watchtower', cs * 0.35, entryRow * cs + cs / 2);
+    drawLandmark('gate', W - cs * 0.35, exitRow * cs + cs / 2);
+    drawLandmark(TD_LANDMARK_MID[mapDef.themeName] || 'shrine', midWp[0] * cs + cs / 2, midWp[1] * cs + cs / 2);
+  }
 
   // Pending placement cell highlight
   if (td.pendingCol >= 0 && td.pendingRow >= 0) {

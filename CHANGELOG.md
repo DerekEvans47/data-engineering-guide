@@ -109,6 +109,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Show live AudioContext state in version badge (#28)
 
+- Split drill.css into labelled sections (#55)
+
 - Strip session URLs from all PR bodies, not just questions/* (#21)
 
 - Update nightly prompt to use dynamic backlog picking (#18)
