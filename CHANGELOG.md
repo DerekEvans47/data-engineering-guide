@@ -26,6 +26,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Float tower placement chip near tower, larger buttons
 
+- Landmark anchor objects on TD map (#56)
+
 - Offline question-bank versioning (I-3)
 
 - Power-up system — data model, pre-wave tray, effect engine (#45)
