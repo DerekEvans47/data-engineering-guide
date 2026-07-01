@@ -46,7 +46,7 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 |-----|-------|--------|----------|--------|--------------|-------|
 | V-13 | Animated data-flow indicators on path | 15 | P2 | DONE | V-12 | Small glowing dots drift along path direction at ~1 cell/s, 30% opacity. Reinforces "data moving through a pipeline" narrative. Computed from waypoint direction vectors in tdRender. |
 | V-14 | DE-themed map palettes (6 themes tied to guide topics) | 35 | P1 | SUPERSEDED | — | Superseded by V-26 (three-act theme data) + V-31 (sprite render loop). Original spec called for 6 palette-only themes; replaced by verdant/decay/void with actual sprite sheet assets. |
-| V-15 | Landmark anchor objects (entry portal, mid-structure, exit gate) | 25 | P2 | TODO | V-12 | 2×2 multi-cell canvas sprites at map start, midpoint, and exit. Watchtower at entry, castle gate at exit; theme-specific mid landmark (e.g. server rack for warehouse, cauldron for swamp). Drawn in tdRender before towers. |
+| V-15 | Landmark anchor objects (entry portal, mid-structure, exit gate) | 25 | P2 | DONE | V-12 | 2×2 multi-cell canvas sprites at map start, midpoint, and exit. Watchtower at entry, castle gate at exit; theme-specific mid landmark (e.g. server rack for warehouse, cauldron for swamp). Drawn in tdRender before towers. |
 | V-16 | Level-gated tower sprite evolution (L1/L2/L3 distinct look) | 25 | P1 | DONE | — | L1 = wood/basic, L2 = stone/reinforced, L3 = enchanted/glowing. New pixel-art frame sets per upgrade tier rather than just a ring color change. The tower visually transforms on upgrade. |
 | V-17 | Tower idle animation (barrel rotation / turret pulse) | 15 | P2 | DONE | V-16 | Slow sin-wave rotation on tower top or breathing scale effect between shots. Adds life to the board without impacting perf — angle stored per-tower, updated in tdUpdate. |
 | V-18 | Directional muzzle flash toward last target | 12 | P2 | DONE | V-1 | Short line segment from tower center toward last-fired target position, visible for ~60 ms. Replaces omnidirectional fire-pulse ring with a directional cue. Store `t.lastTargetAngle` in tdFireTowers. |
@@ -202,6 +202,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | S-3 | TD engine section — enemy AI, tower targeting, projectile physics consolidated | 40 | 2026-07-01 |
 | G-2 | Enemy special types — raider (fast), brute (armored), wisp (flying), shaman (healer) | 42 | 2026-07-01 |
 | S-7 | Split drill.css into labelled sections + consolidated all @keyframes/reduced-motion | 25 | 2026-07-01 |
+| V-15 | Landmark anchors — watchtower (entry), castle gate (exit), theme mid-landmark | 25 | 2026-07-01 |
 
 ---
 
