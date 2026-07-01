@@ -2381,21 +2381,6 @@ document.addEventListener('touchstart', () => {
   }
 }, { passive: true });
 
-function tdComputePathSet(wps) {
-  const s = new Set();
-  for (let i = 0; i < wps.length - 1; i++) {
-    const [c0,r0] = wps[i], [c1,r1] = wps[i+1];
-    if (r0 === r1) {
-      const lo = Math.max(0, Math.min(c0,c1)), hi = Math.min(TD_COLS-1, Math.max(c0,c1));
-      for (let c = lo; c <= hi; c++) s.add(`${c},${r0}`);
-    } else {
-      const lo = Math.max(0, Math.min(r0,r1)), hi = Math.min(TD_ROWS-1, Math.max(r0,r1));
-      for (let r = lo; r <= hi; r++) s.add(`${c0},${r}`);
-    }
-  }
-  return s;
-}
-
 // ╔══════════════════════════════════════════════════════════════
 //  TD GAME CONFIG — edit here to tune tower/enemy/shop/power-up stats
 // ╚══════════════════════════════════════════════════════════════
@@ -2815,13 +2800,6 @@ function tdSaveRestBonus(bonus) {
 }
 function tdClearRestBonus() {
   StorageManager.remove(TD_REST_BONUS_KEY);
-}
-
-function tdGetTowerStats(tower) {
-  const def = TD_TOWER_DEFS.find(d => d.id === tower.type);
-  if (!tower.level || tower.level === 0) return def;
-  const up = def.upgrades[tower.level - 1];
-  return { ...def, ...up };
 }
 
 // ── Run State Management ──────────────────────────────────────
@@ -4167,7 +4145,27 @@ function tdClearAutosave() {
   StorageManager.remove(AUTOSAVE_KEY);
 }
 
+// ╔══════════════════════════════════════════════════════════════
+//  TD ENGINE — state factory, game loop, enemy AI, tower targeting,
+//  projectile physics (S-3)
+// ╚══════════════════════════════════════════════════════════════
+
 // ── Game state ─────────────────────────────────────────────────
+
+function tdComputePathSet(wps) {
+  const s = new Set();
+  for (let i = 0; i < wps.length - 1; i++) {
+    const [c0,r0] = wps[i], [c1,r1] = wps[i+1];
+    if (r0 === r1) {
+      const lo = Math.max(0, Math.min(c0,c1)), hi = Math.min(TD_COLS-1, Math.max(c0,c1));
+      for (let c = lo; c <= hi; c++) s.add(`${c},${r0}`);
+    } else {
+      const lo = Math.max(0, Math.min(r0,r1)), hi = Math.min(TD_ROWS-1, Math.max(r0,r1));
+      for (let r = lo; r <= hi; r++) s.add(`${c0},${r}`);
+    }
+  }
+  return s;
+}
 
 function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   const mods = levelDef.modifiers || {};
@@ -4377,6 +4375,13 @@ function tdMoveEnemy(e, dt) {
 }
 
 // ── Towers ─────────────────────────────────────────────────────
+
+function tdGetTowerStats(tower) {
+  const def = TD_TOWER_DEFS.find(d => d.id === tower.type);
+  if (!tower.level || tower.level === 0) return def;
+  const up = def.upgrades[tower.level - 1];
+  return { ...def, ...up };
+}
 
 function tdFireTowers(dt) {
   for (const t of td.towers) {
