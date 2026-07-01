@@ -2411,6 +2411,12 @@ const TD_ENEMY_DEFS = {
   scout:  { maxHp:55,  spd:2.6, reward:8,  color:'#F472B6', r:0.22 },
   troll:  { maxHp:480, spd:0.7, reward:28, color:'#C084FC', r:0.42 },
   boss:   { maxHp:2000, spd:0.5, reward:100, color:'#EF4444', r:0.55, isBoss:true, lifeLoss:3 },
+  // G-2: special types — armored halves splash dmg, flying ignores mortar targeting,
+  // healer restores nearby HP on a timer
+  raider: { maxHp:50,  spd:3.2, reward:9,  color:'#38BDF8', r:0.24, fast:true },
+  brute:  { maxHp:260, spd:0.9, reward:15, color:'#78716C', r:0.34, armored:true },
+  wisp:   { maxHp:70,  spd:1.8, reward:14, color:'#A5F3FC', r:0.26, flying:true },
+  shaman: { maxHp:130, spd:1.1, reward:18, color:'#34D399', r:0.30, healer:true, healAmount:25, healInterval:2.0, healRadius:2.2 },
 };
 
 // ── Shop items (cost, effect) ──────────────────────────────────
@@ -2843,6 +2849,10 @@ function generateWaves(enemyMult, waveCount, rng) {
     if (progress > 0.5) wave.push(['scout',  3+Math.floor(rng()*3), 0.8+rng()*0.3]);
     if (progress > 0.2) wave.push(['orc',    2+Math.floor(rng()*3), 1.2+rng()*0.5]);
     if (progress > 0.6) wave.push(['troll',  1+Math.floor(rng()*2), 1.8+rng()*0.8]);
+    if (progress > 0.4) wave.push(['raider', 2+Math.floor(rng()*3), 0.7+rng()*0.3]);
+    if (progress > 0.45) wave.push(['brute',  1+Math.floor(rng()*2), 1.4+rng()*0.5]);
+    if (progress > 0.55) wave.push(['wisp',   2+Math.floor(rng()*2), 1.1+rng()*0.4]);
+    if (progress > 0.7) wave.push(['shaman', 1, 1.6]);
     if (wave.length === 0) wave.push(['goblin', 5+Math.floor(rng()*5), 1.0]);
     // Boss enemy on every 3rd wave (waves 3, 6, …) — spawns after 2 s gap
     if ((w + 1) % 3 === 0) wave.push(['boss', 1, 2.0]);
@@ -4237,6 +4247,21 @@ function tdUpdate(dt) {
     if (td.lives <= 0 && !td.over) { tdGameOver(); return; }
   }
 
+  for (const e of td.enemies) {
+    if (!e.healer || e.hp <= 0) continue;
+    e.healTimer -= dt;
+    if (e.healTimer > 0) continue;
+    e.healTimer = e.healInterval;
+    const radiusPx = e.healRadius * td.cellSize;
+    for (const o of td.enemies) {
+      if (o === e || o.hp <= 0 || o.hp >= o.maxHp) continue;
+      if (Math.hypot(o.x - e.x, o.y - e.y) <= radiusPx) {
+        o.hp = Math.min(o.maxHp, o.hp + e.healAmount);
+        td.damageNumbers.push({ x: o.x, y: o.y - o.r * td.cellSize - 6, label: '+' + e.healAmount, life: 0.6, maxLife: 0.6, color: '#34D399' });
+      }
+    }
+  }
+
   tdFireTowers(dt);
   tdMoveProjectiles(dt);
 
@@ -4350,6 +4375,9 @@ function tdSpawnEnemy(type) {
     hp: def.maxHp * mult, maxHp: def.maxHp * mult,
     spd: def.spd * (td.powerUpMods?.enemySpeedMult || 1), color: def.color, r: def.r, reward: def.reward,
     isBoss: def.isBoss || false, lifeLoss: (def.lifeLoss || 1) * (td.modifiers?.ironman ? 2 : 1),
+    armored: def.armored || false, flying: def.flying || false, healer: def.healer || false,
+    healAmount: def.healAmount || 0, healInterval: def.healInterval || 0, healRadius: def.healRadius || 0,
+    healTimer: def.healInterval || 0,
     hitFlash: 0, animOffset: Math.random() * 100, wpIdx: 1,
     x: c0 * cs + cs / 2,
     y: r0 * cs + cs / 2,
@@ -4393,6 +4421,7 @@ function tdFireTowers(dt) {
     const rangePx = stats.range * cs;
     let target = null, bestDist = -1;
     for (const e of td.enemies) {
+      if (e.flying && t.type === 'mortar') continue; // mortar shells can't reach flying enemies
       const d = Math.hypot(e.x - tx, e.y - ty);
       if (d <= rangePx && e.dist > bestDist) { target = e; bestDist = e.dist; }
     }
@@ -4424,7 +4453,7 @@ function tdMoveProjectiles(dt) {
       const hx = target.x, hy = target.y;
       if (p.splash > 0) {
         for (const e of td.enemies) {
-          if (Math.hypot(e.x - hx, e.y - hy) <= p.splash) e.hp -= p.dmg;
+          if (Math.hypot(e.x - hx, e.y - hy) <= p.splash) e.hp -= e.armored ? p.dmg * 0.5 : p.dmg;
         }
       } else {
         target.hp -= p.dmg;
@@ -4972,8 +5001,8 @@ function tdUpdateWavePreview() {
   const nextIdx = td.waveIdx + 1;
   const waveDefs = td.levelDef.waveDefs;
   if (td.waveActive || nextIdx >= waveDefs.length) { el.style.display = 'none'; return; }
-  const EMOJI = { goblin:'👺', orc:'👹', scout:'💨', troll:'🧌', boss:'💀' };
-  const COLORS = { goblin:'#4ADE80', orc:'#FBBF24', scout:'#F472B6', troll:'#C084FC', boss:'#EF4444' };
+  const EMOJI = { goblin:'👺', orc:'👹', scout:'💨', troll:'🧌', boss:'💀', raider:'🏃', brute:'🛡️', wisp:'🕊️', shaman:'➕' };
+  const COLORS = { goblin:'#4ADE80', orc:'#FBBF24', scout:'#F472B6', troll:'#C084FC', boss:'#EF4444', raider:'#38BDF8', brute:'#78716C', wisp:'#A5F3FC', shaman:'#34D399' };
   const wave = waveDefs[nextIdx];
   const hasBoss = wave.some(([t]) => t === 'boss');
   const chips = wave.map(([type, count]) => {
@@ -5543,6 +5572,11 @@ function tdRender() {
       ctx.font = `bold ${Math.round(r * 0.9)}px sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('💀', e.x, e.y - r - cs * 0.38);
+    } else if (e.armored || e.flying || e.healer) {
+      // G-2: special-type badge (armored/flying/healer mechanics aren't visible otherwise)
+      ctx.font = `${Math.round(r * 0.85)}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(e.armored ? '🛡️' : e.flying ? '🕊️' : '➕', e.x, e.y - r - cs * 0.28);
     }
     // HP bar (wider for bosses)
     const bw = e.isBoss ? r*3.6 : r*2.4, bh = Math.max(e.isBoss ? 5 : 3, cs*.09);
