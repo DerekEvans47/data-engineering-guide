@@ -81,6 +81,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add G-9 (multi-path map topology) and G-10 (barracks tower) (#59)
 
+- Add Verdant world-map style reference contact sheet
+
 - Add art-direction session handoff, flag G-9 for human review (#63)
 
 - Add landscape orientation to G-9 scope (#61)
