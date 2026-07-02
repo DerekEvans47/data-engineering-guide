@@ -75,6 +75,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### 🔧 Infrastructure
 
+- Add files via upload
+
 - Add G-9 (multi-path map topology) and G-10 (barracks tower) (#59)
 
 - Add art-direction session handoff, flag G-9 for human review (#63)
@@ -99,9 +101,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Harden nightly prompt — handoff file, inline PRs, conflict resolution (#20)
 
+- Merge main (verdant worldmap art upload)
+
 - Nightly handoff 2026-06-30 (143 pts — EQ-2, V-23, G-7, S-2, S-6, G-8) (#51)
 
 - Remove decay/void pixel-art deco assets, obsoleted by new painted-icon style
+
+- Remove verdant pixel-art deco assets, same style mismatch as decay/void
 
 - Session handoff 2026-06-29 (#34)
 
