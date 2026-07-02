@@ -83,6 +83,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Eliminate scroll during TD gameplay (#15)
 
+- Add G-9 (multi-path map topology) and G-10 (barracks tower) (#59)
+
 - Ban session URLs and Generated-by footers in all PR bodies
 
 - Consolidate TD engine into one delimited section (#53)
