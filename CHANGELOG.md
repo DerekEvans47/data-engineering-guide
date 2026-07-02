@@ -57,8 +57,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Crash in AudioContext unlock + retry on failure
 
-- Dedup changelog entries from retry commits
-
 - IOS audio session escalation + statechange realignment
 
 - Proper async iOS audio unlock + session activation (#25)
@@ -74,8 +72,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add questions: Parts 2, 3, 6, 6
 
-- Add questions: Parts 2, 3, 6, 7
-
 - Add questions: Parts 3, 4, 6, 7
 
 
@@ -85,9 +81,9 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add G-9 (multi-path map topology) and G-10 (barracks tower) (#59)
 
-- Add landscape orientation to G-9 scope (#61)
+- Add art-direction session handoff, flag G-9 for human review (#63)
 
-- Ban session URLs and Generated-by footers in all PR bodies
+- Add landscape orientation to G-9 scope (#61)
 
 - Consolidate TD engine into one delimited section (#53)
 
@@ -100,10 +96,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Fold fixed build-slot placement into G-9 (#60)
 
 - Harden nightly prompt — handoff file, inline PRs, conflict resolution (#20)
-
-- Make .claude/skills scripts executable
-
-- Merge TODO.md into BACKLOG.md as single nightly source
 
 - Nightly handoff 2026-06-30 (143 pts — EQ-2, V-23, G-7, S-2, S-6, G-8) (#51)
 
