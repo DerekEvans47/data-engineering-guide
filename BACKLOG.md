@@ -124,7 +124,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | C-3 | Question categories / tags visible in quiz overlay | 15 | P2 | DONE | — | Show topic tag (e.g. "Spark", "Kafka") on quiz card for context. |
 | C-5 | Question difficulty auto-calibration (ELO-style) | 55 | P3 | TODO | P-3 | Track per-question success rate; reclassify easy/medium/hard dynamically. |
 | C-6 | Add scenario/case-study question type | 25 | P2 | TODO | C-1 | Multi-sentence scenario followed by 4 options. Requires new `type: "scenario"` in schema and a wider card render. More realistic to real-world DE decision-making. |
-| C-7 | Review and update stale questions | 10 | P2 | TODO | — | Audit questions for outdated services or API versions. Run annually. |
+| C-7 | Review and update stale questions | 10 | P2 | DONE | — | Audit questions for outdated services or API versions. Run annually. **2026-07-02 audit**: swept all 300 questions against a curated list of known-deprecated/renamed terms (Azure SQL Data Warehouse, AWS Data Pipeline, Python 2, old Spark/Hadoop/Airflow versions, deprecated pandas APIs, stale LLM/AI terminology, etc.) — no genuinely stale content found. One incidental match (#224, "Azure SQL Data Warehouse") is accurate historical lineage in the explanation, not a stale current-state claim; left as-is. No question edits required this cycle. |
 
 ---
 
@@ -210,6 +210,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | V-34 | Fixed missing alpha transparency in verdant/decay deco sprite sheets | 8 | 2026-07-02 |
 | S-4 | Canvas renderer section — tdRender split into 13 named draw sub-functions | 30 | 2026-07-02 |
 | EQ-4 | Relic system — 4-relic starter set, category exclusivity, upkeep, equip menu (run-map 🏺 button) | 45 | 2026-07-02 |
+| C-7 | Stale-question audit — 300 questions swept, no stale content found | 10 | 2026-07-02 |
 
 ---
 
