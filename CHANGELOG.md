@@ -85,6 +85,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add landscape orientation to G-9 scope (#61)
 
+- Audit question bank for stale content — none found
+
 - Consolidate TD engine into one delimited section (#53)
 
 - Correct G-9 -- run map also needs landscape orientation (#62)
