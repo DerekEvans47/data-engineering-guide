@@ -35,6 +35,8 @@ const TD_REST_BONUS_KEY  = 'td_rest_bonus';
 const TD_RUN_KEY         = 'td_run_v1';
 const TD_MAPS_BEATEN_KEY = 'td_maps_beaten';
 const MASTERY_KEY        = 'question_mastery';
+const TD_RELICS_OWNED_KEY    = 'td_relics_owned';
+const TD_RELICS_EQUIPPED_KEY = 'td_relics_equipped';
 
 // ── Storage layer (private-browsing-safe) ─────────────────────
 const StorageManager = {
@@ -293,6 +295,14 @@ function loadGameState() {
   relics        = new Set(JSON.parse(StorageManager.get(RELIC_KEY)       || '[]'));
   const savedItems = JSON.parse(StorageManager.get(ITEMS_KEY) || 'null');
   if (savedItems) itemInventory = { fifty_fifty: 0, swap: 0, ward: 0, surge: 0, ...savedItems };
+
+  // TD relic collection (EQ-4) — separate system from the legacy dungeon
+  // `relics`/`RELIC_KEY` above. Until EQ-6/EQ-8 ship real acquisition (store
+  // purchase, post-map earn), grant the starter set on first load so the
+  // equip menu is usable now; owned collection persists and grows from there.
+  const savedOwned = StorageManager.get(TD_RELICS_OWNED_KEY);
+  tdOwnedRelics = savedOwned != null ? new Set(JSON.parse(savedOwned)) : new Set(TD_RELICS.map(r => r.id));
+  tdEquippedRelics = new Set(JSON.parse(StorageManager.get(TD_RELICS_EQUIPPED_KEY) || '[]'));
 }
 
 function saveGameState() {
@@ -305,6 +315,8 @@ function saveGameState() {
   StorageManager.set(DUNGEON_KEY,      JSON.stringify([...clearedFloors]));
   StorageManager.set(RELIC_KEY,        JSON.stringify([...relics]));
   StorageManager.set(ITEMS_KEY,        JSON.stringify(itemInventory));
+  StorageManager.set(TD_RELICS_OWNED_KEY,    JSON.stringify([...tdOwnedRelics]));
+  StorageManager.set(TD_RELICS_EQUIPPED_KEY, JSON.stringify([...tdEquippedRelics]));
 }
 
 // ── HP helpers ─────────────────────────────────────────────────
@@ -590,8 +602,9 @@ function setTopBar(state, extra = {}) {
     bindThemeBtn(); bindXpBadge(); refreshSessionScore();
 
   } else if (state === 'td-world' || state === 'tower') {
-    bar.innerHTML = `<button class="btn-back" id="btn-back-home">← Home</button><div class="top-bar-right">${gameBadges()}<button class="btn-filter" id="btn-td-help">? Help</button>${themeBtn()}</div>`;
+    bar.innerHTML = `<button class="btn-back" id="btn-back-home">← Home</button><div class="top-bar-right">${gameBadges()}<button class="btn-filter" id="btn-td-relics">🏺</button><button class="btn-filter" id="btn-td-help">? Help</button>${themeBtn()}</div>`;
     document.getElementById('btn-back-home').addEventListener('click', showHome);
+    document.getElementById('btn-td-relics').addEventListener('click', showRelicEquipMenu);
     document.getElementById('btn-td-help').addEventListener('click', () => showTutorial(() => {}));
     bindThemeBtn(); bindXpBadge();
 
@@ -737,6 +750,7 @@ function exportSave() {
     ACHIEVEMENTS_KEY, DUNGEON_KEY, DAILY_KEY, ACCURACY_KEY, RELIC_KEY,
     GOLD_KEY, ITEMS_KEY, TUTORIAL_KEY, AUTOSAVE_KEY, TD_STARS_KEY, TD_INTER_KEY, TD_REST_BONUS_KEY,
     TD_RUN_KEY, TD_MAPS_BEATEN_KEY, MASTERY_KEY,
+    TD_RELICS_OWNED_KEY, TD_RELICS_EQUIPPED_KEY,
   ];
   for (let p = 1; p <= 9; p++) EXPORT_KEYS.push('study_seen_p' + p);
   const data = {};
@@ -2436,6 +2450,18 @@ const TD_POWER_UPS = {
   scavenger:  { id:'scavenger',  name:'Scavenger',  icon:'🪝', cost:70, scope:'node', effect:{ type:'kill-gold',   value:1.5   } },
 };
 
+// ── Relic definitions (category, rarity, upkeep, effect) — EQ-4 ──
+// Starter set covering 4 distinct categories to prove out the exclusivity/
+// upkeep/effect-injection mechanism; EQ-5 expands this to the full 16-relic,
+// 8-category content list.
+const TD_RELICS = [
+  { id:'midas_touch',       name:'Midas Touch',       icon:'💰', category:'gold',       rarity:'uncommon', upkeep:10, desc:'+25% kill gold',        effect:{ type:'kill-gold-mult', value:1.25 } },
+  { id:'runed_blade',       name:'Runed Blade',       icon:'⚔️', category:'damage',     rarity:'uncommon', upkeep:12, desc:'Towers +15% damage',    effect:{ type:'tower-dmg-mult', value:1.15 } },
+  { id:'merchants_purse',   name:"Merchant's Purse",  icon:'👛', category:'start-gold', rarity:'common',   upkeep:0,  desc:'+60 node start gold',   effect:{ type:'start-gold-add', value:60   } },
+  { id:'iron_constitution', name:'Iron Constitution', icon:'❤️', category:'lives',      rarity:'rare',     upkeep:15, desc:'+5 max lives per node', effect:{ type:'max-lives-add',  value:5    } },
+];
+const TD_RELIC_CATEGORIES = { gold:'Gold', damage:'Damage', 'start-gold':'Start Gold', lives:'Lives' };
+
 // ╔══════════════════════════════════════════════════════════════
 //  TD CONTENT DATA — maps, sprites, events (not tuning targets)
 // ╚══════════════════════════════════════════════════════════════
@@ -3645,6 +3671,54 @@ function showRunMap(run) {
 
 function showTDWorldMap() { showMapSelection(); }
 
+// ── Relic equip menu (EQ-4) ──────────────────────────────────────
+// Reachable from the run map / map select top bar. Category exclusivity is
+// enforced silently on equip (old relic in that category auto-drops) — the
+// richer "Replace or skip?" conflict UI is EQ-7's job, not this item's.
+function showRelicEquipMenu() {
+  const existing = document.querySelector('.relic-equip-overlay');
+  if (existing) existing.remove();
+
+  const upkeep = tdComputeRelicMods().upkeepTotal;
+  const owned  = TD_RELICS.filter(r => tdOwnedRelics.has(r.id));
+
+  const overlay = document.createElement('div');
+  overlay.className = 'relic-equip-overlay';
+  overlay.innerHTML = `
+    <div class="relic-equip-sheet">
+      <div class="relic-equip-header">
+        <span class="relic-equip-title">🏺 Relics</span>
+        <button class="relic-equip-close" id="relic-equip-close">✕</button>
+      </div>
+      <div class="relic-equip-upkeep">Upkeep: ${upkeep}🪙 / node start</div>
+      <div class="relic-equip-list">
+        ${owned.length ? owned.map(r => {
+          const isEq = tdEquippedRelics.has(r.id);
+          return `<div class="relic-equip-card${isEq ? ' equipped' : ''}" data-relic-id="${r.id}">
+            <div class="relic-equip-icon">${r.icon}</div>
+            <div class="relic-equip-body">
+              <div class="relic-equip-name">${r.name} <span class="relic-equip-rarity rarity-${r.rarity}">${r.rarity}</span></div>
+              <div class="relic-equip-desc">${r.desc}</div>
+              <div class="relic-equip-meta">${TD_RELIC_CATEGORIES[r.category] || r.category}${r.upkeep ? ` · ${r.upkeep}🪙/node upkeep` : ''}</div>
+            </div>
+            <div class="relic-equip-status">${isEq ? '✓ Equipped' : 'Tap to equip'}</div>
+          </div>`;
+        }).join('') : '<div class="relic-equip-empty">No relics collected yet.</div>'}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById('relic-equip-close').addEventListener('click', () => overlay.remove());
+  overlay.querySelectorAll('.relic-equip-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = card.dataset.relicId;
+      if (tdEquippedRelics.has(id)) tdUnequipRelic(id); else tdEquipRelic(id);
+      showRelicEquipMenu();
+    });
+  });
+}
+
 // ── Level Confirmation Panel ───────────────────────────────────
 
 function showLevelConfirmPanel(levelDef, nodeId, run) {
@@ -4227,10 +4301,48 @@ function tdComputePathSet(wps) {
   return s;
 }
 
+// Sums equipped-relic effects into a single mods object. Category exclusivity
+// is enforced at equip time (tdEquipRelic), so at most one relic per category
+// can ever be in tdEquippedRelics — no additional dedup needed here.
+function tdComputeRelicMods() {
+  const m = { killGoldMult: 1, towerDmgMult: 1, startGoldAdd: 0, maxLivesAdd: 0, upkeepTotal: 0 };
+  for (const id of tdEquippedRelics) {
+    const r = TD_RELICS.find(x => x.id === id);
+    if (!r) continue;
+    m.upkeepTotal += r.upkeep;
+    const { type, value } = r.effect;
+    if (type === 'kill-gold-mult') m.killGoldMult *= value;
+    if (type === 'tower-dmg-mult') m.towerDmgMult *= value;
+    if (type === 'start-gold-add') m.startGoldAdd += value;
+    if (type === 'max-lives-add')  m.maxLivesAdd  += value;
+  }
+  return m;
+}
+
+function tdEquipRelic(id) {
+  const r = TD_RELICS.find(x => x.id === id);
+  if (!r || !tdOwnedRelics.has(id)) return;
+  for (const equippedId of [...tdEquippedRelics]) {
+    const equipped = TD_RELICS.find(x => x.id === equippedId);
+    if (equipped && equipped.category === r.category && equippedId !== id) tdEquippedRelics.delete(equippedId);
+  }
+  tdEquippedRelics.add(id);
+  saveGameState();
+}
+
+function tdUnequipRelic(id) {
+  tdEquippedRelics.delete(id);
+  saveGameState();
+}
+
 function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   const mods = levelDef.modifiers || {};
-  const initialLives = startLivesOverride != null ? startLivesOverride : levelDef.startLives;
-  const initialGold  = mods.noGold ? 0 : (startGoldOverride != null ? startGoldOverride : levelDef.startGold);
+  const relicMods = tdComputeRelicMods();
+  const baseLives = startLivesOverride != null ? startLivesOverride : levelDef.startLives;
+  const baseGold  = mods.noGold ? 0 : (startGoldOverride != null ? startGoldOverride : levelDef.startGold);
+  const initialLives = baseLives + relicMods.maxLivesAdd;
+  const initialGold  = mods.noGold ? 0 : Math.max(0, baseGold + relicMods.startGoldAdd - relicMods.upkeepTotal);
+  // (noGold modifier zeroes gold outright, so relic gold effects don't apply that node)
   return {
     running:false, paused:false, animFrame:null, lastTs:0,
     canvas:null, ctx:null, cellSize:40,
@@ -4247,6 +4359,7 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
     optQuizUsed: 0,
     activePowerUps: [],
     powerUpMods: { towerRateMult:1, enemySpeedMult: mods.speedPlus ? 1.25 : 1, killGoldMult:1 },
+    relicMods,
     modifiers: { ironman: !!mods.ironman, noGold: !!mods.noGold, speedPlus: !!mods.speedPlus },
     endless: false, endlessWave: 0, endlessKills: 0,
   };
@@ -4254,6 +4367,8 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
 
 let td = null;
 let tdSpriteManifest = null;
+let tdOwnedRelics    = new Set();
+let tdEquippedRelics = new Set();
 
 // ── Game loop ──────────────────────────────────────────────────
 
@@ -4317,7 +4432,7 @@ function tdUpdate(dt) {
 
   const died = td.enemies.filter(e => e.hp <= 0);
   for (const e of died) {
-    const killReward = Math.round(e.reward * (td.powerUpMods?.killGoldMult || 1));
+    const killReward = Math.round(e.reward * (td.powerUpMods?.killGoldMult || 1) * (td.relicMods?.killGoldMult || 1));
     td.gold += killReward;
     td.damageNumbers.push({ x: e.x + 8, y: e.y - e.r * td.cellSize - 10, label: '+' + killReward + '🪙', life: 0.85, maxLife: 0.85, color: '#FBBF24' });
     if (e.isBoss) {
@@ -4478,7 +4593,7 @@ function tdFireTowers(dt) {
     if (target) {
       td.projectiles.push({
         x: tx, y: ty, eid: target.id,
-        spd: 280, dmg: stats.dmg,
+        spd: 280, dmg: stats.dmg * (td.relicMods?.towerDmgMult || 1),
         splash: stats.splash * cs,
         color: stats.glow || stats.color,
       });

@@ -89,6 +89,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Extract TD Game Config section — tower/enemy/shop/power-up defs (#49)
 
+- Extract canvas render block into renderer section
+
 - Extract question-logic module section in drill.js (#48)
 
 - Fold fixed build-slot placement into G-9 (#60)
