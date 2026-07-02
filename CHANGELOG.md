@@ -63,6 +63,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Proper async iOS audio unlock + session activation (#25)
 
+- Restore alpha transparency on verdant/decay deco sprite sheets (#58)
+
 - Unlock Web Audio on iOS via shared context + gesture listener (#24)
 
 
