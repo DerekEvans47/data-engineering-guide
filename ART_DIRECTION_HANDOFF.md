@@ -5,6 +5,85 @@ human-driven, conversational art-direction and design exploration — not an
 implementation session. **Zero game code was changed.** Everything below is
 context to pick the conversation back up, not a queue of finished work.
 
+## ✅ 2026-07-02 follow-up session — read this FIRST, it supersedes parts of this doc
+
+A second, user-driven session ran the same day and changed the picture substantially.
+Sections below marked "superseded" are kept for history only.
+
+### The big pivot: linear world map, multi-path battle maps
+
+The world map is now a **single linear journey** across one painted map image; all
+route-choice strategy moved to the **battle maps** (G-9, rescoped). World-map strategy
+becomes per-node stakes: engagement tiers, a corruption/pursuit meter, gold wagers,
+campfire dilemmas — full design in **BACKLOG.md's new W section**. This supersedes this
+doc's items 7/11/12 (fixed build slots still apply to battle maps; the 25-node run-graph
+analysis and "landmark count must match node count" reasoning no longer bind the world
+map, which needs only one traceable trail).
+
+### Art pipeline — final form (compositing REJECTED, layout-conditioning REJECTED)
+
+Three approaches were tested head-to-head this session:
+1. **Programmatic compositing** (terrain + sprite catalogs + code placement): produces
+   "sticker map" quality — no unified lighting/shadows/ground-contact. Rejected for
+   scenery. The catalogs still matter (see below).
+2. **Layout-conditioned repaint** (feed Nano a mockup to repaint): drifts (duplicated
+   mills, vanished sheep) AND constraining composition kills the aliveness that makes
+   free generations good. Rejected.
+3. **Free generation with loose narrative guidance** (topology described as geography,
+   landmarks attached to routes): produces hero-quality maps that hold structure. **This
+   is the pipeline.** The game adapts to the art: node spines are hand-placed along the
+   painted trails (trivial now that the world map is linear).
+
+**Division of labor:** painted map = scenery layer (one image per preset). Runtime
+overlays = node markers (`verdant-worldmap-markers.png` catalog — markers SHOULD pop
+like UI, Kingdom Rush-style), roads-already-painted, mist-creep corruption visual.
+
+### Locked prompt guards (add to EVERY map generation — the fixed technical layer)
+
+- **Attach a style-reference image.** Proven by controlled A/B this session: identical
+  style prose, different subject matter → pastoral prompt drifted to storybook
+  watercolor, forest prompt held pixel-art. Content priors beat style words; only a
+  reference image anchors reliably.
+- **No-horizon guard:** "No horizon, no sky, no atmospheric distance — the entire canvas
+  is seen from the same overhead height at the same scale, edge to edge." (A pastoral
+  generation grew a vista horizon, making the top third unusable for node placement.)
+- **Roads-go-somewhere rule:** every trail terminus must reach a landmark or exit the
+  map border. Origin settlement at the start of the trail (player came from somewhere);
+  road exits the border past the boss ruin (foreshadows the next world).
+- **Count guards:** "exactly one of each: village, mill, bridge, keep…" — mostly holds,
+  tolerate minor violations (an extra stream crossing is cosmetic).
+- **No text / letters / labels / icons / pins**; no people; no animals except sheep.
+- **Surgical edits work, structural edits fail:** additive localized changes ("add a
+  hamlet in this empty field, keep everything else identical") succeed; rerouting
+  topology by edit does not — regenerate instead.
+- Camera + rendering recipe: unchanged from the Recipe section below, still load-bearing.
+
+### Per-world palette layer (stack on top of the fixed layer)
+
+- **Verdant** (Parts 1–3): saturated healthy greens, warm light, living farmland.
+  Corruption confined to the keep corner only (dead trees + grey mist, ~5% of frame).
+- **Decay** (Parts 4–6): not started. Same fixed layer, palette shifts to greys/browns,
+  graveyard/medieval-decay landmark vocabulary.
+- **Void** (Parts 7–9): not started. Same fixed layer, eldritch palette.
+
+### Asset state in repo (all under `learn/drill/assets/map/`)
+
+- `verdant-worldmap-terrain.png` — sparse terrain (superseded as a base by the painted-map
+  pipeline; still the geometry testbed), Nano watermark removed via diffusion inpaint.
+- `verdant-worldmap-deco-structures.png`, `-deco-nature.png` — decoration catalogs
+  (16 items each; nature sheet actually packs 5 items in row 3 — extract by connected
+  components, NOT grid arithmetic, or sheep lose heads).
+- `verdant-worldmap-markers.png` — 12 node markers (battle ×3, shop ×3, campfire ×3,
+  start, boss, locked). Production marker set for the runtime overlay.
+- `verdant-worldmap-style-reference.png` — 2×2 contact sheet; attach to future prompts.
+- The 6 old pixel `deco-*.png` battle-map sheets are DELETED (manifest emptied, SW cache
+  bumped) — V-34's fix shipped, V-35 is obsolete.
+- **Not yet committed:** the 3 candidate painted world maps (baseline / Golden Valley /
+  Wild Frontier) live only in chat. User picks winner(s) and commits — the do-not-lose
+  lesson from the header below still applies to these.
+
+---
+
 ## ⚠️ Most important thing to know
 
 **No image files exist in the repo from this session.** Every generated image
@@ -17,9 +96,10 @@ have it; ask them to re-share it, or re-run the last prompt in this doc.
 **G-9 in BACKLOG.md is flagged "do not auto-implement."** It depends on art
 that doesn't exist yet and on design decisions (lore, exact layout) that are
 still being refined with the user directly. Do not let a nightly/autonomous
-picker grab it. See BACKLOG.md's picking-order note — V-35 (effort 15) is the
-lowest-effort unblocked P1 item and is the realistic next auto-pick; that's
-fine, it's well-scoped and doesn't need this doc's context.
+picker grab it. *(Stale as of the 2026-07-02 addendum: the original note here
+recommended V-35 as the next auto-pick, but V-35 became OBSOLETE when the void
+deco sheets were deleted in the painted-background pivot — consult BACKLOG.md's
+current status column instead.)*
 
 ## Session arc, in order
 
