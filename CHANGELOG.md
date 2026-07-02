@@ -6,8 +6,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### ✨ Features
 
-- TD map visual overhaul — three-act themes, background fills, animation system (#17)
-
 - Background music on home, map, and battle screens (#23)
 
 - Color-blind mode — pattern fills per tower type
@@ -49,8 +47,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### 🐛 Bug Fixes
 
-- U-2 touch target audit — enforce ≥48 px on all interactive elements
-
 - Audio not working in TD drill + pre-commit changelog hook (#22)
 
 - Auto-reload page when service worker updates (#27)
@@ -79,8 +75,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### 🔧 Infrastructure
 
-- Eliminate scroll during TD gameplay (#15)
-
 - Add G-9 (multi-path map topology) and G-10 (barracks tower) (#59)
 
 - Add art-direction session handoff, flag G-9 for human review (#63)
@@ -107,20 +101,18 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Nightly handoff 2026-06-30 (143 pts — EQ-2, V-23, G-7, S-2, S-6, G-8) (#51)
 
-- Ramp nightly session target to 150 effort points per run (#19)
-
 - Session handoff 2026-06-29 (#34)
 
 - Session handoff 2026-06-29 session 2
 
 - Session handoff 2026-07-01 (#57)
 
+- Session handoff 2026-07-02 (105 pts — S-4, EQ-4, C-7, U-4)
+
 - Show live AudioContext state in version badge (#28)
 
 - Split drill.css into labelled sections (#55)
 
 - Strip session URLs from all PR bodies, not just questions/* (#21)
-
-- Update nightly prompt to use dynamic backlog picking (#18)
 
 

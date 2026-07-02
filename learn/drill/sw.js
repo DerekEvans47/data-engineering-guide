@@ -1,4 +1,4 @@
-const CACHE = 'de-drill-v83';
+const CACHE = 'de-drill-v84';
 const ASSETS = [
   './index.html',
   './drill.css',
@@ -8,10 +8,6 @@ const ASSETS = [
   './assets/map/manifest.json',
   './assets/map/deco-verdant-1.png',
   './assets/map/deco-verdant-2.png',
-  './assets/map/deco-decay-1.png',
-  './assets/map/deco-decay-2.png',
-  './assets/map/deco-void-1.png',
-  './assets/map/deco-void-2.png',
 ];
 
 self.addEventListener('install', e => {
