@@ -17,6 +17,7 @@ let APP_VERSION = '?';
 const SEEN_KEY         = 'drill_seen_ids';
 const FILTER_KEY       = 'drill_filter_parts';
 const THEME_KEY        = 'drill_theme';
+const COLORBLIND_KEY   = 'drill_colorblind';
 const XP_KEY           = 'game_xp';
 const STREAK_KEY       = 'game_streak';
 const BEST_STREAK_KEY  = 'game_best_streak';
@@ -155,6 +156,7 @@ let sessionXpEarned = 0;
 let activeParts     = [];
 let currentQNum     = 0;
 let currentQTotal   = 0;
+let colorBlindMode  = false;
 
 // Game state
 let xp           = 0;
@@ -278,6 +280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   loadGameState();
   applyTheme(StorageManager.get(THEME_KEY) || 'dark');
+  colorBlindMode = StorageManager.get(COLORBLIND_KEY) === '1';
   bindUI();
   buildFilterDrawer();
   showHome();
@@ -543,6 +546,14 @@ function toggleTheme() {
 function themeBtn() {
   return `<button class="btn-theme" id="btn-theme">${document.documentElement.dataset.theme !== 'light' ? '☀️' : '🌙'}</button>`;
 }
+
+// ── Color-blind mode (U-4) ───────────────────────────────────────
+function toggleColorBlindMode() {
+  colorBlindMode = !colorBlindMode;
+  StorageManager.set(COLORBLIND_KEY, colorBlindMode ? '1' : '0');
+  const btn = document.getElementById('btn-colorblind');
+  if (btn) btn.textContent = `🎨 Tower Patterns: ${colorBlindMode ? 'On' : 'Off'}`;
+}
 function bindThemeBtn() { document.getElementById('btn-theme')?.addEventListener('click', toggleTheme); }
 
 // ── Game stat badges ───────────────────────────────────────────
@@ -725,6 +736,9 @@ function openProfile() {
       <div class="ach-grid-title" style="margin-top:.9rem">Achievements</div>
       <div class="ach-grid">${achHTML}</div>
       <div class="profile-save-row">
+        <button class="profile-save-btn" id="btn-colorblind">🎨 Tower Patterns: ${colorBlindMode ? 'On' : 'Off'}</button>
+      </div>
+      <div class="profile-save-row">
         <button class="profile-save-btn" id="btn-export-save">⬇ Export Save</button>
         <button class="profile-save-btn" id="btn-import-save">⬆ Import Save</button>
       </div>
@@ -734,6 +748,7 @@ function openProfile() {
   requestAnimationFrame(() => sheet.classList.add('open'));
   document.getElementById('profile-backdrop').addEventListener('click', closeProfile);
   document.getElementById('btn-close-profile').addEventListener('click', closeProfile);
+  document.getElementById('btn-colorblind').addEventListener('click', toggleColorBlindMode);
   document.getElementById('btn-export-save').addEventListener('click', exportSave);
   document.getElementById('btn-import-save').addEventListener('click', importSave);
 }
@@ -2401,17 +2416,17 @@ document.addEventListener('touchstart', () => {
 
 // ── Tower definitions (cost, range, dmg, rate, upgrades) ──────
 const TD_TOWER_DEFS = [
-  { id:'bastion', name:'Bastion', icon:'🏰', cost:60,  color:'#3B82F6', range:3.0, dmg:22,  rate:1.5,  splash:0,
+  { id:'bastion', name:'Bastion', icon:'🏰', cost:60,  color:'#3B82F6', range:3.0, dmg:22,  rate:1.5,  splash:0,  pattern:'diagonal',
     upgrades:[
       {cost:80,  icon:'🏰', dmg:38,  rate:1.8, range:3.2, splash:0,   glow:'#60A5FA'},
       {cost:150, icon:'🏯', dmg:70,  rate:2.1, range:3.6, splash:0,   glow:'#C084FC'},
     ]},
-  { id:'ranger',  name:'Ranger',  icon:'🏹', cost:90,  color:'#10B981', range:4.5, dmg:14,  rate:2.5,  splash:0,
+  { id:'ranger',  name:'Ranger',  icon:'🏹', cost:90,  color:'#10B981', range:4.5, dmg:14,  rate:2.5,  splash:0,  pattern:'dots',
     upgrades:[
       {cost:100, icon:'🏹', dmg:24,  rate:3.2, range:5.0, splash:0,   glow:'#34D399'},
       {cost:180, icon:'🎯', dmg:44,  rate:4.0, range:5.6, splash:0,   glow:'#C084FC'},
     ]},
-  { id:'mortar',  name:'Mortar',  icon:'💣', cost:130, color:'#EF4444', range:2.8, dmg:60,  rate:0.55, splash:1.5,
+  { id:'mortar',  name:'Mortar',  icon:'💣', cost:130, color:'#EF4444', range:2.8, dmg:60,  rate:0.55, splash:1.5, pattern:'cross',
     upgrades:[
       {cost:120, icon:'💣', dmg:100, rate:0.65, range:3.0, splash:1.8, glow:'#F87171'},
       {cost:200, icon:'💥', dmg:180, rate:0.80, range:3.3, splash:2.3, glow:'#C084FC'},
@@ -5662,6 +5677,42 @@ function tdRenderPlacementUI(ctx, cs, bgT) {
 
 // ── Entities ───────────────────────────────────────────────────
 
+// Color-blind mode (U-4): a subtle white pattern clipped to the tower tile,
+// distinguishing tower type without relying on the border/glow color alone.
+function tdDrawTowerPattern(ctx, x, y, size, pattern) {
+  ctx.save();
+  tdRRect(ctx, x, y, size, size, 4);
+  ctx.clip();
+  ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 1.1;
+  const step = size / 4;
+  if (pattern === 'diagonal' || pattern === 'cross') {
+    for (let i = -size; i < size * 2; i += step) {
+      ctx.beginPath();
+      ctx.moveTo(x + i, y);
+      ctx.lineTo(x + i + size, y + size);
+      ctx.stroke();
+      if (pattern === 'cross') {
+        ctx.beginPath();
+        ctx.moveTo(x + i + size, y);
+        ctx.lineTo(x + i, y + size);
+        ctx.stroke();
+      }
+    }
+  } else if (pattern === 'dots') {
+    ctx.fillStyle = '#FFFFFF';
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        ctx.beginPath();
+        ctx.arc(x + step * (c + 0.75), y + step * (r + 0.75), 1.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+}
+
 function tdRenderTowers(ctx, cs, bgT) {
   for (const t of td.towers) {
     const def   = TD_TOWER_DEFS.find(d => d.id === t.type);
@@ -5702,6 +5753,8 @@ function tdRenderTowers(ctx, cs, bgT) {
     ctx.strokeStyle = lvl > 0 ? (stats.glow || def.color) : def.color;
     ctx.lineWidth   = lvl > 0 ? 2 : 1.5;
     tdRRect(ctx, t.col*cs+2, t.row*cs+2, cs-4, cs-4, 4); ctx.stroke();
+
+    if (colorBlindMode && def.pattern) tdDrawTowerPattern(ctx, t.col*cs+2, t.row*cs+2, cs-4, def.pattern);
 
     const tSpr = TD_SPRITES[t.type];
     if (tSpr) {

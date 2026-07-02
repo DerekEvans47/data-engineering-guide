@@ -91,6 +91,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Correct G-9 -- run map also needs landscape orientation (#62)
 
+- Document stale scope premise, skip until re-scoped
+
 - Extract TD Game Config section — tower/enemy/shop/power-up defs (#49)
 
 - Extract canvas render block into renderer section

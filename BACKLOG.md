@@ -134,7 +134,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 |-----|-------|--------|----------|--------|--------------|-------|
 | U-2 | Touch target size audit (≥48 px tap zones) | 10 | P1 | DONE | — | Canvas tap and HUD buttons need minimum 48 px hit areas for mobile. |
 | U-3 | Keyboard / gamepad support | 40 | P3 | TODO | — | Arrow keys to navigate world map; 1–4 to select towers; Space to start wave. |
-| U-4 | Color-blind mode (shape indicators alongside color) | 20 | P2 | TODO | — | Overlay pattern fill (diagonal lines, dots) on towers so color isn't sole differentiator. |
+| U-4 | Color-blind mode (shape indicators alongside color) | 20 | P2 | DONE | — | Overlay pattern fill (diagonal lines, dots) on towers so color isn't sole differentiator. |
 | U-5 | Reduced-motion respect (`prefers-reduced-motion`) | 8 | P2 | DONE | — | Disable CSS animations and canvas particle effects if system preference is set. |
 
 ---
@@ -211,6 +211,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | S-4 | Canvas renderer section — tdRender split into 13 named draw sub-functions | 30 | 2026-07-02 |
 | EQ-4 | Relic system — 4-relic starter set, category exclusivity, upkeep, equip menu (run-map 🏺 button) | 45 | 2026-07-02 |
 | C-7 | Stale-question audit — 300 questions swept, no stale content found | 10 | 2026-07-02 |
+| U-4 | Color-blind mode — pattern fills (diagonal/dots/cross) per tower type, profile-sheet toggle | 20 | 2026-07-02 |
 
 ---
 
