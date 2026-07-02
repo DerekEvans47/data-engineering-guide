@@ -57,6 +57,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Proper async iOS audio unlock + session activation (#25)
 
+- Remove Nano Banana watermark from verdant terrain background (#73)
+
 - Restore alpha transparency on verdant/decay deco sprite sheets (#58)
 
 - Unlock Web Audio on iOS via shared context + gesture listener (#24)
@@ -81,7 +83,7 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add G-9 (multi-path map topology) and G-10 (barracks tower) (#59)
 
-- Add Verdant world-map style reference contact sheet
+- Add Verdant world-map style reference contact sheet (#72)
 
 - Add art-direction session handoff, flag G-9 for human review (#63)
 
