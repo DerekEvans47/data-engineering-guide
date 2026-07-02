@@ -4220,6 +4220,298 @@
       "explanation": "Window functions compute aggregations over a 'window' of related rows without collapsing them — each row keeps its original data and gains a new computed column. partitionBy('customer_id') scopes the window to one customer at a time; orderBy('purchase_date') ensures the cumulative sum grows chronologically; rowsBetween(unboundedPreceding, currentRow) defines the frame as 'all prior rows plus the current row'. This is the standard running total pattern. groupBy().agg() (option B) collapses all rows per customer into one summary row, destroying per-row detail. A self-join (option C) works mathematically but creates an O(n²) cross-product — prohibitively expensive on large datasets. filter() + withColumn() (option D) cannot compute a cumulative sum without a loop or window function because withColumn() operates row by row without access to neighbouring rows.",
       "difficulty": 57,
       "num": 280
+    },
+    {
+      "id": "p1-adls-blob-foundation",
+      "part": 1,
+      "topic": "Azure Data Lake Storage",
+      "type": "tf",
+      "stem": "True or False: Azure Data Lake Storage Gen2 is built on top of Azure Blob Storage — it uses the same underlying storage infrastructure, with a hierarchical namespace and ABFS driver added on top.",
+      "correct": true,
+      "explanation": "This statement is true. ADLS Gen2 is not a separate service with its own storage back-end; it is Azure Blob Storage with the hierarchical namespace feature enabled and a dedicated Hadoop-compatible ABFS (Azure Blob File System) driver layered on top. The underlying storage objects are identical — the Gen2 account can simultaneously serve as a standard Blob Storage endpoint. The hierarchical namespace is the critical differentiator: it makes directory operations (create, rename, delete) atomic and O(1), regardless of how many files are inside. Without it, renaming a 'directory' in flat Blob Storage requires copying and deleting every individual file — an operation that is neither atomic nor fast. For Spark and Databricks workloads that rely on staging directories and atomic commits (a core part of how Delta Lake and other formats guarantee consistency), the hierarchical namespace is essential to correctness. Always enable it when creating an ADLS account for analytics workloads.",
+      "difficulty": 20,
+      "num": 281
+    },
+    {
+      "id": "p1-adls-archive-tier",
+      "part": 1,
+      "topic": "Azure Data Lake Storage",
+      "type": "mc",
+      "stem": "A compliance team stores audit log archives that are retrieved at most once per year during external audits. Which ADLS Gen2 access tier minimises storage cost for this data?",
+      "options": [
+        "Hot",
+        "Cool",
+        "Cold",
+        "Archive"
+      ],
+      "correct": 3,
+      "explanation": "The Archive tier is designed for data that is accessed very rarely — Microsoft defines this as fewer than once a year — and offers the lowest per-GB storage cost across all tiers. Cost ranking from highest to lowest storage price is: Hot > Cool > Cold > Archive, with Archive costing roughly 90% less than Hot per gigabyte. The trade-off is availability: Archive-tier data is offline and must be rehydrated (moved to Hot or Cool) before it can be read, a process that takes hours and incurs an additional per-GB retrieval fee. Hot tier suits data accessed daily or weekly with immediate read requirements. Cool tier suits data accessed roughly monthly; Cold tier suits quarterly access. For annual audit logs, Archive is clearly correct — the long retrieval window fits perfectly within the lead time for an annual external audit. The takeaway: match tier to access frequency, not to data criticality. Even mission-critical compliance data belongs in Archive if it is rarely read.",
+      "difficulty": 31,
+      "num": 282
+    },
+    {
+      "id": "p1-adls-databricks-auth",
+      "part": 1,
+      "topic": "Azure Data Lake Storage",
+      "type": "mc",
+      "stem": "A Databricks cluster must read from ADLS Gen2 in production. The security team prohibits embedding account keys or SAS tokens in notebooks or cluster configuration. Which authentication approach satisfies this requirement?",
+      "options": [
+        "Storage account key stored in a Databricks secret scope and injected at cluster startup",
+        "SAS token with 90-day expiry passed as an environment variable in the cluster init script",
+        "Service Principal with OAuth 2.0 using Azure Managed Identity, with credentials stored in Azure Key Vault",
+        "Public read access to the ADLS container with an IP allowlist on the storage firewall"
+      ],
+      "correct": 2,
+      "explanation": "The security team's constraint — no keys or tokens in notebooks or configs — points directly to identity-based authentication via OAuth 2.0. The recommended production pattern uses an Azure Service Principal (an Entra ID application identity) or a Managed Identity assigned to the Databricks cluster, with credentials stored in Azure Key Vault and referenced via a Databricks secret scope. No credential ever appears in code, notebooks, or cluster configuration — only a reference to the secret scope key. Option A (secret scope with account key) technically avoids plain-text embedding but still puts a long-lived account key — which grants full storage access with no expiry — into infrastructure that can be audited and rotated only manually. Option B (SAS token in init script) is scoped and time-limited but still requires credential distribution and rotation management. Option D (public access with IP allowlist) is inappropriate for sensitive compliance data and violates most enterprise security policies. In production, always prefer identity-based authentication over credential-based authentication.",
+      "difficulty": 46,
+      "num": 283
+    },
+    {
+      "id": "p1-adls-vs-s3",
+      "part": 1,
+      "topic": "Azure Data Lake Storage",
+      "type": "mc",
+      "stem": "A data platform runs 90% of its workloads on Azure Synapse Analytics but also triggers monthly AWS Glue jobs to reconcile records with a partner's S3 bucket. The architect must choose one primary object storage layer. What is the strongest reason to favour ADLS Gen2 as the primary store?",
+      "options": [
+        "ADLS Gen2 offers significantly lower per-GB storage pricing than Amazon S3 Standard",
+        "ADLS Gen2 integrates natively with Azure Synapse, Entra ID, and Azure Virtual Network — eliminating cross-cloud egress costs for the dominant 90% of workloads",
+        "Amazon S3 does not support the Parquet file format natively, which Azure Synapse requires",
+        "ADLS Gen2 provides stronger default at-rest encryption than S3"
+      ],
+      "correct": 1,
+      "explanation": "When 90% of workloads run on Azure Synapse, ADLS Gen2 is the natural primary store: it integrates natively via Synapse linked services, uses Entra ID (formerly Azure AD) for identity-based access, and keeps all data movement within the Azure private network — avoiding cross-cloud egress charges entirely. The monthly AWS Glue job can read from ADLS Gen2 using the Hadoop ABFS connector with a scoped SAS token, or the relevant dataset can be replicated to S3 for processing. Option A is incorrect — S3 Standard and ADLS Gen2 Hot tier pricing are comparable; neither has a decisive cost advantage. Option C is flatly false — S3 natively supports Parquet and is the origin of the Parquet format from the Hadoop ecosystem. Option D is also incorrect — both services provide AES-256 encryption at rest by default. The architectural principle: optimise for the dominant workload and treat cross-cloud access as a solvable integration problem, not a reason to reverse the primary storage decision.",
+      "difficulty": 56,
+      "num": 284
+    },
+    {
+      "id": "p1-adls-queue-vs-lake",
+      "part": 1,
+      "topic": "Azure Data Lake Storage",
+      "type": "tf",
+      "stem": "True or False: Azure Queue Storage is a valid replacement for ADLS Gen2 as an analytical data store because it supports durable, large-scale file storage with a hierarchical namespace.",
+      "correct": false,
+      "explanation": "This statement is false. Azure Queue Storage is a messaging service designed for reliable, asynchronous message exchange between application components — it stores small text messages (up to 64 KB each) in a first-in, first-out queue for decoupled processing. It has no hierarchical namespace, no file storage model, and no analytics capabilities. The five core Azure storage types serve fundamentally different purposes: Blob Storage / ADLS Gen2 for large unstructured objects, analytical datasets, and data lake workloads; Files for SMB and NFS file shares accessible by virtual machines; Queue for lightweight messaging between services; Table for NoSQL key-value storage with fast point lookups; and Disk for Azure virtual machine OS and data volumes. Using Queue Storage as a data lake would immediately hit the 64 KB message size limit, provide no way to run analytical queries directly against the data, and create complex message management overhead. Understanding these distinctions prevents architecture mistakes that are expensive to unwind. For analytical data on Azure, ADLS Gen2 is always the correct starting point.",
+      "difficulty": 27,
+      "num": 285
+    },
+    {
+      "id": "p2-cte-temp-table-perf",
+      "part": 2,
+      "topic": "Common Table Expressions",
+      "type": "mc",
+      "stem": "A SQL Server query references a CTE named SalesSummary three separate times to produce three different aggregations. The CTE aggregates 80 million rows. A colleague suggests rewriting with a temporary table. What is the strongest performance argument for using a temporary table?",
+      "options": [
+        "Temporary tables always use an in-memory buffer pool, while CTEs always spill to disk",
+        "SQL Server does not materialise CTEs by default — a CTE referenced three times is re-executed three times, whereas a temporary table is computed and stored once",
+        "CTEs in SQL Server are capped at 1 million input rows; temporary tables have no such limit",
+        "Temporary tables allow columnstore indexes to be added, and all SQL Server queries benefit from columnstore indexes"
+      ],
+      "correct": 1,
+      "explanation": "In SQL Server (and most ANSI-compliant engines), a Common Table Expression is syntactic sugar for an inline view — the query optimiser does not materialise it into a reusable intermediate result. Each reference to the CTE in the outer query causes the CTE's definition to be inlined and re-executed. For an 80-million-row aggregation referenced three times, this means the aggregation runs three times — a significant and avoidable performance cost. A temporary table forces explicit materialisation: the aggregation runs once, the result is written to tempdb, and the three subsequent references read from that stored set. Option A is incorrect — both constructs can use buffer pool memory; temporary tables also spill to disk when memory is exhausted. Option C is false — CTEs have no row-count limit. Option D is partially true (columnstore indexes do benefit OLAP queries) but overstated — not all queries benefit, and the argument only applies if the dataset is large enough to justify index overhead. The rule of thumb: use a CTE for single-reference intermediates; use a temp table when you need to reference the same expensive result multiple times.",
+      "difficulty": 54,
+      "num": 286
+    },
+    {
+      "id": "p2-cte-scope",
+      "part": 2,
+      "topic": "Common Table Expressions",
+      "type": "tf",
+      "stem": "True or False: A CTE defined in one SQL statement can be referenced by a subsequent SQL statement in the same database session without being redefined.",
+      "correct": false,
+      "explanation": "This statement is false. A Common Table Expression is scoped strictly to the single SQL statement — the SELECT, INSERT, UPDATE, or DELETE — in which it appears. Once that statement completes, the CTE no longer exists and cannot be referenced by any subsequent statement, even within the same session, transaction, or batch. This is a fundamental distinction between CTEs and other reusable structures: a temporary table persists for the lifetime of the session and can be queried by multiple subsequent statements; a VIEW is a persisted object in the database catalog accessible to any authorised user across sessions; a user-defined function wraps reusable logic callable by name. CTEs clean up automatically with no explicit DROP required, which is both a benefit (no cleanup overhead) and a constraint (no cross-statement reuse). If you need to reference a computed result set across multiple SQL statements, use a temporary table or a permanent view. The single-statement scope of CTEs is intentional — it keeps query logic self-contained and prevents unintended state sharing.",
+      "difficulty": 29,
+      "num": 287
+    },
+    {
+      "id": "p2-cte-recursive-org",
+      "part": 2,
+      "topic": "Common Table Expressions",
+      "type": "mc",
+      "stem": "An HR database stores each employee's employee_id and manager_id in a single Employee table. A team wants to list every employee who reports — directly or indirectly — to a given SVP. Which SQL construct is the idiomatic solution?",
+      "options": [
+        "A WHILE loop that progressively JOINs the Employee table to itself for each management level",
+        "A recursive CTE with an anchor member selecting the SVP and a recursive member that JOINs Employee back to the CTE on manager_id",
+        "A window function using DENSE_RANK() OVER (PARTITION BY manager_id ORDER BY employee_id)",
+        "Multiple self-JOINs to a fixed depth of six levels, assuming that is the maximum hierarchy depth"
+      ],
+      "correct": 1,
+      "explanation": "Recursive CTEs are the standard SQL tool for traversing hierarchical data stored in an adjacency list (parent-child id pairs). The structure requires two mandatory parts: an anchor member — a non-recursive SELECT that provides the starting point (the SVP's row) — and a recursive member — a SELECT that JOINs the Employee table back to the CTE on manager_id to find the next tier. The recursion continues until the recursive member produces no new rows (i.e., no employee's manager_id matches any employee_id returned so far). Option A (WHILE loop) achieves the same result procedurally but is verbose, harder to optimise by the query engine, and not portable across SQL dialects. Option C (DENSE_RANK) is a ranking window function for ordering rows within partitions — entirely inappropriate for hierarchical traversal. Option D (fixed-depth self-joins) is brittle: it silently misses employees deeper than the assumed maximum and requires a schema or query change to extend. Recursive CTEs are supported in T-SQL, PostgreSQL, MySQL 8+, BigQuery, and Spark SQL, making them the universally portable choice.",
+      "difficulty": 41,
+      "num": 288
+    },
+    {
+      "id": "p2-cte-vs-view",
+      "part": 2,
+      "topic": "Common Table Expressions",
+      "type": "mc",
+      "stem": "A junior engineer defines a CTE inside every ad-hoc query rather than creating a VIEW in the database. A senior colleague asks why. What is the most important practical distinction between the two?",
+      "options": [
+        "CTEs are compiled and execution-plan cached automatically; views must be refreshed manually to pick up new execution plans",
+        "CTEs exist only for the lifetime of the single statement in which they are defined; views are persisted in the database catalog and can be queried by any authorised user across sessions",
+        "Only CTEs support recursive logic — SQL views cannot express recursion in any major SQL engine",
+        "Views are deprecated in favour of CTEs in SQL Server 2019 and later versions"
+      ],
+      "correct": 1,
+      "explanation": "The most important distinction is persistence and shareability. A CTE is query-local: once the enclosing statement finishes, the CTE vanishes. This makes CTEs ideal for structuring the logic of a single complex query, but they cannot be shared with other team members or referenced by other queries without redefining them. A VIEW is a named, stored query saved in the database catalog: it persists across sessions, can be granted permissions independently, and provides a stable interface that other queries and tools can reference by name. Option A is incorrect — CTEs are not separately compiled or plan-cached; plan caching applies to the enclosing query, not the CTE in isolation. Option C is incorrect — SQL Server supports recursive views (using recursive CTEs under the hood), and PostgreSQL provides explicit CREATE RECURSIVE VIEW syntax. Option D is flatly wrong — views remain a core, actively supported SQL feature in every major engine. The choice between CTE and view is primarily about intended scope: use CTEs for query-private intermediates, views for shared and reusable abstractions.",
+      "difficulty": 34,
+      "num": 289
+    },
+    {
+      "id": "p2-cte-maxrecursion",
+      "part": 2,
+      "topic": "Common Table Expressions",
+      "type": "tf",
+      "stem": "True or False: In SQL Server, a recursive CTE terminates with an error after 100 recursive iterations by default, unless the query specifies OPTION (MAXRECURSION n) to change the limit.",
+      "correct": true,
+      "explanation": "This statement is true. SQL Server enforces a default MAXRECURSION value of 100 on all recursive CTEs to prevent infinite loops caused by cycles in data — for example, an employee who is accidentally listed as their own manager, or a circular reporting chain. When the recursion depth reaches 100 without the query terminating naturally, SQL Server raises: 'The statement terminated. The maximum recursion 100 has been exhausted before statement completion.' To extend the limit, append OPTION (MAXRECURSION n) at the end of the SELECT statement, where n is the maximum depth you need. Setting n to 0 disables the limit entirely — useful for genuinely deep hierarchies but dangerous if the data contains cycles. PostgreSQL handles this differently: it imposes no default limit but offers a WITH RECURSIVE ... LIMIT clause. The practical takeaway is to always design the recursive member with an explicit depth guard in the WHERE clause (e.g., AND level < 20) in addition to relying on MAXRECURSION, because a guard gives you readable diagnostics and control independent of engine defaults.",
+      "difficulty": 39,
+      "num": 290
+    },
+    {
+      "id": "p4-powerbi-composite-mode",
+      "part": 4,
+      "topic": "Power BI",
+      "type": "mc",
+      "stem": "A Power BI report displays 3 years of sales history (40 GB) alongside an inventory feed that updates every 5 minutes. Analysts must see real-time inventory data alongside historical sales trends in the same visual. Which storage mode strategy best satisfies both requirements?",
+      "options": [
+        "Import mode for all data, scheduling a dataset refresh every 5 minutes",
+        "DirectQuery for all data to ensure every visual always reflects the latest state",
+        "Composite mode: Import the 3-year sales history and use DirectQuery for the live inventory feed",
+        "Live Connection to an Azure Analysis Services model that handles both tables"
+      ],
+      "correct": 2,
+      "explanation": "Composite mode allows different tables in a single semantic model to use different storage modes. Importing the 3-year sales history loads it into the in-memory Vertipaq engine — delivering fast analytical query performance with no database load on every report interaction. DirectQuery on the live inventory table goes directly to the source on every visual refresh, providing genuine real-time accuracy without waiting for a scheduled import refresh. Option A fails in practice: Power BI Pro limits scheduled refreshes to 8 per day; Premium capacities support up to 48. Neither supports every-5-minute refresh via standard scheduling. Even with incremental refresh and streaming datasets, approaching 5-minute granularity on a 40 GB dataset introduces significant complexity. Option B (DirectQuery-only) eliminates the import latency advantage — querying 40 GB of sales history on every visual render would put severe load on the source system and deliver slow reports. Option D (Live Connection to AAS) delegates the storage decision to the AAS model, which must still solve the same hybrid problem internally — adding infrastructure cost without resolving the architectural issue.",
+      "difficulty": 61,
+      "num": 291
+    },
+    {
+      "id": "p4-powerbi-import-refresh",
+      "part": 4,
+      "topic": "Power BI",
+      "type": "tf",
+      "stem": "True or False: In Power BI Import mode, changes at the source database are automatically visible in published reports in real time without any manual or scheduled refresh.",
+      "correct": false,
+      "explanation": "This statement is false. Power BI Import mode copies a point-in-time snapshot of the source data into the Vertipaq in-memory engine inside the Power BI service. Once imported, that snapshot is static — changes made at the source are not reflected in reports until a refresh is triggered. Refresh options include scheduled refreshes (configured in the Power BI service, up to 8 times per day on Pro, up to 48 times per day on Premium capacities), manual refresh triggered by a user in the service, or programmatic refresh via the Power BI REST API or Power Automate. This stands in contrast to DirectQuery mode, where visuals query the source database directly on every render, always returning current data at the cost of query latency and source load. The core trade-off is freshness versus speed: Import mode delivers the fastest report performance because all data is pre-loaded in memory, but it introduces a data lag equal to the refresh interval. Understanding this trade-off is the starting point for choosing the correct storage mode in any Power BI semantic model design.",
+      "difficulty": 19,
+      "num": 292
+    },
+    {
+      "id": "p4-powerbi-dynamic-rls",
+      "part": 4,
+      "topic": "Power BI",
+      "type": "mc",
+      "stem": "A company has 80 regional sales managers, each of whom should see only their own region's data in a shared Power BI report. What is the most scalable implementation of this access control?",
+      "options": [
+        "Publish a separate report for each of the 80 managers with pre-filtered data",
+        "Use Dynamic Row-Level Security: create a single role whose DAX filter compares USERPRINCIPALNAME() to a dimension table that maps each user to their permitted region",
+        "Use Static RLS with one role per manager hard-coded in the Power BI Desktop model definition",
+        "Apply row-level filters in Power Query transformations before data is loaded into the semantic model"
+      ],
+      "correct": 1,
+      "explanation": "Dynamic Row-Level Security evaluates the authenticated user's identity at query time using the USERPRINCIPALNAME() or USERNAME() DAX function. The standard pattern is to maintain a dimension table that maps each user's email address to their allowed values — in this case, regions — and then write a DAX role filter such as: [Region] = LOOKUPVALUE(UserRegion[Region], UserRegion[Email], USERPRINCIPALNAME()). When a manager opens the report, Power BI evaluates this filter for their logged-in identity and restricts rows automatically. Onboarding a new manager or changing a region assignment requires only updating the mapping table — no model republish needed. Option A (separate reports) creates 80 maintenance burdens: each report must be updated independently when data or logic changes. Option C (static RLS) requires updating and republishing the Power BI Desktop model for every personnel or region change — not scalable at 80+ users. Option D (Power Query filters) would bake the filter logic into the data load, creating a separate imported dataset per user and removing the ability to share a single semantic model.",
+      "difficulty": 49,
+      "num": 293
+    },
+    {
+      "id": "p4-powerbi-vs-looker",
+      "part": 4,
+      "topic": "Power BI",
+      "type": "mc",
+      "stem": "An enterprise data team requires all business metric definitions — revenue, churn rate, LTV — to be version-controlled in Git, peer-reviewed via pull requests, and automatically consistent across dashboards, APIs, and embedded analytics. Which BI platform's architecture is most purpose-built for this requirement?",
+      "options": [
+        "Power BI, because its shared semantic model deployed via App workspace centralises metric definitions for all report consumers",
+        "Looker, because LookML defines metrics as code stored in a version-controlled Git repository and serves as a single source of truth for all downstream consumers",
+        "Tableau, because Published Data Sources on Tableau Server expose a governed metric layer that is shared across workbooks",
+        "Apache Superset, because its open-source SQLAlchemy-backed virtual datasets are fully auditable and vendor-neutral"
+      ],
+      "correct": 1,
+      "explanation": "LookML is Looker's modelling language — plain-text files stored in a Git repository where every metric is defined once, version-controlled, and subject to peer review via pull requests and CI checks, exactly as application source code is. Any consumer of the Looker API, embedded analytics endpoint, or dashboard references the same LookML definition, making it structurally impossible for two teams to compute revenue differently. Power BI's shared semantic model (option A) does centralise definitions and is a strong option for many organisations, but the model is stored as a binary .pbix or an XMLA endpoint rather than as text files natively integrated into a Git workflow. Third-party tools can partially bridge this, but it is not the native design. Tableau Published Data Sources (option C) share metric definitions across workbooks but are not code-first, version-controlled resources in the same sense as LookML. Superset (option D) is open-source and auditable, but its virtual datasets do not constitute a purpose-built metric governance layer. When code-first metric governance is the primary architectural requirement, Looker's LookML model is the platform specifically designed for it.",
+      "difficulty": 64,
+      "num": 294
+    },
+    {
+      "id": "p4-powerbi-fabric",
+      "part": 4,
+      "topic": "Power BI",
+      "type": "tf",
+      "stem": "True or False: Microsoft Fabric is an entirely separate product from Power BI and requires a standalone enterprise licence with no relationship to Power BI Premium capacity.",
+      "correct": false,
+      "explanation": "This statement is false. Microsoft Fabric is not a separate, unrelated product — it is an integrated analytics platform that unifies Power BI, data integration (Azure Data Factory-equivalent pipelines), data engineering (Apache Spark), data warehousing, real-time intelligence, and data science into a single SaaS experience on OneLake. Fabric F-SKU capacity licences replace the older Power BI Premium Per Capacity (P-SKU) licences and include all Power BI Premium capabilities, meaning organisations transitioning from P-SKUs to Fabric capacities gain access to the broader Fabric workloads without acquiring a separate product. For teams currently running a separate Azure data stack — ADF pipelines, Synapse Analytics, and Power BI Premium — Fabric represents a consolidation path: all of those capabilities can potentially be served from a single Fabric capacity, simplifying architecture and potentially reducing total cost of ownership. The practical implication is that evaluating Fabric is not a question of 'should we add this on top of Power BI?' but rather 'should we migrate our data platform into Fabric?' — a more significant architectural decision.",
+      "difficulty": 33,
+      "num": 295
+    },
+    {
+      "id": "p6-llm-temperature",
+      "part": 6,
+      "topic": "How LLMs Work",
+      "type": "mc",
+      "stem": "A data engineering team builds an LLM-powered SQL generation tool. In production, identical prompts occasionally produce syntactically different SQL queries. What single configuration change most directly addresses this non-determinism?",
+      "options": [
+        "Increase max_tokens to allow longer, more complete responses",
+        "Set temperature to 0 to make token selection deterministic",
+        "Upgrade to a model with more parameters for stronger reasoning",
+        "Add few-shot SQL examples to the system prompt"
+      ],
+      "correct": 1,
+      "explanation": "LLM text generation works by computing a probability distribution over the vocabulary at each step and sampling the next token from that distribution. Temperature controls how peaked the distribution is: at temperature 0, the model always selects the single highest-probability token (greedy decoding), making every run deterministic for a fixed prompt and model version. At higher temperatures, lower-probability tokens have a meaningful chance of being selected, introducing variance between runs. For a SQL generation tool, determinism is critical — the same business question should always produce the same query for auditability and testability. Setting temperature to 0 is the most direct, single-parameter fix. Increasing max_tokens (option A) affects response length, not variance. Upgrading to a larger model (option C) may improve SQL quality but does not eliminate non-determinism unless temperature is also set to 0. Adding few-shot examples (option D) can improve output structure and reduce unexpected syntax, but the model will still sample differently across runs at non-zero temperature. Most inference APIs also offer a seed parameter for additional reproducibility, but temperature is the primary and most portable control.",
+      "difficulty": 36,
+      "num": 296
+    },
+    {
+      "id": "p6-llm-hallucination-cause",
+      "part": 6,
+      "topic": "How LLMs Work",
+      "type": "tf",
+      "stem": "True or False: LLM hallucinations are primarily caused by gaps in training data quality, and training exclusively on verified, factual sources would eliminate hallucinations.",
+      "correct": false,
+      "explanation": "This statement is false, and understanding why is essential for any data engineer deploying LLMs in production. Hallucination is not primarily a data quality problem — it is a structural consequence of how LLMs generate text. An LLM does not retrieve facts from a database; it predicts the statistically most likely next token given all preceding context. This mechanism is fundamentally probabilistic, not factual verification. Even a model trained exclusively on peer-reviewed, verified scientific literature will hallucinate — because it may generate a plausible-sounding token sequence that no real source ever expressed, simply because that sequence is statistically coherent given the patterns learned. High-quality training data does reduce hallucination frequency and improves factual accuracy, but it cannot eliminate the structural tendency to generate fluent, confident-sounding text that happens to be false. Techniques that genuinely reduce hallucination include retrieval-augmented generation (grounding outputs in retrieved documents), Constitutional AI or RLHF alignment, structured output schemas with validation, and chain-of-thought prompting. The practical takeaway: never allow an LLM to be the sole authority on factual claims in production — always include retrieval, grounding, or validation layers.",
+      "difficulty": 57,
+      "num": 297
+    },
+    {
+      "id": "p6-llm-rag-vs-finetune",
+      "part": 6,
+      "topic": "How LLMs Work",
+      "type": "mc",
+      "stem": "An enterprise wants its internal LLM assistant to answer questions about a product catalog that changes monthly. They are choosing between fine-tuning the base model on the catalog and implementing RAG. What is the most compelling argument for RAG in this scenario?",
+      "options": [
+        "RAG always produces higher factual accuracy than fine-tuning for domain-specific knowledge",
+        "RAG allows the knowledge base to be updated without retraining the model — fine-tuning is expensive and takes days to weeks per monthly update cycle",
+        "Fine-tuning is technically impossible for injecting new factual knowledge into Transformer-based models",
+        "RAG has lower inference-time latency than a fine-tuned model endpoint at production scale"
+      ],
+      "correct": 1,
+      "explanation": "The decisive factor is update frequency. Fine-tuning a large language model requires curating training examples, running a fine-tuning job (hours to days, costing thousands of dollars depending on model size and provider), validating the output, and deploying a new model version — every single month. RAG sidesteps the model update cycle entirely: when the catalog changes, you update the vector store or document index with the new content, and the unchanged model automatically draws on the new information at inference time. Option A is incorrect — fine-tuning on stable domain knowledge can achieve very high accuracy and in many benchmarks outperforms RAG for deeply embedded procedural knowledge. Option C is incorrect — fine-tuning absolutely can inject factual knowledge; this is how medical, legal, and domain-specific models are built. It is just expensive and slow to repeat monthly. Option D is context-dependent: fine-tuned endpoints may be faster (no retrieval step) or slower (larger model) than RAG pipelines depending on retrieval latency and chunk processing overhead. The principle: RAG is the right pattern when knowledge is dynamic and updates frequently; fine-tuning is the right pattern when behaviour, style, or stable domain knowledge needs to be deeply embedded.",
+      "difficulty": 51,
+      "num": 298
+    },
+    {
+      "id": "p6-llm-lost-in-middle",
+      "part": 6,
+      "topic": "How LLMs Work",
+      "type": "mc",
+      "stem": "A data team builds a document Q&A tool that embeds an 80-page technical specification (~32K tokens) into every LLM prompt. Users report the model correctly answers questions about content at the beginning and end of the specification but frequently misses details in the middle. What is the most likely cause?",
+      "options": [
+        "The document exceeds the model's maximum output token limit, causing silent truncation of the input",
+        "Transformer attention mechanisms exhibit degraded recall for content positioned in the middle of long contexts — the 'lost-in-the-middle' effect",
+        "The temperature setting is too low, causing the model to ignore low-probability content in the middle of the document",
+        "The system prompt is overriding and displacing document content when the combined token count is high"
+      ],
+      "correct": 1,
+      "explanation": "Research by Liu et al. (2023) demonstrated that Transformer-based LLMs systematically underperform on information positioned in the middle of long contexts, even when the total token count is well within the model's context window. The phenomenon — termed 'lost in the middle' — arises because attention patterns in Transformer architectures exhibit a U-shaped bias: tokens near the beginning (primacy effect) and the end (recency effect) of the context receive disproportionately high attention, while content buried in the middle receives relatively less. The failure pattern you describe — correct answers about beginning and end content, missed details from the middle — is the textbook symptom. Option A is incorrect: 32K tokens fits within a typical 128K-token context window; no truncation would occur. Option C is incorrect: temperature controls sampling variance in output generation, not which input tokens the model attends to. Option D describes a different failure mode — prompt injection or system-vs-user role conflicts — not the U-shaped attention bias. Practical mitigations include chunking the specification into small, independently retrievable units via RAG, placing the most critical content at the start or end of the context, or using models architecturally optimised for long-context recall.",
+      "difficulty": 66,
+      "num": 299
+    },
+    {
+      "id": "p6-llm-azure-openai",
+      "part": 6,
+      "topic": "How LLMs Work",
+      "type": "tf",
+      "stem": "True or False: Azure OpenAI and the direct OpenAI API provide identical data privacy and compliance guarantees for enterprise users, because both services serve the same underlying model weights.",
+      "correct": false,
+      "explanation": "This statement is false. While Azure OpenAI and the direct OpenAI API both provide access to the same model weights (GPT-4, GPT-4o, and others), they differ significantly in data handling and compliance guarantees that are material for enterprise data teams. Azure OpenAI runs within the customer's Azure tenant and selected region: prompts and completions are not used to train or improve OpenAI models by default, data does not leave the Azure network boundary, and the service is covered by Microsoft's enterprise compliance certifications — SOC 2 Type II, ISO 27001, HIPAA BAA, and GDPR data processing agreements. The direct OpenAI API, without a special enterprise agreement, may use inputs for model improvement (opt-out is available but must be configured explicitly) and does not provide the same network isolation, regional data residency, or contractual compliance coverage. For organisations processing regulated data — health records, financial PII, legal documents — Azure OpenAI is the appropriate choice because the enterprise data protection guarantees are built into the default service agreement. The models are the same; the data handling, network controls, and compliance wrappers are not.",
+      "difficulty": 43,
+      "num": 300
     }
   ]
 }
