@@ -10,6 +10,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Background music on home, map, and battle screens (#23)
 
+- Color-blind mode — pattern fills per tower type
+
 - Data-flow dots, directional muzzle flash, reduced-motion (#33)
 
 - Derive APP_VERSION from SW cache name
