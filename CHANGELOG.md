@@ -26,6 +26,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Power-up system — data model, pre-wave tray, effect engine (#45)
 
+- Relic system — data model, exclusivity, upkeep, equip menu
+
 - Run-map fog of war on deeply-locked nodes (V-25)
 
 - Seeded node position jitter on run map
