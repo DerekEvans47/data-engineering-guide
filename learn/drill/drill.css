@@ -2690,6 +2690,126 @@ html, body {
   max-width: 240px;
 }
 
+/* ── Relic equip menu (EQ-4) ──────────────────────────────── */
+.relic-equip-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(0,0,0,.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.relic-equip-sheet {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  width: 100%; max-width: 540px;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 1.1rem 1.1rem calc(1.4rem + env(safe-area-inset-bottom));
+}
+.relic-equip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .3rem;
+}
+.relic-equip-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.relic-equip-close {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.relic-equip-upkeep {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+  margin-bottom: .9rem;
+}
+.relic-equip-list {
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+}
+.relic-equip-card {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-muted);
+  border-radius: 10px;
+  padding: .7rem .8rem;
+  cursor: pointer;
+  min-height: 48px;
+  transition: border-color .14s, background .14s;
+}
+.relic-equip-card:active { opacity: .8; }
+.relic-equip-card.equipped {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.relic-equip-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.relic-equip-body { flex: 1; min-width: 0; }
+.relic-equip-name {
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.relic-equip-rarity {
+  font-size: .58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: .1rem .35rem;
+  border-radius: 6px;
+  margin-left: .3rem;
+}
+.relic-equip-rarity.rarity-common    { background: rgba(139,148,158,.18); color: var(--text-muted); }
+.relic-equip-rarity.rarity-uncommon  { background: rgba(16,185,129,.18);  color: var(--correct); }
+.relic-equip-rarity.rarity-rare      { background: rgba(99,102,241,.2);   color: var(--accent2); }
+.relic-equip-rarity.rarity-legendary { background: rgba(245,158,11,.2);   color: var(--xp-gold); }
+.relic-equip-desc {
+  font-size: .74rem;
+  color: var(--text-muted);
+  margin-top: .15rem;
+}
+.relic-equip-meta {
+  font-size: .65rem;
+  color: var(--text-subtle);
+  margin-top: .2rem;
+  font-weight: 600;
+}
+.relic-equip-status {
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--text-subtle);
+  flex-shrink: 0;
+  text-align: right;
+}
+.relic-equip-card.equipped .relic-equip-status { color: var(--accent2); }
+.relic-equip-empty {
+  text-align: center;
+  color: var(--text-subtle);
+  font-size: .82rem;
+  padding: 1.5rem 0;
+}
+
 /* ╔══════════════════════════════════════════════════════════
    ANIMATIONS — all @keyframes + prefers-reduced-motion overrides,
    consolidated here (S-7). Kept at the END of the file: the
