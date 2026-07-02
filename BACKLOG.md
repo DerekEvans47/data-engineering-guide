@@ -62,6 +62,8 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 | V-31 | Sprite drawImage render loop (replace parallax grass) | 30 | P2 | DONE | V-29, V-30, V-28 | In `tdRender()`, replace the parallax grass/pebble loop with a `drawImage` loop over `td.terrainDeco`. Call `applyDecoAnimation(ctx, spriteDef, d.phase, bgT)` where `spriteDef.animate` is set, wrapped in `ctx.save()`/`ctx.restore()`. Render scale per size field: `large=0.85`, `medium=0.60`, `small=0.35` of `cellSize`. Also remove the old `levelDef.deco` / `tdDrawSprite` block (~lines 4593–4602). |
 | V-32 | sw.js ASSETS — add 6 deco PNG paths + manifest | 3 | P1 | DONE | V-31 | Add `'./assets/map/manifest.json'` and all six `'./assets/map/deco-{theme}-{N}.png'` paths to the `ASSETS` array in `sw.js`. Cache version already bumped to v48 for Tasks 1/5/6; bump again to v49 for this commit. |
 | V-33 | Decommission dungeon mode | 65 | P3 | TODO | — | Remove all dungeon-mode screens, level defs, CSS, and DOM injection (`showDungeonScreen`, dungeon `TD_LEVEL_DEFS` entries, related buttons). Keep TD battle map, world map, and run-map intact. Work on a separate branch: `chore/decom-dungeon-mode`. |
+| V-34 | Deco sprite sheets missing alpha transparency (verdant/decay) | 8 | P1 | DONE | V-29 | All 6 `assets/map/deco-*.png` sheets were generated with alpha fully opaque (255) and a gray checkerboard baked into RGB instead of real transparency — every terrain deco rendered as a solid 256×256 tile. Fixed `deco-verdant-{1,2}.png` and `deco-decay-{1,2}.png` via `scripts/remove_checker_bg.py` (color-threshold keying + connected-component cleanup + edge feather). sw.js cache bumped to v79. |
+| V-35 | Deco sprite sheets missing alpha transparency (void) | 15 | P1 | TODO | V-34 | `deco-void-{1,2}.png` need the same fix as V-34, but the automated keying script leaves a visible checker halo around glow/magic-effect sprites (color bleed from the glow pushes those background pixels outside the checker's normal color range) — and loosening tolerance enough to catch the halo eats holes into gray/stone sprite content (e.g. the ghoul figure, rune die) instead. Needs per-sprite-cell tuning of `--sat-tol`/`--edge-tol`, or a smarter local test (e.g. require the removed patch to itself exhibit checker alternation, not just be a plausible gray), or accept regenerating just these two sheets with a solid chroma-key background (see prevention note below) rather than patching. |
 
 ---
 
@@ -203,6 +205,44 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | G-2 | Enemy special types — raider (fast), brute (armored), wisp (flying), shaman (healer) | 42 | 2026-07-01 |
 | S-7 | Split drill.css into labelled sections + consolidated all @keyframes/reduced-motion | 25 | 2026-07-01 |
 | V-15 | Landmark anchors — watchtower (entry), castle gate (exit), theme mid-landmark | 25 | 2026-07-01 |
+| V-34 | Fixed missing alpha transparency in verdant/decay deco sprite sheets | 8 | 2026-07-02 |
+
+---
+
+## Asset Generation Notes — preventing another V-34/V-35
+
+**Root cause of V-34/V-35:** the image generator used for `deco-*.png` can't emit real
+alpha transparency. Asked for a "transparent background," it drew a literal checkerboard
+(the standard no-background indicator most editors show) and flattened it into an opaque
+RGBA image (alpha 255 everywhere) instead of encoding actual alpha. Any future sprite
+batch made the same way will have the same defect.
+
+**Fix at generation time (do this, not post-processing):** request sprites on a solid,
+highly saturated chroma-key color — pure magenta (`#FF00FF`) or pure green (`#00FF00`) —
+instead of "transparent" or a checkerboard. A flat single color is what makes background
+removal trivial and safe: one color-distance test, no threshold tuning, and near-zero
+risk of colliding with real sprite content, because saturated magenta/green essentially
+never appears in pixel-art stone/metal/skin/foliage palettes. A gray-on-gray checkerboard
+does collide with that palette — that's exactly why V-35 (void theme) is stuck: its
+grays overlap the sprites' own grays, so no single tolerance setting can separate them.
+
+**On the "black outline frame" idea:** a frame around the *canvas edge* doesn't help much
+on its own — the space between the icon and the frame is still whatever background style
+was generated, so it still needs color-based removal. What *does* help, and is worth
+requesting explicitly in the generation prompt, is a continuous 1–2px dark outline traced
+around each sprite's own silhouette (most of the current sprites already have this by
+style default — check before assuming it's missing). A closed outline turns background
+removal into a flood-fill from the canvas border instead of a color-threshold problem:
+flood outward-in through every pixel reachable without crossing the outline, regardless of
+what color or pattern the background turns out to be. Combine both — chroma-key
+background *and* a guaranteed closed outline — and removal becomes both simple and immune
+to glow/color-bleed edge cases like the one blocking V-35.
+
+**Process going forward:** run `scripts/remove_checker_bg.py <sheet>.png --preview
+preview.png` on every newly generated sheet before it's committed, and actually look at
+`preview.png` (composited onto magenta) rather than the raw PNG — a transparent PNG and a
+checkerboard-background PNG look identical in most viewers, which is exactly how V-34/V-35
+made it into the repo unnoticed.
 
 ---
 

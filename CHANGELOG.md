@@ -10,8 +10,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - TD map visual overhaul — three-act themes, background fills, animation system (#17)
 
-- TD tutorial, tower inspect card, gold kill floaters (U-1, U-10, U-11)
-
 - Background music on home, map, and battle screens (#23)
 
 - Data-flow dots, directional muzzle flash, reduced-motion (#33)
@@ -31,8 +29,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Offline question-bank versioning (I-3)
 
 - Power-up system — data model, pre-wave tray, effect engine (#45)
-
-- Replace SMIL pulse with CSS animation on run-map nodes (drill.css)
 
 - Run-map fog of war on deeply-locked nodes (V-25)
 
@@ -58,8 +54,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Audio not working in TD drill + pre-commit changelog hook (#22)
 
 - Auto-reload page when service worker updates (#27)
-
-- Block session URLs in pre-push hook
 
 - Crash in AudioContext unlock + retry on failure
 
@@ -108,6 +102,8 @@ A record of every feature, fix, and improvement shipped to the app.
 - Session handoff 2026-06-29 (#34)
 
 - Session handoff 2026-06-29 session 2
+
+- Session handoff 2026-07-01 (#57)
 
 - Show live AudioContext state in version badge (#28)
 
