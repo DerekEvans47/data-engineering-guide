@@ -93,6 +93,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Extract question-logic module section in drill.js (#48)
 
+- Fold fixed build-slot placement into G-9 (#60)
+
 - Harden nightly prompt — handoff file, inline PRs, conflict resolution (#20)
 
 - Make .claude/skills scripts executable
