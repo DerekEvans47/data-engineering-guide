@@ -23,7 +23,7 @@ Addresses the core finding from the 2026-06-25 repo audit: `drill.js` is a 3,448
 |-----|-------|--------|----------|--------|--------------|-------|
 | S-2 | Extract question-logic module | 20 | P1 | DONE | S-1 | Pull shuffle, filter, accuracy tracking, and session-queue logic out of drill.js into a self-contained section or file. Reduces coupling to game loop. |
 | S-3 | Extract tower-defense engine block | 40 | P1 | DONE | — | Move enemy AI, tower targeting, projectile physics, and wave-spawn logic into a clearly delimited section of drill.js (or separate file if bundler added). Give it a clean `TDGame` interface. |
-| S-4 | Extract canvas render block | 30 | P1 | TODO | S-3 | Move all `tdRender` sub-functions (sprites, terrain, HUD, particles) into a renderer section. Separate draw logic from game-state mutation. |
+| S-4 | Extract canvas render block | 30 | P1 | DONE | S-3 | Move all `tdRender` sub-functions (sprites, terrain, HUD, particles) into a renderer section. Separate draw logic from game-state mutation. |
 | S-6 | Data-drive TD level/tower/enemy config | 18 | P2 | DONE | — | Move `TD_LEVEL_DEFS`, tower cost/stat tables, and enemy stat tables out of drill.js into a config block or JSON file. Makes tuning accessible without touching game logic. |
 | S-7 | Split drill.css into logical layers | 25 | P2 | DONE | — | Reorganize into clearly labelled sections: variables/reset, layout, components (cards, buttons, HUD), screens (home, world-map, game, study), animations. Currently 2,016 lines mixed together. |
 | S-10 | TypeScript migration (stretch goal) | 80 | P3 | TODO | S-1,S-2,S-3,S-4 | Adds compile-time safety for game state and question objects. Only worthwhile after modules are extracted. Optional — assess after S-1 through S-4 are done. |
@@ -208,6 +208,7 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 | S-7 | Split drill.css into labelled sections + consolidated all @keyframes/reduced-motion | 25 | 2026-07-01 |
 | V-15 | Landmark anchors — watchtower (entry), castle gate (exit), theme mid-landmark | 25 | 2026-07-01 |
 | V-34 | Fixed missing alpha transparency in verdant/decay deco sprite sheets | 8 | 2026-07-02 |
+| S-4 | Canvas renderer section — tdRender split into 13 named draw sub-functions | 30 | 2026-07-02 |
 
 ---
 

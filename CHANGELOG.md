@@ -6,8 +6,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### ✨ Features
 
-- EQ-1 gold economy reform (carry-over, wave-clear bonus)
-
 - TD map visual overhaul — three-act themes, background fills, animation system (#17)
 
 - Background music on home, map, and battle screens (#23)
@@ -21,8 +19,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Endless mode — procedural waves after victory with kill/batch score (#47)
 
 - Enemy special types — fast/armored/flying/healer (#54)
-
-- Float tower placement chip near tower, larger buttons
 
 - Landmark anchor objects on TD map (#56)
 
@@ -67,6 +63,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 
 ### 📚 Content
+
+- Add questions: Parts 1, 2, 4, 6
 
 - Add questions: Parts 1, 3, 5, 6
 
