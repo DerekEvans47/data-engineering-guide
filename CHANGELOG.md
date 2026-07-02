@@ -85,6 +85,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add G-9 (multi-path map topology) and G-10 (barracks tower) (#59)
 
+- Add landscape orientation to G-9 scope (#61)
+
 - Ban session URLs and Generated-by footers in all PR bodies
 
 - Consolidate TD engine into one delimited section (#53)
