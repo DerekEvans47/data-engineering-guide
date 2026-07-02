@@ -1,4 +1,4 @@
-const CACHE = 'de-drill-v84';
+const CACHE = 'de-drill-v85';
 const ASSETS = [
   './index.html',
   './drill.css',
@@ -6,8 +6,6 @@ const ASSETS = [
   '../../content/question-bank.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
   './assets/map/manifest.json',
-  './assets/map/deco-verdant-1.png',
-  './assets/map/deco-verdant-2.png',
 ];
 
 self.addEventListener('install', e => {
