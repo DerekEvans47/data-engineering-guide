@@ -91,6 +91,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Consolidate TD engine into one delimited section (#53)
 
+- Correct G-9 -- run map also needs landscape orientation (#62)
+
 - Extract TD Game Config section — tower/enemy/shop/power-up defs (#49)
 
 - Extract question-logic module section in drill.js (#48)
