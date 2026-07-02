@@ -2673,24 +2673,6 @@ const TD_LANDMARKS = {
 };
 const TD_LANDMARK_MID = { verdant: 'shrine', decay: 'crypt', void: 'obelisk' };
 
-function tdDrawSprite(ctx, frames, fIdx, pal, cx, cy, ps) {
-  const frame = frames[fIdx % frames.length];
-  const ph = frame.length, pw = frame[0].length;
-  const ox = Math.round(cx - pw * ps / 2);
-  const oy = Math.round(cy - ph * ps / 2);
-  for (let y = 0; y < ph; y++) {
-    const row = frame[y];
-    for (let x = 0; x < pw; x++) {
-      const ch = row[x];
-      if (ch === '.') continue;
-      const col = pal[ch];
-      if (!col) continue;
-      ctx.fillStyle = col;
-      ctx.fillRect(ox + x * ps, oy + y * ps, ps, ps);
-    }
-  }
-}
-
 // ── Waypoint pool (3 path groups × 3 waypoint configs each) ──
 const TD_WPS_POOL = [
   // Path A (left branch)
@@ -5249,6 +5231,30 @@ async function tdLoadSpriteAssets(tdState) {
   }
 }
 
+// ╔══════════════════════════════════════════════════════════════
+//  TD RENDERER — canvas draw calls only, no game-state mutation
+//  sprites · terrain · towers/enemies · particles · HUD overlays (S-4)
+// ╚══════════════════════════════════════════════════════════════
+
+// ── Pixel-art sprite blitter ────────────────────────────────────
+function tdDrawSprite(ctx, frames, fIdx, pal, cx, cy, ps) {
+  const frame = frames[fIdx % frames.length];
+  const ph = frame.length, pw = frame[0].length;
+  const ox = Math.round(cx - pw * ps / 2);
+  const oy = Math.round(cy - ph * ps / 2);
+  for (let y = 0; y < ph; y++) {
+    const row = frame[y];
+    for (let x = 0; x < pw; x++) {
+      const ch = row[x];
+      if (ch === '.') continue;
+      const col = pal[ch];
+      if (!col) continue;
+      ctx.fillStyle = col;
+      ctx.fillRect(ox + x * ps, oy + y * ps, ps, ps);
+    }
+  }
+}
+
 // ── Deco animation helper ──────────────────────────────────────
 // Applies canvas-math animation transforms for a deco sprite.
 // Call with ctx.save() already in effect; restores are caller's responsibility.
@@ -5302,40 +5308,27 @@ const TD_THEME_CELLS = {
   void:    ['#0d0818', '#0f0a1c', '#0b0615'],
 };
 
-// ── Rendering ──────────────────────────────────────────────────
+// ── Background & terrain ─────────────────────────────────────────
 
-function tdRender() {
-  if (!td?.ctx) return;
-  const ctx = td.ctx, cs = td.cellSize;
-  const W = td.canvas.width, H = td.canvas.height;
-
-  const isLight = document.documentElement.dataset.theme === 'light';
-  const PAL = isLight
-    ? { bg:'#D4E8D4', path1:'#C8A46E', path2:'#D9B87C', mortar:'#8B6040', stone:'rgba(155,105,48,.32)',
-        grid:'rgba(0,0,0,.06)', inLbl:'#16A34A', outLbl:'#DC2626' }
-    : { bg:'#162016', path1:'#5a3a12', path2:'#7a5225', mortar:'#28110a', stone:'rgba(80,38,8,.55)',
-        grid:'rgba(255,255,255,.03)', inLbl:'#4ADE80', outLbl:'#EF4444' };
-
-  // ── Per-cell themed background ─────────────────────────────────
-  {
-    const mapDef = TD_MAPS[td.mapId] ?? TD_MAPS[0];
-    const palette = isLight ? null : (TD_THEME_CELLS[mapDef.themeName] ?? TD_THEME_CELLS.verdant);
-    if (palette) {
-      for (let r = 0; r < TD_ROWS; r++) {
-        for (let c = 0; c < TD_COLS; c++) {
-          const seed = ((c * 2654435761 + r * 1234567891) >>> 0);
-          ctx.fillStyle = palette[seed % 3];
-          ctx.fillRect(c * cs, r * cs, cs, cs);
-        }
+function tdRenderBackground(ctx, cs, W, H, isLight, PAL) {
+  const mapDef = TD_MAPS[td.mapId] ?? TD_MAPS[0];
+  const palette = isLight ? null : (TD_THEME_CELLS[mapDef.themeName] ?? TD_THEME_CELLS.verdant);
+  if (palette) {
+    for (let r = 0; r < TD_ROWS; r++) {
+      for (let c = 0; c < TD_COLS; c++) {
+        const seed = ((c * 2654435761 + r * 1234567891) >>> 0);
+        ctx.fillStyle = palette[seed % 3];
+        ctx.fillRect(c * cs, r * cs, cs, cs);
       }
-    } else {
-      ctx.fillStyle = PAL.bg;
-      ctx.fillRect(0, 0, W, H);
     }
+  } else {
+    ctx.fillStyle = PAL.bg;
+    ctx.fillRect(0, 0, W, H);
   }
+}
 
-  // ── Sprite-sheet terrain decoration (V-31) ────────────────────
-  const bgT = td.bgTime;
+// Sprite-sheet terrain decoration (V-31) + edge vignette
+function tdRenderTerrainDeco(ctx, cs, bgT, W, H) {
   const DECO_SCALE = { large: 0.85, medium: 0.60, small: 0.35 };
   for (const d of td.terrainDeco) {
     const sheet = td.spriteSheets?.[d.sheetKey];
@@ -5362,18 +5355,10 @@ function tdRender() {
   vGrad.addColorStop(1, `rgba(0,0,0,${vig})`);
   ctx.fillStyle = vGrad;
   ctx.fillRect(0, 0, W, H);
+}
 
-  let sx = 0, sy = 0;
-  if (td.shake > 0) {
-    td.shake = Math.max(0, td.shake - 0.016);
-    const mag = td.shake * 7;
-    sx = (Math.random() - 0.5) * mag * 2;
-    sy = (Math.random() - 0.5) * mag * 2;
-  }
-  ctx.save();
-  ctx.translate(sx, sy);
-
-  // ── Cobblestone path tiles (V-12) ──────────────────────────────
+// Cobblestone path tiles (V-12)
+function tdRenderPath(ctx, cs, PAL) {
   for (const key of td.pathSet) {
     const [col, row] = key.split(',').map(Number);
     const hasN = td.pathSet.has(`${col},${row-1}`);
@@ -5408,51 +5393,50 @@ function tdRender() {
     if (!hasW) ctx.fillRect(x, y, 2, cs);
     if (!hasE) ctx.fillRect(x + cs - 2, y, 2, cs);
   }
+}
 
-  // ── Animated data-flow dots on path (V-13) ───────────────────
-  {
-    const wpsArr = td.levelDef.wps;
-    const segs = [];
-    let totalLen = 0;
-    for (let i = 0; i < wpsArr.length - 1; i++) {
-      const [c0, r0] = wpsArr[i], [c1, r1] = wpsArr[i+1];
-      const x0 = c0*cs + cs/2, y0 = r0*cs + cs/2;
-      const x1 = c1*cs + cs/2, y1 = r1*cs + cs/2;
-      const len = Math.hypot(x1-x0, y1-y0);
-      segs.push({ x0, y0, x1, y1, len });
-      totalLen += len;
-    }
-    if (totalLen > 0) {
-      const spacing  = totalLen / 4;
-      const dotSpeed = cs * 1.0;
-      for (let i = 0; i < 4; i++) {
-        let rem = ((bgT * dotSpeed + i * spacing) % totalLen);
-        let dx = null, dy = null;
-        for (const seg of segs) {
-          if (rem <= seg.len) {
-            const f = rem / seg.len;
-            dx = seg.x0 + (seg.x1 - seg.x0) * f;
-            dy = seg.y0 + (seg.y1 - seg.y0) * f;
-            break;
-          }
-          rem -= seg.len;
+// Animated data-flow dots on path (V-13)
+function tdRenderDataFlowDots(ctx, cs, bgT) {
+  const wpsArr = td.levelDef.wps;
+  const segs = [];
+  let totalLen = 0;
+  for (let i = 0; i < wpsArr.length - 1; i++) {
+    const [c0, r0] = wpsArr[i], [c1, r1] = wpsArr[i+1];
+    const x0 = c0*cs + cs/2, y0 = r0*cs + cs/2;
+    const x1 = c1*cs + cs/2, y1 = r1*cs + cs/2;
+    const len = Math.hypot(x1-x0, y1-y0);
+    segs.push({ x0, y0, x1, y1, len });
+    totalLen += len;
+  }
+  if (totalLen > 0) {
+    const spacing  = totalLen / 4;
+    const dotSpeed = cs * 1.0;
+    for (let i = 0; i < 4; i++) {
+      let rem = ((bgT * dotSpeed + i * spacing) % totalLen);
+      let dx = null, dy = null;
+      for (const seg of segs) {
+        if (rem <= seg.len) {
+          const f = rem / seg.len;
+          dx = seg.x0 + (seg.x1 - seg.x0) * f;
+          dy = seg.y0 + (seg.y1 - seg.y0) * f;
+          break;
         }
-        if (dx == null) continue;
-        ctx.save();
-        ctx.globalAlpha = 0.12;
-        ctx.fillStyle = '#4ADE80';
-        ctx.beginPath(); ctx.arc(dx, dy, cs * 0.20, 0, Math.PI * 2); ctx.fill();
-        ctx.globalAlpha = 0.35;
-        ctx.beginPath(); ctx.arc(dx, dy, cs * 0.08, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
+        rem -= seg.len;
       }
+      if (dx == null) continue;
+      ctx.save();
+      ctx.globalAlpha = 0.12;
+      ctx.fillStyle = '#4ADE80';
+      ctx.beginPath(); ctx.arc(dx, dy, cs * 0.20, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath(); ctx.arc(dx, dy, cs * 0.08, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
     }
   }
+}
 
-  const wps      = td.levelDef.wps;
-  const entryRow = wps[0][1], exitRow = wps[wps.length-1][1];
-
-  // ── Animated entry / exit portals ───────────────────────────
+// Animated entry / exit portals
+function tdRenderPortals(ctx, cs, W, bgT, entryRow, exitRow) {
   const pp  = 0.5 + 0.5 * Math.sin(bgT * 2.8);
   const pp2 = 0.5 + 0.5 * Math.sin(bgT * 2.8 + Math.PI);
   const inCY  = entryRow * cs + cs / 2;
@@ -5497,27 +5481,29 @@ function tdRender() {
   ctx.textAlign = 'right';
   ctx.fillStyle = `rgba(251,146,60,${0.8 + pp2 * 0.2})`;
   ctx.fillText('OUT ▶', W - cs * 0.1, outCY);
+}
 
-  // ── Landmark anchors (V-15) ─────────────────────────────────
-  {
-    const mapDef = TD_MAPS[td.mapId] ?? TD_MAPS[0];
-    const midWp  = wps[Math.floor(wps.length / 2)];
-    // bgT can be a hair negative on the very first render (rAF timestamp vs.
-    // the performance.now() call that seeded lastTs) — normalize before % 2,
-    // since JS % keeps the sign of its left operand instead of wrapping.
-    const frame  = Math.floor(((bgT % 2) + 2) % 2);
-    const drawLandmark = (key, cx, cy) => {
-      const lm = TD_LANDMARKS[key];
-      if (!lm) return;
-      const ps = (cs * 2.15) / lm.frames[0].length;
-      tdDrawSprite(ctx, lm.frames, frame, lm.pal, cx, cy, ps);
-    };
-    drawLandmark('watchtower', cs * 0.35, entryRow * cs + cs / 2);
-    drawLandmark('gate', W - cs * 0.35, exitRow * cs + cs / 2);
-    drawLandmark(TD_LANDMARK_MID[mapDef.themeName] || 'shrine', midWp[0] * cs + cs / 2, midWp[1] * cs + cs / 2);
-  }
+// Landmark anchors (V-15)
+function tdRenderLandmarks(ctx, cs, W, bgT, wps, entryRow, exitRow) {
+  const mapDef = TD_MAPS[td.mapId] ?? TD_MAPS[0];
+  const midWp  = wps[Math.floor(wps.length / 2)];
+  // bgT can be a hair negative on the very first render (rAF timestamp vs.
+  // the performance.now() call that seeded lastTs) — normalize before % 2,
+  // since JS % keeps the sign of its left operand instead of wrapping.
+  const frame  = Math.floor(((bgT % 2) + 2) % 2);
+  const drawLandmark = (key, cx, cy) => {
+    const lm = TD_LANDMARKS[key];
+    if (!lm) return;
+    const ps = (cs * 2.15) / lm.frames[0].length;
+    tdDrawSprite(ctx, lm.frames, frame, lm.pal, cx, cy, ps);
+  };
+  drawLandmark('watchtower', cs * 0.35, entryRow * cs + cs / 2);
+  drawLandmark('gate', W - cs * 0.35, exitRow * cs + cs / 2);
+  drawLandmark(TD_LANDMARK_MID[mapDef.themeName] || 'shrine', midWp[0] * cs + cs / 2, midWp[1] * cs + cs / 2);
+}
 
-  // Pending placement cell highlight
+// Pending placement highlight + tower placement ghost preview
+function tdRenderPlacementUI(ctx, cs, bgT) {
   if (td.pendingCol >= 0 && td.pendingRow >= 0) {
     const pc = td.pendingCol, pr = td.pendingRow;
     const pulse = 0.5 + 0.5 * Math.sin(bgT * 6);
@@ -5557,7 +5543,11 @@ function tdRender() {
       ctx.globalAlpha = 1;
     }
   }
+}
 
+// ── Entities ───────────────────────────────────────────────────
+
+function tdRenderTowers(ctx, cs, bgT) {
   for (const t of td.towers) {
     const def   = TD_TOWER_DEFS.find(d => d.id === t.type);
     const stats = tdGetTowerStats(t);
@@ -5618,7 +5608,9 @@ function tdRender() {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     }
   }
+}
 
+function tdRenderEnemies(ctx, cs, bgT) {
   const sorted = [...td.enemies].sort((a,b) => b.dist - a.dist);
   for (const e of sorted) {
     const r = e.r * cs;
@@ -5677,7 +5669,11 @@ function tdRender() {
       ctx.strokeRect(bx, by, bw, bh);
     }
   }
+}
 
+// ── Projectiles, particles & floating text ───────────────────────
+
+function tdRenderProjectiles(ctx, cs) {
   for (const p of td.projectiles) {
     if (p.px !== undefined) {
       ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y);
@@ -5686,7 +5682,9 @@ function tdRender() {
     ctx.beginPath(); ctx.arc(p.x, p.y, cs * .13, 0, Math.PI*2);
     ctx.fillStyle = p.color; ctx.fill();
   }
+}
 
+function tdRenderParticles(ctx) {
   for (const p of td.particles) {
     const a = p.life / p.maxLife;
     ctx.globalAlpha = a;
@@ -5710,7 +5708,9 @@ function tdRender() {
     }
   }
   ctx.globalAlpha = 1;
+}
 
+function tdRenderDamageNumbers(ctx, cs) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `bold ${Math.round(cs * 0.34)}px sans-serif`;
   for (const n of td.damageNumbers) {
@@ -5720,9 +5720,11 @@ function tdRender() {
     ctx.fillText(n.label !== undefined ? n.label : ('-' + n.val), n.x, n.y);
   }
   ctx.globalAlpha = 1;
+}
 
-  ctx.restore();
+// ── HUD overlays: boss flash, pause, game over / victory ────────
 
+function tdRenderOverlays(ctx, cs, W, H) {
   if ((td.bossFlash || 0) > 0) {
     ctx.fillStyle = `rgba(255,255,255,${td.bossFlash * 0.6})`;
     ctx.fillRect(0, 0, W, H);
@@ -5756,6 +5758,54 @@ function tdRender() {
     ctx.fillStyle = '#8B949E';
     ctx.fillText('Tap below to continue', W/2, H/2 + cs*.7);
   }
+}
+
+// ── Orchestrator ──────────────────────────────────────────────────
+
+function tdRender() {
+  if (!td?.ctx) return;
+  const ctx = td.ctx, cs = td.cellSize;
+  const W = td.canvas.width, H = td.canvas.height;
+
+  const isLight = document.documentElement.dataset.theme === 'light';
+  const PAL = isLight
+    ? { bg:'#D4E8D4', path1:'#C8A46E', path2:'#D9B87C', mortar:'#8B6040', stone:'rgba(155,105,48,.32)',
+        grid:'rgba(0,0,0,.06)', inLbl:'#16A34A', outLbl:'#DC2626' }
+    : { bg:'#162016', path1:'#5a3a12', path2:'#7a5225', mortar:'#28110a', stone:'rgba(80,38,8,.55)',
+        grid:'rgba(255,255,255,.03)', inLbl:'#4ADE80', outLbl:'#EF4444' };
+  const bgT = td.bgTime;
+
+  tdRenderBackground(ctx, cs, W, H, isLight, PAL);
+  tdRenderTerrainDeco(ctx, cs, bgT, W, H);
+
+  let sx = 0, sy = 0;
+  if (td.shake > 0) {
+    td.shake = Math.max(0, td.shake - 0.016);
+    const mag = td.shake * 7;
+    sx = (Math.random() - 0.5) * mag * 2;
+    sy = (Math.random() - 0.5) * mag * 2;
+  }
+  ctx.save();
+  ctx.translate(sx, sy);
+
+  tdRenderPath(ctx, cs, PAL);
+  tdRenderDataFlowDots(ctx, cs, bgT);
+
+  const wps      = td.levelDef.wps;
+  const entryRow = wps[0][1], exitRow = wps[wps.length-1][1];
+
+  tdRenderPortals(ctx, cs, W, bgT, entryRow, exitRow);
+  tdRenderLandmarks(ctx, cs, W, bgT, wps, entryRow, exitRow);
+  tdRenderPlacementUI(ctx, cs, bgT);
+  tdRenderTowers(ctx, cs, bgT);
+  tdRenderEnemies(ctx, cs, bgT);
+  tdRenderProjectiles(ctx, cs);
+  tdRenderParticles(ctx);
+  tdRenderDamageNumbers(ctx, cs);
+
+  ctx.restore();
+
+  tdRenderOverlays(ctx, cs, W, H);
 }
 
 function tdRRect(ctx, x, y, w, h, r) {
