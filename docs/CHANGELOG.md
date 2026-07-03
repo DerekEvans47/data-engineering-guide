@@ -45,6 +45,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Accurate slot taps, grounded tower shadow, 4th ranger tier (#95)
 
+- Bypass HTTP/CDN caching for SW-installed assets (#100)
+
 - Frontier-town reduced to 10 build slots, aligned to painted clearings (#83)
 
 - Home screen requires scrolling to see Start Game button (#90)
