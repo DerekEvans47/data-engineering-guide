@@ -26,6 +26,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Mirror frontier-town for left-to-right flow; 11 slots centered in clearings (#84)
 
+- Painted Ranger tower art, code-side shadow, testing gold bump (#94)
+
 - Power-up system — data model, pre-wave tray, effect engine (#45)
 
 - Radial build/manage menu replaces persistent tower bar (#93)

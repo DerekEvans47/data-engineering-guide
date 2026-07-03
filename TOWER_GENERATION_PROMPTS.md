@@ -14,9 +14,11 @@ no shared lighting, no ground contact, wrong level of painterly detail. See
 "sticker map" problem, just on towers instead of terrain. The fix is the same one that
 worked for the maps — paint the tower in the same technique as the scene.
 
-**Status: Ranger — DONE, shipped.** `learn/drill/assets/towers/ranger-tier{1,2,3}.png`
-are wired into `TD_SPRITES`/`tdRenderTowers`. See "What actually shipped" below for the
-exact spec that produced the approved art, and "Process notes" for lessons from the
+**Status: Ranger — DONE, shipped, all 4 tiers wired.**
+`learn/drill/assets/towers/ranger-tier{1,2,3,4}.png` are wired into
+`TD_TOWER_TIER_IMAGES`/`tdRenderTowers`, with `TD_TOWER_DEFS.ranger` carrying 3
+upgrades (4 total levels) to match. See "What actually shipped" below for the exact
+spec that produced the approved art, and "Process notes" for lessons from the
 iterations that didn't.
 
 ## How to use this file
@@ -204,6 +206,15 @@ not just adjusting their alpha — see the script's docstring for the exact reas
   out in the actual game. If revisited, generate it as its own follow-up pass per
   tower (not bundled into the initial tier-progression generation) given how process
   note 3 went the one time both were attempted together.
-- Tier 4 art exists but isn't wired to a 4th upgrade level yet — `TD_TOWER_DEFS.ranger`
-  still only defines 3 levels (base + 2 upgrades). Decide later whether it's worth
-  adding a 3rd upgrade tier, or keep tier 4 as a reserved/prestige variant.
+- **Tier 1 silhouette inconsistency (known asset issue, candidate for regeneration):**
+  tiers 2–4 share a wide, centered stone/wood base with a ladder leaned against one
+  side — tier 1 instead sits on a narrow single post with a separate ladder planted
+  well off to one side, so its ground-contact footprint isn't centered under the
+  sprite the way tiers 2–4 are (measured: tier 1's footprint center sits at ~74% of
+  its own image width; tiers 2–4 sit at ~49–51%). This violates the "same footprint"
+  silhouette-continuity rule above and is why a single code-side shadow anchor can't
+  perfectly hug tier 1's base the way it does for the other three. Not re-generated
+  in this pass — the shadow was instead widened/centered to read reasonably on all 4
+  tiers rather than tuned to tier 1's off-center base specifically. Worth a regen of
+  tier 1 alone (matching tiers 2–4's centered stone base silhouette, with the
+  wood-only tier-1 materials) if this keeps bothering the eye in play-testing.
