@@ -38,6 +38,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Themed node shapes on run map (#46)
 
+- Tower facing — orient toward the road, front/back art (#98)
+
 
 ### 🐛 Bug Fixes
 

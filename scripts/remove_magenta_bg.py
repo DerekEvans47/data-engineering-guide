@@ -2,10 +2,10 @@
 """
 Convert a solid magenta (#FF00FF) chroma-key background to real alpha transparency.
 
-Background: sprite sheets generated for tower/enemy art (see TOWER_GENERATION_PROMPTS.md)
+Background: sprite sheets generated for tower/enemy art (see docs/TOWER_GENERATION_PROMPTS.md)
 are requested on a flat magenta field specifically so background removal is a simple
 color-distance threshold, not the fragile checkerboard-detection problem
-`remove_checker_bg.py` exists to solve (see BACKLOG.md's Asset Generation Notes). This
+`remove_checker_bg.py` exists to solve (see docs/BACKLOG.md's Asset Generation Notes). This
 script is that simpler counterpart: no checker-cell detection, just "how far is this
 pixel from pure magenta."
 

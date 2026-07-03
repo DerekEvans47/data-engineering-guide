@@ -2997,7 +2997,7 @@ function tdNearestPointOnPolyline(px, py, points) {
 // positions, not just Frontier Town. "front" art's default (unmirrored)
 // entrance leans screen-right; "back" art's default entrance leans
 // screen-left (measured directly from the art — see
-// TOWER_GENERATION_PROMPTS.md's facing-variant notes). Mirroring flips
+// docs/TOWER_GENERATION_PROMPTS.md's facing-variant notes). Mirroring flips
 // whichever variant is picked so the entrance leans toward whichever side
 // the road is actually on, not just whichever side the art happened to be
 // painted facing.
@@ -3075,9 +3075,10 @@ function frontierTownLevelDef() {
   return {
     name: 'Frontier Town', act: mapDef.name, icon: '🏘️', color: mapDef.color,
     enemyMult: 1.0,
-    // TEMP (tower-art testing): bumped from 160 so towers can be freely placed
-    // and upgraded to check the new painted art against every tier. Revert to
-    // 160 before shipping.
+    // TEMP (testing, intentionally kept high): bumped from 160 so every tower,
+    // enemy, animation, and other first-map item can be freely placed/tested
+    // without a gold grind. Revert to 160 once the first map's content is
+    // actually complete, not before.
     startGold: 99999, startLives: 25,
     wps: FRONTIER_TOWN_WPS,
     diffWeights: { easy: 0.8, medium: 0.2, hard: 0 },
@@ -6086,7 +6087,7 @@ function tdDrawTowerPattern(ctx, x, y, size, pattern) {
 // gets a wider, blockier one, and every future asset gets a correct shadow
 // for free with no per-tier tuning. Sheared toward lower-left (matching the
 // map's implied sun — see the shadow-direction note in
-// TOWER_GENERATION_PROMPTS.md) so it reads as fallen on the ground rather
+// docs/TOWER_GENERATION_PROMPTS.md) so it reads as fallen on the ground rather
 // than a second copy of the tower. The squash factor here (0.50) is
 // deliberately less flat than a "physically correct" dropped shadow would
 // be — at actual in-game cell sizes (as small as ~30px on mobile), thin

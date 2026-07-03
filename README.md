@@ -1,73 +1,44 @@
-# Data Engineering & AI Practitioner's Guide
+# Quiz Defense
 
-A self-directed learning system covering the full modern data engineering stack — built to accelerate progression to Director and Principal Data Engineering roles. Combines a textbook-style reference guide with a mobile-first drill app for daily question practice.
+A tower-defense game that teaches the modern data engineering & AI stack. Place towers,
+defend against waves of enemies, and answer real practitioner-level questions mid-battle
+to earn gold and rewards — progressing across a node-based run map through three acts
+tied to a full written guide underneath it.
 
-## What's in here
+Play it at `learn/drill/index.html` (installable as a PWA — see below), or read the
+reference guide directly if you'd rather skip the game.
 
-| Section | Purpose |
-|---|---|
-| **Guide** (Parts 1–9 + Appendix) | Reference reading — WHY before WHAT, real trade-offs, no assumed knowledge |
-| **DE Drill App** | Mobile PWA with two modes: Study (by part, in order) and Drill (randomised, tracks seen questions) |
+## The game
 
----
+- **Painted battle maps.** Each map is a hand-painted isometric scene (starting with
+  Frontier Town) with a fixed road your enemies walk and a handful of buildable
+  clearings alongside it.
+- **Towers that face the road.** Ranger towers render as painted-pixel-art structures
+  with distinct tiers (wood → wood/stone → stone → stone & diamond) and orient toward
+  whichever direction the road actually runs past their clearing — front or back art,
+  picked automatically from the map geometry, with code-side mirroring covering the
+  other two facings.
+- **Quiz-gated progression.** Waves start with a quiz drawn from the question bank;
+  answering correctly (or paying gold to skip) is how you fund and time your defense.
+  Getting questions right is the resource loop, not a side quiz bolted onto a normal TD
+  game.
+- **A run, not just a level.** The world map is split into three acts — **The Verdant
+  Frontier**, **The Cursed Graveyard**, and **The Void** — each mapped to three parts of
+  the guide (1–3, 4–6, 7–9 respectively). Between battles, a node-based run map offers
+  shops, rest sites, elite fights, and random events, with relics and power-ups to build
+  around.
+- **Offline-installable PWA.** Add to Home Screen on iPhone or Android; a service
+  worker caches everything needed to play without a connection.
 
-## Repository Structure
+## The guide
 
-```
-guide/
-  index.html                          ← Cover page / table of contents
-  assets/                             ← Shared CSS and JS
-  01-data-platform-foundation/
-  02-data-fundamentals/
-  03-compute-and-transformation/
-  04-analytics-and-visualisation/
-  05-delivery-and-leadership/
-  06-ai-and-agentic-systems/
-  07-product-management-fundamentals/
-  08-classical-ml-and-statistics/
-  09-supply-chain-analytics/
-  appendix/                           ← A–D
-learn/
-  drill/                              ← DE Drill PWA (Study + Drill modes)
-content/
-  question-bank.json                  ← Shared question bank (grows with each generation run)
-QUESTION_GENERATION_PROMPT.md         ← Paste into Claude for off-peak question generation
-```
+Underneath the game is a full self-directed reference guide — Parts 1–9 plus an
+appendix — covering the same material the towers, enemies, and quiz content are pulled
+from. It's there if you want to read deeply on a topic instead of (or alongside)
+playing; the game doesn't require it.
 
----
-
-## DE Drill App (`learn/drill/`)
-
-A mobile-first PWA installable via **Add to Home Screen** on iPhone or Android.
-
-### Study Mode
-All 9 parts listed with per-part progress bars. Tap a part to work through its questions in order. A back button returns to the part list at any time.
-
-### Drill Mode
-Randomised queue across all parts (or a filtered subset). Tracks which questions you've seen so it never repeats until you've exhausted the pool. Session score shown live.
-
-### Question types
-- Multiple Choice (4 options, one correct)
-- True / False
-
-All questions include a detailed explanation covering why the correct answer is right, why each wrong answer fails, and a practical takeaway.
-
-### Installing on iPhone
-1. Open `learn/drill/index.html` in Safari
-2. Tap the Share icon → **Add to Home Screen**
-3. The app installs as a standalone PWA with offline support
-
----
-
-## Question Bank
-
-`content/question-bank.json` — grows with each generation run. The app shows live question counts per part.
-
-Questions are generated in batches of 20 (4 sections × 5 questions) using `QUESTION_GENERATION_PROMPT.md`. Each batch targets the least-covered sections. At most 50% of questions are drawn directly from guide content — the rest extend into adjacent tooling, real-world application, common pitfalls, and practitioner-level depth not covered in the guide.
-
----
-
-## Guide Content
+<details>
+<summary><strong>Guide contents (Parts 1–9 + Appendix)</strong></summary>
 
 ### Part 1 — The Data Platform Foundation
 | Section | Topic |
@@ -157,23 +128,59 @@ Questions are generated in batches of 20 (4 sections × 5 questions) using `QUES
 | C | Security Fundamentals |
 | D | Interview Preparation Guide |
 
----
+**Guide features:** interactive quizzes with immediate feedback, hover/click glossary
+tooltips, sortable comparison tables, collapsible deep-dive sections, scroll-reveal SVG
+diagrams, prev/next section navigation, full sidebar table of contents.
 
-## Guide Features
+</details>
 
-- Interactive quizzes with immediate feedback and scoring
-- Hover/click glossary tooltips on key terms
-- Sortable comparison tables
-- Collapsible deep-dive sections
-- Scroll-reveal SVG diagrams
-- Prev/Next section navigation
-- Sidebar with full table of contents
-- Mobile-responsive layout
+The app also has two non-battle study modes built on the same question bank:
 
----
+- **Study Mode** — all 9 parts with per-part progress bars, worked through in order.
+- **Drill Mode** — a randomised queue across all parts (or a filtered subset) that
+  tracks which questions you've seen so it doesn't repeat until you've exhausted the
+  pool.
+
+## Installing on iPhone
+
+1. Open `learn/drill/index.html` in Safari.
+2. Tap the Share icon → **Add to Home Screen**.
+3. The app installs as a standalone PWA with offline support.
+
+## Question bank
+
+`content/question-bank.json` grows with each generation run — the app shows live
+question counts per part. Each batch targets the least-covered sections; at most 50% of
+questions are drawn directly from guide content, the rest extend into adjacent tooling,
+real-world application, and practitioner-level depth not covered in the guide itself.
+Generation prompts live in `docs/QUESTION_GENERATION_PROMPT.md` and
+`docs/SYNTAX_QUESTION_GENERATION_PROMPT.md`.
+
+## Repository structure
+
+```
+learn/
+  drill/                               ← Quiz Defense (game + Study/Drill modes)
+    index.html, drill.js, drill.css, sw.js
+    assets/                            ← battle maps, tower art, world/region art
+guide/
+  index.html                           ← Cover page / table of contents
+  assets/                              ← Shared CSS and JS
+  01-data-platform-foundation/  …  09-supply-chain-analytics/
+  appendix/                            ← A–D
+content/
+  question-bank.json                   ← Shared question bank
+docs/                                  ← Planning docs, art/prompt generation notes, changelog
+  BACKLOG.md                           ← Game design & technical backlog
+  CHANGELOG.md                         ← Auto-generated, do not hand-edit
+  *_GENERATION_PROMPT*.md              ← Paste-into-Claude prompt templates
+  ART_DIRECTION_HANDOFF.md, *_HANDOFF.md, GUIDE_PLANNING.md
+scripts/                                ← Asset-processing utilities (chroma-key/checker removal)
+CLAUDE.md                              ← Project rules for Claude Code (stays at root)
+```
 
 ## Technical
 
-Pure HTML, CSS, and vanilla JavaScript — no build step, no dependencies, no framework. Hosted on GitHub Pages.
-
-The drill app is a PWA with a service worker for offline support. Question progress is tracked client-side via `localStorage`.
+Pure HTML, CSS, and vanilla JavaScript — no build step, no dependencies, no framework.
+Hosted on GitHub Pages. The game and drill app are a single PWA with a service worker
+for offline support; progress is tracked client-side via `localStorage`.
