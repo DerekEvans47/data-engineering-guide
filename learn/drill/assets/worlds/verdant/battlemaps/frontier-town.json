@@ -1,0 +1,186 @@
+{
+  "_notes": "Battle-map authoring data for Frontier Town (tutorial, spine node 'start'). Waypoints ordered spawn->leak: enemies emerge from the eastern forest fringe (first waypoint off-canvas) and march the single road to the town gate. Coordinates in image pixels; the engine converts to grid space. Slot kind 'fenced' = paddock pads (visual flavor only, same rules). Template schema for all themed battle maps: multi-lane maps add entries to 'lanes'. Slot s5 is ~190px from the nearest path point \u2014 beyond typical tower range; flagged far:true (suited to future barracks-type towers, G-10).",
+  "image": "frontier-town.png",
+  "viewBox": [
+    0,
+    0,
+    1376,
+    768
+  ],
+  "world": "verdant",
+  "battleTheme": "town-gate",
+  "nodeId": "start",
+  "difficulty": "tutorial",
+  "lanes": [
+    {
+      "id": "main",
+      "spawnEdge": "east",
+      "waypoints": [
+        [
+          1376,
+          398
+        ],
+        [
+          1290,
+          395
+        ],
+        [
+          1240,
+          398
+        ],
+        [
+          1120,
+          370
+        ],
+        [
+          1070,
+          300
+        ],
+        [
+          1010,
+          225
+        ],
+        [
+          900,
+          190
+        ],
+        [
+          800,
+          215
+        ],
+        [
+          745,
+          280
+        ],
+        [
+          748,
+          361
+        ],
+        [
+          740,
+          410
+        ],
+        [
+          714,
+          462
+        ],
+        [
+          684,
+          518
+        ],
+        [
+          640,
+          545
+        ],
+        [
+          540,
+          555
+        ],
+        [
+          470,
+          535
+        ],
+        [
+          409,
+          512
+        ],
+        [
+          346,
+          482
+        ],
+        [
+          280,
+          425
+        ],
+        [
+          200,
+          400
+        ],
+        [
+          115,
+          385
+        ]
+      ]
+    }
+  ],
+  "leak": {
+    "x": 115,
+    "y": 385,
+    "landmark": "town gate"
+  },
+  "buildSlots": [
+    {
+      "id": "s1",
+      "x": 660,
+      "y": 115,
+      "pad": "open"
+    },
+    {
+      "id": "s2",
+      "x": 1100,
+      "y": 130,
+      "pad": "fenced"
+    },
+    {
+      "id": "s3",
+      "x": 1215,
+      "y": 260,
+      "pad": "fenced"
+    },
+    {
+      "id": "s4",
+      "x": 1160,
+      "y": 480,
+      "pad": "fenced"
+    },
+    {
+      "id": "s5",
+      "x": 1245,
+      "y": 585,
+      "pad": "open",
+      "far": true
+    },
+    {
+      "id": "s6",
+      "x": 930,
+      "y": 650,
+      "pad": "open"
+    },
+    {
+      "id": "s7",
+      "x": 700,
+      "y": 668,
+      "pad": "open"
+    },
+    {
+      "id": "s8",
+      "x": 520,
+      "y": 640,
+      "pad": "open"
+    },
+    {
+      "id": "s9",
+      "x": 270,
+      "y": 590,
+      "pad": "open"
+    },
+    {
+      "id": "s10",
+      "x": 878,
+      "y": 340,
+      "pad": "open"
+    },
+    {
+      "id": "s11",
+      "x": 395,
+      "y": 335,
+      "pad": "open"
+    },
+    {
+      "id": "s12",
+      "x": 560,
+      "y": 365,
+      "pad": "open"
+    }
+  ]
+}
