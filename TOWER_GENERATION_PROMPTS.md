@@ -14,12 +14,13 @@ no shared lighting, no ground contact, wrong level of painterly detail. See
 "sticker map" problem, just on towers instead of terrain. The fix is the same one that
 worked for the maps — paint the tower in the same technique as the scene.
 
-**Status: Ranger — DONE, shipped, all 4 tiers wired.**
-`learn/drill/assets/towers/ranger-tier{1,2,3,4}.png` are wired into
+**Status: Ranger — DONE, shipped, all 4 tiers wired, front + back facing.**
+`learn/drill/assets/towers/ranger-tier{1,2,3,4}.png` (front) and
+`ranger-tier{1,2,3,4}-back.png` (back) are wired into
 `TD_TOWER_TIER_IMAGES`/`tdRenderTowers`, with `TD_TOWER_DEFS.ranger` carrying 3
-upgrades (4 total levels) to match. See "What actually shipped" below for the exact
-spec that produced the approved art, and "Process notes" for lessons from the
-iterations that didn't.
+upgrades (4 total levels) to match. Towers orient toward the road automatically (see
+"Code-side facing logic" below). See "What actually shipped" below for the exact
+spec that produced the approved front art, and "Facing variants" for the back sheet.
 
 ## How to use this file
 
@@ -197,15 +198,79 @@ keying on green-channel deficiency instead (magenta uniquely lacks green; real c
 essentially never does) and de-spilling the RGB of partially-transparent edge pixels,
 not just adjusting their alpha — see the script's docstring for the exact reasoning.
 
+## Facing variants (front/back) — DONE, shipped
+
+Towers now orient toward the road instead of always facing the same way. Rather than
+4 separately-generated compass directions, only a second "back" sheet was generated —
+`learn/drill/assets/towers/ranger-tier{1,2,3,4}-back.png` — and horizontal mirroring
+in code covers the other 2 of the 4 facings for free (see "Code-side facing logic"
+below). Same COMMON BLOCK and SUBJECT BLOCK as the front sheet, plus one addition:
+
+> Same tower design, same 4-tier material progression, same camera angle and scale as
+> before — but the entrance side is flipped to the far side of the structure. The
+> arrow-slit window and the ladder are now attached to the back-left face of the
+> cabin, facing up and away from the viewer, instead of the front-right face facing
+> down and toward the viewer. Everything else (materials per tier, silhouette, camera
+> pitch) is unchanged — only which face of the building the window and ladder are on.
+
+**What actually shipped:** the back sheet reads as a genuinely different side of the
+same tower family (a roof dormer + smaller window instead of the front's wall-mounted
+arrow slit, ladder relocated and — on tiers 3-4 — leading to a proper door instead of
+the front's plain double-door with no ladder), while still tracking the same
+wood→wood/stone→stone→stone/diamond material progression. Tier 4's glowing marks read
+as stylized angular fantasy runes (individually carved into separate blocks with a
+cyan glow), not literal text — checked closely since the COMMON BLOCK explicitly
+forbids text/letters, and early passes of this had actual English-letter shapes.
+
+**Process notes:**
+1. First attempt asked for the orientation change too vaguely ("opposite corner") and
+   the model redesigned the tower instead of just relocating the entrance — a
+   different base shape (ground-level shed vs. the shipped elevated post), plus a new
+   architectural feature (the roof dormer) with no clear connection between the ladder
+   and any opening on tiers 3-4. Fixed by being explicit that this must be the *same*
+   structure/silhouette per tier, only the window+ladder move, and that the ladder
+   must visibly connect to a real opening.
+2. On reflection, the redesigned silhouette (dormer window) wasn't actually a problem
+   on its own — a real building can plausibly have a feature on one face that isn't on
+   the other. The thing that matters is whether front and back still read as the same
+   tower family when both are on screen at once (which happens routinely, since
+   different build slots get different facings) — confirmed by direct side-by-side
+   pixel comparison against the shipped front tiers once the ladder-connection fix
+   landed.
+3. **Wrong file uploaded once:** the first "corrected" upload was actually a duplicate
+   of the original front sheet, not the approved back-facing one — caught by directly
+   diffing the processed back tiers against the shipped front tiers (all 4 came back
+   visually identical, which should never happen for a genuinely different variant).
+   Re-uploaded correctly afterward. Worth this exact check — image comparison, not
+   just an eyeball glance — any time a "variant" generation is approved from chat but
+   the file that lands in the repo is what actually ships.
+
+## Code-side facing logic
+
+`tdComputeSlotFacing` (in `learn/drill/drill.js`) derives a `{ back, mirror }` pair
+per build slot from pure geometry — the direction from that slot's pixel position to
+the nearest point on the map's road polyline (`tdNearestPointOnPolyline`) — computed
+once at module load per map, same pattern as `FRONTIER_TOWN_SLOT_CENTERS`. Nothing is
+hardcoded per tower instance, so this works for any map that supplies a pixel-space
+waypoint list and slot positions, not just Frontier Town:
+
+- If the road is generally above the slot (away from the camera), use the `back`
+  variant; otherwise `front`.
+- Front art's default (unmirrored) entrance leans screen-right; back art's default
+  leans screen-left (measured directly from the art). Mirror flips whichever variant
+  is picked so the entrance leans toward whichever side the road is actually on.
+
+`tdWithMirror` applies the mirror as a canvas transform (`translate → scale(-1,1) →
+translate` around the tower's own center) wrapped around just the shadow and sprite
+draws — the upgrade ring, targeting flash, and level-badge text are drawn outside that
+wrapper so text doesn't render backwards and the flash still points at the real target
+angle.
+
 ## Future work (deferred, not built yet)
 
 - **Bastion and Mortar** get their own SUBJECT BLOCK using this same COMMON BLOCK,
-  grid spec, and eyeball checklist, once there's a reason to prioritize them.
-- **Multiple view variants by map position** (the camera-pitch-by-depth-zone idea from
-  process note 3) — explicitly deferred until the single-view Ranger tower is proven
-  out in the actual game. If revisited, generate it as its own follow-up pass per
-  tower (not bundled into the initial tier-progression generation) given how process
-  note 3 went the one time both were attempted together.
+  grid spec, and eyeball checklist, once there's a reason to prioritize them — including
+  their own front/back facing variants, following the same process as Ranger's.
 - **Tier 1 silhouette inconsistency (known asset issue, cosmetic only now):** tiers
   2–4 share a wide, centered stone/wood base with a ladder leaned against one side —
   tier 1 instead sits on a narrow single post with a separate ladder planted well off
