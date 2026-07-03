@@ -28,6 +28,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Landmark anchor objects on TD map (#56)
 
+- Mirror frontier-town for left-to-right flow; 11 slots centered in clearings (#84)
+
 - Offline question-bank versioning (I-3)
 
 - Power-up system — data model, pre-wave tray, effect engine (#45)
