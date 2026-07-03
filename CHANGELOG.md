@@ -10,6 +10,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Color-blind mode — pattern fills per tower type
 
+- Commit chosen Verdant region world map + file W-7 map-life overlay (#75)
+
 - Data-flow dots, directional muzzle flash, reduced-motion (#33)
 
 - Derive APP_VERSION from SW cache name
