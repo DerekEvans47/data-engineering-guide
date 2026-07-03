@@ -6032,21 +6032,26 @@ function tdDrawTowerPattern(ctx, x, y, size, pattern) {
 // untouched — so the shadow is a solid-black cutout of the tower's exact
 // shape (roof, walls, ladder rungs, whatever it actually is) instead of a
 // generic ellipse. A ladder tower gets a ladder-shaped shadow, a stone tower
-// gets a tower-shaped one, and every future asset gets a correct shadow for
-// free with no per-tier tuning. It's squashed flat and sheared toward
-// lower-left (matching the map's implied sun — see the shadow-direction note
-// in TOWER_GENERATION_PROMPTS.md) so it reads as fallen on the ground rather
-// than a second copy of the tower. The shear/squash only scales with height
-// above the ground, so it's identical for every placement of the same
-// tower/tier regardless of where it sits on the map — real directional
-// light is parallel at this scale, so position doesn't change a shadow's
-// shape, only which cell it happens to fall in.
+// gets a wider, blockier one, and every future asset gets a correct shadow
+// for free with no per-tier tuning. Sheared toward lower-left (matching the
+// map's implied sun — see the shadow-direction note in
+// TOWER_GENERATION_PROMPTS.md) so it reads as fallen on the ground rather
+// than a second copy of the tower. The squash factor here (0.50) is
+// deliberately less flat than a "physically correct" dropped shadow would
+// be — at actual in-game cell sizes (as small as ~30px on mobile), thin
+// features like ladder rungs get crushed into an unrecognizable blur if
+// squashed much flatter, so this keeps enough of the sprite's vertical
+// structure that its shape still reads as itself, not just a smudge. The
+// shear/squash only scales with height above the ground, so it's identical
+// for every placement of the same tower/tier regardless of where it sits on
+// the map — real directional light is parallel at this scale, so position
+// doesn't change a shadow's shape, only which cell it happens to fall in.
 function tdRenderTowerShadow(ctx, tierImg, px, groundY, renderW, renderH) {
   ctx.save();
-  ctx.globalAlpha = 0.38;
+  ctx.globalAlpha = 0.42;
   ctx.filter = 'brightness(0)';
   ctx.translate(px, groundY);
-  ctx.transform(1, 0, 0.34, 0.24, 0, 0);
+  ctx.transform(1, 0, 0.20, 0.50, 0, 0);
   ctx.drawImage(tierImg, -renderW / 2, -renderH, renderW, renderH);
   ctx.restore();
 }
