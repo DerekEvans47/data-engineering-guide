@@ -3020,18 +3020,6 @@ const TD_TOWER_TIER_IMAGES = {
   ].map(src => { const img = new Image(); img.src = src; return img; }),
 };
 
-// Per-tier horizontal shadow anchor, as a fraction of the tier's own rendered
-// width, offset from the image's horizontal center. Tiers 2-4 sit on a wide
-// centered base so 0 (centered) is correct, but ranger tier 1's silhouette is
-// a narrow off-center post with a separate ladder (see "Tier 1 silhouette
-// inconsistency" in TOWER_GENERATION_PROMPTS.md) — measured directly from the
-// sprite's bottom-row alpha centroid rather than guessed, so the shadow
-// actually sits under its true ground-contact point instead of the image's
-// geometric center.
-const TD_TOWER_SHADOW_ANCHOR = {
-  ranger: [0.25, 0, 0, 0],
-};
-
 function frontierTownLevelDef() {
   const mapDef = TD_MAPS[0];
   const rng = makeSeedRng((Date.now() ^ 0x51a7c0de) >>> 0);
@@ -6039,20 +6027,27 @@ function tdDrawTowerPattern(ctx, x, y, size, pattern) {
   ctx.restore();
 }
 
-// Grounded directly under the tower's own base (px, groundY is exactly where
-// the sprite's bottom edge is drawn — see tdRenderTowers) rather than offset
-// to one side: an earlier version shifted this lower-left to imply a
-// directional sun, but that pushed the shadow visibly away from the sprite's
-// actual ground-contact point and read as disconnected/floating. Sized off
-// the tower's own rendered width so it scales with each tier instead of a
-// fixed cell-relative size that doesn't track the art.
-function tdRenderTowerShadow(ctx, px, groundY, cs, renderW) {
+// Silhouette shadow: redraws the tower's OWN sprite through the canvas
+// `brightness(0)` filter, which blackens every RGB pixel while leaving alpha
+// untouched — so the shadow is a solid-black cutout of the tower's exact
+// shape (roof, walls, ladder rungs, whatever it actually is) instead of a
+// generic ellipse. A ladder tower gets a ladder-shaped shadow, a stone tower
+// gets a tower-shaped one, and every future asset gets a correct shadow for
+// free with no per-tier tuning. It's squashed flat and sheared toward
+// lower-left (matching the map's implied sun — see the shadow-direction note
+// in TOWER_GENERATION_PROMPTS.md) so it reads as fallen on the ground rather
+// than a second copy of the tower. The shear/squash only scales with height
+// above the ground, so it's identical for every placement of the same
+// tower/tier regardless of where it sits on the map — real directional
+// light is parallel at this scale, so position doesn't change a shadow's
+// shape, only which cell it happens to fall in.
+function tdRenderTowerShadow(ctx, tierImg, px, groundY, renderW, renderH) {
   ctx.save();
-  ctx.globalAlpha = 0.32;
-  ctx.fillStyle = '#000000';
-  ctx.beginPath();
-  ctx.ellipse(px, groundY, (renderW || cs) * 0.30, cs * 0.13, 0, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.globalAlpha = 0.38;
+  ctx.filter = 'brightness(0)';
+  ctx.translate(px, groundY);
+  ctx.transform(1, 0, 0.34, 0.24, 0, 0);
+  ctx.drawImage(tierImg, -renderW / 2, -renderH, renderW, renderH);
   ctx.restore();
 }
 
@@ -6073,10 +6068,7 @@ function tdRenderTowers(ctx, cs, bgT) {
     const renderH  = useImage ? cs * 1.9 : 0;
     const renderW  = useImage ? renderH * (tierImg.naturalWidth / tierImg.naturalHeight) : 0;
 
-    if (useImage) {
-      const anchorFrac = TD_TOWER_SHADOW_ANCHOR[t.type]?.[lvl] || 0;
-      tdRenderTowerShadow(ctx, px + anchorFrac * renderW, groundY, cs, renderW);
-    }
+    if (useImage) tdRenderTowerShadow(ctx, tierImg, px, groundY, renderW, renderH);
 
     if (lvl > 0) {
       const glowColor = stats.glow || '#F59E0B';

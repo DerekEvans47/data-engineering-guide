@@ -206,15 +206,29 @@ not just adjusting their alpha — see the script's docstring for the exact reas
   out in the actual game. If revisited, generate it as its own follow-up pass per
   tower (not bundled into the initial tier-progression generation) given how process
   note 3 went the one time both were attempted together.
-- **Tier 1 silhouette inconsistency (known asset issue, candidate for regeneration):**
-  tiers 2–4 share a wide, centered stone/wood base with a ladder leaned against one
-  side — tier 1 instead sits on a narrow single post with a separate ladder planted
-  well off to one side, so its ground-contact footprint isn't centered under the
-  sprite the way tiers 2–4 are (measured: tier 1's footprint center sits at ~74% of
-  its own image width; tiers 2–4 sit at ~49–51%). This violates the "same footprint"
-  silhouette-continuity rule above and is why a single code-side shadow anchor can't
-  perfectly hug tier 1's base the way it does for the other three. Not re-generated
-  in this pass — the shadow was instead widened/centered to read reasonably on all 4
-  tiers rather than tuned to tier 1's off-center base specifically. Worth a regen of
+- **Tier 1 silhouette inconsistency (known asset issue, cosmetic only now):** tiers
+  2–4 share a wide, centered stone/wood base with a ladder leaned against one side —
+  tier 1 instead sits on a narrow single post with a separate ladder planted well off
+  to one side (measured: tier 1's ground-contact centroid sits at ~74% of its own
+  image width; tiers 2–4 sit at ~49–51%). This violates the "same footprint"
+  silhouette-continuity rule above. It no longer causes a shadow-placement bug — the
+  shadow is now a silhouette cutout of each tier's own sprite (see "Code-side shadow
+  rendering" below), so it automatically follows tier 1's off-center post+ladder
+  shape instead of needing to be manually anchored to it — but the tower design
+  itself is still inconsistent art-direction-wise across tiers. Worth a regen of
   tier 1 alone (matching tiers 2–4's centered stone base silhouette, with the
   wood-only tier-1 materials) if this keeps bothering the eye in play-testing.
+
+## Code-side shadow rendering
+
+The shadow is drawn by redrawing each tier's own sprite through the canvas
+`brightness(0)` filter (blackens every RGB pixel, alpha untouched), then squashed
+flat and sheared toward lower-left with a single shared affine transform
+(`tdRenderTowerShadow` in `learn/drill/drill.js`). This makes the shadow a true
+silhouette of whatever that tier's art actually is — a ladder casts a ladder-shaped
+shadow, a wide stone base casts a wide stone-shaped one — instead of a generic
+ellipse, and it requires no per-tier tuning: any future tier or tower type gets a
+correct shadow automatically just by having art wired into `TD_TOWER_TIER_IMAGES`.
+An earlier version used a plain ellipse (then a per-tier x-anchor correcting for
+tier 1's off-center footprint specifically) — both were replaced once the
+silhouette approach made per-tier tuning unnecessary.
