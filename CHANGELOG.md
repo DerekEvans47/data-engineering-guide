@@ -105,6 +105,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Linear world-map pivot — add W section, rescope G-9, retire V-24/V-35 (#74)
 
+- Move splash background art to assets/splash-background.png
+
 - Nest assets by world; retire legacy deco loader; land frontier-town battle map (#81)
 
 - Nightly handoff 2026-06-30 (143 pts — EQ-2, V-23, G-7, S-2, S-6, G-8) (#51)
