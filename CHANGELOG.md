@@ -8,6 +8,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Author W-1 node spine + life coordinates; backlog alignment pass (#76)
 
+- Author frontier-town battle-map lanes + build slots (G-9 data template) (#82)
+
 - Background music on home, map, and battle screens (#23)
 
 - Color-blind mode — pattern fills per tower type
