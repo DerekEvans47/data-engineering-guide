@@ -1,4 +1,4 @@
-const CACHE = 'de-drill-v96';
+const CACHE = 'de-drill-v97';
 const ASSETS = [
   './index.html',
   './drill.css',
@@ -10,6 +10,10 @@ const ASSETS = [
   './assets/towers/ranger-tier2.png',
   './assets/towers/ranger-tier3.png',
   './assets/towers/ranger-tier4.png',
+  './assets/towers/ranger-tier1-back.png',
+  './assets/towers/ranger-tier2-back.png',
+  './assets/towers/ranger-tier3-back.png',
+  './assets/towers/ranger-tier4-back.png',
   '../../content/question-bank.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
 ];

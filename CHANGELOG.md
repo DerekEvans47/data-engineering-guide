@@ -67,6 +67,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - True landscape width, integrated map header, tower centering (#92)
 
+- Tune shadow squash for legibility at real mobile scale (#97)
+
 
 ### 📚 Content
 
@@ -78,6 +80,10 @@ A record of every feature, fix, and improvement shipped to the app.
 
 
 ### 🔧 Infrastructure
+
+- Add files via upload
+
+- Add files via upload
 
 - Add files via upload
 

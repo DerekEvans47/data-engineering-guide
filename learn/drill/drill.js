@@ -2972,14 +2972,53 @@ const FRONTIER_TOWN_WPS = tdBuildManhattanWps(
   FRONTIER_TOWN_MAP.cols, FRONTIER_TOWN_MAP.rows
 );
 
+// Nearest point on a pixel-space polyline to a query point — used by
+// tdComputeSlotFacing to find which way a tower should face without
+// hardcoding a facing per build slot.
+function tdNearestPointOnPolyline(px, py, points) {
+  let best = null, bestDist = Infinity;
+  for (let i = 0; i < points.length - 1; i++) {
+    const [x1, y1] = points[i], [x2, y2] = points[i + 1];
+    const dx = x2 - x1, dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy;
+    let t = lenSq > 0 ? ((px - x1) * dx + (py - y1) * dy) / lenSq : 0;
+    t = Math.max(0, Math.min(1, t));
+    const qx = x1 + t * dx, qy = y1 + t * dy;
+    const d = Math.hypot(px - qx, py - qy);
+    if (d < bestDist) { bestDist = d; best = [qx, qy]; }
+  }
+  return best;
+}
+
+// Derives which painted variant (front/back) and horizontal mirror a tower
+// at pixel (px, py) should render with, purely from the direction toward
+// the nearest point on the road — never hardcoded per slot, so this works
+// for any map that supplies a pixel-space waypoint polyline and slot
+// positions, not just Frontier Town. "front" art's default (unmirrored)
+// entrance leans screen-right; "back" art's default entrance leans
+// screen-left (measured directly from the art — see
+// TOWER_GENERATION_PROMPTS.md's facing-variant notes). Mirroring flips
+// whichever variant is picked so the entrance leans toward whichever side
+// the road is actually on, not just whichever side the art happened to be
+// painted facing.
+function tdComputeSlotFacing(px, py, waypointsPx) {
+  const [qx, qy] = tdNearestPointOnPolyline(px, py, waypointsPx);
+  const dx = qx - px, dy = qy - py;
+  const back = dy < 0;
+  const mirror = back ? dx >= 0 : dx < 0;
+  return { back, mirror };
+}
+
 // Build-slot pixel coords → grid cells, nudged off the path/each other if
 // rounding collides them (offline, computed once at load). Also keeps the
 // exact (unrounded) pixel position each slot was hand-painted at, so a
 // placed tower can render dead-center in its clearing instead of at the
-// center of whichever grid cell the rounding happened to land on.
+// center of whichever grid cell the rounding happened to land on, plus
+// which way it should face the road (see tdComputeSlotFacing).
 const FRONTIER_TOWN_SLOT_CENTERS = {};
+const FRONTIER_TOWN_SLOT_FACING = {};
 const FRONTIER_TOWN_SLOTS = (() => {
-  const { viewBox, cols, rows, buildSlotsPx } = FRONTIER_TOWN_MAP;
+  const { viewBox, cols, rows, buildSlotsPx, waypointsPx } = FRONTIER_TOWN_MAP;
   const cellW = viewBox[2] / cols, cellH = viewBox[3] / rows;
   const pathSet = tdManhattanPathSet(FRONTIER_TOWN_WPS, cols, rows);
   const used = new Set();
@@ -2994,10 +3033,13 @@ const FRONTIER_TOWN_SLOTS = (() => {
       if (pathSet.has(key) || used.has(key)) continue;
       used.add(key);
       FRONTIER_TOWN_SLOT_CENTERS[key] = [x / cellW, y / cellH];
+      FRONTIER_TOWN_SLOT_FACING[key] = tdComputeSlotFacing(x, y, waypointsPx);
       return [c, r];
     }
     // no free neighbor found — keep original cell, still usable most of the time
-    FRONTIER_TOWN_SLOT_CENTERS[`${baseC},${baseR}`] = [x / cellW, y / cellH];
+    const fallbackKey = `${baseC},${baseR}`;
+    FRONTIER_TOWN_SLOT_CENTERS[fallbackKey] = [x / cellW, y / cellH];
+    FRONTIER_TOWN_SLOT_FACING[fallbackKey] = tdComputeSlotFacing(x, y, waypointsPx);
     return [baseC, baseR];
   });
 })();
@@ -3010,14 +3052,20 @@ const TD_PAINTED_BG_IMAGES = { 'frontier-town': FRONTIER_TOWN_MAP.image };
 // of the flat hand-authored TD_SPRITES pixel frames. Only Ranger has painted art
 // so far; any tower type absent from this map still renders via TD_SPRITES in
 // tdRenderTowers. All 4 tiers wired (base + 3 upgrades, matching
-// TD_TOWER_DEFS.ranger's 4 levels).
+// TD_TOWER_DEFS.ranger's 4 levels). Each tower type carries a `front` and a
+// `back` variant — genuinely distinct art (different window/roof/entrance
+// placement, not a mirror of each other) picked per placement based on
+// which way the road runs past that slot (see tdComputeSlotFacing);
+// horizontal mirroring in tdRenderTowers covers the other 2 of the 4
+// facings so only 2 real generations were needed per tower.
+function tdLoadTowerTiers(towerId, suffix) {
+  return [1, 2, 3, 4].map(n => { const img = new Image(); img.src = `assets/towers/${towerId}-tier${n}${suffix}.png`; return img; });
+}
 const TD_TOWER_TIER_IMAGES = {
-  ranger: [
-    'assets/towers/ranger-tier1.png',
-    'assets/towers/ranger-tier2.png',
-    'assets/towers/ranger-tier3.png',
-    'assets/towers/ranger-tier4.png',
-  ].map(src => { const img = new Image(); img.src = src; return img; }),
+  ranger: {
+    front: tdLoadTowerTiers('ranger', ''),
+    back: tdLoadTowerTiers('ranger', '-back'),
+  },
 };
 
 function frontierTownLevelDef() {
@@ -3038,6 +3086,7 @@ function frontierTownLevelDef() {
     gridCols: FRONTIER_TOWN_MAP.cols, gridRows: FRONTIER_TOWN_MAP.rows,
     buildSlots: FRONTIER_TOWN_SLOTS,
     slotCenters: FRONTIER_TOWN_SLOT_CENTERS,
+    slotFacing: FRONTIER_TOWN_SLOT_FACING,
   };
 }
 
@@ -4570,11 +4619,13 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
     td.paintedBg.src = TD_PAINTED_BG_IMAGES[levelDef.usesPaintedBg] || '';
     td.buildSlotSet = new Set((levelDef.buildSlots || []).map(([c,r]) => `${c},${r}`));
     td.slotCenterMap = levelDef.slotCenters || null;
+    td.slotFacingMap = levelDef.slotFacing || null;
   } else {
     td.usesPaintedBg = null;
     td.paintedBg = null;
     td.buildSlotSet = null;
     td.slotCenterMap = null;
+    td.slotFacingMap = null;
   }
 
   // Cache TD HUD refs — injected dynamically so must be queried here, not in bindUI
@@ -6056,6 +6107,20 @@ function tdRenderTowerShadow(ctx, tierImg, px, groundY, renderW, renderH) {
   ctx.restore();
 }
 
+// Horizontally flips whatever `draw` renders, around the vertical line
+// x=px, so a tower's art/shadow can face the opposite way without a second
+// asset — used for the 2 of 4 facings that mirroring covers for free (see
+// tdComputeSlotFacing). Kept separate from ring/flash/badge drawing (those
+// stay unmirrored) since text and the targeting flash shouldn't render
+// backwards.
+function tdWithMirror(ctx, px, mirror, draw) {
+  if (!mirror) { draw(); return; }
+  ctx.save();
+  ctx.translate(px, 0); ctx.scale(-1, 1); ctx.translate(-px, 0);
+  draw();
+  ctx.restore();
+}
+
 function tdRenderTowers(ctx, cs, bgT) {
   for (const t of td.towers) {
     const def   = TD_TOWER_DEFS.find(d => d.id === t.type);
@@ -6067,13 +6132,18 @@ function tdRenderTowers(ctx, cs, bgT) {
 
     // Painted tower art (V-36) — currently only Ranger. Falls back to the pixel
     // TD_SPRITES rendering below for every other tower type, or if the image
-    // hasn't finished loading yet.
-    const tierImg  = TD_TOWER_TIER_IMAGES[t.type]?.[lvl];
+    // hasn't finished loading yet. Variant (front/back) + mirror come from
+    // this slot's precomputed facing (tdComputeSlotFacing) so the tower
+    // orients toward the road instead of always facing the same way.
+    const facing  = td.slotFacingMap?.[`${t.col},${t.row}`];
+    const variant = facing?.back ? 'back' : 'front';
+    const mirror  = facing?.mirror || false;
+    const tierImg  = TD_TOWER_TIER_IMAGES[t.type]?.[variant]?.[lvl] || TD_TOWER_TIER_IMAGES[t.type]?.front?.[lvl];
     const useImage = tierImg && tierImg.complete && tierImg.naturalWidth > 0;
     const renderH  = useImage ? cs * 1.9 : 0;
     const renderW  = useImage ? renderH * (tierImg.naturalWidth / tierImg.naturalHeight) : 0;
 
-    if (useImage) tdRenderTowerShadow(ctx, tierImg, px, groundY, renderW, renderH);
+    if (useImage) tdWithMirror(ctx, px, mirror, () => tdRenderTowerShadow(ctx, tierImg, px, groundY, renderW, renderH));
 
     if (lvl > 0) {
       const glowColor = stats.glow || '#F59E0B';
@@ -6105,7 +6175,7 @@ function tdRenderTowers(ctx, cs, bgT) {
     }
 
     if (useImage) {
-      ctx.drawImage(tierImg, px - renderW / 2, groundY - renderH, renderW, renderH);
+      tdWithMirror(ctx, px, mirror, () => ctx.drawImage(tierImg, px - renderW / 2, groundY - renderH, renderW, renderH));
       if (lvl > 0) {
         ctx.font      = `bold ${Math.round(cs*.22)}px sans-serif`;
         ctx.fillStyle = lvl >= maxLvl ? '#C084FC' : '#F59E0B';
