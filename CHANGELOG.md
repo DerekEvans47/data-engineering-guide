@@ -45,6 +45,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Nudge frontier-town s3 down into its clearing (161,290) (#85)
 
+- Prevent pull-to-refresh bounce, nudge install for true fullscreen (#91)
+
 - Remove Nano Banana watermark from verdant terrain background (#73)
 
 - Restore alpha transparency on verdant/decay deco sprite sheets (#58)
