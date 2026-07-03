@@ -1,4 +1,4 @@
-const CACHE = 'de-drill-v97';
+const CACHE = 'de-drill-v98';
 const ASSETS = [
   './index.html',
   './drill.css',
@@ -19,8 +19,18 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', e => {
+  // `cache: 'reload'` forces each fetch to bypass HTTP caching and go to the
+  // network, bypassing not just the browser's own HTTP cache but also
+  // avoiding a response GitHub Pages' CDN edge may still be holding from
+  // before this deploy. Without this, a bumped CACHE name can still get
+  // populated with stale asset bytes (e.g. an old drill.js) even though the
+  // service worker script itself — and its version badge — correctly
+  // updated, since only the SW script itself is guaranteed a fresh
+  // network fetch by the spec; everything it fetches in its own install
+  // handler is a normal, cacheable request otherwise.
+  const requests = ASSETS.map(url => new Request(url, { cache: 'reload' }));
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE).then(c => c.addAll(requests)).then(() => self.skipWaiting())
   );
 });
 
