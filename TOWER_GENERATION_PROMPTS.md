@@ -223,7 +223,7 @@ not just adjusting their alpha — see the script's docstring for the exact reas
 
 The shadow is drawn by redrawing each tier's own sprite through the canvas
 `brightness(0)` filter (blackens every RGB pixel, alpha untouched), then squashed
-flat and sheared toward lower-left with a single shared affine transform
+and sheared toward lower-left with a single shared affine transform
 (`tdRenderTowerShadow` in `learn/drill/drill.js`). This makes the shadow a true
 silhouette of whatever that tier's art actually is — a ladder casts a ladder-shaped
 shadow, a wide stone base casts a wide stone-shaped one — instead of a generic
@@ -232,3 +232,14 @@ correct shadow automatically just by having art wired into `TD_TOWER_TIER_IMAGES
 An earlier version used a plain ellipse (then a per-tier x-anchor correcting for
 tier 1's off-center footprint specifically) — both were replaced once the
 silhouette approach made per-tier tuning unnecessary.
+
+**Squash factor is tuned for legibility, not physical accuracy.** The first
+silhouette pass squashed to 24% height (closer to a "real" flattened shadow), which
+looked right zoomed into a screenshot but crushed the ladder into an unrecognizable
+blur at actual in-game cell sizes (as small as ~30px on a phone viewport) — thin
+1-2px features like rungs just don't survive that much non-uniform bilinear
+downscaling. Squash was relaxed to 50% (less flat, more of the sprite's vertical
+structure preserved) specifically so the shape still reads as itself at real game
+scale, confirmed by screenshotting the actual mobile-viewport render rather than a
+zoomed-in crop — always check at true render size, not a magnified one, since
+legibility problems like this don't show up when zoomed in.
