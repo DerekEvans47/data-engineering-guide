@@ -131,6 +131,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Nightly handoff 2026-06-30 (143 pts — EQ-2, V-23, G-7, S-2, S-6, G-8) (#51)
 
+- Reorganize docs into docs/, README leads with the game (#99)
+
 - Session handoff 2026-06-29 session 2
 
 - Session handoff 2026-07-01 (#57)
