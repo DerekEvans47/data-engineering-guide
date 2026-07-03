@@ -5273,92 +5273,14 @@ function tdVictory() {
   }
 }
 
-// ── Sprite sheet asset loader (V-29) ──────────────────────────
-
-function tdGenerateTerrainDeco(mapId, pathSet, manifest, themeName) {
-  const decos = [];
-  let s = (mapId * 2654435761) >>> 0;
-  function rng() { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0x100000000; }
-
-  const sheetKeys = [`${themeName}-1`, `${themeName}-2`];
-  const spritePool = [];
-  for (const sheetKey of sheetKeys) {
-    const sheet = manifest.sheets[sheetKey];
-    if (!sheet) continue;
-    for (const [spriteKey, spriteDef] of Object.entries(sheet.sprites)) {
-      if (spriteDef.animate === 'blink') continue;
-      spritePool.push({ sheetKey, spriteKey, spriteDef });
-    }
-  }
-  if (!spritePool.length) return decos;
-
-  const nonPathCells = [];
-  for (let row = 0; row < TD_ROWS; row++) {
-    for (let col = 0; col < TD_COLS; col++) {
-      if (!pathSet.has(`${col},${row}`)) nonPathCells.push({ col, row });
-    }
-  }
-
-  const targetCount = Math.floor(nonPathCells.length * (0.35 + rng() * 0.05));
-  const largeOccupied = new Set();
-
-  function isPathAdjacent(col, row) {
-    return [[-1,0],[1,0],[0,-1],[0,1]].some(([dc,dr]) => pathSet.has(`${col+dc},${row+dr}`));
-  }
-  function isOpen(col, row) {
-    for (let dr = -1; dr <= 1; dr++)
-      for (let dc = -1; dc <= 1; dc++)
-        if (largeOccupied.has(`${col+dc},${row+dr}`)) return false;
-    return true;
-  }
-
-  let placed = 0;
-  const maxAttempts = nonPathCells.length * 6;
-  for (let attempt = 0; attempt < maxAttempts && placed < targetCount; attempt++) {
-    const { col, row } = nonPathCells[Math.floor(rng() * nonPathCells.length)];
-    const { sheetKey, spriteKey, spriteDef } = spritePool[Math.floor(rng() * spritePool.length)];
-
-    if (spriteDef.placement === 'path-adjacent' && !isPathAdjacent(col, row)) continue;
-    if (spriteDef.placement === 'open' && !isOpen(col, row)) continue;
-    if (spriteDef.size === 'large' && !isOpen(col, row)) continue;
-
-    decos.push({ sheetKey, spriteKey, col, row,
-      fx: 0.1 + rng() * 0.8, fy: 0.1 + rng() * 0.8,
-      phase: rng() * Math.PI * 2, size: spriteDef.size });
-
-    if (spriteDef.size === 'large' || spriteDef.placement === 'open')
-      largeOccupied.add(`${col},${row}`);
-    placed++;
-  }
-  return decos;
-}
+// ── Sprite sheet asset loader (V-29 — retired 2026-07-02) ─────
+// The per-cell deco sprite system (manifest.json + deco-*.png sheets) was
+// removed with the pivot to painted battle-map backgrounds (G-9). Painted
+// scenes ship per battle map under assets/worlds/<world>/battlemaps/.
+// Kept as a stub so call sites stay valid; terrainDeco stays empty.
 
 async function tdLoadSpriteAssets(tdState) {
-  if (!tdSpriteManifest) {
-    try {
-      const res = await fetch('./assets/map/manifest.json');
-      if (!res.ok) return;
-      tdSpriteManifest = await res.json();
-    } catch (_) { return; }
-  }
-
-  const mapDef = TD_MAPS[tdState.mapId] ?? TD_MAPS[0];
-  tdState.terrainDeco = tdGenerateTerrainDeco(
-    tdState.mapId, tdState.pathSet, tdSpriteManifest, mapDef.themeName
-  );
-
-  const sheetKeys = [`${mapDef.themeName}-1`, `${mapDef.themeName}-2`];
-  for (const key of sheetKeys) {
-    if (tdState.spriteSheets[key]) continue;
-    const sheetDef = tdSpriteManifest.sheets[key];
-    if (!sheetDef) continue;
-    await new Promise(resolve => {
-      const img = new Image();
-      img.onload  = () => { tdState.spriteSheets[key] = img; resolve(); };
-      img.onerror = resolve;
-      img.src = `./assets/map/${sheetDef.file}`;
-    });
-  }
+  tdState.terrainDeco = [];
 }
 
 // ╔══════════════════════════════════════════════════════════════
