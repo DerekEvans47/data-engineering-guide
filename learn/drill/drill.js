@@ -2972,7 +2972,11 @@ const FRONTIER_TOWN_WPS = tdBuildManhattanWps(
 );
 
 // Build-slot pixel coords → grid cells, nudged off the path/each other if
-// rounding collides them (offline, computed once at load).
+// rounding collides them (offline, computed once at load). Also keeps the
+// exact (unrounded) pixel position each slot was hand-painted at, so a
+// placed tower can render dead-center in its clearing instead of at the
+// center of whichever grid cell the rounding happened to land on.
+const FRONTIER_TOWN_SLOT_CENTERS = {};
 const FRONTIER_TOWN_SLOTS = (() => {
   const { viewBox, cols, rows, buildSlotsPx } = FRONTIER_TOWN_MAP;
   const cellW = viewBox[2] / cols, cellH = viewBox[3] / rows;
@@ -2988,9 +2992,12 @@ const FRONTIER_TOWN_SLOTS = (() => {
       const key = `${c},${r}`;
       if (pathSet.has(key) || used.has(key)) continue;
       used.add(key);
+      FRONTIER_TOWN_SLOT_CENTERS[key] = [x / cellW, y / cellH];
       return [c, r];
     }
-    return [baseC, baseR]; // no free neighbor found — keep original, still usable most of the time
+    // no free neighbor found — keep original cell, still usable most of the time
+    FRONTIER_TOWN_SLOT_CENTERS[`${baseC},${baseR}`] = [x / cellW, y / cellH];
+    return [baseC, baseR];
   });
 })();
 
@@ -3011,6 +3018,7 @@ function frontierTownLevelDef() {
     usesPaintedBg: 'frontier-town',
     gridCols: FRONTIER_TOWN_MAP.cols, gridRows: FRONTIER_TOWN_MAP.rows,
     buildSlots: FRONTIER_TOWN_SLOTS,
+    slotCenters: FRONTIER_TOWN_SLOT_CENTERS,
   };
 }
 
@@ -3839,8 +3847,7 @@ function renderRunMap(run) {
       <div class="run-map-header region-map-header">
         <button class="td-header-back" id="td-header-back">← Home</button>
         <div class="region-map-header-text">
-          <div class="run-map-title">${mapDef.icon} ${mapDef.name}</div>
-          <div class="run-map-subtitle">${mapDef.subtitle}</div>
+          <div class="run-map-title region-map-title">${mapDef.icon} ${mapDef.name}</div>
         </div>
         <div class="td-header-right">
           <button class="td-header-icon" id="td-header-relics" title="Relics">🏺</button>
@@ -3938,7 +3945,6 @@ function renderVerdantWorldMap(run) {
         <button class="td-header-back" id="td-header-back">← Home</button>
         <div class="region-map-header-text">
           <span class="region-map-title">${mapDef.icon} ${mapDef.name}</span>
-          <span class="region-map-subtitle">${mapDef.subtitle}</span>
         </div>
         <div class="td-header-right">
           <button class="td-header-icon" id="td-header-relics" title="Relics">🏺</button>
@@ -4563,10 +4569,12 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
     td.paintedBg = new Image();
     td.paintedBg.src = TD_PAINTED_BG_IMAGES[levelDef.usesPaintedBg] || '';
     td.buildSlotSet = new Set((levelDef.buildSlots || []).map(([c,r]) => `${c},${r}`));
+    td.slotCenterMap = levelDef.slotCenters || null;
   } else {
     td.usesPaintedBg = null;
     td.paintedBg = null;
     td.buildSlotSet = null;
+    td.slotCenterMap = null;
   }
 
   // Cache TD HUD refs — injected dynamically so must be queried here, not in bindUI
@@ -4981,13 +4989,24 @@ function tdGetTowerStats(tower) {
   return { ...def, ...up };
 }
 
+// Render/targeting center for a grid cell. Procedural maps have no exact
+// art to align to, so the grid-cell center is correct there. Painted maps
+// (e.g. Frontier Town) hand-paint clearings at specific pixel positions
+// that don't fall exactly on this grid's cell centers — using the exact
+// position keeps towers centered in the clearing instead of near the edge.
+function tdCellCenter(col, row, cs) {
+  const exact = td.slotCenterMap && td.slotCenterMap[`${col},${row}`];
+  if (exact) return [exact[0] * cs, exact[1] * cs];
+  return [col * cs + cs / 2, row * cs + cs / 2];
+}
+
 function tdFireTowers(dt) {
   for (const t of td.towers) {
     t.cd = (t.cd || 0) - dt * (td.powerUpMods?.towerRateMult || 1);
     if (t.cd > 0) continue;
     const stats   = tdGetTowerStats(t);
     const cs      = td.cellSize;
-    const tx      = t.col * cs + cs / 2, ty = t.row * cs + cs / 2;
+    const [tx, ty] = tdCellCenter(t.col, t.row, cs);
     const rangePx = stats.range * cs;
     let target = null, bestDist = -1;
     for (const e of td.enemies) {
@@ -5247,10 +5266,11 @@ function tdShowInspectCard(tower) {
     const wrapRect = wrap.getBoundingClientRect();
     const scaleX = rect.width / canvasEl.width;
     const scaleY = rect.height / canvasEl.height;
-    const towerPxX = tower.col * cs * scaleX + (rect.left - wrapRect.left);
-    const towerPxY = tower.row * cs * scaleY + (rect.top  - wrapRect.top);
+    const [tcx, tcy] = tdCellCenter(tower.col, tower.row, cs);
+    const towerPxX = tcx * scaleX + (rect.left - wrapRect.left);
+    const towerPxY = tcy * scaleY + (rect.top  - wrapRect.top);
     const cardW = 164;
-    var left = Math.round(towerPxX + cs * scaleX / 2 - cardW / 2);
+    var left = Math.round(towerPxX - cardW / 2);
     var top  = Math.round(towerPxY - 130);
     left = Math.max(4, Math.min(left, Math.round(wrapRect.width) - cardW - 4));
     top  = Math.max(4, top);
@@ -5964,7 +5984,7 @@ function tdRenderBuildSlots(ctx, cs, bgT) {
   for (const key of td.buildSlotSet) {
     const [col, row] = key.split(',').map(Number);
     if (td.towers.some(t => t.col === col && t.row === row)) continue;
-    const px = col*cs + cs/2, py = row*cs + cs/2;
+    const [px, py] = tdCellCenter(col, row, cs);
     ctx.beginPath();
     ctx.arc(px, py, cs*0.22 + pulse*1.5, 0, Math.PI*2);
     ctx.strokeStyle = `rgba(251,191,36,${0.45 + pulse*0.25})`;
@@ -5977,12 +5997,13 @@ function tdRenderPlacementUI(ctx, cs, bgT) {
   tdRenderBuildSlots(ctx, cs, bgT);
   if (td.pendingCol >= 0 && td.pendingRow >= 0) {
     const pc = td.pendingCol, pr = td.pendingRow;
+    const [ppx, ppy] = tdCellCenter(pc, pr, cs);
     const pulse = 0.5 + 0.5 * Math.sin(bgT * 6);
     ctx.fillStyle = `rgba(74,222,128,${0.18 + pulse * 0.14})`;
-    ctx.fillRect(pc*cs, pr*cs, cs, cs);
+    ctx.fillRect(ppx - cs/2, ppy - cs/2, cs, cs);
     ctx.strokeStyle = `rgba(74,222,128,${0.7 + pulse * 0.3})`;
     ctx.lineWidth = 2.5;
-    ctx.strokeRect(pc*cs + 1, pr*cs + 1, cs - 2, cs - 2);
+    ctx.strokeRect(ppx - cs/2 + 1, ppy - cs/2 + 1, cs - 2, cs - 2);
   }
 
   if (td.selectedTool && td.selectedTool !== 'sell' && td.selectedTool !== 'upgrade'
@@ -5990,7 +6011,7 @@ function tdRenderPlacementUI(ctx, cs, bgT) {
     const def = TD_TOWER_DEFS.find(d => d.id === td.selectedTool);
     if (def) {
       const col = td.hoverCol, row = td.hoverRow;
-      const px  = col*cs + cs/2, py = row*cs + cs/2;
+      const [px, py] = tdCellCenter(col, row, cs);
       const isPath     = td.pathSet.has(`${col},${row}`);
       const isOccupied = td.towers.some(t => t.col === col && t.row === row);
       const offSlot    = td.buildSlotSet && !td.buildSlotSet.has(`${col},${row}`);
@@ -6003,7 +6024,7 @@ function tdRenderPlacementUI(ctx, cs, bgT) {
       ctx.strokeStyle = accent + '80'; ctx.lineWidth = 1.5; ctx.stroke();
 
       ctx.fillStyle = canPlace ? (canAfford ? accent + '28' : '#FBBF2430') : '#EF444430';
-      ctx.fillRect(col*cs, row*cs, cs, cs);
+      ctx.fillRect(px - cs/2, py - cs/2, cs, cs);
 
       ctx.globalAlpha = canPlace && canAfford ? 0.60 : 0.22;
       const ghostSpr = TD_SPRITES[def.id];
@@ -6060,7 +6081,7 @@ function tdRenderTowers(ctx, cs, bgT) {
     const def   = TD_TOWER_DEFS.find(d => d.id === t.type);
     const stats = tdGetTowerStats(t);
     const lvl   = t.level || 0;
-    const px    = t.col*cs + cs/2, py = t.row*cs + cs/2;
+    const [px, py] = tdCellCenter(t.col, t.row, cs);
 
     if (lvl > 0) {
       const glowColor = stats.glow || '#F59E0B';
@@ -6090,13 +6111,13 @@ function tdRenderTowers(ctx, cs, bgT) {
     }
 
     ctx.fillStyle = 'rgba(0,0,0,.5)';
-    tdRRect(ctx, t.col*cs+1, t.row*cs+1, cs-2, cs-2, 5); ctx.fill();
+    tdRRect(ctx, px-cs/2+1, py-cs/2+1, cs-2, cs-2, 5); ctx.fill();
 
     ctx.strokeStyle = lvl > 0 ? (stats.glow || def.color) : def.color;
     ctx.lineWidth   = lvl > 0 ? 2 : 1.5;
-    tdRRect(ctx, t.col*cs+2, t.row*cs+2, cs-4, cs-4, 4); ctx.stroke();
+    tdRRect(ctx, px-cs/2+2, py-cs/2+2, cs-4, cs-4, 4); ctx.stroke();
 
-    if (colorBlindMode && def.pattern) tdDrawTowerPattern(ctx, t.col*cs+2, t.row*cs+2, cs-4, def.pattern);
+    if (colorBlindMode && def.pattern) tdDrawTowerPattern(ctx, px-cs/2+2, py-cs/2+2, cs-4, def.pattern);
 
     const tSpr = TD_SPRITES[t.type];
     if (tSpr) {
@@ -6114,7 +6135,7 @@ function tdRenderTowers(ctx, cs, bgT) {
       ctx.font      = `bold ${Math.round(cs*.22)}px sans-serif`;
       ctx.fillStyle = lvl === 2 ? '#C084FC' : '#F59E0B';
       ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-      ctx.fillText('L' + (lvl+1), t.col*cs + cs - 2, t.row*cs + cs - 2);
+      ctx.fillText('L' + (lvl+1), px + cs/2 - 2, py + cs/2 - 2);
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     }
   }
@@ -6301,7 +6322,11 @@ function tdRender() {
   ctx.translate(sx, sy);
 
   if (!td.paintedBg) tdRenderPath(ctx, cs, PAL);
-  tdRenderDataFlowDots(ctx, cs, bgT);
+  // Dots ride the Manhattan-grid path used for enemy movement, which only
+  // approximates a painted road's silhouette (see tdBuildManhattanWps) —
+  // fine floating over the flat procedural path, visibly off the road
+  // once there's real art underneath.
+  if (!td.paintedBg) tdRenderDataFlowDots(ctx, cs, bgT);
 
   const wps      = td.levelDef.wps;
   const entryRow = wps[0][1], exitRow = wps[wps.length-1][1];

@@ -1814,6 +1814,7 @@ html, body {
   left: 50%;
   transform: translateX(-50%);
   width: min(100%, 1100px);
+  max-width: 1100px;
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
   display: flex;
   flex-direction: column;
@@ -2608,6 +2609,7 @@ html, body {
 
 /* Run map wrapper */
 .run-map-wrap {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2621,11 +2623,6 @@ html, body {
   font-weight: 700;
   color: var(--text);
 }
-.run-map-subtitle {
-  font-size: .72rem;
-  color: var(--text-muted);
-  margin-top: .2rem;
-}
 #tdm-svg {
   width: 100%;
   max-width: 380px;
@@ -2633,6 +2630,7 @@ html, body {
 
 /* ── Verdant painted world map (G-9) ───────────────────────── */
 .region-map-wrap {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2643,15 +2641,18 @@ html, body {
   flex: 1;
   min-height: 0;
 }
-/* Shared single-row header: back button · title/subtitle · relic/help —
-   one header band per screen instead of a separate top bar stacked above
-   a second screen-specific header. */
+/* Floats over the map art itself (same fading-scrim treatment as the TD
+   battle HUD) instead of a separate boxed bar stacked above the map —
+   one continuous painted scene instead of chrome + art. */
 .region-map-header {
-  width: 100%;
-  padding: .5rem .75rem;
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 3;
+  padding: calc(.5rem + env(safe-area-inset-top)) .75rem .9rem;
   display: flex;
   align-items: center;
   gap: .5rem;
+  background: linear-gradient(to bottom, rgba(6,9,14,.85) 0%, rgba(6,9,14,.5) 65%, rgba(6,9,14,0) 100%);
 }
 .region-map-header-text {
   flex: 1;
@@ -2659,14 +2660,20 @@ html, body {
   text-align: center;
 }
 .region-map-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  color: #fff9ec;
+  text-shadow:
+    0 1px 0 #7c2d12,
+    0 2px 8px rgba(0,0,0,.65),
+    0 0 18px rgba(245,158,11,.3);
 }
-.region-map-subtitle {
-  font-size: .7rem;
-  color: var(--text-muted);
-  margin-left: .5rem;
+.region-map-header .td-header-back,
+.region-map-header .td-header-icon {
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  color: #fff9ec;
 }
 .td-header-back {
   background: var(--bg-elevated);
