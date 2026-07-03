@@ -75,6 +75,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add files via upload
 
+- Home screen: splash-art background + fantasy-styled buttons (#87)
+
 - Remove obsolete pixel-art deco assets, land new Verdant worldmap art (#71)
 
 - Add G-9 (multi-path map topology) and G-10 (barracks tower) (#59)
@@ -104,8 +106,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Fold fixed build-slot placement into G-9 (#60)
 
 - Linear world-map pivot — add W section, rescope G-9, retire V-24/V-35 (#74)
-
-- Move splash background art to assets/splash-background.png
 
 - Nest assets by world; retire legacy deco loader; land frontier-town battle map (#81)
 

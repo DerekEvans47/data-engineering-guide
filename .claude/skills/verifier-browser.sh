@@ -80,17 +80,20 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
   if (!mapCard) throw new Error('No unlocked map card found');
   await mapCard.click();
   await page.waitForTimeout(800);
-  const runNodes = await page.$$('.rn-available');
-  if (runNodes.length < 3) throw new Error(`Expected 3 rn-available nodes, found ${runNodes.length} — stuck-active bug or missing nodes`);
-  console.log('✅ All 3 starting nodes available:', runNodes.length);
-  const runNode = runNodes[0];
-  await runNode.click();
+  // Verdant now renders the painted region map (region.png) with a linear
+  // spine — Frontier Town ('start') is the sole available node on a fresh run.
+  const regionImg = await page.$('#rvm-svg image');
+  if (!regionImg) throw new Error('Painted region map <image> not found — renderVerdantWorldMap likely broken');
+  const startNode = await page.$('.rvm-node.rvm-pulse[data-id="start"]');
+  if (!startNode) throw new Error('Frontier Town start node not available on the region map');
+  console.log('✅ Verdant region map renders with Frontier Town available');
+  await startNode.click();
   await page.waitForTimeout(800);
   const playBtn = await page.$('.tdcp-btn-play');
   if (!playBtn) throw new Error('No TD play button found');
   await playBtn.click();
   await page.waitForTimeout(1500);
-  console.log('✅ Navigated to TD battle');
+  console.log('✅ Navigated to TD battle (Frontier Town)');
 
   // ── 4. TD canvas and wave preview present ──────────────────────────────
   const canvas = await page.$('#td-canvas');
@@ -115,16 +118,19 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
   // ── 6. Place a tower and verify placement sound fires ──────────────────
   await page.click('.td-tool-btn[data-tool="bastion"]', { force: true });
   await page.waitForTimeout(200);
-  // Find the first non-path, non-occupied cell and click its canvas position
+  // Find the first buildable cell (a build slot on painted maps, any
+  // non-path/non-occupied cell otherwise) and click its canvas position.
   const cell = await page.evaluate(() => {
     const c = document.getElementById('td-canvas');
     const r = c.getBoundingClientRect();
     const sx = r.width / c.width, sy = r.height / c.height;
-    for (let row = 0; row < 7; row++) {
-      for (let col = 0; col < 9; col++) {
-        if (!td.pathSet.has(`${col},${row}`) && !td.towers.some(t => t.col === col && t.row === row)) {
-          return { x: r.left + (col + 0.5) * td.cellSize * sx, y: r.top + (row + 0.5) * td.cellSize * sy };
-        }
+    const candidates = td.buildSlotSet
+      ? [...td.buildSlotSet].map(k => k.split(',').map(Number))
+      : Array.from({ length: TD_ROWS }, (_, row) => row)
+          .flatMap(row => Array.from({ length: TD_COLS }, (_, col) => [col, row]));
+    for (const [col, row] of candidates) {
+      if (!td.pathSet.has(`${col},${row}`) && !td.towers.some(t => t.col === col && t.row === row)) {
+        return { x: r.left + (col + 0.5) * td.cellSize * sx, y: r.top + (row + 0.5) * td.cellSize * sy };
       }
     }
     return null;
