@@ -569,7 +569,8 @@ html, body {
    legible against painted art. ─────────────────────────────────── */
 .home-screen {
   position: relative;
-  min-height: calc(100dvh - env(safe-area-inset-top));
+  height: 100%;
+  overflow-y: auto;
   padding: 1.1rem 1rem calc(1.4rem + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
@@ -1301,6 +1302,27 @@ html, body {
     border-left: 1px solid var(--border-muted);
     border-right: 1px solid var(--border-muted);
   }
+}
+
+/* ── Home / title screen: fixed full-viewport, no page scroll ────
+   Same fixed-viewport pattern as tower mode below — otherwise the
+   base #app padding-bottom (reserved for the drill bottom-bar) leaks
+   into the title screen and pushes it past 100dvh. */
+#app[data-mode="home"] {
+  position: fixed;
+  inset: 0;
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#app[data-mode="home"] #content-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Dungeon atmospheric mode ────────────────────────────── */
@@ -2670,6 +2692,9 @@ html, body {
   padding: 1.25rem 1rem;
   max-width: 640px;
   margin: 0 auto;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 .map-select-header {
   display: flex;
