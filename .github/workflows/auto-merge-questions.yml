@@ -71,7 +71,7 @@ jobs:
             const ALLOWED = [
               'content/question-bank.json',
               'learn/drill/sw.js',
-              'CHANGELOG.md',
+              'docs/CHANGELOG.md',
             ];
 
             const allInScope = files.every(f => ALLOWED.includes(f.filename));
@@ -116,5 +116,5 @@ jobs:
       - name: Skip — not eligible for auto-merge
         if: steps.changed.outputs.eligible == 'false'
         run: |
-          echo "PR not eligible for auto-merge (must be a questions/* branch touching only content/question-bank.json, learn/drill/sw.js, or CHANGELOG.md)."
+          echo "PR not eligible for auto-merge (must be a questions/* branch touching only content/question-bank.json, learn/drill/sw.js, or docs/CHANGELOG.md)."
           echo "Manual review required."

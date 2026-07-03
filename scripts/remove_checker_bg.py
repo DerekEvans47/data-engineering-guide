@@ -9,7 +9,7 @@ an opaque RGBA PNG (alpha = 255 everywhere). The asset then renders as a solid
 tile instead of a transparent sprite. This script detects that checker pattern
 per image and converts it back into real alpha.
 
-Algorithm (see BACKLOG.md V-34 for the incident this was written for):
+Algorithm (see docs/BACKLOG.md V-34 for the incident this was written for):
   1. Sample a border frame (assumed background) to learn the checker's two
      tone values (dark/light) and cell size.
   2. Flag pixels as "checker candidates" if they're low-saturation (near
@@ -30,7 +30,7 @@ bleed color into the surrounding checker cells (soft halo pixels fall outside
 the tolerance) or art that itself uses flat neutral grays close to the checker
 tone (e.g. stone, skin) — tightening tolerance leaves a halo, loosening it eats
 holes in the sprite. See the "--sat-tol/--edge-tol" tuning notes below and the
-prevention recommendation in BACKLOG.md: fix this at generation time (request
+prevention recommendation in docs/BACKLOG.md: fix this at generation time (request
 a solid saturated chroma-key background, e.g. pure magenta/green, instead of a
 checkerboard) rather than relying on this script as the primary defense.
 
