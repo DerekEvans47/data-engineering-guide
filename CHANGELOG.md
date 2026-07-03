@@ -26,19 +26,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Mirror frontier-town for left-to-right flow; 11 slots centered in clearings (#84)
 
-- Offline question-bank versioning (I-3)
-
 - Power-up system — data model, pre-wave tray, effect engine (#45)
 
 - Relic system — data model, exclusivity, upkeep, equip menu
 
-- Run-map fog of war on deeply-locked nodes (V-25)
+- Seamless full-bleed game UI, remove duplicate top bar (#89)
 
 - Themed node shapes on run map (#46)
-
-- Tower idle breathing animation (V-17)
-
-- Type-specific enemy death animations (V-19)
 
 
 ### 🐛 Bug Fixes
