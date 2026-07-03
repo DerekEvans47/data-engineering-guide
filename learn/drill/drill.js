@@ -824,9 +824,9 @@ function showHome() {
   EL.app.dataset.mode = 'home';
 
   const beaten      = tdLoadMapBeaten();
-  const existRun    = tdLoadRun();
+  const existRunRaw = tdLoadRun();
   const mapsCleared = beaten.length;
-  const runActive   = existRun !== null;
+  const runActive   = isRunCompatible(existRunRaw, existRunRaw && existRunRaw.mapId);
   const l = getLevel(xp);
 
   setTopBar('home');
@@ -1988,7 +1988,10 @@ function bindUI() {
 //  TOWER DEFENSE GAME
 // ══════════════════════════════════════════════════════════════
 
-const TD_COLS = 9, TD_ROWS = 10;
+// Default portrait grid; painted battle maps (frontierTownLevelDef) override
+// these per-level at initTDGame time via levelDef.gridCols/gridRows.
+const TD_DEFAULT_COLS = 9, TD_DEFAULT_ROWS = 10;
+let TD_COLS = TD_DEFAULT_COLS, TD_ROWS = TD_DEFAULT_ROWS;
 const TD_STARS_KEY = 'td_stars_v1';
 
 // ── Audio engine ───────────────────────────────────────────────
@@ -2810,6 +2813,138 @@ const TD_EVENTS = [
   { icon:'📡', title:'Signal Boost',   desc:'Your team gets extra starting funds.',      effect:'gold+50' },
 ];
 
+// ── Verdant region world map (G-9) ──────────────────────────────
+// Mirrors assets/worlds/verdant/region-preset.json's hand-placed spine —
+// node coordinates are already in the painted region.png's pixel space
+// (1024×572), verified against the road-pixel mask by the art pass, so no
+// runtime layout/generation is needed, just rendering.
+const VERDANT_REGION = {
+  image: 'assets/worlds/verdant/region.png',
+  viewBox: [0, 0, 1024, 572],
+  spine: [
+    { id:'start', name:'Frontier Town',           x:202, y:418, battleTheme:'town-gate'       },
+    { id:'n1',    name:'Windmill Crossing',        x:300, y:393, battleTheme:'windmill-bridge' },
+    { id:'n2',    name:'Scarecrow Fields',         x:393, y:406, battleTheme:'farmland'        },
+    { id:'n3',    name:"Miller's Homestead",       x:463, y:458, battleTheme:'farmstead'       },
+    { id:'n4',    name:'Abandoned Village',        x:597, y:481, battleTheme:'ruins'           },
+    { id:'n5',    name:"Shepherd's Pasture",       x:700, y:432, battleTheme:'pasture'         },
+    { id:'n6',    name:'Beehive Bend',             x:647, y:327, battleTheme:'apiary'          },
+    { id:'n7',    name:'The Watchtower',           x:467, y:311, battleTheme:'crag-tower'      },
+    { id:'n8',    name:'The Standing Stones',      x:321, y:217, battleTheme:'stone-circle'    },
+    { id:'n9',    name:"Charcoal Burners' Camp",   x:340, y:149, battleTheme:'charcoal-camp'   },
+    { id:'n10',   name:'Logging Camp',             x:567, y:140, battleTheme:'timber-camp'     },
+    { id:'n11',   name:'The Lone Monolith',        x:724, y:117, battleTheme:'moor-monolith'   },
+    { id:'n12',   name:'The Corrupted Mile',       x:841, y:162, battleTheme:'blighted-forest' },
+    { id:'boss',  name:'The Ruined Keep',          x:915, y:135, battleTheme:'keep-siege'      },
+  ],
+};
+
+// ── Frontier Town battle map (first painted battle map, tutorial fight
+// at the 'start' spine node) ────────────────────────────────────
+// Mirrors assets/worlds/verdant/battlemaps/frontier-town.json. The path
+// there is a smooth hand-authored polyline, but the TD engine's path-set/
+// movement (tdComputePathSet) only supports axis-aligned segments — so
+// tdBuildManhattanWps reduces it to a stair-stepped grid path that tracks
+// the painted road's silhouette rather than reproducing it pixel-for-pixel.
+// A true free-form-path engine is a larger follow-up, not this pass.
+const FRONTIER_TOWN_MAP = {
+  image: 'assets/worlds/verdant/battlemaps/frontier-town.png',
+  viewBox: [0, 0, 1376, 768],
+  cols: 16, rows: 9,
+  waypointsPx: [
+    [0,398],[86,395],[136,398],[256,370],[306,300],[366,225],[476,190],[576,215],
+    [631,280],[628,361],[636,410],[662,462],[692,518],[736,545],[836,555],[906,535],
+    [967,512],[1030,482],[1096,425],[1176,400],[1261,385],
+  ],
+  buildSlotsPx: [
+    [711,142],[276,130],[161,290],[216,480],[286,555],[371,655],
+    [811,620],[1076,610],[476,115],[831,325],[1186,505],
+  ],
+};
+
+function tdManhattanPathSet(wps, cols, rows) {
+  const s = new Set();
+  for (let i = 0; i < wps.length - 1; i++) {
+    const [c0,r0] = wps[i], [c1,r1] = wps[i+1];
+    if (r0 === r1) {
+      const lo = Math.max(0, Math.min(c0,c1)), hi = Math.min(cols-1, Math.max(c0,c1));
+      for (let c = lo; c <= hi; c++) s.add(`${c},${r0}`);
+    } else {
+      const lo = Math.max(0, Math.min(r0,r1)), hi = Math.min(rows-1, Math.max(r0,r1));
+      for (let r = lo; r <= hi; r++) s.add(`${c0},${r}`);
+    }
+  }
+  return s;
+}
+
+// Reduces a pixel-space polyline to an axis-aligned grid path: inserts a
+// corner point wherever two consecutive grid points differ in both col and
+// row, and extends the final hop off the canvas edge so enemies exit the
+// map instead of stopping mid-screen.
+function tdBuildManhattanWps(pointsPx, viewW, viewH, cols, rows) {
+  const cellW = viewW / cols, cellH = viewH / rows;
+  const toGrid = ([x, y]) => [Math.round(x / cellW) - (x <= 0 ? 1 : 0), Math.round(y / cellH)];
+  const raw = pointsPx.map(toGrid);
+  const wps = [raw[0]];
+  for (let i = 1; i < raw.length; i++) {
+    const [pc, pr] = wps[wps.length - 1];
+    const [c, r] = raw[i];
+    if (c !== pc && r !== pr) wps.push([c, pr]);
+    if (c !== pc || r !== pr) wps.push([c, r]);
+  }
+  const [lc, lr] = wps[wps.length - 1];
+  if (lc < cols) wps.push([cols, lr]);
+  return wps;
+}
+
+const FRONTIER_TOWN_WPS = tdBuildManhattanWps(
+  FRONTIER_TOWN_MAP.waypointsPx, FRONTIER_TOWN_MAP.viewBox[2], FRONTIER_TOWN_MAP.viewBox[3],
+  FRONTIER_TOWN_MAP.cols, FRONTIER_TOWN_MAP.rows
+);
+
+// Build-slot pixel coords → grid cells, nudged off the path/each other if
+// rounding collides them (offline, computed once at load).
+const FRONTIER_TOWN_SLOTS = (() => {
+  const { viewBox, cols, rows, buildSlotsPx } = FRONTIER_TOWN_MAP;
+  const cellW = viewBox[2] / cols, cellH = viewBox[3] / rows;
+  const pathSet = tdManhattanPathSet(FRONTIER_TOWN_WPS, cols, rows);
+  const used = new Set();
+  const NEIGHBORS = [[0,0],[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,-1],[-1,1],[1,1]];
+  return buildSlotsPx.map(([x, y]) => {
+    const baseC = Math.min(cols-1, Math.max(0, Math.round(x / cellW)));
+    const baseR = Math.min(rows-1, Math.max(0, Math.round(y / cellH)));
+    for (const [dc, dr] of NEIGHBORS) {
+      const c = baseC + dc, r = baseR + dr;
+      if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
+      const key = `${c},${r}`;
+      if (pathSet.has(key) || used.has(key)) continue;
+      used.add(key);
+      return [c, r];
+    }
+    return [baseC, baseR]; // no free neighbor found — keep original, still usable most of the time
+  });
+})();
+
+// Keyed by levelDef.usesPaintedBg — add an entry here when Decay/Void get
+// their own painted battle maps.
+const TD_PAINTED_BG_IMAGES = { 'frontier-town': FRONTIER_TOWN_MAP.image };
+
+function frontierTownLevelDef() {
+  const mapDef = TD_MAPS[0];
+  const rng = makeSeedRng((Date.now() ^ 0x51a7c0de) >>> 0);
+  const waveDefs = generateWaves(1.0, 3, rng);
+  return {
+    name: 'Frontier Town', act: mapDef.name, icon: '🏘️', color: mapDef.color,
+    enemyMult: 1.0, startGold: 160, startLives: 25,
+    wps: FRONTIER_TOWN_WPS,
+    diffWeights: { easy: 0.8, medium: 0.2, hard: 0 },
+    waveDefs, parts: mapDef.parts, deco: [], isBoss: false,
+    usesPaintedBg: 'frontier-town',
+    gridCols: FRONTIER_TOWN_MAP.cols, gridRows: FRONTIER_TOWN_MAP.rows,
+    buildSlots: FRONTIER_TOWN_SLOTS,
+  };
+}
+
 // ── Helpers ────────────────────────────────────────────────────
 
 function tdQDifficulty(q) {
@@ -2997,7 +3132,51 @@ const RUN_NODE_POS = {
   boss:     [170, 62],
 };
 
+// Verdant (mapId 0) uses the painted region map's fixed 14-node spine
+// instead of the procedural fork/converge graph — only Verdant has world-map
+// art right now (Decay/Void fall through to the legacy generator below).
+function generateVerdantRun() {
+  const seed   = (Date.now() ^ (Math.random() * 0x7FFFFFFF | 0)) >>> 0;
+  const rng    = makeSeedRng(seed);
+  const mapDef = TD_MAPS[0];
+  const spine  = VERDANT_REGION.spine;
+
+  // typeRules: minBattles 8, shops 2, campfires(rest) 2 — exactly fills the
+  // 12 middle nodes (n1..n12) between the fixed start/boss endpoints.
+  const typePool = ['shop','shop','rest','rest', ...Array(8).fill('battle')];
+  for (let i = typePool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [typePool[i], typePool[j]] = [typePool[j], typePool[i]];
+  }
+
+  const nodes = spine.map((s, i) => {
+    const isStart = s.id === 'start', isBoss = s.id === 'boss';
+    const type = isStart ? 'start' : isBoss ? 'battle' : typePool[i - 1];
+    const needsDef = isStart || isBoss || type === 'battle' || type === 'elite';
+    const levelDef = isStart ? frontierTownLevelDef()
+                    : needsDef ? generateBattleLevel(mapDef, i, 0, rng, isBoss)
+                    : null;
+    return {
+      id: s.id, name: s.name, battleTheme: s.battleTheme, type,
+      x: s.x, y: s.y, depth: i, pathId: 0,
+      nextIds: isBoss ? [] : [spine[i + 1].id],
+      prevIds: isStart ? [] : [spine[i - 1].id],
+      levelDef, state: 'locked',
+    };
+  });
+  nodes[0].state = 'available';
+
+  const run = {
+    mapId: 0, seed, nodes, currentId: null, visitedIds: [], activeId: null,
+    powerUps: ['gold_rush'], stats: { battlesWon:0, goldEarned:0, xpEarned:0, carryGold:0 },
+    usesRegionMap: true,
+  };
+  tdSaveRun(run);
+  return run;
+}
+
 function generateRun(mapId) {
+  if (mapId === 0) return generateVerdantRun();
   const seed   = (Date.now() ^ (Math.random() * 0x7FFFFFFF | 0)) >>> 0;
   const rng    = makeSeedRng(seed);
   const mapDef = TD_MAPS[mapId];
@@ -3610,6 +3789,92 @@ function renderRunMap(run) {
   });
 }
 
+// ── Verdant painted world map (G-9) ─────────────────────────────
+// Renders the region.png spine as a real world map instead of the
+// procedural SVG node graph: node coords are already in the image's pixel
+// space, so this is a straight overlay, not a layout/generation pass.
+function renderVerdantWorldMap(run) {
+  const mapDef = TD_MAPS[run.mapId];
+  const [, , VW, VH] = VERDANT_REGION.viewBox;
+  const spine = VERDANT_REGION.spine;
+
+  const TI = { start:'🏘', battle:'⚔', shop:'🛒', rest:'🔥', elite:'💀' };
+  function nodeColor(node) {
+    if (node.id === 'boss') return '#EF4444';
+    if (node.type === 'start') return mapDef.color;
+    if (node.type === 'battle' || node.type === 'elite') {
+      const dw = node.levelDef && node.levelDef.diffWeights;
+      if (!dw) return '#9CA3AF';
+      return dw.hard >= 0.5 ? '#EF4444' : dw.hard >= 0.2 ? '#FBBF24' : '#4ADE80';
+    }
+    const TC = { shop:'#FBBF24', rest:'#10B981' };
+    return TC[node.type] || mapDef.color;
+  }
+
+  const roadsHtml = spine.slice(1).map((s, i) => {
+    const prev = spine[i]; // spine[i] is the node before s (i is 0-based over slice(1))
+    const prevNode = run.nodes.find(n => n.id === prev.id);
+    const curNode  = run.nodes.find(n => n.id === s.id);
+    const done = run.visitedIds.includes(prev.id) && run.visitedIds.includes(s.id);
+    const ahead = run.visitedIds.includes(prev.id);
+    const cls = done ? 'rvm-road-done' : ahead ? 'rvm-road-ahead' : 'rvm-road-future';
+    return `<line class="rvm-road ${cls}" x1="${prevNode.x}" y1="${prevNode.y}" x2="${curNode.x}" y2="${curNode.y}"/>`;
+  }).join('');
+
+  const nodesHtml = run.nodes.map(node => {
+    const col = nodeColor(node);
+    const icon = TI[node.id === 'boss' ? 'battle' : node.type] || '⚔';
+    const label = node.name;
+    if (node.state === 'completed') {
+      return `<g class="rvm-node rvm-completed" data-id="${node.id}">
+        <circle cx="${node.x}" cy="${node.y}" r="13" fill="#07090e" stroke="#2d4455" stroke-width="1.5" opacity="0.85"/>
+        <text x="${node.x}" y="${node.y+4}" font-size="10" text-anchor="middle" fill="#8fb0c5">✓</text>
+      </g>`;
+    }
+    if (node.state === 'available' || node.state === 'active') {
+      const pulse = node.state === 'available' ? 'rvm-pulse' : '';
+      return `<g class="rvm-node ${pulse}" data-id="${node.id}" style="cursor:pointer">
+        <circle cx="${node.x}" cy="${node.y}" r="20" fill="${col}22" stroke="${col}70" stroke-width="2"/>
+        <circle cx="${node.x}" cy="${node.y}" r="13" fill="#0c1020" stroke="${col}" stroke-width="2.5"/>
+        <text x="${node.x}" y="${node.y+5}" font-size="12" text-anchor="middle">${icon}</text>
+        <text x="${node.x}" y="${node.y-24}" font-size="8" text-anchor="middle" fill="#fff9ec" font-weight="700" stroke="#000" stroke-width="2.2" paint-order="stroke">${label}</text>
+      </g>`;
+    }
+    const prevVisited = run.visitedIds.includes(node.id === 'start' ? node.id : (node.prevIds[0] || ''));
+    const fog = prevVisited ? '0.9' : '0.32';
+    return `<g class="rvm-node rvm-future" data-id="${node.id}" opacity="${fog}">
+      <circle cx="${node.x}" cy="${node.y}" r="12" fill="${col}12" stroke="${col}45" stroke-width="1.5"/>
+      <text x="${node.x}" y="${node.y+4}" font-size="10" text-anchor="middle" opacity="0.55">${icon}</text>
+    </g>`;
+  }).join('');
+
+  const svg = `<svg id="rvm-svg" viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg">
+    <image href="${VERDANT_REGION.image}" x="0" y="0" width="${VW}" height="${VH}" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="0" y="0" width="${VW}" height="${VH}" fill="rgba(6,9,16,.12)"/>
+    ${roadsHtml}
+    ${nodesHtml}
+  </svg>`;
+
+  EL.contentArea.innerHTML = `
+    <div id="rvm-wrap" class="region-map-wrap">
+      <div class="region-map-header">
+        <span class="region-map-title">${mapDef.icon} ${mapDef.name}</span>
+        <span class="region-map-subtitle">${mapDef.subtitle}</span>
+      </div>
+      ${svg}
+    </div>`;
+
+  document.querySelectorAll('.rvm-node[data-id]').forEach(g => {
+    const node = run.nodes.find(n => n.id === g.dataset.id);
+    if (!node || (node.state !== 'available' && node.state !== 'active')) return;
+    g.addEventListener('click', () => {
+      markNodeEntered(run, node.id);
+      if (node.type === 'shop' || node.type === 'rest') showInterNodePanel(node, run);
+      else showLevelConfirmPanel(node.levelDef, node.id, run);
+    });
+  });
+}
+
 // ── Map Selection Screen ───────────────────────────────────────
 
 function showMapSelection() {
@@ -3628,9 +3893,18 @@ function showMapSelection() {
   _renderMapSelection();
 }
 
+// A run is only resumable if it matches the current map schema — old
+// pre-painted-map Verdant runs (no usesRegionMap flag) are from the
+// superseded 25-node procedural graph and can't be continued on the new
+// spine, so they're treated as stale and replaced with a fresh run.
+function isRunCompatible(run, mapId) {
+  return !!run && run.mapId === mapId && (mapId !== 0 || run.usesRegionMap === true);
+}
+
 function _renderMapSelection() {
   const beaten   = tdLoadMapBeaten();
-  const existRun = tdLoadRun();
+  const existRunRaw = tdLoadRun();
+  const existRun = isRunCompatible(existRunRaw, existRunRaw && existRunRaw.mapId) ? existRunRaw : null;
 
   const cardsHtml = TD_MAPS.map(map => {
     const unlocked = isMapUnlocked(map.id);
@@ -3682,7 +3956,7 @@ function showRunMap(run) {
   // they're clickable again.
   run.nodes.forEach(n => { if (n.state === 'active') { n.state = 'available'; run.activeId = null; } });
   tdSaveRun(run);
-  renderRunMap(run);
+  if (run.usesRegionMap) renderVerdantWorldMap(run); else renderRunMap(run);
 }
 
 function showTDWorldMap() { showMapSelection(); }
@@ -4174,11 +4448,28 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
 }
 
 function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
+  // Landscape painted maps (frontierTownLevelDef) declare their own grid;
+  // everything else keeps the default portrait grid. Reset unconditionally
+  // so a previous painted level's dimensions never leak into the next one.
+  TD_COLS = levelDef.gridCols || TD_DEFAULT_COLS;
+  TD_ROWS = levelDef.gridRows || TD_DEFAULT_ROWS;
+
   td = tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride);
   const canvas = document.getElementById('td-canvas');
   const wrap   = document.getElementById('td-canvas-wrap');
   td.canvas = canvas;
   td.ctx    = canvas.getContext('2d');
+
+  if (levelDef.usesPaintedBg) {
+    td.usesPaintedBg = levelDef.usesPaintedBg;
+    td.paintedBg = new Image();
+    td.paintedBg.src = TD_PAINTED_BG_IMAGES[levelDef.usesPaintedBg] || '';
+    td.buildSlotSet = new Set((levelDef.buildSlots || []).map(([c,r]) => `${c},${r}`));
+  } else {
+    td.usesPaintedBg = null;
+    td.paintedBg = null;
+    td.buildSlotSet = null;
+  }
 
   // Cache TD HUD refs — injected dynamically so must be queried here, not in bindUI
   EL.tdGoldVal   = document.getElementById('td-gold-val');
@@ -4198,7 +4489,7 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   EL.tdInspectCard  = document.getElementById('td-inspect-card');
   EL.tdPowerUpTray  = document.getElementById('td-powerup-tray');
 
-  const W = Math.min(wrap.clientWidth || window.innerWidth, 500);
+  const W = Math.min(wrap.clientWidth || window.innerWidth, 1100);
   const H = wrap.clientHeight || 0;
   const cellByW = Math.floor(W / TD_COLS);
   const cellByH = H > 0 ? Math.floor(H / TD_ROWS) : cellByW;
@@ -4711,6 +5002,7 @@ function tdHandleTap(col, row) {
     return;
   }
   if (td.pathSet.has(`${col},${row}`)) return;
+  if (td.buildSlotSet && !td.buildSlotSet.has(`${col},${row}`)) return;
   if (td.towers.some(t => t.col === col && t.row === row)) return;
 
   const def = TD_TOWER_DEFS.find(d => d.id === td.selectedTool);
@@ -5364,6 +5656,16 @@ const TD_THEME_CELLS = {
 // ── Background & terrain ─────────────────────────────────────────
 
 function tdRenderBackground(ctx, cs, W, H, isLight, PAL) {
+  if (td.paintedBg) {
+    if (td.paintedBg.complete && td.paintedBg.naturalWidth) {
+      ctx.drawImage(td.paintedBg, 0, 0, W, H);
+      return;
+    }
+    // Image still loading — flat fallback fill for this frame only.
+    ctx.fillStyle = '#162016';
+    ctx.fillRect(0, 0, W, H);
+    return;
+  }
   const mapDef = TD_MAPS[td.mapId] ?? TD_MAPS[0];
   const palette = isLight ? null : (TD_THEME_CELLS[mapDef.themeName] ?? TD_THEME_CELLS.verdant);
   if (palette) {
@@ -5556,7 +5858,25 @@ function tdRenderLandmarks(ctx, cs, W, bgT, wps, entryRow, exitRow) {
 }
 
 // Pending placement highlight + tower placement ghost preview
+// Marks empty build slots on painted maps (the art shows clearings, but a
+// faint pip makes it obvious which cells are actually tappable).
+function tdRenderBuildSlots(ctx, cs, bgT) {
+  if (!td.buildSlotSet) return;
+  const pulse = 0.5 + 0.5 * Math.sin(bgT * 2.4);
+  for (const key of td.buildSlotSet) {
+    const [col, row] = key.split(',').map(Number);
+    if (td.towers.some(t => t.col === col && t.row === row)) continue;
+    const px = col*cs + cs/2, py = row*cs + cs/2;
+    ctx.beginPath();
+    ctx.arc(px, py, cs*0.22 + pulse*1.5, 0, Math.PI*2);
+    ctx.strokeStyle = `rgba(251,191,36,${0.45 + pulse*0.25})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
 function tdRenderPlacementUI(ctx, cs, bgT) {
+  tdRenderBuildSlots(ctx, cs, bgT);
   if (td.pendingCol >= 0 && td.pendingRow >= 0) {
     const pc = td.pendingCol, pr = td.pendingRow;
     const pulse = 0.5 + 0.5 * Math.sin(bgT * 6);
@@ -5575,8 +5895,9 @@ function tdRenderPlacementUI(ctx, cs, bgT) {
       const px  = col*cs + cs/2, py = row*cs + cs/2;
       const isPath     = td.pathSet.has(`${col},${row}`);
       const isOccupied = td.towers.some(t => t.col === col && t.row === row);
+      const offSlot    = td.buildSlotSet && !td.buildSlotSet.has(`${col},${row}`);
       const canAfford  = td.gold >= def.cost;
-      const canPlace   = !isPath && !isOccupied;
+      const canPlace   = !isPath && !isOccupied && !offSlot;
       const accent     = canPlace && canAfford ? def.color : '#EF4444';
 
       ctx.beginPath(); ctx.arc(px, py, def.range*cs, 0, Math.PI*2);
@@ -5867,7 +6188,9 @@ function tdRender() {
   const bgT = td.bgTime;
 
   tdRenderBackground(ctx, cs, W, H, isLight, PAL);
-  tdRenderTerrainDeco(ctx, cs, bgT, W, H);
+  // Painted maps already depict scenery/road/gate in the art itself — skip
+  // the procedural terrain deco layer that's meant for the flat theme fill.
+  if (!td.paintedBg) tdRenderTerrainDeco(ctx, cs, bgT, W, H);
 
   let sx = 0, sy = 0;
   if (td.shake > 0) {
@@ -5879,14 +6202,16 @@ function tdRender() {
   ctx.save();
   ctx.translate(sx, sy);
 
-  tdRenderPath(ctx, cs, PAL);
+  if (!td.paintedBg) tdRenderPath(ctx, cs, PAL);
   tdRenderDataFlowDots(ctx, cs, bgT);
 
   const wps      = td.levelDef.wps;
   const entryRow = wps[0][1], exitRow = wps[wps.length-1][1];
 
-  tdRenderPortals(ctx, cs, W, bgT, entryRow, exitRow);
-  tdRenderLandmarks(ctx, cs, W, bgT, wps, entryRow, exitRow);
+  if (!td.paintedBg) {
+    tdRenderPortals(ctx, cs, W, bgT, entryRow, exitRow);
+    tdRenderLandmarks(ctx, cs, W, bgT, wps, entryRow, exitRow);
+  }
   tdRenderPlacementUI(ctx, cs, bgT);
   tdRenderTowers(ctx, cs, bgT);
   tdRenderEnemies(ctx, cs, bgT);

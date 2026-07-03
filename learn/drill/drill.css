@@ -1734,7 +1734,7 @@ html, body {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: min(100%, 540px);
+  width: min(100%, 1100px);
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
   display: flex;
   flex-direction: column;
@@ -2522,6 +2522,52 @@ html, body {
   max-width: 380px;
 }
 
+/* ── Verdant painted world map (G-9) ───────────────────────── */
+.region-map-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-bottom: .75rem;
+  flex: 1;
+  min-height: 0;
+}
+.region-map-header {
+  width: 100%;
+  padding: .55rem 1rem .35rem;
+  text-align: center;
+}
+.region-map-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.region-map-subtitle {
+  font-size: .7rem;
+  color: var(--text-muted);
+  margin-left: .5rem;
+}
+#rvm-svg {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  border-radius: 10px;
+  background: #0a0f08;
+}
+.rvm-road { stroke-linecap: round; }
+.rvm-road-done   { stroke: #FBBF24; stroke-width: 3.5; opacity: .85; }
+.rvm-road-ahead  { stroke: #e8c877; stroke-width: 2.5; stroke-dasharray: 6 5; opacity: .55; }
+.rvm-road-future { stroke: #8a7550; stroke-width: 2;   stroke-dasharray: 3 6; opacity: .3; }
+.rvm-node.rvm-future { pointer-events: none; }
+.rvm-node.rvm-completed { pointer-events: none; }
+.rvm-pulse circle:first-child {
+  animation: rn-pulse 2.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 /* Run node state classes */
 .rn-available { cursor: pointer; }
 .rn-available:hover circle { filter: brightness(1.2); }
@@ -2535,17 +2581,18 @@ html, body {
   transform-origin: center;
 }
 
-/* Map selection screen */
+/* Map selection screen — chunky gold-bordered cards matching the home
+   screen's fantasy UI treatment instead of a flat settings-list look. */
 .map-select-screen {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 1rem;
-  max-width: 480px;
+  padding: 1.25rem 1rem;
+  max-width: 640px;
   margin: 0 auto;
 }
 .map-select-header { text-align: center; }
-.map-select-title  { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+.map-select-title  { font-size: 1.2rem; font-weight: 800; color: var(--text); letter-spacing: .01em; }
 .map-select-sub    { font-size: .78rem; color: var(--text-muted); margin-top: .2rem; }
 .map-select-cards  { display: flex; flex-direction: column; gap: .75rem; }
 
@@ -2554,17 +2601,18 @@ html, body {
   align-items: center;
   gap: .85rem;
   padding: .9rem 1rem;
-  background: var(--bg-card);
-  border: 1.5px solid var(--border);
+  background: linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-card) 100%);
+  border: 1.5px solid rgba(245,158,11,.35);
   border-radius: 14px;
+  box-shadow: 0 3px 0 rgba(0,0,0,.25), 0 6px 14px rgba(0,0,0,.2);
   cursor: pointer;
   text-align: left;
-  transition: border-color .15s, transform .1s;
+  transition: border-color .15s, transform .1s, box-shadow .1s;
   width: 100%;
 }
-.map-card:hover:not([disabled]) { border-color: var(--accent); transform: translateY(-1px); }
-.map-card:active:not([disabled]){ transform: scale(.98); }
-.map-card-locked  { opacity: 0.45; cursor: not-allowed; }
+.map-card:hover:not([disabled]) { border-color: var(--xp-gold); transform: translateY(-1px); }
+.map-card:active:not([disabled]){ transform: translateY(1px) scale(.99); box-shadow: 0 1px 0 rgba(0,0,0,.25), 0 3px 8px rgba(0,0,0,.2); }
+.map-card-locked  { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 .map-card-icon    { font-size: 2rem; flex-shrink: 0; }
 .map-card-body    { flex: 1; min-width: 0; }
 .map-card-name    { font-size: .9rem; font-weight: 700; }
@@ -2572,7 +2620,7 @@ html, body {
 .map-card-beaten  { font-size: .68rem; color: #10B981; font-weight: 600; margin-top: .15rem; }
 .map-card-req     { font-size: .68rem; color: var(--text-muted); margin-top: .15rem; }
 .map-card-active  { font-size: .68rem; color: #FBBF24; font-weight: 600; margin-top: .15rem; }
-.map-card-btn     { font-size: .75rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+.map-card-btn     { font-size: .75rem; font-weight: 700; color: var(--xp-gold); white-space: nowrap; flex-shrink: 0; }
 
 /* Run complete screen */
 .run-complete-screen {
@@ -2948,5 +2996,6 @@ html, body {
   .tdm-ring,
   .enemy-sprite { animation: none !important; }
   .rn-pulse { animation: none; opacity: 0.6; }
+  .rvm-pulse circle:first-child { animation: none; }
   * { transition-duration: 0.01ms !important; }
 }
