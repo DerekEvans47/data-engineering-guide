@@ -1,5 +1,5 @@
 {
-  "_notes": "Battle-map authoring data for Frontier Town (tutorial, spine node 'start'). Waypoints ordered spawn->leak: enemies emerge from the eastern forest fringe (first waypoint off-canvas) and march the single road to the town gate. Coordinates in image pixels; the engine converts to grid space. Slot kind 'fenced' = paddock pads (visual flavor only, same rules). Template schema for all themed battle maps: multi-lane maps add entries to 'lanes'. rev 2: reduced to 10 slots per user review (removed the crossed-out bottom-center pad and the invented in-town pad), positions aligned to the painted clearings; former far-flagged slot moved west into tower range. Enemy direction confirmed: right-to-left (spawn east, leak at town gate) is the standing Verdant convention \u2014 corruption pushes west from the keep; per-map overrides possible via spawnEdge.",
+  "_notes": "Battle-map authoring data for Frontier Town (tutorial, spine node 'start'). rev 3: image mirrored horizontally so enemy motion reads left-to-right (user direction call): enemies spawn in the WESTERN forest fringe (first waypoint off-canvas) and march east to the town gate at the right edge. Battle scenes are camera-relative, not compass-aligned with the world map \u2014 standing convention: spawn LEFT, defended objective RIGHT. 11 build slots aligned to the painted clearings (open pads + fenced paddocks, visual flavor only). Coordinates in image pixels; engine converts to grid space. Template schema for all themed battle maps; multi-lane maps add 'lanes' entries.",
   "image": "frontier-town.png",
   "viewBox": [
     0,
@@ -14,159 +14,165 @@
   "lanes": [
     {
       "id": "main",
-      "spawnEdge": "east",
+      "spawnEdge": "west",
       "waypoints": [
         [
-          1376,
+          0,
           398
         ],
         [
-          1290,
+          86,
           395
         ],
         [
-          1240,
+          136,
           398
         ],
         [
-          1120,
+          256,
           370
         ],
         [
-          1070,
+          306,
           300
         ],
         [
-          1010,
+          366,
           225
         ],
         [
-          900,
+          476,
           190
         ],
         [
-          800,
+          576,
           215
         ],
         [
-          745,
+          631,
           280
         ],
         [
-          748,
+          628,
           361
         ],
         [
-          740,
+          636,
           410
         ],
         [
-          714,
+          662,
           462
         ],
         [
-          684,
+          692,
           518
         ],
         [
-          640,
+          736,
           545
         ],
         [
-          540,
+          836,
           555
         ],
         [
-          470,
+          906,
           535
         ],
         [
-          409,
+          967,
           512
         ],
         [
-          346,
+          1030,
           482
         ],
         [
-          280,
+          1096,
           425
         ],
         [
-          200,
+          1176,
           400
         ],
         [
-          115,
+          1261,
           385
         ]
       ]
     }
   ],
   "leak": {
-    "x": 115,
+    "x": 1261,
     "y": 385,
     "landmark": "town gate"
   },
   "buildSlots": [
     {
       "id": "s1",
-      "x": 660,
-      "y": 115,
+      "x": 711,
+      "y": 142,
       "pad": "open"
     },
     {
       "id": "s2",
-      "x": 1100,
+      "x": 276,
       "y": 130,
       "pad": "fenced"
     },
     {
       "id": "s3",
-      "x": 1215,
+      "x": 161,
       "y": 260,
       "pad": "fenced"
     },
     {
       "id": "s4",
-      "x": 1160,
+      "x": 216,
       "y": 480,
       "pad": "fenced"
     },
     {
       "id": "s5",
-      "x": 1035,
-      "y": 540,
+      "x": 286,
+      "y": 555,
       "pad": "open"
     },
     {
       "id": "s6",
-      "x": 950,
-      "y": 615,
+      "x": 371,
+      "y": 655,
       "pad": "open"
     },
     {
       "id": "s7",
-      "x": 565,
+      "x": 811,
       "y": 620,
       "pad": "open"
     },
     {
       "id": "s8",
-      "x": 250,
-      "y": 595,
+      "x": 1076,
+      "y": 610,
       "pad": "open"
     },
     {
       "id": "s9",
-      "x": 900,
+      "x": 476,
       "y": 115,
       "pad": "open"
     },
     {
       "id": "s10",
-      "x": 545,
+      "x": 831,
       "y": 325,
+      "pad": "open"
+    },
+    {
+      "id": "s11",
+      "x": 1186,
+      "y": 505,
       "pad": "open"
     }
   ]
