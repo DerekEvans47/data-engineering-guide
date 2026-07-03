@@ -3005,13 +3005,31 @@ const FRONTIER_TOWN_SLOTS = (() => {
 // their own painted battle maps.
 const TD_PAINTED_BG_IMAGES = { 'frontier-town': FRONTIER_TOWN_MAP.image };
 
+// Painted-pixel-art tower tiers (V-36) — matches the battle-map art style instead
+// of the flat hand-authored TD_SPRITES pixel frames. Only Ranger has painted art
+// so far; any tower type absent from this map still renders via TD_SPRITES in
+// tdRenderTowers. 3 tiers wired (base + 2 upgrades, matching TD_TOWER_DEFS.ranger's
+// 3 levels) — a 4th ("stone + diamond, ultimate") tier image exists
+// (see TOWER_GENERATION_PROMPTS.md) but isn't wired to a 4th upgrade level yet.
+const TD_TOWER_TIER_IMAGES = {
+  ranger: [
+    'assets/towers/ranger-tier1.png',
+    'assets/towers/ranger-tier2.png',
+    'assets/towers/ranger-tier3.png',
+  ].map(src => { const img = new Image(); img.src = src; return img; }),
+};
+
 function frontierTownLevelDef() {
   const mapDef = TD_MAPS[0];
   const rng = makeSeedRng((Date.now() ^ 0x51a7c0de) >>> 0);
   const waveDefs = generateWaves(1.0, 3, rng);
   return {
     name: 'Frontier Town', act: mapDef.name, icon: '🏘️', color: mapDef.color,
-    enemyMult: 1.0, startGold: 160, startLives: 25,
+    enemyMult: 1.0,
+    // TEMP (tower-art testing): bumped from 160 so towers can be freely placed
+    // and upgraded to check the new painted art against every tier. Revert to
+    // 160 before shipping.
+    startGold: 99999, startLives: 25,
     wps: FRONTIER_TOWN_WPS,
     diffWeights: { easy: 0.8, medium: 0.2, hard: 0 },
     waveDefs, parts: mapDef.parts, deco: [], isBoss: false,
@@ -5978,17 +5996,46 @@ function tdDrawTowerPattern(ctx, x, y, size, pattern) {
   ctx.restore();
 }
 
+// Map's implied sun sits upper-right (checked directly against pixel evidence in
+// frontier-town.png — see TOWER_GENERATION_PROMPTS.md), so shadows fall lower-left.
+// Same fixed offset for every tower regardless of grid position: real directional
+// light is parallel at this scale, so position only changes which of a tower's own
+// surfaces face the camera, never which way its shadow points. A soft, partially
+// transparent shape darkens whatever's beneath it by construction, so this works
+// on any battle-map terrain without needing to match a specific ground color.
+function tdRenderTowerShadow(ctx, px, groundY, cs) {
+  ctx.save();
+  ctx.globalAlpha = 0.30;
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.ellipse(px - cs * 0.16, groundY + cs * 0.05, cs * 0.42, cs * 0.15, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function tdRenderTowers(ctx, cs, bgT) {
   for (const t of td.towers) {
     const def   = TD_TOWER_DEFS.find(d => d.id === t.type);
     const stats = tdGetTowerStats(t);
     const lvl   = t.level || 0;
     const [px, py] = tdCellCenter(t.col, t.row, cs);
+    const groundY = py + cs / 2; // where the tower's base sits
+
+    // Painted tower art (V-36) — currently only Ranger. Falls back to the pixel
+    // TD_SPRITES rendering below for every other tower type, or if the image
+    // hasn't finished loading yet.
+    const tierImg  = TD_TOWER_TIER_IMAGES[t.type]?.[lvl];
+    const useImage = tierImg && tierImg.complete && tierImg.naturalWidth > 0;
+    const renderH  = useImage ? cs * 1.9 : 0;
+    const renderW  = useImage ? renderH * (tierImg.naturalWidth / tierImg.naturalHeight) : 0;
+
+    if (useImage) tdRenderTowerShadow(ctx, px, groundY, cs);
 
     if (lvl > 0) {
       const glowColor = stats.glow || '#F59E0B';
       const ringR     = cs * (0.48 + lvl * 0.08);
-      ctx.beginPath(); ctx.arc(px, py, ringR, 0, Math.PI*2);
+      const ringY     = useImage ? groundY : py;
+      ctx.beginPath(); ctx.arc(px, ringY, ringR, 0, Math.PI*2);
       ctx.strokeStyle = glowColor;
       ctx.lineWidth   = lvl === 2 ? 3 : 2;
       ctx.globalAlpha = 0.75;
@@ -6000,16 +6047,29 @@ function tdRenderTowers(ctx, cs, bgT) {
       const frac     = t.flashLife / 0.06;
       const flashLen = cs * (0.30 + 0.25 * frac);
       const angle    = t.flashAngle || 0;
+      const fx       = px, fy = useImage ? groundY - renderH * 0.6 : py;
       ctx.save();
       ctx.globalAlpha = frac * 0.85;
       ctx.strokeStyle = stats.glow || def.color;
       ctx.lineWidth   = 2.5;
       ctx.lineCap     = 'round';
       ctx.beginPath();
-      ctx.moveTo(px, py);
-      ctx.lineTo(px + Math.cos(angle) * flashLen, py + Math.sin(angle) * flashLen);
+      ctx.moveTo(fx, fy);
+      ctx.lineTo(fx + Math.cos(angle) * flashLen, fy + Math.sin(angle) * flashLen);
       ctx.stroke();
       ctx.restore();
+    }
+
+    if (useImage) {
+      ctx.drawImage(tierImg, px - renderW / 2, groundY - renderH, renderW, renderH);
+      if (lvl > 0) {
+        ctx.font      = `bold ${Math.round(cs*.22)}px sans-serif`;
+        ctx.fillStyle = lvl === 2 ? '#C084FC' : '#F59E0B';
+        ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+        ctx.fillText('L' + (lvl+1), px + renderW/2 - 2, groundY - 2);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      }
+      continue;
     }
 
     ctx.fillStyle = 'rgba(0,0,0,.5)';
