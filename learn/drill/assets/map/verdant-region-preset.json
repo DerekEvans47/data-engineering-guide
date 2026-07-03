@@ -1,33 +1,256 @@
 {
-  "_notes": "W-1 authoring data for the Verdant region world map. The spine is the canonical linear route; node coordinates are hand-placed on the painted road and verified against the road-pixel mask. Node types (battle/shop/campfire) shuffle per run within the spine under the constraints below; start and boss are fixed. 'life' holds W-7 ambient-animation coordinates, authored in the same pass. Approximate polylines — refine during W-7 implementation.",
+  "_notes": "W-1 authoring data for the Verdant region world map. The spine is the canonical linear route; node coordinates are hand-placed on the painted road and verified against the road-pixel mask. Node types (battle/shop/campfire) shuffle per run within the spine under the constraints below; start and boss are fixed. 'life' holds W-7 ambient-animation coordinates, authored in the same pass. Approximate polylines \u2014 refine during W-7 implementation. 2026-07-02 rev 2: node coordinates corrected onto the road ribbon (density-filtered mask excludes clearings/blobs; every mid-spine node visually audited via crosshair crops); nodes gained display names and battleTheme keys \u2014 each node's TD battle map is themed to its world-map landmark.",
   "image": "verdant-worldmap-region.png",
-  "viewBox": [0, 0, 1024, 572],
+  "viewBox": [
+    0,
+    0,
+    1024,
+    572
+  ],
   "world": "verdant",
   "preset": 1,
-  "typeRules": { "minBattles": 8, "shops": 2, "campfires": 2, "eliteIsOptIn": "W-2 — elite is a per-battle engagement choice, not a node type" },
+  "typeRules": {
+    "minBattles": 8,
+    "shops": 2,
+    "campfires": 2,
+    "eliteIsOptIn": "W-2 \u2014 elite is a per-battle engagement choice, not a node type"
+  },
   "spine": [
-    { "id": "start", "x": 208, "y": 405, "landmark": "town gate",           "fixedType": "start" },
-    { "id": "n1",    "x": 300, "y": 393, "landmark": "bridge" },
-    { "id": "n2",    "x": 393, "y": 435, "landmark": "farmland" },
-    { "id": "n3",    "x": 478, "y": 410, "landmark": "mill" },
-    { "id": "n4",    "x": 602, "y": 450, "landmark": "abandoned village" },
-    { "id": "n5",    "x": 688, "y": 440, "landmark": "sheep pasture" },
-    { "id": "n6",    "x": 650, "y": 305, "landmark": "beehive bend" },
-    { "id": "n7",    "x": 419, "y": 240, "landmark": "watchtower" },
-    { "id": "n8",    "x": 390, "y": 201, "landmark": "stone circle" },
-    { "id": "n9",    "x": 560, "y": 104, "landmark": "logging camp" },
-    { "id": "n10",   "x": 639, "y": 140, "landmark": "lake hamlet" },
-    { "id": "n11",   "x": 790, "y": 140, "landmark": "standing stone" },
-    { "id": "n12",   "x": 880, "y": 137, "landmark": "corrupted approach" },
-    { "id": "boss",  "x": 925, "y":  92, "landmark": "ruined keep",          "fixedType": "boss" }
+    {
+      "id": "start",
+      "name": "Frontier Town",
+      "x": 202,
+      "y": 418,
+      "battleTheme": "town-gate",
+      "fixedType": "start"
+    },
+    {
+      "id": "n1",
+      "name": "Windmill Crossing",
+      "x": 300,
+      "y": 393,
+      "battleTheme": "windmill-bridge"
+    },
+    {
+      "id": "n2",
+      "name": "Scarecrow Fields",
+      "x": 393,
+      "y": 406,
+      "battleTheme": "farmland"
+    },
+    {
+      "id": "n3",
+      "name": "Miller's Homestead",
+      "x": 463,
+      "y": 458,
+      "battleTheme": "farmstead"
+    },
+    {
+      "id": "n4",
+      "name": "Abandoned Village",
+      "x": 597,
+      "y": 481,
+      "battleTheme": "ruins"
+    },
+    {
+      "id": "n5",
+      "name": "Shepherd's Pasture",
+      "x": 676,
+      "y": 455,
+      "battleTheme": "pasture"
+    },
+    {
+      "id": "n6",
+      "name": "Beehive Bend",
+      "x": 647,
+      "y": 327,
+      "battleTheme": "apiary"
+    },
+    {
+      "id": "n7",
+      "name": "The Watchtower",
+      "x": 467,
+      "y": 311,
+      "battleTheme": "crag-tower"
+    },
+    {
+      "id": "n8",
+      "name": "The Standing Stones",
+      "x": 415,
+      "y": 233,
+      "battleTheme": "stone-circle"
+    },
+    {
+      "id": "n9",
+      "name": "Logging Camp",
+      "x": 567,
+      "y": 140,
+      "battleTheme": "timber-camp"
+    },
+    {
+      "id": "n10",
+      "name": "Lakeside Hamlet",
+      "x": 639,
+      "y": 112,
+      "battleTheme": "lakeshore"
+    },
+    {
+      "id": "n11",
+      "name": "The Lone Monolith",
+      "x": 763,
+      "y": 117,
+      "battleTheme": "moor-monolith"
+    },
+    {
+      "id": "n12",
+      "name": "The Corrupted Mile",
+      "x": 860,
+      "y": 118,
+      "battleTheme": "blighted-forest"
+    },
+    {
+      "id": "boss",
+      "name": "The Ruined Keep",
+      "x": 922,
+      "y": 125,
+      "battleTheme": "keep-siege",
+      "fixedType": "boss"
+    }
   ],
   "life": {
-    "smoke":    [[310, 120], [345, 128], [105, 385], [140, 370], [645, 120]],
-    "lanterns": [[165, 400], [660, 145], [560, 95]],
-    "riverPath": [[135, 40], [110, 120], [140, 190], [210, 260], [260, 300], [285, 360], [270, 430], [300, 500], [330, 570]],
-    "lakeEllipse": { "cx": 700, "cy": 200, "rx": 110, "ry": 60 },
-    "lakeOutlet": [[800, 230], [880, 280], [950, 310], [1010, 315]],
-    "boats":    [[655, 205], [700, 230]],
-    "mistCorner": [[830, 30], [1010, 30], [1010, 190], [940, 160], [870, 120], [830, 80]]
+    "smoke": [
+      [
+        310,
+        120
+      ],
+      [
+        345,
+        128
+      ],
+      [
+        105,
+        385
+      ],
+      [
+        140,
+        370
+      ],
+      [
+        645,
+        120
+      ]
+    ],
+    "lanterns": [
+      [
+        165,
+        400
+      ],
+      [
+        660,
+        145
+      ],
+      [
+        560,
+        95
+      ]
+    ],
+    "riverPath": [
+      [
+        135,
+        40
+      ],
+      [
+        110,
+        120
+      ],
+      [
+        140,
+        190
+      ],
+      [
+        210,
+        260
+      ],
+      [
+        260,
+        300
+      ],
+      [
+        285,
+        360
+      ],
+      [
+        270,
+        430
+      ],
+      [
+        300,
+        500
+      ],
+      [
+        330,
+        570
+      ]
+    ],
+    "lakeEllipse": {
+      "cx": 700,
+      "cy": 200,
+      "rx": 110,
+      "ry": 60
+    },
+    "lakeOutlet": [
+      [
+        800,
+        230
+      ],
+      [
+        880,
+        280
+      ],
+      [
+        950,
+        310
+      ],
+      [
+        1010,
+        315
+      ]
+    ],
+    "boats": [
+      [
+        655,
+        205
+      ],
+      [
+        700,
+        230
+      ]
+    ],
+    "mistCorner": [
+      [
+        830,
+        30
+      ],
+      [
+        1010,
+        30
+      ],
+      [
+        1010,
+        190
+      ],
+      [
+        940,
+        160
+      ],
+      [
+        870,
+        120
+      ],
+      [
+        830,
+        80
+      ]
+    ]
   }
 }

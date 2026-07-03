@@ -6,6 +6,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### ✨ Features
 
+- Author W-1 node spine + life coordinates; backlog alignment pass (#76)
+
 - Background music on home, map, and battle screens (#23)
 
 - Color-blind mode — pattern fills per tower type
