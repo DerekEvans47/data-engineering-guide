@@ -35,7 +35,7 @@ Three approaches were tested head-to-head this session:
    painted trails (trivial now that the world map is linear).
 
 **Division of labor:** painted map = scenery layer (one image per preset). Runtime
-overlays = node markers (`verdant-worldmap-markers.png` catalog — markers SHOULD pop
+overlays = node markers (`assets/worlds/verdant/markers.png` catalog — markers SHOULD pop
 like UI, Kingdom Rush-style), roads-already-painted, mist-creep corruption visual.
 
 ### Locked prompt guards (add to EVERY map generation — the fixed technical layer)
@@ -66,16 +66,21 @@ like UI, Kingdom Rush-style), roads-already-painted, mist-creep corruption visua
   graveyard/medieval-decay landmark vocabulary.
 - **Void** (Parts 7–9): not started. Same fixed layer, eldritch palette.
 
-### Asset state in repo (all under `learn/drill/assets/map/`)
+### Asset state in repo (restructured 2026-07-03)
 
-- `verdant-worldmap-terrain.png` — sparse terrain (superseded as a base by the painted-map
+Layout: runtime assets under `learn/drill/assets/worlds/<world>/` (region.png,
+region-preset.json, markers.png, battlemaps/<theme>.png); authoring-only
+references under `learn/drill/assets/reference/`. The legacy `assets/map/`
+directory, its manifest.json, and the drill.js deco loader are gone (stubbed).
+
+- `reference/verdant-terrain-testbed.png` — sparse terrain (superseded as a base by the painted-map
   pipeline; still the geometry testbed), Nano watermark removed via diffusion inpaint.
-- `verdant-worldmap-deco-structures.png`, `-deco-nature.png` — decoration catalogs
+- `reference/verdant-deco-structures.png`, `-deco-nature.png` — decoration catalogs
   (16 items each; nature sheet actually packs 5 items in row 3 — extract by connected
   components, NOT grid arithmetic, or sheep lose heads).
-- `verdant-worldmap-markers.png` — 12 node markers (battle ×3, shop ×3, campfire ×3,
+- `worlds/verdant/markers.png` — 12 node markers (battle ×3, shop ×3, campfire ×3,
   start, boss, locked). Production marker set for the runtime overlay.
-- `verdant-worldmap-style-reference.png` — 2×2 contact sheet; attach to future prompts.
+- `reference/verdant-style-reference.png` — 2×2 contact sheet; attach to future prompts.
 - The 6 old pixel `deco-*.png` battle-map sheets are DELETED (manifest emptied, SW cache
   bumped) — V-34's fix shipped, V-35 is obsolete.
 - **Not yet committed:** the 3 candidate painted world maps (baseline / Golden Valley /

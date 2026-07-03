@@ -1,11 +1,10 @@
-const CACHE = 'de-drill-v85';
+const CACHE = 'de-drill-v86';
 const ASSETS = [
   './index.html',
   './drill.css',
   './drill.js',
   '../../content/question-bank.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
-  './assets/map/manifest.json',
 ];
 
 self.addEventListener('install', e => {

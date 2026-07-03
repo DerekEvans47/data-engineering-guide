@@ -69,6 +69,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Spine bend-spread pass — 5 nodes repositioned onto the trail (#79)
 
+- Standing stones marker onto the road west of the circle (321,217) (#80)
+
 - Stones node onto road; swap Lakeside Hamlet for Charcoal Burners' Camp (#78)
 
 - Unlock Web Audio on iOS via shared context + gesture listener (#24)
@@ -86,6 +88,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 
 ### 🔧 Infrastructure
+
+- Add files via upload
 
 - Add files via upload
 
