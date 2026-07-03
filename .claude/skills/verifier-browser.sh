@@ -115,11 +115,10 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
   if (!waveBtnText?.includes('Start Wave')) throw new Error(`Wave button text unexpected: ${waveBtnText}`);
   console.log('✅ Wave button:', waveBtnText);
 
-  // ── 6. Place a tower and verify placement sound fires ──────────────────
-  await page.click('.td-tool-btn[data-tool="bastion"]', { force: true });
-  await page.waitForTimeout(200);
-  // Find the first buildable cell (a build slot on painted maps, any
-  // non-path/non-occupied cell otherwise) and click its canvas position.
+  // ── 6. Radial build/manage menu + tower placement ──────────────────────
+  // Tapping an empty buildable cell opens a radial menu of tower options
+  // (no sell/upgrade — nothing to sell/upgrade yet); tapping the same cell
+  // again once a tower sits there opens Upgrade + Sell instead.
   const cell = await page.evaluate(() => {
     const c = document.getElementById('td-canvas');
     const r = c.getBoundingClientRect();
@@ -136,15 +135,35 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
     return null;
   });
   if (!cell) throw new Error('No valid cell found for tower placement');
+
   await page.mouse.click(cell.x, cell.y);
   await page.waitForTimeout(300);
-  const chip = await page.$('.td-chip-ok');
-  if (!chip) throw new Error('.td-chip-ok confirm button not found after tower tap');
-  await chip.click({ force: true });
+  const buildBtns = await page.$$('.td-radial-btn');
+  if (buildBtns.length === 0) throw new Error('Radial menu did not open after tapping an empty buildable cell');
+  const buildIcons = await page.$$eval('.td-radial-btn .td-radial-icon', els => els.map(e => e.textContent));
+  if (buildIcons.includes('💸') || buildIcons.includes('⬆️')) {
+    throw new Error(`Sell/Upgrade shown on an empty slot before any tower is placed: ${buildIcons.join(',')}`);
+  }
+  console.log(`✅ Radial menu on empty slot shows ${buildBtns.length} build option(s), no Sell/Upgrade`);
+
+  await buildBtns[0].click({ force: true }); // place the first tower option (Bastion)
   await page.waitForTimeout(400);
   const oscAfterPlace = await page.evaluate(() => window.__oscCount);
   if (oscAfterPlace === 0) throw new Error('No oscillator notes fired on tower placement — audio silent');
   console.log(`✅ Tower placement audio: ${oscAfterPlace} oscillator note(s) fired`);
+
+  await page.mouse.click(cell.x, cell.y); // same cell, now occupied
+  await page.waitForTimeout(300);
+  const manageIcons = await page.$$eval('.td-radial-btn .td-radial-icon', els => els.map(e => e.textContent));
+  if (!manageIcons.includes('💸')) throw new Error(`Sell option missing on an occupied cell: ${manageIcons.join(',')}`);
+  if (!manageIcons.includes('⬆️')) throw new Error(`Upgrade option missing on an occupied cell (should be < L3): ${manageIcons.join(',')}`);
+  if (manageIcons.some(i => i !== '💸' && i !== '⬆️')) {
+    throw new Error(`Build options leaked into the occupied-cell menu: ${manageIcons.join(',')}`);
+  }
+  console.log('✅ Radial menu on occupied cell shows only Upgrade + Sell');
+
+  await page.mouse.click(cell.x, cell.y); // tap again to close before starting the wave
+  await page.waitForTimeout(200);
 
   // ── 7. Quiz opens on wave start; preview hides after answer ────────────
   await page.click('#td-wave-btn');

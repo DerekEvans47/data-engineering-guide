@@ -4387,7 +4387,7 @@ function showTutorial(onClose) {
           <div class="tutorial-step-num">1</div>
           <div class="tutorial-step-body">
             <div class="tutorial-step-title">Place Towers</div>
-            <div class="tutorial-step-desc">Select a tower type from the build panel, then tap any empty cell on the map. Towers cost gold — place them on high-traffic path bends for maximum effect.</div>
+            <div class="tutorial-step-desc">Tap a glowing clearing on the map to open build options. Towers cost gold — place them on high-traffic path bends for maximum effect.</div>
           </div>
         </div>
         <div class="tutorial-step">
@@ -4451,8 +4451,7 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
     <div id="td-wrap">
       <div id="td-canvas-wrap">
         <canvas id="td-canvas"></canvas>
-        <div id="td-place-chip" class="td-place-chip" style="display:none"></div>
-        <div id="td-inspect-card" class="td-inspect-card" style="display:none"></div>
+        <div id="td-radial-menu" class="td-radial-menu" style="display:none"></div>
       </div>
       <div id="td-hud">
         <button id="td-hud-back" class="td-hud-back" title="Back to map">←</button>
@@ -4469,24 +4468,6 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
         <button id="td-pause-btn" class="td-mute-btn" title="Pause/Resume">⏸</button>
       </div>
       <div id="td-bottom-bar">
-        <div id="td-tools">
-          ${TD_TOWER_DEFS.map(t => `
-            <button class="td-tool-btn" data-tool="${t.id}">
-              <span class="td-tool-icon">${t.icon}</span>
-              <span class="td-tool-name">${t.name}</span>
-              <span class="td-tool-cost">🪙${t.cost}</span>
-            </button>`).join('')}
-          <button class="td-tool-btn td-upgrade-btn" data-tool="upgrade">
-            <span class="td-tool-icon">⬆️</span>
-            <span class="td-tool-name">Upgrade</span>
-            <span class="td-tool-cost">tap★</span>
-          </button>
-          <button class="td-tool-btn td-sell-btn" data-tool="sell">
-            <span class="td-tool-icon">💸</span>
-            <span class="td-tool-name">Sell</span>
-            <span class="td-tool-cost">×0.6</span>
-          </button>
-        </div>
         <div id="td-actions">
           <div id="td-powerup-tray" class="td-powerup-tray" style="display:none"></div>
           <div class="td-actions-row">
@@ -4590,9 +4571,8 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   EL.tdActions   = document.getElementById('td-actions');
   EL.tdQOverlay  = document.getElementById('td-q-overlay');
   EL.tdQSheet    = document.getElementById('td-q-sheet');
-  EL.tdPlaceChip    = document.getElementById('td-place-chip');
+  EL.tdRadialMenu   = document.getElementById('td-radial-menu');
   EL.tdWavePreview  = document.getElementById('td-wave-preview');
-  EL.tdInspectCard  = document.getElementById('td-inspect-card');
   EL.tdPowerUpTray  = document.getElementById('td-powerup-tray');
 
   const W = Math.min(wrap.clientWidth || window.innerWidth, 1100);
@@ -4605,18 +4585,6 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   canvas.style.width  = canvas.width  + 'px';
   canvas.style.height = canvas.height + 'px';
 
-  document.querySelectorAll('.td-tool-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (td.inspectTower) tdDismissInspectCard();
-      const tool = btn.dataset.tool;
-      td.selectedTool = td.selectedTool === tool ? null : tool;
-      document.querySelectorAll('.td-tool-btn').forEach(b => b.classList.remove('active'));
-      if (td.selectedTool) btn.classList.add('active');
-      td.pendingCol = td.pendingRow = -1;
-      tdUpdatePlaceChip();
-    });
-  });
-
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
     const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
@@ -4625,23 +4593,6 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
     td.tapCol = col; td.tapRow = row;
     tdHandleTap(col, row);
   });
-
-  canvas.addEventListener('mousemove', e => {
-    if (!td) return;
-    const rect = canvas.getBoundingClientRect();
-    const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
-    td.hoverCol = Math.floor((e.clientX - rect.left) * sx / td.cellSize);
-    td.hoverRow = Math.floor((e.clientY - rect.top)  * sy / td.cellSize);
-  });
-  canvas.addEventListener('mouseleave', () => { if (td) { td.hoverCol = -1; td.hoverRow = -1; } });
-  canvas.addEventListener('touchmove', e => {
-    if (!td) return;
-    const t = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
-    td.hoverCol = Math.floor((t.clientX - rect.left) * sx / td.cellSize);
-    td.hoverRow = Math.floor((t.clientY - rect.top)  * sy / td.cellSize);
-  }, { passive: true });
 
   EL.tdMuteBtn.addEventListener('click', () => {
     const muted = tdAudio.toggleMute();
@@ -4762,10 +4713,10 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
     lives: initialLives, gold: initialGold, maxLives: initialLives,
     waveIdx:-1, spawnQueue:[], spawnTimer:0, waveActive:false,
     enemies:[], towers:[], projectiles:[], particles:[], damageNumbers:[],
-    selectedTool:null, pendingCol:-1, pendingRow:-1, eid:0, inspectTower:null,
+    radialMenu:null, eid:0,
     quizOpen:false, quizQ:null, quizAnswered:false, quizDone:null, quizOptional:false,
     tapCol:-1, tapRow:-1,
-    over:false, won:false, shake:0, bossFlash:0, lastShootSnd:0, hoverCol:-1, hoverRow:-1,
+    over:false, won:false, shake:0, bossFlash:0, lastShootSnd:0,
     bgTime: 0, terrainDeco: [], mapId: -1, spriteSheets: {},
     levelDef, levelIdx,
     pathSet: tdComputePathSet(levelDef.wps),
@@ -5076,118 +5027,159 @@ function tdSpawnParticles(cx, cy, color, n) {
 
 // ── Tower placement, upgrade & selling ────────────────────────
 
+// Tapping a build slot or an existing tower opens a radial arc of actions
+// anchored right at that cell instead of a persistent tool bar — build
+// options (Bastion/Ranger/Mortar) on an empty slot, Upgrade/Sell only when
+// a tower already occupies it. Selecting an option commits immediately;
+// there's no separate select-then-confirm step since the tap that opens
+// the menu already picked the location.
 function tdHandleTap(col, row) {
   if (!td || td.over || td.won || td.quizOpen) return;
   if (col < 0 || col >= TD_COLS || row < 0 || row >= TD_ROWS) return;
 
-  if (td.selectedTool && td.inspectTower) tdDismissInspectCard();
+  const reopenBlocked = td.radialMenu && td.radialMenu.col === col && td.radialMenu.row === row;
+  if (td.radialMenu) tdCloseRadialMenu();
+  if (reopenBlocked) return; // tapping the open menu's own cell just dismisses it
 
-  if (td.selectedTool === 'sell') {
-    const idx = td.towers.findIndex(t => t.col === col && t.row === row);
-    if (idx >= 0) {
-      const t   = td.towers[idx];
-      const def = TD_TOWER_DEFS.find(d => d.id === t.type);
-      let totalSpent = def.cost;
-      for (let l = 0; l < (t.level || 0); l++) totalSpent += def.upgrades[l].cost;
-      // Full refund for towers placed this build phase (before wave started)
-      const refundRate = t.placedThisBuild ? 1.0 : 0.6;
-      td.gold += Math.round(totalSpent * refundRate);
-      td.towers.splice(idx, 1);
-      tdUpdateHUD();
-    }
-    return;
-  }
+  const tower = td.towers.find(t => t.col === col && t.row === row);
+  if (tower) { tdOpenRadialMenu(col, row, tower); return; }
 
-  if (td.selectedTool === 'upgrade') {
-    const t = td.towers.find(tt => tt.col === col && tt.row === row);
-    if (!t) return;
-    const def = TD_TOWER_DEFS.find(d => d.id === t.type);
-    const lvl = t.level || 0;
-    if (lvl >= 2) return;
-    const upgCost = def.upgrades[lvl].cost;
-    if (td.gold < upgCost) return;
-    td.gold -= upgCost;
-    t.level = lvl + 1;
-    tdUpdateHUD();
-    tdAudio.place(t.col / (TD_COLS - 1));
-    return;
-  }
-
-  if (!td.selectedTool) {
-    const hit = td.towers.find(t => t.col === col && t.row === row);
-    if (hit) tdShowInspectCard(hit); else tdDismissInspectCard();
-    return;
-  }
   if (td.pathSet.has(`${col},${row}`)) return;
   if (td.buildSlotSet && !td.buildSlotSet.has(`${col},${row}`)) return;
-  if (td.towers.some(t => t.col === col && t.row === row)) return;
-
-  const def = TD_TOWER_DEFS.find(d => d.id === td.selectedTool);
-  if (!def || td.gold < def.cost) return;
-
-  if (td.pendingCol === col && td.pendingRow === row) {
-    // Confirmed — commit the placement
-    td.gold -= def.cost;
-    td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true, idlePhase: Math.random() * Math.PI * 2 });
-    td.pendingCol = td.pendingRow = -1;
-    tdUpdatePlaceChip();
-    tdUpdateHUD();
-    tdAudio.place(col / (TD_COLS - 1));
-  } else {
-    // First tap — show confirmation chip
-    td.pendingCol = col;
-    td.pendingRow = row;
-    tdUpdatePlaceChip();
-  }
+  tdOpenRadialMenu(col, row, null);
 }
 
-function tdUpdatePlaceChip() {
-  const chip = EL.tdPlaceChip;
-  if (!chip) return;
-  if (td.pendingCol < 0 || !td.selectedTool) {
-    chip.style.display = 'none';
-    return;
-  }
-  const def = TD_TOWER_DEFS.find(d => d.id === td.selectedTool);
-  if (!def) { chip.style.display = 'none'; return; }
-  chip.style.display = 'flex';
+function tdOpenRadialMenu(col, row, tower) {
+  const menuEl = EL.tdRadialMenu;
+  const canvas = td.canvas;
+  const wrap   = document.getElementById('td-canvas-wrap');
+  if (!menuEl || !canvas || !wrap) return;
 
-  // Position the chip floating near the tower cell
-  const cs = td.cellSize;
-  const col = td.pendingCol, row = td.pendingRow;
-  const chipH = 88; // label + buttons row
-  const centerY = row * cs + cs / 2;
-  chip.style.top = Math.max(4, Math.min(centerY - chipH / 2, (td.canvas ? td.canvas.height : cs * TD_ROWS) - chipH - 4)) + 'px';
-  if (col <= Math.floor(TD_COLS / 2)) {
-    chip.style.left = ((col + 1) * cs + 6) + 'px';
-    chip.style.right = 'auto';
-  } else {
-    chip.style.left = 'auto';
-    chip.style.right = ((TD_COLS - col) * cs + 6) + 'px';
-  }
-
-  chip.innerHTML = `
-    <span class="td-chip-label">${def.icon || ''} ${def.name}<br><span class="td-chip-cost">${def.cost}🪙</span></span>
-    <div class="td-chip-btns">
-      <button class="td-chip-ok" title="Confirm">✓</button>
-      <button class="td-chip-cancel" title="Cancel">✗</button>
-    </div>`;
-  chip.querySelector('.td-chip-ok').addEventListener('click', () => {
-    const col = td.pendingCol, row = td.pendingRow;
-    if (col < 0) return;
-    if (!td.pathSet.has(`${col},${row}`) && !td.towers.some(t => t.col === col && t.row === row) && td.gold >= def.cost) {
-      td.gold -= def.cost;
-      td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true, idlePhase: Math.random() * Math.PI * 2 });
-      tdUpdateHUD();
-      tdAudio.place(col / (TD_COLS - 1));
+  let items, label = null;
+  if (tower) {
+    const def  = TD_TOWER_DEFS.find(d => d.id === tower.type);
+    const lvl  = tower.level || 0;
+    let totalSpent = def.cost;
+    for (let l = 0; l < lvl; l++) totalSpent += def.upgrades[l].cost;
+    const sellVal = Math.round(totalSpent * (tower.placedThisBuild ? 1.0 : 0.6));
+    label = `${def.icon || ''} ${def.name} · L${lvl + 1}`;
+    items = [];
+    if (lvl < 2) {
+      const upgCost = def.upgrades[lvl].cost;
+      items.push({
+        id: 'upgrade', icon: '⬆️', sub: `${upgCost}🪙`, accent: '#FBBF24', cost: upgCost,
+        disabled: td.gold < upgCost,
+        onSelect: () => {
+          td.gold -= upgCost;
+          tower.level = lvl + 1;
+          tdUpdateHUD();
+          tdAudio.place(tower.col / (TD_COLS - 1));
+        },
+      });
     }
-    td.pendingCol = td.pendingRow = -1;
-    tdUpdatePlaceChip();
+    items.push({
+      id: 'sell', icon: '💸', sub: `+${sellVal}🪙`, accent: '#EF4444', cost: null, disabled: false,
+      onSelect: () => {
+        const idx = td.towers.indexOf(tower);
+        if (idx >= 0) td.towers.splice(idx, 1);
+        td.gold += sellVal;
+        tdUpdateHUD();
+      },
+    });
+  } else {
+    items = TD_TOWER_DEFS.map(def => ({
+      id: def.id, icon: def.icon, sub: `${def.cost}🪙`, accent: def.color, cost: def.cost,
+      disabled: td.gold < def.cost,
+      onSelect: () => {
+        td.gold -= def.cost;
+        td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true, idlePhase: Math.random() * Math.PI * 2 });
+        tdUpdateHUD();
+        tdAudio.place(col / (TD_COLS - 1));
+      },
+    }));
+  }
+
+  td.radialMenu = { col, row, items };
+  tdRenderRadialMenu(items, label);
+}
+
+function tdRenderRadialMenu(items, label) {
+  const menuEl = EL.tdRadialMenu;
+  const canvas = td.canvas;
+  const wrap   = document.getElementById('td-canvas-wrap');
+  if (!menuEl || !canvas || !td.radialMenu) return;
+
+  const rect     = canvas.getBoundingClientRect();
+  const wrapRect = wrap.getBoundingClientRect();
+  const scaleX   = rect.width  / canvas.width;
+  const scaleY   = rect.height / canvas.height;
+  const [cx, cy] = tdCellCenter(td.radialMenu.col, td.radialMenu.row, td.cellSize);
+  const anchorX  = cx * scaleX + (rect.left - wrapRect.left);
+  const anchorY  = cy * scaleY + (rect.top  - wrapRect.top);
+
+  // Arc opens toward the center of the map from wherever it's tapped, so
+  // it never spills off whichever edge (top, bottom, left, or right) is
+  // closest to the tapped cell — a slot near the map's left edge fans
+  // rightward, one near the top fans downward, etc.
+  const n      = items.length;
+  const radius = 60;
+  const spread = n <= 1 ? 0 : Math.min(150, 50 + (n - 1) * 45);
+  const center = Math.atan2(wrapRect.height/2 - anchorY, wrapRect.width/2 - anchorX) * 180 / Math.PI;
+  const start  = center - spread / 2;
+  const step   = n > 1 ? spread / (n - 1) : 0;
+  const btnPad = 28; // half the 52px button, keeps the whole circle on-screen
+
+  const btnsHtml = items.map((item, i) => {
+    const deg = n === 1 ? center : start + step * i;
+    const rad = deg * Math.PI / 180;
+    const x = Math.max(btnPad, Math.min(wrapRect.width  - btnPad, anchorX + Math.cos(rad) * radius));
+    const y = Math.max(btnPad, Math.min(wrapRect.height - btnPad, anchorY + Math.sin(rad) * radius));
+    return `<button class="td-radial-btn${item.disabled ? ' disabled' : ''}" data-idx="${i}"
+        style="left:${x}px; top:${y}px; border-color:${item.accent || 'rgba(255,255,255,.5)'}">
+      <span class="td-radial-icon">${item.icon}</span>
+      <span class="td-radial-sub">${item.sub}</span>
+    </button>`;
+  }).join('');
+
+  // Label sits on the opposite side of the arc so it never overlaps the buttons.
+  const labelRad = (center + 180) * Math.PI / 180;
+  const labelX = Math.max(64, Math.min(wrapRect.width  - 64, anchorX + Math.cos(labelRad) * (radius + 40)));
+  const labelY = Math.max(16, Math.min(wrapRect.height - 16, anchorY + Math.sin(labelRad) * (radius + 40)));
+  const labelHtml = label
+    ? `<div class="td-radial-label" style="left:${labelX}px; top:${labelY}px">${label}</div>`
+    : '';
+
+  menuEl.innerHTML = btnsHtml + labelHtml;
+  menuEl.style.display = 'block';
+  menuEl.querySelectorAll('.td-radial-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const item = items[+btn.dataset.idx];
+      if (!item || item.disabled) return;
+      item.onSelect();
+      tdCloseRadialMenu();
+    });
   });
-  chip.querySelector('.td-chip-cancel').addEventListener('click', () => {
-    td.pendingCol = td.pendingRow = -1;
-    tdUpdatePlaceChip();
+}
+
+// Keeps affordability current if gold changes (e.g. a quiz reward) while
+// the menu is still open, without repositioning or rebuilding it.
+function tdRefreshRadialMenuAfford() {
+  if (!td.radialMenu) return;
+  const menuEl = EL.tdRadialMenu;
+  if (!menuEl) return;
+  menuEl.querySelectorAll('.td-radial-btn').forEach(btn => {
+    const item = td.radialMenu.items[+btn.dataset.idx];
+    if (!item || item.cost == null) return;
+    item.disabled = td.gold < item.cost;
+    btn.classList.toggle('disabled', item.disabled);
   });
+}
+
+function tdCloseRadialMenu() {
+  td.radialMenu = null;
+  const menuEl = EL.tdRadialMenu;
+  if (menuEl) { menuEl.style.display = 'none'; menuEl.innerHTML = ''; }
 }
 
 // ── Tutorial (first-run, shown once, localStorage-gated) ──────
@@ -5198,11 +5190,11 @@ function tdShowTutorial() {
   const sheet   = EL.tdQSheet;
   const steps = [
     { icon: '🏗️', title: 'Place a tower',
-      body: 'Tap a tower type below to select it, then tap an empty cell on the map to place it. Confirm with ✓. Towers fire automatically at enemies.' },
+      body: 'Tap a glowing clearing on the map to open your build options, then tap a tower to place it. Towers fire automatically at enemies.' },
     { icon: '⚔️', title: 'Start a wave',
       body: 'Once your towers are placed, tap <strong>Start Wave</strong>. Each wave begins with a quiz question — answer correctly for bonus gold!' },
     { icon: '📝', title: 'Earn gold, upgrade, survive',
-      body: 'Kill rewards and quiz gold let you buy and upgrade towers. Hold the line through all waves to win the node. Good luck!' },
+      body: 'Tap a placed tower for Upgrade &amp; Sell options. Kill rewards and quiz gold fund it all — hold the line through every wave to win. Good luck!' },
   ];
   var step = 0;
   function showStep() {
@@ -5232,59 +5224,6 @@ function tdShowTutorial() {
   showStep();
 }
 
-// ── Tower inspect card ─────────────────────────────────────────
-
-function tdShowInspectCard(tower) {
-  td.inspectTower = tower;
-  const card = EL.tdInspectCard;
-  if (!card) return;
-  const def   = TD_TOWER_DEFS.find(function(d) { return d.id === tower.type; });
-  const stats = tdGetTowerStats(tower);
-  const lvl   = tower.level || 0;
-  const lvlLabel = ['L1', 'L2', 'L3'][lvl] || 'L1';
-  const dps   = (stats.dmg * stats.rate).toFixed(1);
-  const splashTag = stats.splash > 0 ? ' <span class="tdi-tag">AoE</span>' : '';
-  const upgLine = lvl < 2
-    ? '<div class="tdi-row"><span>Upgrade</span><span>' + def.upgrades[lvl].cost + '🪙</span></div>'
-    : '<div class="tdi-row"><span>Upgrade</span><span>Maxed ⭐</span></div>';
-  let totalSpent = def.cost;
-  for (let l = 0; l < lvl; l++) totalSpent += def.upgrades[l].cost;
-  const sellVal = Math.round(totalSpent * (tower.placedThisBuild ? 1.0 : 0.6));
-  card.innerHTML =
-    '<div class="tdi-header">' + (def.icon || '') + ' ' + def.name +
-      ' <span class="tdi-lvl">' + lvlLabel + '</span></div>' +
-    '<div class="tdi-row"><span>DPS' + splashTag + '</span><span>' + dps + '</span></div>' +
-    '<div class="tdi-row"><span>Range</span><span>' + stats.range + ' cells</span></div>' +
-    upgLine +
-    '<div class="tdi-row"><span>Sell</span><span>' + sellVal + '🪙</span></div>';
-
-  const cs = td.cellSize;
-  const canvasEl = td.canvas;
-  const wrap = document.getElementById('td-canvas-wrap');
-  if (canvasEl && wrap) {
-    const rect = canvasEl.getBoundingClientRect();
-    const wrapRect = wrap.getBoundingClientRect();
-    const scaleX = rect.width / canvasEl.width;
-    const scaleY = rect.height / canvasEl.height;
-    const [tcx, tcy] = tdCellCenter(tower.col, tower.row, cs);
-    const towerPxX = tcx * scaleX + (rect.left - wrapRect.left);
-    const towerPxY = tcy * scaleY + (rect.top  - wrapRect.top);
-    const cardW = 164;
-    var left = Math.round(towerPxX - cardW / 2);
-    var top  = Math.round(towerPxY - 130);
-    left = Math.max(4, Math.min(left, Math.round(wrapRect.width) - cardW - 4));
-    top  = Math.max(4, top);
-    card.style.left = left + 'px';
-    card.style.top  = top  + 'px';
-  }
-  card.style.display = 'block';
-}
-
-function tdDismissInspectCard() {
-  if (!td) return;
-  td.inspectTower = null;
-  if (EL.tdInspectCard) EL.tdInspectCard.style.display = 'none';
-}
 
 // ── Quiz system ────────────────────────────────────────────────
 
@@ -5409,10 +5348,9 @@ function tdStartWave(idx) {
     for (let i = 0; i < count; i++) td.spawnQueue.push({ type, gap });
   }
   td.spawnTimer = 0.5;
-  // Pre-wave build phase ends — clear placedThisBuild flags and any pending placement
+  // Pre-wave build phase ends — clear placedThisBuild flags and close any open menu
   for (const t of td.towers) t.placedThisBuild = false;
-  td.pendingCol = td.pendingRow = -1;
-  tdUpdatePlaceChip();
+  tdCloseRadialMenu();
   tdUpdateWavePreview();
   tdAudio.waveStart();
   menuMusic.stop();
@@ -5567,12 +5505,7 @@ function tdUpdateHUD() {
     quizBtn.textContent = rem > 0 ? `📝 +25🪙 (${rem})` : '📝 Max/wave';
     quizBtn.style.opacity = rem > 0 ? '1' : '0.4';
   }
-  document.querySelectorAll('.td-tool-btn[data-tool]').forEach(btn => {
-    const tool = btn.dataset.tool;
-    if (tool === 'sell' || tool === 'upgrade') return;
-    const def = TD_TOWER_DEFS.find(d => d.id === tool);
-    if (def) btn.classList.toggle('unaffordable', td.gold < def.cost);
-  });
+  tdRefreshRadialMenuAfford();
   tdUpdateWavePreview();
 }
 
@@ -5995,46 +5928,15 @@ function tdRenderBuildSlots(ctx, cs, bgT) {
 
 function tdRenderPlacementUI(ctx, cs, bgT) {
   tdRenderBuildSlots(ctx, cs, bgT);
-  if (td.pendingCol >= 0 && td.pendingRow >= 0) {
-    const pc = td.pendingCol, pr = td.pendingRow;
-    const [ppx, ppy] = tdCellCenter(pc, pr, cs);
+  // Highlight whichever cell the radial menu is currently open on.
+  if (td.radialMenu) {
+    const [mpx, mpy] = tdCellCenter(td.radialMenu.col, td.radialMenu.row, cs);
     const pulse = 0.5 + 0.5 * Math.sin(bgT * 6);
     ctx.fillStyle = `rgba(74,222,128,${0.18 + pulse * 0.14})`;
-    ctx.fillRect(ppx - cs/2, ppy - cs/2, cs, cs);
+    ctx.fillRect(mpx - cs/2, mpy - cs/2, cs, cs);
     ctx.strokeStyle = `rgba(74,222,128,${0.7 + pulse * 0.3})`;
     ctx.lineWidth = 2.5;
-    ctx.strokeRect(ppx - cs/2 + 1, ppy - cs/2 + 1, cs - 2, cs - 2);
-  }
-
-  if (td.selectedTool && td.selectedTool !== 'sell' && td.selectedTool !== 'upgrade'
-      && td.hoverCol >= 0 && td.hoverCol < TD_COLS && td.hoverRow >= 0 && td.hoverRow < TD_ROWS) {
-    const def = TD_TOWER_DEFS.find(d => d.id === td.selectedTool);
-    if (def) {
-      const col = td.hoverCol, row = td.hoverRow;
-      const [px, py] = tdCellCenter(col, row, cs);
-      const isPath     = td.pathSet.has(`${col},${row}`);
-      const isOccupied = td.towers.some(t => t.col === col && t.row === row);
-      const offSlot    = td.buildSlotSet && !td.buildSlotSet.has(`${col},${row}`);
-      const canAfford  = td.gold >= def.cost;
-      const canPlace   = !isPath && !isOccupied && !offSlot;
-      const accent     = canPlace && canAfford ? def.color : '#EF4444';
-
-      ctx.beginPath(); ctx.arc(px, py, def.range*cs, 0, Math.PI*2);
-      ctx.fillStyle = accent + '18'; ctx.fill();
-      ctx.strokeStyle = accent + '80'; ctx.lineWidth = 1.5; ctx.stroke();
-
-      ctx.fillStyle = canPlace ? (canAfford ? accent + '28' : '#FBBF2430') : '#EF444430';
-      ctx.fillRect(px - cs/2, py - cs/2, cs, cs);
-
-      ctx.globalAlpha = canPlace && canAfford ? 0.60 : 0.22;
-      const ghostSpr = TD_SPRITES[def.id];
-      if (ghostSpr) {
-        const ghostPal = ghostSpr.pals ? ghostSpr.pals[0] : ghostSpr.pal;
-        const ghostPs  = Math.max(2, Math.floor(cs * 0.82 / Math.max(ghostSpr.pw, ghostSpr.ph)));
-        tdDrawSprite(ctx, ghostSpr.frames, 0, ghostPal, px, py, ghostPs);
-      }
-      ctx.globalAlpha = 1;
-    }
+    ctx.strokeRect(mpx - cs/2 + 1, mpy - cs/2 + 1, cs - 2, cs - 2);
   }
 }
 
