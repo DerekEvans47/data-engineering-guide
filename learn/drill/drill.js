@@ -2498,6 +2498,7 @@ const TD_TOWER_DEFS = [
     upgrades:[
       {cost:100, icon:'🏹', dmg:24,  rate:3.2, range:5.0, splash:0,   glow:'#34D399'},
       {cost:180, icon:'🎯', dmg:44,  rate:4.0, range:5.6, splash:0,   glow:'#C084FC'},
+      {cost:280, icon:'💎', dmg:70,  rate:4.6, range:6.0, splash:0,   glow:'#A5F3FC'},
     ]},
   { id:'mortar',  name:'Mortar',  icon:'💣', cost:130, color:'#EF4444', range:2.8, dmg:60,  rate:0.55, splash:1.5, pattern:'cross',
     upgrades:[
@@ -3008,15 +3009,27 @@ const TD_PAINTED_BG_IMAGES = { 'frontier-town': FRONTIER_TOWN_MAP.image };
 // Painted-pixel-art tower tiers (V-36) — matches the battle-map art style instead
 // of the flat hand-authored TD_SPRITES pixel frames. Only Ranger has painted art
 // so far; any tower type absent from this map still renders via TD_SPRITES in
-// tdRenderTowers. 3 tiers wired (base + 2 upgrades, matching TD_TOWER_DEFS.ranger's
-// 3 levels) — a 4th ("stone + diamond, ultimate") tier image exists
-// (see TOWER_GENERATION_PROMPTS.md) but isn't wired to a 4th upgrade level yet.
+// tdRenderTowers. All 4 tiers wired (base + 3 upgrades, matching
+// TD_TOWER_DEFS.ranger's 4 levels).
 const TD_TOWER_TIER_IMAGES = {
   ranger: [
     'assets/towers/ranger-tier1.png',
     'assets/towers/ranger-tier2.png',
     'assets/towers/ranger-tier3.png',
+    'assets/towers/ranger-tier4.png',
   ].map(src => { const img = new Image(); img.src = src; return img; }),
+};
+
+// Per-tier horizontal shadow anchor, as a fraction of the tier's own rendered
+// width, offset from the image's horizontal center. Tiers 2-4 sit on a wide
+// centered base so 0 (centered) is correct, but ranger tier 1's silhouette is
+// a narrow off-center post with a separate ladder (see "Tier 1 silhouette
+// inconsistency" in TOWER_GENERATION_PROMPTS.md) — measured directly from the
+// sprite's bottom-row alpha centroid rather than guessed, so the shadow
+// actually sits under its true ground-contact point instead of the image's
+// geometric center.
+const TD_TOWER_SHADOW_ANCHOR = {
+  ranger: [0.25, 0, 0, 0],
 };
 
 function frontierTownLevelDef() {
@@ -4606,8 +4619,38 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
     const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
-    const col = Math.floor((e.clientX - rect.left) * sx / td.cellSize);
-    const row = Math.floor((e.clientY - rect.top)  * sy / td.cellSize);
+    const px = (e.clientX - rect.left) * sx;
+    const py = (e.clientY - rect.top)  * sy;
+    const cs = td.cellSize;
+
+    // Hit-test against the actual rendered center of each tower/build slot
+    // instead of floor-dividing the tap point into a grid cell. Painted maps
+    // (Frontier Town) hand-place slot centers at exact pixel coordinates via
+    // tdCellCenter/slotCenterMap, and those coordinates round to their
+    // "logical" cell (nearest cell, used for path-collision + buildSlotSet
+    // membership) — but a plain floor(px/cs) quantizes to whichever cell the
+    // point falls inside, which disagrees with "nearest" for any slot whose
+    // fractional cell coordinate is above .5. That mismatch made tapping
+    // directly on a slot's drawn marker sometimes open the neighboring cell's
+    // menu instead (or hit nothing, if the floor-quantized cell wasn't a
+    // registered slot at all).
+    const candidates = [];
+    for (const t of td.towers) candidates.push([t.col, t.row]);
+    if (td.buildSlotSet) for (const key of td.buildSlotSet) candidates.push(key.split(',').map(Number));
+    let col = -1, row = -1, bestDist = Infinity;
+    for (const [c, r] of candidates) {
+      const [cx, cy] = tdCellCenter(c, r, cs);
+      const d = Math.hypot(px - cx, py - cy);
+      if (d < bestDist) { bestDist = d; col = c; row = r; }
+    }
+    if (col < 0 || bestDist > cs * 0.65) {
+      // Tapped empty ground, not near any tower/slot — fall back to plain
+      // grid math. tdHandleTap will no-op on an unregistered cell, but it
+      // still needs a call so an open radial menu gets dismissed on an
+      // outside tap.
+      col = Math.floor(px / cs);
+      row = Math.floor(py / cs);
+    }
     td.tapCol = col; td.tapRow = row;
     tdHandleTap(col, row);
   });
@@ -5082,7 +5125,7 @@ function tdOpenRadialMenu(col, row, tower) {
     const sellVal = Math.round(totalSpent * (tower.placedThisBuild ? 1.0 : 0.6));
     label = `${def.icon || ''} ${def.name} · L${lvl + 1}`;
     items = [];
-    if (lvl < 2) {
+    if (lvl < def.upgrades.length) {
       const upgCost = def.upgrades[lvl].cost;
       items.push({
         id: 'upgrade', icon: '⬆️', sub: `${upgCost}🪙`, accent: '#FBBF24', cost: upgCost,
@@ -5996,19 +6039,19 @@ function tdDrawTowerPattern(ctx, x, y, size, pattern) {
   ctx.restore();
 }
 
-// Map's implied sun sits upper-right (checked directly against pixel evidence in
-// frontier-town.png — see TOWER_GENERATION_PROMPTS.md), so shadows fall lower-left.
-// Same fixed offset for every tower regardless of grid position: real directional
-// light is parallel at this scale, so position only changes which of a tower's own
-// surfaces face the camera, never which way its shadow points. A soft, partially
-// transparent shape darkens whatever's beneath it by construction, so this works
-// on any battle-map terrain without needing to match a specific ground color.
-function tdRenderTowerShadow(ctx, px, groundY, cs) {
+// Grounded directly under the tower's own base (px, groundY is exactly where
+// the sprite's bottom edge is drawn — see tdRenderTowers) rather than offset
+// to one side: an earlier version shifted this lower-left to imply a
+// directional sun, but that pushed the shadow visibly away from the sprite's
+// actual ground-contact point and read as disconnected/floating. Sized off
+// the tower's own rendered width so it scales with each tier instead of a
+// fixed cell-relative size that doesn't track the art.
+function tdRenderTowerShadow(ctx, px, groundY, cs, renderW) {
   ctx.save();
-  ctx.globalAlpha = 0.30;
+  ctx.globalAlpha = 0.32;
   ctx.fillStyle = '#000000';
   ctx.beginPath();
-  ctx.ellipse(px - cs * 0.16, groundY + cs * 0.05, cs * 0.42, cs * 0.15, 0, 0, Math.PI * 2);
+  ctx.ellipse(px, groundY, (renderW || cs) * 0.30, cs * 0.13, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -6018,6 +6061,7 @@ function tdRenderTowers(ctx, cs, bgT) {
     const def   = TD_TOWER_DEFS.find(d => d.id === t.type);
     const stats = tdGetTowerStats(t);
     const lvl   = t.level || 0;
+    const maxLvl = def.upgrades.length;
     const [px, py] = tdCellCenter(t.col, t.row, cs);
     const groundY = py + cs / 2; // where the tower's base sits
 
@@ -6029,7 +6073,10 @@ function tdRenderTowers(ctx, cs, bgT) {
     const renderH  = useImage ? cs * 1.9 : 0;
     const renderW  = useImage ? renderH * (tierImg.naturalWidth / tierImg.naturalHeight) : 0;
 
-    if (useImage) tdRenderTowerShadow(ctx, px, groundY, cs);
+    if (useImage) {
+      const anchorFrac = TD_TOWER_SHADOW_ANCHOR[t.type]?.[lvl] || 0;
+      tdRenderTowerShadow(ctx, px + anchorFrac * renderW, groundY, cs, renderW);
+    }
 
     if (lvl > 0) {
       const glowColor = stats.glow || '#F59E0B';
@@ -6037,7 +6084,7 @@ function tdRenderTowers(ctx, cs, bgT) {
       const ringY     = useImage ? groundY : py;
       ctx.beginPath(); ctx.arc(px, ringY, ringR, 0, Math.PI*2);
       ctx.strokeStyle = glowColor;
-      ctx.lineWidth   = lvl === 2 ? 3 : 2;
+      ctx.lineWidth   = lvl >= maxLvl ? 3 : 2;
       ctx.globalAlpha = 0.75;
       ctx.stroke();
       ctx.globalAlpha = 1;
@@ -6064,7 +6111,7 @@ function tdRenderTowers(ctx, cs, bgT) {
       ctx.drawImage(tierImg, px - renderW / 2, groundY - renderH, renderW, renderH);
       if (lvl > 0) {
         ctx.font      = `bold ${Math.round(cs*.22)}px sans-serif`;
-        ctx.fillStyle = lvl === 2 ? '#C084FC' : '#F59E0B';
+        ctx.fillStyle = lvl >= maxLvl ? '#C084FC' : '#F59E0B';
         ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
         ctx.fillText('L' + (lvl+1), px + renderW/2 - 2, groundY - 2);
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -6095,7 +6142,7 @@ function tdRenderTowers(ctx, cs, bgT) {
 
     if (lvl > 0) {
       ctx.font      = `bold ${Math.round(cs*.22)}px sans-serif`;
-      ctx.fillStyle = lvl === 2 ? '#C084FC' : '#F59E0B';
+      ctx.fillStyle = lvl >= maxLvl ? '#C084FC' : '#F59E0B';
       ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
       ctx.fillText('L' + (lvl+1), px + cs/2 - 2, py + cs/2 - 2);
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
