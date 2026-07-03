@@ -4030,7 +4030,7 @@ function renderVerdantWorldMap(run) {
     g.addEventListener('click', () => {
       markNodeEntered(run, node.id);
       if (node.type === 'shop' || node.type === 'rest') showInterNodePanel(node, run);
-      else showLevelConfirmPanel(node.levelDef, node.id, run);
+      else showLevelConfirmPanel(tdFreshLevelDefFor(node), node.id, run);
     });
   });
 }
@@ -4175,6 +4175,20 @@ function showRelicEquipMenu() {
       showRelicEquipMenu();
     });
   });
+}
+
+// Frontier Town's levelDef gets baked into a run's serialized node array at
+// run-creation time (see the spine-generation code that calls
+// frontierTownLevelDef() once), but that function keeps gaining fields as
+// the game evolves (slot facing, new tower tiers, etc.) — a run created
+// before one of those changes would replay the start node with a
+// permanently stale levelDef otherwise, since runs persist across sessions
+// via tdSaveRun/localStorage and nothing ever refreshes an already-baked
+// node.levelDef. Frontier Town's waves are already reseeded from
+// Date.now() on every call (see frontierTownLevelDef), so there's no
+// continuity to lose by recomputing it fresh right before playing.
+function tdFreshLevelDefFor(node) {
+  return node.type === 'start' ? frontierTownLevelDef() : node.levelDef;
 }
 
 // ── Level Confirmation Panel ───────────────────────────────────
