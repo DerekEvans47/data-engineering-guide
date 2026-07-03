@@ -2494,11 +2494,17 @@ const TD_TOWER_DEFS = [
       {cost:80,  icon:'🏰', dmg:38,  rate:1.8, range:3.2, splash:0,   glow:'#60A5FA'},
       {cost:150, icon:'🏯', dmg:70,  rate:2.1, range:3.6, splash:0,   glow:'#C084FC'},
     ]},
-  { id:'ranger',  name:'Ranger',  icon:'🏹', cost:90,  color:'#10B981', range:4.5, dmg:14,  rate:2.5,  splash:0,  pattern:'dots',
+  // L1-L3 each fire a single projectile, scaling damage/rate/range per tier.
+  // L4 (the diamond ultimate) deliberately keeps the SAME per-projectile
+  // damage as L3 — its upgrade payoff is a 2nd projectile (see
+  // tdFireTowers), which spreads across two different enemies when more
+  // than one is in range, instead of just being a disguised damage
+  // multiplier on a single target.
+  { id:'ranger',  name:'Ranger',  icon:'🏹', cost:90,  color:'#10B981', range:4.5, dmg:14,  rate:2.5,  splash:0,  pattern:'dots', projectiles:1,
     upgrades:[
-      {cost:100, icon:'🏹', dmg:24,  rate:3.2, range:5.0, splash:0,   glow:'#34D399'},
-      {cost:180, icon:'🎯', dmg:44,  rate:4.0, range:5.6, splash:0,   glow:'#C084FC'},
-      {cost:280, icon:'💎', dmg:70,  rate:4.6, range:6.0, splash:0,   glow:'#A5F3FC'},
+      {cost:100, icon:'🏹', dmg:24,  rate:3.2, range:5.0, splash:0,   glow:'#34D399', projectiles:1},
+      {cost:180, icon:'🎯', dmg:44,  rate:4.0, range:5.6, splash:0,   glow:'#C084FC', projectiles:1},
+      {cost:280, icon:'💎', dmg:44,  rate:4.6, range:6.0, splash:0,   glow:'#A5F3FC', projectiles:2},
     ]},
   { id:'mortar',  name:'Mortar',  icon:'💣', cost:130, color:'#EF4444', range:2.8, dmg:60,  rate:0.55, splash:1.5, pattern:'cross',
     upgrades:[
@@ -2509,6 +2515,17 @@ const TD_TOWER_DEFS = [
 
 // ── Enemy definitions (maxHp, spd, reward) ────────────────────
 const TD_ENEMY_DEFS = {
+  // Frontier Town (world 1) roster — bandits raiding the village. Each world
+  // map gets its own themed enemy set rather than reusing this generic
+  // fantasy roster below; Frontier Town is the first to have one. Stats
+  // only for now (see frontierTownWaves) — sprites/animations are a
+  // separate follow-up, so these render as plain colored circles + HP bars
+  // until then (tdRenderEnemies already falls back gracefully when
+  // TD_SPRITES has no entry for a type).
+  bandit:      { maxHp:75,  spd:1.5, reward:5,  color:'#B45309', r:0.28 },
+  bandit_rider:{ maxHp:55,  spd:2.1, reward:8,  color:'#92400E', r:0.30, fast:true },
+  bandit_boss: { maxHp:350, spd:0.7, reward:60, color:'#7C2D12', r:0.50, isBoss:true, lifeLoss:2 },
+
   goblin: { maxHp:80,  spd:1.6, reward:5,  color:'#4ADE80', r:0.28 },
   orc:    { maxHp:220, spd:1.0, reward:12, color:'#FBBF24', r:0.36 },
   scout:  { maxHp:55,  spd:2.6, reward:8,  color:'#F472B6', r:0.22 },
@@ -3068,10 +3085,25 @@ const TD_TOWER_TIER_IMAGES = {
   },
 };
 
+// Bespoke 3-wave composition for Frontier Town: bandits on foot, escalating
+// to faster bandit riders, closing with a single bandit boss. Kept separate
+// from the generic generateWaves (goblins/orcs/trolls/etc.) since that
+// generator stacks up to 8 different enemy types into wave 3 alone — far
+// more variety than a clean first-level escalation needs. Every world map
+// gets its own themed roster + wave shape (see TD_ENEMY_DEFS) rather than
+// reusing one generic enemy pool everywhere.
+function frontierTownWaves(rng) {
+  return [
+    [['bandit', 6 + Math.floor(rng() * 3), 0.9]],
+    [['bandit', 5 + Math.floor(rng() * 3), 0.8], ['bandit_rider', 3 + Math.floor(rng() * 2), 1.1]],
+    [['bandit', 4 + Math.floor(rng() * 3), 0.8], ['bandit_rider', 3 + Math.floor(rng() * 2), 1.0], ['bandit_boss', 1, 2.0]],
+  ];
+}
+
 function frontierTownLevelDef() {
   const mapDef = TD_MAPS[0];
   const rng = makeSeedRng((Date.now() ^ 0x51a7c0de) >>> 0);
-  const waveDefs = generateWaves(1.0, 3, rng);
+  const waveDefs = frontierTownWaves(rng);
   return {
     name: 'Frontier Town', act: mapDef.name, icon: '🏘️', color: mapDef.color,
     enemyMult: 1.0,
@@ -4860,7 +4892,7 @@ function tdLoop(ts) {
     tdUpdate(dt);
     // T-4: update music intensity based on enemy pressure
     if (td.waveActive) {
-      const isBossWave = td.levelDef.waveDefs[td.waveIdx]?.some(([t]) => t === 'boss');
+      const isBossWave = td.levelDef.waveDefs[td.waveIdx]?.some(([t]) => TD_ENEMY_DEFS[t]?.isBoss);
       tdMusic.setIntensity(td.enemies.length, isBossWave);
     }
   }
@@ -5074,22 +5106,37 @@ function tdFireTowers(dt) {
     const cs      = td.cellSize;
     const [tx, ty] = tdCellCenter(t.col, t.row, cs);
     const rangePx = stats.range * cs;
-    let target = null, bestDist = -1;
+
+    // Multi-projectile towers (L4 Ranger) spread their extra projectiles
+    // across the top-N in-range enemies by "furthest along the path"
+    // priority, so a 2nd projectile is a real "also hits another enemy"
+    // upgrade rather than a disguised damage multiplier on whichever single
+    // target a 1-projectile tower would already have picked. Falls back to
+    // re-targeting the same enemy if fewer enemies are in range than the
+    // tower has projectiles.
+    const inRange = [];
     for (const e of td.enemies) {
       if (e.flying && t.type === 'mortar') continue; // mortar shells can't reach flying enemies
       const d = Math.hypot(e.x - tx, e.y - ty);
-      if (d <= rangePx && e.dist > bestDist) { target = e; bestDist = e.dist; }
+      if (d <= rangePx) inRange.push(e);
     }
-    if (target) {
-      td.projectiles.push({
-        x: tx, y: ty, eid: target.id,
-        spd: 280, dmg: stats.dmg * (td.relicMods?.towerDmgMult || 1),
-        splash: stats.splash * cs,
-        color: stats.glow || stats.color,
-      });
+    if (inRange.length) {
+      inRange.sort((a, b) => b.dist - a.dist);
+      const shots = stats.projectiles || 1;
+      let firstTarget = null;
+      for (let i = 0; i < shots; i++) {
+        const target = inRange[Math.min(i, inRange.length - 1)];
+        firstTarget = firstTarget || target;
+        td.projectiles.push({
+          x: tx, y: ty, eid: target.id,
+          spd: 280, dmg: stats.dmg * (td.relicMods?.towerDmgMult || 1),
+          splash: stats.splash * cs,
+          color: stats.glow || stats.color,
+        });
+      }
       t.cd = 1 / stats.rate;
       t.firePulse  = 0.22;
-      t.flashAngle = Math.atan2(target.y - ty, target.x - tx);
+      t.flashAngle = Math.atan2(firstTarget.y - ty, firstTarget.x - tx);
       t.flashLife  = 0.06;
       const now = performance.now();
       if (now - td.lastShootSnd > 80) { tdAudio.shoot(t.col / (TD_COLS - 1)); td.lastShootSnd = now; }
@@ -5640,10 +5687,10 @@ function tdUpdateWavePreview() {
   const nextIdx = td.waveIdx + 1;
   const waveDefs = td.levelDef.waveDefs;
   if (td.waveActive || nextIdx >= waveDefs.length) { el.style.display = 'none'; return; }
-  const EMOJI = { goblin:'👺', orc:'👹', scout:'💨', troll:'🧌', boss:'💀', raider:'🏃', brute:'🛡️', wisp:'🕊️', shaman:'➕' };
-  const COLORS = { goblin:'#4ADE80', orc:'#FBBF24', scout:'#F472B6', troll:'#C084FC', boss:'#EF4444', raider:'#38BDF8', brute:'#78716C', wisp:'#A5F3FC', shaman:'#34D399' };
+  const EMOJI = { goblin:'👺', orc:'👹', scout:'💨', troll:'🧌', boss:'💀', raider:'🏃', brute:'🛡️', wisp:'🕊️', shaman:'➕', bandit:'🗡️', bandit_rider:'🏇', bandit_boss:'🏴‍☠️' };
+  const COLORS = { goblin:'#4ADE80', orc:'#FBBF24', scout:'#F472B6', troll:'#C084FC', boss:'#EF4444', raider:'#38BDF8', brute:'#78716C', wisp:'#A5F3FC', shaman:'#34D399', bandit:'#B45309', bandit_rider:'#92400E', bandit_boss:'#7C2D12' };
   const wave = waveDefs[nextIdx];
-  const hasBoss = wave.some(([t]) => t === 'boss');
+  const hasBoss = wave.some(([t]) => TD_ENEMY_DEFS[t]?.isBoss);
   const chips = wave.map(([type, count]) => {
     const col = COLORS[type] || '#aaa';
     return `<span class="td-wp-chip" style="border-color:${col}40;color:${col}">${EMOJI[type] || '👾'} ×${count}</span>`;

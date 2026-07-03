@@ -57,6 +57,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Prevent pull-to-refresh bounce, nudge install for true fullscreen (#91)
 
+- Regenerate Frontier Town's levelDef fresh instead of a stale persisted snapshot (#101)
+
 - Remove Nano Banana watermark from verdant terrain background (#73)
 
 - Restore alpha transparency on verdant/decay deco sprite sheets (#58)
