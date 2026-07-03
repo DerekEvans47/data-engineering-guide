@@ -59,6 +59,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - IOS audio session escalation + statechange realignment
 
+- Node spine onto road ribbon; name nodes + per-node battle themes (#77)
+
 - Proper async iOS audio unlock + session activation (#25)
 
 - Remove Nano Banana watermark from verdant terrain background (#73)
