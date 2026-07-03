@@ -67,6 +67,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Node spine onto road ribbon; name nodes + per-node battle themes (#77)
 
+- Nudge frontier-town s3 down into its clearing (161,290) (#85)
+
 - Proper async iOS audio unlock + session activation (#25)
 
 - Remove Nano Banana watermark from verdant terrain background (#73)
