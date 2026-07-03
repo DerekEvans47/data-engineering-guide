@@ -67,6 +67,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Restore alpha transparency on verdant/decay deco sprite sheets (#58)
 
+- Spine bend-spread pass — 5 nodes repositioned onto the trail (#79)
+
 - Stones node onto road; swap Lakeside Hamlet for Charcoal Burners' Camp (#78)
 
 - Unlock Web Audio on iOS via shared context + gesture listener (#24)
