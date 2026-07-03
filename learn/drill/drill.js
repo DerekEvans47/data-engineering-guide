@@ -38,6 +38,7 @@ const TD_MAPS_BEATEN_KEY = 'td_maps_beaten';
 const MASTERY_KEY        = 'question_mastery';
 const TD_RELICS_OWNED_KEY    = 'td_relics_owned';
 const TD_RELICS_EQUIPPED_KEY = 'td_relics_equipped';
+const INSTALL_BANNER_KEY     = 'qd_install_banner_dismissed';
 
 // ── Storage layer (private-browsing-safe) ─────────────────────
 const StorageManager = {
@@ -47,6 +48,24 @@ const StorageManager = {
 };
 
 const reducedMotionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+
+// ── Add to Home Screen ──────────────────────────────────────────
+// Only a real fullscreen (no browser chrome, no pull-to-refresh) once
+// launched standalone — a page in a normal browser tab can never hide
+// the address bar itself. Android/Chrome exposes an installable-app
+// prompt via this event; iOS Safari has no equivalent API, so it gets
+// manual "tap Share" instructions instead (see showHome()).
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+});
+function isStandalone() {
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+}
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
 
 const LETTERS = ['A','B','C','D'];
 
@@ -877,6 +896,11 @@ function showHome() {
             <span class="home-card-arrow">›</span>
           </button>
         </div>
+        <div class="install-banner" id="install-banner" style="display:none">
+          <span class="install-banner-text" id="install-banner-text"></span>
+          <button class="install-banner-btn" id="install-banner-btn" style="display:none">Install</button>
+          <button class="install-banner-close" id="install-banner-close" aria-label="Dismiss">✕</button>
+        </div>
       </div>
       <div class="home-version" id="home-version">v${APP_VERSION}</div>
     </div>`;
@@ -892,6 +916,7 @@ function showHome() {
   document.getElementById('home-stat-xp').addEventListener('click', openProfile);
   document.getElementById('home-theme-btn').addEventListener('click', toggleTheme);
   menuMusic.start();
+  setupInstallBanner();
 
   // Live audio-state badge — shows what the AudioContext is actually doing.
   // Tapping anywhere updates it immediately; auto-clears when leaving home.
@@ -914,6 +939,43 @@ function showHome() {
   // Clean up previous home render's listeners if any
   const _prev = document.querySelector('.home-version[data-ac-cleanup]');
   if (_prev && _prev._cleanup) _prev._cleanup();
+}
+
+// Nudge players toward "Add to Home Screen" — the only way to get a real
+// fullscreen (no address bar, no pull-to-refresh) since a page in a normal
+// browser tab can never hide the browser's own chrome. Skipped entirely if
+// already running standalone, previously dismissed, or on a platform with
+// no concrete install action to offer (desktop browsers, etc).
+function setupInstallBanner() {
+  const banner = document.getElementById('install-banner');
+  if (!banner || isStandalone() || StorageManager.get(INSTALL_BANNER_KEY)) return;
+
+  const textEl = document.getElementById('install-banner-text');
+  const btnEl  = document.getElementById('install-banner-btn');
+
+  if (isIOS()) {
+    textEl.textContent = '📲 Add to Home Screen for fullscreen — tap Share, then "Add to Home Screen"';
+  } else if (deferredInstallPrompt) {
+    textEl.textContent = '📲 Install for fullscreen — no browser bar, no pull-to-refresh';
+    btnEl.style.display = 'inline-flex';
+    btnEl.addEventListener('click', async () => {
+      const prompt = deferredInstallPrompt;
+      if (!prompt) return;
+      deferredInstallPrompt = null;
+      prompt.prompt();
+      await prompt.userChoice;
+      StorageManager.set(INSTALL_BANNER_KEY, '1');
+      banner.remove();
+    });
+  } else {
+    return; // no actionable install path on this platform — don't nag
+  }
+
+  banner.style.display = 'flex';
+  document.getElementById('install-banner-close').addEventListener('click', () => {
+    StorageManager.set(INSTALL_BANNER_KEY, '1');
+    banner.remove();
+  });
 }
 
 // ── Tab switching ──────────────────────────────────────────────

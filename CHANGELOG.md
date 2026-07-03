@@ -39,6 +39,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Frontier-town reduced to 10 build slots, aligned to painted clearings (#83)
 
+- Home screen requires scrolling to see Start Game button (#90)
+
 - Node spine onto road ribbon; name nodes + per-node battle themes (#77)
 
 - Nudge frontier-town s3 down into its clearing (161,290) (#85)
