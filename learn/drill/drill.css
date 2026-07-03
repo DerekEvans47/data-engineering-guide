@@ -1948,8 +1948,9 @@ html, body {
 }
 #td-canvas { display: block; }
 
-/* Bottom overlay group — tools + actions float over the canvas on a
-   fading scrim, anchored to the bottom edge as one band. */
+/* Bottom overlay group — actions float over the canvas on a fading
+   scrim, anchored to the bottom edge. Tower building itself now happens
+   via the radial menu opened by tapping the map, not a persistent bar. */
 #td-bottom-bar {
   position: absolute;
   left: 0; right: 0; bottom: 0;
@@ -1959,39 +1960,6 @@ html, body {
   padding-bottom: env(safe-area-inset-bottom);
   background: linear-gradient(to top, rgba(6,9,14,.92) 0%, rgba(6,9,14,.75) 55%, rgba(6,9,14,0) 100%);
 }
-
-/* Tower selection bar */
-#td-tools {
-  display: flex;
-  gap: .4rem;
-  padding: .6rem .6rem .3rem;
-  background: transparent;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-.td-tool-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: .12rem;
-  min-width: 62px;
-  padding: .38rem .45rem;
-  background: var(--bg-elevated);
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: border-color .12s, background .12s, transform .1s;
-  -webkit-tap-highlight-color: transparent;
-  flex-shrink: 0;
-}
-.td-tool-btn:active  { transform: scale(.93); }
-.td-tool-btn.active  { border-color: var(--accent); background: var(--accent-dim); }
-.td-tool-btn.unaffordable { opacity: .38; }
-.td-tool-icon { font-size: 1.45rem; line-height: 1; pointer-events: none; }
-.td-tool-name { font-size: .6rem; font-weight: 700; color: var(--text-muted); pointer-events: none; }
-.td-tool-cost { font-size: .62rem; font-weight: 800; color: #F59E0B; pointer-events: none; }
-.td-sell-btn  { border-color: rgba(239,68,68,.4); }
-.td-sell-btn.active { border-color: #EF4444; background: rgba(239,68,68,.12); }
 
 /* Action bar */
 #td-actions {
@@ -2302,57 +2270,52 @@ html, body {
 .td-mute-btn:hover { background: var(--bg-elevated); }
 .td-mute-btn:active { transform: scale(.9); }
 
-/* Tower placement confirmation chip */
-.td-place-chip {
+/* Radial build/manage menu — opens fanned out from the tapped cell
+   instead of a persistent tool bar. Build options (tower types) on an
+   empty slot; Upgrade/Sell only appear when a tower already occupies it. */
+.td-radial-menu {
   position: absolute;
+  inset: 0;
   z-index: 20;
+  pointer-events: none;
+}
+.td-radial-btn {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: .3rem;
-  background: rgba(8, 14, 28, .93);
-  border: 1px solid rgba(74,222,128,.55);
-  border-radius: 10px;
-  padding: .45rem .5rem;
-  font-size: .85rem;
-  color: var(--text-primary);
-  min-width: 118px;
-  box-shadow: 0 4px 18px rgba(0,0,0,.55);
-  animation: td-chip-fade .15s ease;
-}
-.td-chip-label {
-  font-weight: 600;
-  text-align: center;
-  line-height: 1.3;
-  white-space: nowrap;
-  padding-bottom: .25rem;
-  border-bottom: 1px solid rgba(255,255,255,.1);
-}
-.td-chip-cost { font-size: .8rem; color: #FBBF24; }
-.td-chip-btns { display: flex; gap: .3rem; }
-.td-chip-ok, .td-chip-cancel {
-  flex: 1;
-  background: none;
-  border: 1px solid;
-  border-radius: 7px;
-  cursor: pointer;
-  font-size: 1.25rem;
-  min-height: 44px;
-  line-height: 44px;
-  padding: 0;
-  text-align: center;
-  -webkit-tap-highlight-color: transparent;
-  transition: background .1s;
-  min-height: 44px;
-  min-width: 44px;
-  display: flex;
   align-items: center;
   justify-content: center;
+  gap: .05rem;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(8, 14, 28, .93);
+  border: 1.5px solid rgba(255,255,255,.5);
+  box-shadow: 0 4px 14px rgba(0,0,0,.5);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  animation: td-radial-pop .16s ease;
 }
-.td-chip-ok    { border-color: rgba(74,222,128,.6);  color: #4ADE80; }
-.td-chip-cancel{ border-color: rgba(239,68,68,.6);   color: #EF4444; }
-.td-chip-ok:hover    { background: rgba(74,222,128,.22); }
-.td-chip-cancel:hover{ background: rgba(239,68,68,.22); }
+.td-radial-btn:active { transform: translate(-50%, -50%) scale(.9); }
+.td-radial-btn.disabled { opacity: .35; pointer-events: none; }
+.td-radial-icon { font-size: 1.3rem; line-height: 1; pointer-events: none; }
+.td-radial-sub { font-size: .56rem; font-weight: 800; color: #FBBF24; pointer-events: none; }
+.td-radial-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  background: rgba(8, 14, 28, .85);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 999px;
+  padding: .25rem .65rem;
+  font-size: .75rem;
+  font-weight: 700;
+  color: #fff9ec;
+  pointer-events: none;
+  animation: td-radial-pop .16s ease;
+}
 
 /* Animated victory star screen */
 .td-star-screen {
@@ -2823,60 +2786,6 @@ html, body {
   margin-top: .5rem;
 }
 
-/* ── Tower inspect card (U-10) ─────────────────────────────── */
-.td-inspect-card {
-  position: absolute;
-  z-index: 30;
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  padding: .55rem .7rem;
-  min-width: 152px;
-  max-width: 200px;
-  box-shadow: 0 4px 18px rgba(0,0,0,.4);
-  pointer-events: none;
-}
-.tdi-header {
-  font-size: .88rem;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: .35rem;
-  display: flex;
-  align-items: center;
-  gap: .3rem;
-}
-.tdi-lvl {
-  font-size: .72rem;
-  font-weight: 700;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 4px;
-  padding: 1px 5px;
-  margin-left: auto;
-}
-.tdi-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: .78rem;
-  color: var(--text-muted);
-  padding: .12rem 0;
-  border-top: 1px solid var(--border);
-}
-.tdi-row span:last-child {
-  color: var(--text);
-  font-weight: 600;
-}
-.tdi-tag {
-  display: inline-block;
-  font-size: .62rem;
-  background: #EF444422;
-  color: #EF4444;
-  border-radius: 3px;
-  padding: 0 4px;
-  margin-left: 3px;
-  vertical-align: middle;
-}
-
 /* ── First-run tutorial modal (U-1) ────────────────────────── */
 .tut-card {
   display: flex;
@@ -3127,13 +3036,13 @@ html, body {
   50%       { stroke-width: 3.5; opacity: 1;   }
 }
 
-@keyframes td-chip-fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
 @keyframes td-chip-in {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes td-radial-pop {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(.3); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 @keyframes td-star-pop {
