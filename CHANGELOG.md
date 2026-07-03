@@ -59,6 +59,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Crash in AudioContext unlock + retry on failure
 
+- Frontier-town reduced to 10 build slots, aligned to painted clearings (#83)
+
 - IOS audio session escalation + statechange realignment
 
 - Node spine onto road ribbon; name nodes + per-node battle themes (#77)
