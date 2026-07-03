@@ -1,8 +1,9 @@
-const CACHE = 'de-drill-v86';
+const CACHE = 'de-drill-v87';
 const ASSETS = [
   './index.html',
   './drill.css',
   './drill.js',
+  './assets/splash-background.png',
   '../../content/question-bank.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
 ];

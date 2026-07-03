@@ -10,15 +10,9 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Author frontier-town battle-map lanes + build slots (G-9 data template) (#82)
 
-- Background music on home, map, and battle screens (#23)
-
 - Color-blind mode — pattern fills per tower type
 
 - Commit chosen Verdant region world map + file W-7 map-life overlay (#75)
-
-- Data-flow dots, directional muzzle flash, reduced-motion (#33)
-
-- Derive APP_VERSION from SW cache name
 
 - Difficulty modifier toggles on level confirm panel (G-8) (#50)
 
@@ -38,15 +32,7 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Run-map fog of war on deeply-locked nodes (V-25)
 
-- Seeded node position jitter on run map
-
-- Show app version on home screen (#26)
-
-- Sprite sheet deco pipeline replacing parallax grass (#32)
-
 - Themed node shapes on run map (#46)
-
-- Topic tag, XP feedback, question mastery tracking
 
 - Tower idle breathing animation (V-17)
 
@@ -55,21 +41,11 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### 🐛 Bug Fixes
 
-- Audio not working in TD drill + pre-commit changelog hook (#22)
-
-- Auto-reload page when service worker updates (#27)
-
-- Crash in AudioContext unlock + retry on failure
-
 - Frontier-town reduced to 10 build slots, aligned to painted clearings (#83)
-
-- IOS audio session escalation + statechange realignment
 
 - Node spine onto road ribbon; name nodes + per-node battle themes (#77)
 
 - Nudge frontier-town s3 down into its clearing (161,290) (#85)
-
-- Proper async iOS audio unlock + session activation (#25)
 
 - Remove Nano Banana watermark from verdant terrain background (#73)
 
@@ -81,14 +57,10 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Stones node onto road; swap Lakeside Hamlet for Charcoal Burners' Camp (#78)
 
-- Unlock Web Audio on iOS via shared context + gesture listener (#24)
-
 
 ### 📚 Content
 
 - Add questions: Parts 1, 2, 4, 6
-
-- Add questions: Parts 1, 3, 5, 6
 
 - Add questions: Parts 2, 3, 6, 6
 
@@ -96,6 +68,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 
 ### 🔧 Infrastructure
+
+- Add files via upload
 
 - Add files via upload
 
@@ -113,6 +87,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Audit question bank for stale content — none found
 
+- Battle-map generation prompt book — all 13 remaining Verdant maps (#86)
+
 - Consolidate TD engine into one delimited section (#53)
 
 - Correct G-9 -- run map also needs landscape orientation (#62)
@@ -127,15 +103,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Fold fixed build-slot placement into G-9 (#60)
 
-- Harden nightly prompt — handoff file, inline PRs, conflict resolution (#20)
-
 - Linear world-map pivot — add W section, rescope G-9, retire V-24/V-35 (#74)
+
+- Move splash background art to assets/splash-background.png
 
 - Nest assets by world; retire legacy deco loader; land frontier-town battle map (#81)
 
 - Nightly handoff 2026-06-30 (143 pts — EQ-2, V-23, G-7, S-2, S-6, G-8) (#51)
-
-- Session handoff 2026-06-29 (#34)
 
 - Session handoff 2026-06-29 session 2
 
@@ -143,10 +117,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Session handoff 2026-07-02 (105 pts — S-4, EQ-4, C-7, U-4)
 
-- Show live AudioContext state in version badge (#28)
-
 - Split drill.css into labelled sections (#55)
-
-- Strip session URLs from all PR bodies, not just questions/* (#21)
 
 

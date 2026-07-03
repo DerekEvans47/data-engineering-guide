@@ -833,45 +833,46 @@ function showHome() {
   EL.contentArea.innerHTML = `
     <div class="home-screen">
       <div class="home-hero">
-        <div class="home-logo-mark">🛡️</div>
         <h1 class="home-title">Quiz Defense</h1>
-        <p class="home-subtitle">Data Engineering · Tower Defense</p>
-        <p class="home-version">v${APP_VERSION}</p>
+        <span class="home-subtitle">Data Engineering · Tower Defense</span>
       </div>
-      <div class="home-stats">
-        <div class="home-stat" id="home-stat-xp">⚡ ${xp.toLocaleString()} XP</div>
-        <div class="home-stat">🔥 ${streak} streak</div>
-        <div class="home-stat">🪙 ${gold}</div>
-      </div>
-      <div class="home-progress-row">
-        <div class="home-progress-cell">
-          <div class="home-progress-val">${mapsCleared} <span class="home-progress-denom">/ 3</span></div>
-          <div class="home-progress-label">Maps cleared</div>
+      <div class="home-bottom">
+        <div class="home-stats">
+          <div class="home-stat" id="home-stat-xp">⚡ ${xp.toLocaleString()} XP</div>
+          <div class="home-stat">🔥 ${streak} streak</div>
+          <div class="home-stat">🪙 ${gold}</div>
         </div>
-        <div class="home-progress-divider"></div>
-        <div class="home-progress-cell">
-          <div class="home-progress-val">${l.icon} <span class="home-progress-rank">${l.title}</span></div>
-          <div class="home-progress-label">Rank</div>
+        <div class="home-progress-row">
+          <div class="home-progress-cell">
+            <div class="home-progress-val">${mapsCleared} <span class="home-progress-denom">/ 3</span></div>
+            <div class="home-progress-label">Maps cleared</div>
+          </div>
+          <div class="home-progress-divider"></div>
+          <div class="home-progress-cell">
+            <div class="home-progress-val">${l.icon} <span class="home-progress-rank">${l.title}</span></div>
+            <div class="home-progress-label">Rank</div>
+          </div>
+        </div>
+        <div class="home-menu">
+          <button class="home-card home-card-primary" id="btn-play">
+            <span class="home-card-icon">▶</span>
+            <div class="home-card-text">
+              <span class="home-card-title">${mapsCleared === 0 && !runActive ? 'Start Game' : runActive ? 'Continue Run' : 'New Run'}</span>
+              <span class="home-card-desc">Tower Defense · ${mapsCleared} / 3 maps cleared</span>
+            </div>
+            <span class="home-card-arrow">›</span>
+          </button>
+          <button class="home-card home-card-secondary" id="btn-how-to-play">
+            <span class="home-card-icon">📖</span>
+            <div class="home-card-text">
+              <span class="home-card-title">How to Play</span>
+              <span class="home-card-desc">Learn the rules</span>
+            </div>
+            <span class="home-card-arrow">›</span>
+          </button>
         </div>
       </div>
-      <div class="home-menu">
-        <button class="home-card home-card-primary" id="btn-play">
-          <span class="home-card-icon">▶</span>
-          <div class="home-card-text">
-            <span class="home-card-title">${mapsCleared === 0 && !runActive ? 'Start Game' : runActive ? 'Continue Run' : 'New Run'}</span>
-            <span class="home-card-desc">Tower Defense · ${mapsCleared} / 3 maps cleared</span>
-          </div>
-          <span class="home-card-arrow">›</span>
-        </button>
-        <button class="home-card home-card-secondary" id="btn-how-to-play">
-          <span class="home-card-icon">📖</span>
-          <div class="home-card-text">
-            <span class="home-card-title">How to Play</span>
-            <span class="home-card-desc">Learn the rules</span>
-          </div>
-          <span class="home-card-arrow">›</span>
-        </button>
-      </div>
+      <div class="home-version" id="home-version">v${APP_VERSION}</div>
     </div>`;
 
   document.getElementById('btn-play').addEventListener('click', () => {
