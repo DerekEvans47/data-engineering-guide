@@ -28,6 +28,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Power-up system — data model, pre-wave tray, effect engine (#45)
 
+- Radial build/manage menu replaces persistent tower bar (#93)
+
 - Relic system — data model, exclusivity, upkeep, equip menu
 
 - Seamless full-bleed game UI, remove duplicate top bar (#89)
@@ -70,6 +72,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 
 ### 🔧 Infrastructure
+
+- Add files via upload
 
 - Add files via upload
 

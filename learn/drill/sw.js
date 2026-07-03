@@ -1,4 +1,4 @@
-const CACHE = 'de-drill-v92';
+const CACHE = 'de-drill-v93';
 const ASSETS = [
   './index.html',
   './drill.css',
@@ -6,6 +6,9 @@ const ASSETS = [
   './assets/splash-background.png',
   './assets/worlds/verdant/region.png',
   './assets/worlds/verdant/battlemaps/frontier-town.png',
+  './assets/towers/ranger-tier1.png',
+  './assets/towers/ranger-tier2.png',
+  './assets/towers/ranger-tier3.png',
   '../../content/question-bank.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
 ];
