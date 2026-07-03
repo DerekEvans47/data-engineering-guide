@@ -540,8 +540,11 @@ function applyTheme(t) { document.documentElement.dataset.theme = t; StorageMana
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
   applyTheme(next);
+  const icon = next === 'light' ? '🌙' : '☀️';
   const btn = document.getElementById('btn-theme');
-  if (btn) btn.textContent = next === 'light' ? '🌙' : '☀️';
+  if (btn) btn.textContent = icon;
+  const homeBtn = document.getElementById('home-theme-btn');
+  if (homeBtn) homeBtn.textContent = icon;
 }
 function themeBtn() {
   return `<button class="btn-theme" id="btn-theme">${document.documentElement.dataset.theme !== 'light' ? '☀️' : '🌙'}</button>`;
@@ -576,14 +579,32 @@ function renderRelicBar() {
 }
 
 // ── Top bar ────────────────────────────────────────────────────
+// Back/relic/help buttons are inlined directly into each TD screen's own
+// header row (map-select-header, region-map-header, ...) instead of a
+// separate persistent bar stacked above it — one header band per screen,
+// not two. This just wires the shared button ids up once markup is in.
+function bindTdHeaderActions(onBack) {
+  document.getElementById('td-header-back')?.addEventListener('click', onBack || showHome);
+  document.getElementById('td-header-relics')?.addEventListener('click', showRelicEquipMenu);
+  document.getElementById('td-header-help')?.addEventListener('click', () => showTutorial(() => {}));
+}
+
+// TD/game screens (home, map select, world map, battle) build their own
+// contextual header inline — the persistent top bar is only for the
+// study/drill/dungeon screens, so it stays hidden here instead of
+// stacking a second, mostly-redundant chrome band above the game UI.
+const TD_TOPBAR_STATES = new Set(['home', 'td-world', 'tower', 'td-level']);
+
 function setTopBar(state, extra = {}) {
   const bar = document.getElementById('top-bar');
+  if (TD_TOPBAR_STATES.has(state)) {
+    bar.style.display = 'none';
+    bar.innerHTML = '';
+    return;
+  }
+  bar.style.display = '';
 
-  if (state === 'home') {
-    bar.innerHTML = `<span class="logo">Quiz Defense</span><div class="top-bar-right">${gameBadges()}${themeBtn()}</div>`;
-    bindThemeBtn(); bindXpBadge();
-
-  } else if (state === 'study-list') {
+  if (state === 'study-list') {
     bar.innerHTML = `<button class="btn-back" id="btn-back-home">← Home</button><div class="top-bar-right">${gameBadges()}${themeBtn()}</div>`;
     document.getElementById('btn-back-home').addEventListener('click', showHome);
     bindThemeBtn(); bindXpBadge();
@@ -611,22 +632,6 @@ function setTopBar(state, extra = {}) {
     document.getElementById('btn-back-home').addEventListener('click', showHome);
     document.getElementById('btn-filter').addEventListener('click', openFilter);
     bindThemeBtn(); bindXpBadge(); refreshSessionScore();
-
-  } else if (state === 'td-world' || state === 'tower') {
-    bar.innerHTML = `<button class="btn-back" id="btn-back-home">← Home</button><div class="top-bar-right">${gameBadges()}<button class="btn-filter" id="btn-td-relics">🏺</button><button class="btn-filter" id="btn-td-help">? Help</button>${themeBtn()}</div>`;
-    document.getElementById('btn-back-home').addEventListener('click', showHome);
-    document.getElementById('btn-td-relics').addEventListener('click', showRelicEquipMenu);
-    document.getElementById('btn-td-help').addEventListener('click', () => showTutorial(() => {}));
-    bindThemeBtn(); bindXpBadge();
-
-  } else if (state === 'td-level') {
-    const { name } = extra;
-    bar.innerHTML = `
-      <button class="btn-back" id="btn-back-map">← Map</button>
-      <span class="top-center" style="font-size:.78rem">${name}</span>
-      <div class="top-bar-right">${gameBadges()}</div>`;
-    document.getElementById('btn-back-map').addEventListener('click', showTDWorldMap);
-    bindXpBadge();
 
   } else if (state === 'dungeon-map') {
     bar.innerHTML = `<button class="btn-back" id="btn-back-home">← Home</button><div class="top-bar-right"><span class="gold-badge">🪙 ${gold}</span>${gameBadges()}${themeBtn()}</div>`;
@@ -832,6 +837,7 @@ function showHome() {
   setTopBar('home');
   EL.contentArea.innerHTML = `
     <div class="home-screen">
+      <button class="home-theme-btn" id="home-theme-btn">${document.documentElement.dataset.theme !== 'light' ? '☀️' : '🌙'}</button>
       <div class="home-hero">
         <h1 class="home-title">Quiz Defense</h1>
         <span class="home-subtitle">Data Engineering · Tower Defense</span>
@@ -884,6 +890,7 @@ function showHome() {
     showTutorial(() => {});
   });
   document.getElementById('home-stat-xp').addEventListener('click', openProfile);
+  document.getElementById('home-theme-btn').addEventListener('click', toggleTheme);
   menuMusic.start();
 
   // Live audio-state badge — shows what the AudioContext is actually doing.
@@ -3767,12 +3774,20 @@ function renderRunMap(run) {
 
   EL.contentArea.innerHTML = `
     <div id="tdm-wrap" class="run-map-wrap">
-      <div class="run-map-header">
-        <div class="run-map-title">${mapDef.icon} ${mapDef.name}</div>
-        <div class="run-map-subtitle">${mapDef.subtitle}</div>
+      <div class="run-map-header region-map-header">
+        <button class="td-header-back" id="td-header-back">← Home</button>
+        <div class="region-map-header-text">
+          <div class="run-map-title">${mapDef.icon} ${mapDef.name}</div>
+          <div class="run-map-subtitle">${mapDef.subtitle}</div>
+        </div>
+        <div class="td-header-right">
+          <button class="td-header-icon" id="td-header-relics" title="Relics">🏺</button>
+          <button class="td-header-icon" id="td-header-help" title="Help">?</button>
+        </div>
       </div>
       ${svg}
     </div>`;
+  bindTdHeaderActions(showHome);
 
   document.querySelectorAll('.rn-available').forEach(g => {
     g.addEventListener('click', () => {
@@ -3858,11 +3873,19 @@ function renderVerdantWorldMap(run) {
   EL.contentArea.innerHTML = `
     <div id="rvm-wrap" class="region-map-wrap">
       <div class="region-map-header">
-        <span class="region-map-title">${mapDef.icon} ${mapDef.name}</span>
-        <span class="region-map-subtitle">${mapDef.subtitle}</span>
+        <button class="td-header-back" id="td-header-back">← Home</button>
+        <div class="region-map-header-text">
+          <span class="region-map-title">${mapDef.icon} ${mapDef.name}</span>
+          <span class="region-map-subtitle">${mapDef.subtitle}</span>
+        </div>
+        <div class="td-header-right">
+          <button class="td-header-icon" id="td-header-relics" title="Relics">🏺</button>
+          <button class="td-header-icon" id="td-header-help" title="Help">?</button>
+        </div>
       </div>
       ${svg}
     </div>`;
+  bindTdHeaderActions(showHome);
 
   document.querySelectorAll('.rvm-node[data-id]').forEach(g => {
     const node = run.nodes.find(n => n.id === g.dataset.id);
@@ -3929,12 +3952,20 @@ function _renderMapSelection() {
   EL.contentArea.innerHTML = `
     <div class="map-select-screen">
       <div class="map-select-header">
-        <div class="map-select-title">🛡️ Choose Your Map</div>
-        <div class="map-select-sub">Select a world to begin your run</div>
+        <button class="td-header-back" id="td-header-back">← Home</button>
+        <div class="map-select-header-text">
+          <div class="map-select-title">🛡️ Choose Your Map</div>
+          <div class="map-select-sub">Select a world to begin your run</div>
+        </div>
+        <div class="td-header-right">
+          <button class="td-header-icon" id="td-header-relics" title="Relics">🏺</button>
+          <button class="td-header-icon" id="td-header-help" title="Help">?</button>
+        </div>
       </div>
       <div class="map-select-cards">${cardsHtml}</div>
     </div>`;
   menuMusic.start();
+  bindTdHeaderActions(showHome);
 
   document.querySelectorAll('.map-card:not([disabled])').forEach(card => {
     card.addEventListener('click', () => {
@@ -4350,56 +4381,61 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
 
   EL.contentArea.innerHTML = `
     <div id="td-wrap">
+      <div id="td-canvas-wrap">
+        <canvas id="td-canvas"></canvas>
+        <div id="td-place-chip" class="td-place-chip" style="display:none"></div>
+        <div id="td-inspect-card" class="td-inspect-card" style="display:none"></div>
+      </div>
       <div id="td-hud">
+        <button id="td-hud-back" class="td-hud-back" title="Back to map">←</button>
         <div class="td-stat td-stat-lives">
           <div class="td-stat-top"><span>❤️</span><span id="td-lives">${startLives}</span></div>
           <div class="td-lives-bar"><div id="td-lives-fill"></div></div>
         </div>
         <div class="td-mid">
-          <div id="td-wave-lbl">Place towers, then start!</div>
+          <div id="td-wave-lbl">${levelDef.name} · Place towers, then start!</div>
           <div id="td-wave-dots" class="td-wave-dots"></div>
         </div>
         <div class="td-stat">🪙 <span id="td-gold-val">${startGold}</span></div>
         <button id="td-mute-btn" class="td-mute-btn" title="Toggle sound">🔊</button>
         <button id="td-pause-btn" class="td-mute-btn" title="Pause/Resume">⏸</button>
       </div>
-      <div id="td-canvas-wrap">
-        <canvas id="td-canvas"></canvas>
-        <div id="td-place-chip" class="td-place-chip" style="display:none"></div>
-      </div>
-      <div id="td-tools">
-        ${TD_TOWER_DEFS.map(t => `
-          <button class="td-tool-btn" data-tool="${t.id}">
-            <span class="td-tool-icon">${t.icon}</span>
-            <span class="td-tool-name">${t.name}</span>
-            <span class="td-tool-cost">🪙${t.cost}</span>
-          </button>`).join('')}
-        <button class="td-tool-btn td-upgrade-btn" data-tool="upgrade">
-          <span class="td-tool-icon">⬆️</span>
-          <span class="td-tool-name">Upgrade</span>
-          <span class="td-tool-cost">tap★</span>
-        </button>
-        <button class="td-tool-btn td-sell-btn" data-tool="sell">
-          <span class="td-tool-icon">💸</span>
-          <span class="td-tool-name">Sell</span>
-          <span class="td-tool-cost">×0.6</span>
-        </button>
-      </div>
-      <div id="td-inspect-card" class="td-inspect-card" style="display:none"></div>
-      <div id="td-actions">
-        <div id="td-powerup-tray" class="td-powerup-tray" style="display:none"></div>
-        <div class="td-actions-row">
-          <button class="td-quiz-btn" id="td-quiz-btn">📝 +25🪙 (3)</button>
-          <button class="td-wave-btn" id="td-wave-btn">
-            <span class="td-wave-btn-main">⚔️ Start Wave 1</span>
-            <span id="td-wave-preview" class="td-wave-preview" style="display:none"></span>
+      <div id="td-bottom-bar">
+        <div id="td-tools">
+          ${TD_TOWER_DEFS.map(t => `
+            <button class="td-tool-btn" data-tool="${t.id}">
+              <span class="td-tool-icon">${t.icon}</span>
+              <span class="td-tool-name">${t.name}</span>
+              <span class="td-tool-cost">🪙${t.cost}</span>
+            </button>`).join('')}
+          <button class="td-tool-btn td-upgrade-btn" data-tool="upgrade">
+            <span class="td-tool-icon">⬆️</span>
+            <span class="td-tool-name">Upgrade</span>
+            <span class="td-tool-cost">tap★</span>
           </button>
+          <button class="td-tool-btn td-sell-btn" data-tool="sell">
+            <span class="td-tool-icon">💸</span>
+            <span class="td-tool-name">Sell</span>
+            <span class="td-tool-cost">×0.6</span>
+          </button>
+        </div>
+        <div id="td-actions">
+          <div id="td-powerup-tray" class="td-powerup-tray" style="display:none"></div>
+          <div class="td-actions-row">
+            <button class="td-quiz-btn" id="td-quiz-btn">📝 +25🪙 (3)</button>
+            <button class="td-wave-btn" id="td-wave-btn">
+              <span class="td-wave-btn-main">⚔️ Start Wave 1</span>
+              <span id="td-wave-preview" class="td-wave-preview" style="display:none"></span>
+            </button>
+          </div>
         </div>
       </div>
       <div class="td-q-overlay" id="td-q-overlay">
         <div class="td-q-sheet" id="td-q-sheet"></div>
       </div>
     </div>`;
+
+  document.getElementById('td-hud-back').addEventListener('click', showTDWorldMap);
 
   initTDGame(levelDef, levelIdx, startLives, startGold);
   td.__run    = run || null;

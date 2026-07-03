@@ -569,7 +569,7 @@ html, body {
    legible against painted art. ─────────────────────────────────── */
 .home-screen {
   position: relative;
-  min-height: calc(100dvh - 52px - env(safe-area-inset-top));
+  min-height: calc(100dvh - env(safe-area-inset-top));
   padding: 1.1rem 1rem calc(1.4rem + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
@@ -610,6 +610,22 @@ html, body {
   border-radius: 99px;
   padding: .3rem .8rem;
   text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+.home-theme-btn {
+  position: absolute;
+  top: calc(.6rem + env(safe-area-inset-top));
+  right: calc(.6rem + env(safe-area-inset-right));
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  background: rgba(8,10,16,.55);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 99px;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 .home-version {
   position: absolute;
@@ -1749,24 +1765,50 @@ html, body {
   min-height: 0;
 }
 
+/* The battle screen is one seamless canvas, not a stack of boxed panels:
+   canvas fills the entire wrap, HUD/tools/actions float over its top and
+   bottom edges on a fading gradient scrim instead of pushing it into a
+   squeezed leftover strip. */
 #td-wrap {
+  position: relative;
   flex: 1;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
   min-height: 0;
 }
 
-/* HUD bar */
+/* HUD bar — floats over the top of the canvas */
 #td-hud {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: .38rem .9rem;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border);
-  gap: .5rem;
+  padding: calc(.35rem + env(safe-area-inset-top)) .6rem .9rem;
+  background: linear-gradient(to bottom, rgba(6,9,14,.88) 0%, rgba(6,9,14,.55) 65%, rgba(6,9,14,0) 100%);
+  gap: .4rem;
 }
+.td-hud-back {
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  font-size: .9rem;
+  font-weight: 700;
+  color: #fff9ec;
+  cursor: pointer;
+}
+/* Floating over the canvas now, not a themed panel — text stays fixed
+   light-on-dark regardless of light/dark mode or the art behind it. */
+#td-hud .td-stat,
+#td-hud .td-mid,
+#td-hud #td-wave-lbl {
+  color: #fff9ec;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+#td-hud .td-mid { opacity: .9; }
 .td-stat {
   display: flex;
   align-items: center;
@@ -1825,15 +1867,14 @@ html, body {
 .td-wdot.done   { background: #4ADE80; }
 .td-wdot.active { background: #FBBF24; box-shadow: 0 0 5px #FBBF24; }
 
-/* Canvas */
+/* Canvas fills the entire wrap — HUD/tools/actions float over it instead
+   of squeezing it into a leftover strip between separate panel bands. */
 #td-canvas-wrap {
-  flex: 1;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
-  width: 100%;
   background: #162016;
   line-height: 0;
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1843,13 +1884,24 @@ html, body {
 }
 #td-canvas { display: block; }
 
+/* Bottom overlay group — tools + actions float over the canvas on a
+   fading scrim, anchored to the bottom edge as one band. */
+#td-bottom-bar {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: linear-gradient(to top, rgba(6,9,14,.92) 0%, rgba(6,9,14,.75) 55%, rgba(6,9,14,0) 100%);
+}
+
 /* Tower selection bar */
 #td-tools {
   display: flex;
   gap: .4rem;
-  padding: .4rem .6rem;
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border);
+  padding: .6rem .6rem .3rem;
+  background: transparent;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -1879,9 +1931,8 @@ html, body {
 
 /* Action bar */
 #td-actions {
-  padding: .3rem .5rem;
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border);
+  padding: .3rem .5rem .5rem;
+  background: transparent;
 }
 .td-actions-row {
   display: flex;
@@ -2502,11 +2553,6 @@ html, body {
   margin: 0 auto;
   padding-bottom: 1rem;
 }
-.run-map-header {
-  width: 100%;
-  padding: .75rem 1rem .4rem;
-  text-align: center;
-}
 .run-map-title {
   font-size: 1.05rem;
   font-weight: 700;
@@ -2534,9 +2580,19 @@ html, body {
   flex: 1;
   min-height: 0;
 }
+/* Shared single-row header: back button · title/subtitle · relic/help —
+   one header band per screen instead of a separate top bar stacked above
+   a second screen-specific header. */
 .region-map-header {
   width: 100%;
-  padding: .55rem 1rem .35rem;
+  padding: .5rem .75rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.region-map-header-text {
+  flex: 1;
+  min-width: 0;
   text-align: center;
 }
 .region-map-title {
@@ -2548,6 +2604,30 @@ html, body {
   font-size: .7rem;
   color: var(--text-muted);
   margin-left: .5rem;
+}
+.td-header-back {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .4rem .65rem;
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.td-header-right { display: flex; gap: .4rem; flex-shrink: 0; }
+.td-header-icon {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
 }
 #rvm-svg {
   width: 100%;
@@ -2591,7 +2671,12 @@ html, body {
   max-width: 640px;
   margin: 0 auto;
 }
-.map-select-header { text-align: center; }
+.map-select-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.map-select-header-text { flex: 1; min-width: 0; text-align: center; }
 .map-select-title  { font-size: 1.2rem; font-weight: 800; color: var(--text); letter-spacing: .01em; }
 .map-select-sub    { font-size: .78rem; color: var(--text-muted); margin-top: .2rem; }
 .map-select-cards  { display: flex; flex-direction: column; gap: .75rem; }
