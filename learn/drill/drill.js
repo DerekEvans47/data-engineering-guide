@@ -3428,19 +3428,21 @@ const VERDANT_REGION = {
 // A true free-form-path engine is a larger follow-up, not this pass.
 const FRONTIER_TOWN_MAP = {
   image: 'assets/worlds/verdant/battlemaps/frontier-town.png',
-  viewBox: [0, 0, 1376, 768],
-  cols: 16, rows: 9,
+  viewBox: [0, 0, 1520, 704],
+  cols: 19, rows: 9,
+  // Traced from the painted road's pixel mask (continuity-tracked centerline,
+  // then direction-change simplified) — see docs/MAP_ART_PIPELINE.md. The
+  // road crosses the whole canvas west→east through both palisade gates.
   waypointsPx: [
-    [0,398],[86,395],[136,398],[256,370],[306,300],[366,225],[476,190],[576,215],
-    [631,280],[628,361],[636,410],[662,462],[692,518],[736,545],[836,555],[906,535],
-    [967,512],[1030,482],[1096,425],[1176,400],[1261,385],
+    [0,344],[260,347],[500,358],[580,370],[820,341],[860,331],
+    [980,381],[1220,361],[1460,344],
   ],
-  // Re-centered on each clearing's actual painted centroid (flood-filled
-  // from the original hand-placed points against frontier-town.png) — the
-  // original coordinates were up to ~34px off-center within their grove.
+  // Centroids of the 8 painted clearings (connected-component pass over the
+  // pale-grass mask). Distances from the road span ~1.4–3.1 cells, so every
+  // slot serves most tower types with the far pair favoring long range.
   buildSlotsPx: [
-    [714,162],[267,162],[181,296],[232,469],[258,567],[384,654],
-    [790,641],[1077,614],[459,119],[844,333],[1194,501],
+    [388,236],[647,129],[920,135],[1219,235],
+    [391,486],[721,589],[974,560],[1211,485],
   ],
 };
 

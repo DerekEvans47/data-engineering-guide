@@ -1,12 +1,7 @@
 {
-  "_notes": "Battle-map authoring data for Frontier Town (tutorial, spine node 'start'). rev 3: image mirrored horizontally so enemy motion reads left-to-right (user direction call): enemies spawn in the WESTERN forest fringe (first waypoint off-canvas) and march east to the town gate at the right edge. Battle scenes are camera-relative, not compass-aligned with the world map \u2014 standing convention: spawn LEFT, defended objective RIGHT. 11 build slots aligned to the painted clearings (open pads + fenced paddocks, visual flavor only). Coordinates in image pixels; engine converts to grid space. Template schema for all themed battle maps; multi-lane maps add 'lanes' entries.",
+  "_notes": "Battle-map authoring data for Frontier Town (tutorial, spine node 'start'). rev 4: new painted art (fortified frontier waypoint per docs/MAP_PROMPTS_VERDANT.md level 1 — town core inside a palisade ring, gatehouse towers mid-west and mid-east, dense-forest border). Road traced from the pixel mask; enemies spawn in the WESTERN forest fringe (first waypoint off-canvas) and march east through both gates; leak point is the road running off the EAST edge. 8 build slots on the painted clearings' centroids (near/far mix: ~1.4-3.1 cells off the road so all tower types stay viable). Coordinates in image pixels; engine converts to grid space. Gemini sparkle watermark removed at (1398,585) via scripts/remove_gemini_sparkle.py.",
   "image": "frontier-town.png",
-  "viewBox": [
-    0,
-    0,
-    1376,
-    768
-  ],
+  "viewBox": [0, 0, 1520, 704],
   "world": "verdant",
   "battleTheme": "town-gate",
   "nodeId": "start",
@@ -16,164 +11,24 @@
       "id": "main",
       "spawnEdge": "west",
       "waypoints": [
-        [
-          0,
-          398
-        ],
-        [
-          86,
-          395
-        ],
-        [
-          136,
-          398
-        ],
-        [
-          256,
-          370
-        ],
-        [
-          306,
-          300
-        ],
-        [
-          366,
-          225
-        ],
-        [
-          476,
-          190
-        ],
-        [
-          576,
-          215
-        ],
-        [
-          631,
-          280
-        ],
-        [
-          628,
-          361
-        ],
-        [
-          636,
-          410
-        ],
-        [
-          662,
-          462
-        ],
-        [
-          692,
-          518
-        ],
-        [
-          736,
-          545
-        ],
-        [
-          836,
-          555
-        ],
-        [
-          906,
-          535
-        ],
-        [
-          967,
-          512
-        ],
-        [
-          1030,
-          482
-        ],
-        [
-          1096,
-          425
-        ],
-        [
-          1176,
-          400
-        ],
-        [
-          1261,
-          385
-        ]
+        [0, 344], [260, 347], [500, 358], [580, 370], [820, 341],
+        [860, 331], [980, 381], [1220, 361], [1460, 344]
       ]
     }
   ],
   "leak": {
-    "x": 1261,
-    "y": 385,
-    "landmark": "town gate"
+    "x": 1520,
+    "y": 344,
+    "landmark": "east gatehouse"
   },
   "buildSlots": [
-    {
-      "id": "s1",
-      "x": 711,
-      "y": 142,
-      "pad": "open"
-    },
-    {
-      "id": "s2",
-      "x": 276,
-      "y": 130,
-      "pad": "fenced"
-    },
-    {
-      "id": "s3",
-      "x": 161,
-      "y": 290,
-      "pad": "fenced"
-    },
-    {
-      "id": "s4",
-      "x": 216,
-      "y": 480,
-      "pad": "fenced"
-    },
-    {
-      "id": "s5",
-      "x": 286,
-      "y": 555,
-      "pad": "open"
-    },
-    {
-      "id": "s6",
-      "x": 371,
-      "y": 655,
-      "pad": "open"
-    },
-    {
-      "id": "s7",
-      "x": 811,
-      "y": 620,
-      "pad": "open"
-    },
-    {
-      "id": "s8",
-      "x": 1076,
-      "y": 610,
-      "pad": "open"
-    },
-    {
-      "id": "s9",
-      "x": 476,
-      "y": 115,
-      "pad": "open"
-    },
-    {
-      "id": "s10",
-      "x": 831,
-      "y": 325,
-      "pad": "open"
-    },
-    {
-      "id": "s11",
-      "x": 1186,
-      "y": 505,
-      "pad": "open"
-    }
+    { "id": "s1", "x": 388,  "y": 236, "pad": "open" },
+    { "id": "s2", "x": 647,  "y": 129, "pad": "open" },
+    { "id": "s3", "x": 920,  "y": 135, "pad": "open" },
+    { "id": "s4", "x": 1219, "y": 235, "pad": "open" },
+    { "id": "s5", "x": 391,  "y": 486, "pad": "open" },
+    { "id": "s6", "x": 721,  "y": 589, "pad": "open" },
+    { "id": "s7", "x": 974,  "y": 560, "pad": "open" },
+    { "id": "s8", "x": 1211, "y": 485, "pad": "open" }
   ]
 }
