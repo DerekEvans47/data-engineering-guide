@@ -6,6 +6,12 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### ✨ Features
 
+- Frontier Town bandit roster + Ranger L4 multi-projectile (#102)
+
+- Add Music Lab for A/B testing map-theme candidates
+
+- Add real MIDI transcription as a 5th Music Lab candidate
+
 - Author W-1 node spine + life coordinates; backlog alignment pass (#76)
 
 - Author frontier-town battle-map lanes + build slots (G-9 data template) (#82)
@@ -14,29 +20,21 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Commit chosen Verdant region world map + file W-7 map-life overlay (#75)
 
-- Difficulty modifier toggles on level confirm panel (G-8) (#50)
-
-- Endless mode — procedural waves after victory with kill/batch score (#47)
-
-- Enemy special types — fast/armored/flying/healer (#54)
-
-- Landmark anchor objects on TD map (#56)
-
 - Landscape battle map + painted Verdant world map (G-9) (#88)
 
 - Mirror frontier-town for left-to-right flow; 11 slots centered in clearings (#84)
 
+- Original driving march theme for the world/region map
+
 - Painted Ranger tower art, code-side shadow, testing gold bump (#94)
 
-- Power-up system — data model, pre-wave tray, effect engine (#45)
+- Play a real temp audio file for the map theme (WorldMap.m4a)
 
 - Radial build/manage menu replaces persistent tower bar (#93)
 
 - Relic system — data model, exclusivity, upkeep, equip menu
 
 - Seamless full-bleed game UI, remove duplicate top bar (#89)
-
-- Themed node shapes on run map (#46)
 
 - Tower facing — orient toward the road, front/back art (#98)
 
@@ -61,8 +59,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Remove Nano Banana watermark from verdant terrain background (#73)
 
-- Restore alpha transparency on verdant/decay deco sprite sheets (#58)
-
 - Spine bend-spread pass — 5 nodes repositioned onto the trail (#79)
 
 - Standing stones marker onto the road west of the circle (321,217) (#80)
@@ -79,10 +75,6 @@ A record of every feature, fix, and improvement shipped to the app.
 ### 📚 Content
 
 - Add questions: Parts 1, 2, 4, 6
-
-- Add questions: Parts 2, 3, 6, 6
-
-- Add questions: Parts 3, 4, 6, 7
 
 
 ### 🔧 Infrastructure
@@ -115,17 +107,11 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Battle-map generation prompt book — all 13 remaining Verdant maps (#86)
 
-- Consolidate TD engine into one delimited section (#53)
-
 - Correct G-9 -- run map also needs landscape orientation (#62)
 
 - Document stale scope premise, skip until re-scoped
 
-- Extract TD Game Config section — tower/enemy/shop/power-up defs (#49)
-
 - Extract canvas render block into renderer section
-
-- Extract question-logic module section in drill.js (#48)
 
 - Fold fixed build-slot placement into G-9 (#60)
 
@@ -133,16 +119,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Nest assets by world; retire legacy deco loader; land frontier-town battle map (#81)
 
-- Nightly handoff 2026-06-30 (143 pts — EQ-2, V-23, G-7, S-2, S-6, G-8) (#51)
-
 - Reorganize docs into docs/, README leads with the game (#99)
 
-- Session handoff 2026-06-29 session 2
-
-- Session handoff 2026-07-01 (#57)
-
 - Session handoff 2026-07-02 (105 pts — S-4, EQ-4, C-7, U-4)
-
-- Split drill.css into labelled sections (#55)
 
 

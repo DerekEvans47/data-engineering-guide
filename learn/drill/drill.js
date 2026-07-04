@@ -839,6 +839,7 @@ function showHome() {
     td = null;
     tdMusic.stop();
   }
+  mapMusic.stop();
   mode = 'home'; dailyActive = false; studyPart = null;
   answered = false;
   EL.cardArea.style.display = 'none';
@@ -857,6 +858,7 @@ function showHome() {
   EL.contentArea.innerHTML = `
     <div class="home-screen">
       <button class="home-theme-btn" id="home-theme-btn">${document.documentElement.dataset.theme !== 'light' ? '☀️' : '🌙'}</button>
+      <button class="home-theme-btn" id="music-lab-btn" style="right:calc(2.9rem + env(safe-area-inset-right))" title="Music Lab (temp)">🎵</button>
       <div class="home-hero">
         <h1 class="home-title">Quiz Defense</h1>
         <span class="home-subtitle">Data Engineering · Tower Defense</span>
@@ -915,6 +917,7 @@ function showHome() {
   });
   document.getElementById('home-stat-xp').addEventListener('click', openProfile);
   document.getElementById('home-theme-btn').addEventListener('click', toggleTheme);
+  document.getElementById('music-lab-btn').addEventListener('click', showMusicLab);
   menuMusic.start();
   setupInstallBanner();
 
@@ -982,6 +985,7 @@ function setupInstallBanner() {
 function switchTab(newMode) {
   if (td && td.running) { cancelAnimationFrame(td.animFrame); td.running = false; td = null; tdMusic.stop(); }
   menuMusic.stop();
+  mapMusic.stop();
 
   mode = newMode; dailyActive = false; studyPart = null;
   answered = false; sessionCorrect = 0; sessionTotal = 0; sessionXpEarned = 0;
@@ -2159,6 +2163,8 @@ const tdAudio = (() => {
           // If music is already pumping, realign nextBeat; otherwise honour pending.
           if (menuMusic.playing) menuMusic.restart();
           else menuMusic.onUnlock();
+          if (mapMusic.playing) mapMusic.restart();
+          else mapMusic.onUnlock();
         };
         actx.addEventListener('statechange', _stateChangeFn);
       }
@@ -2449,6 +2455,464 @@ const menuMusic = (() => {
   };
 })();
 
+// ── World/region map background music — driving march, pushes the run forward ──
+const mapMusicSynthOriginal = (() => {
+  let actx = null, masterGain = null;
+  let playing = false, pending = false, timer = null;
+  let beat = 0, nextBeat = 0;
+
+  const BPM  = 116;
+  const S    = (60 / BPM) / 2;   // 8th-note step
+  const LOOK = 0.25;
+
+  // D natural minor — root/3rd/5th "call to arms" motif, doubled an octave
+  // up for the higher/tinnier second horn that joins in the final bar.
+  const N = {
+    A2:110.00, D3:146.83, F3:174.61, A3:220.00,
+    D4:293.66, F4:349.23, A4:440.00,
+    D5:587.33, F5:698.46, A5:880.00,
+  };
+
+  // Steady march cadence — same kick/snare/bass groove every bar, never lets up.
+  const BASS_STEPS = [N.D3, 0, N.A2, 0, N.D3, 0, N.F3, 0];
+
+  // 32-step (4-bar) arrangement: bar 1 is cadence-only, bar 2 brings in the
+  // brass call, bar 3 answers it under rising tension strings, bar 4 adds the
+  // second horn for the peak, then thins back to cadence to loop seamlessly.
+  const MELODY = new Array(32).fill(0);
+  MELODY[8]  = N.D4; MELODY[11] = N.F4; MELODY[13] = N.A4;
+  MELODY[16] = N.A4; MELODY[18] = N.F4; MELODY[20] = N.D4;
+  MELODY[24] = N.D4; MELODY[26] = N.F4; MELODY[28] = N.A4; MELODY[30] = N.D4;
+  const MELODY_DUR = { 8:3, 11:2, 13:3, 16:2, 18:2, 20:4, 24:2, 26:2, 28:2, 30:2 };
+
+  // Second, higher/tinnier horn — only answers in the final bar
+  const HORN2 = new Array(32).fill(0);
+  HORN2[24] = N.D5; HORN2[26] = N.F5; HORN2[28] = N.A5;
+  const HORN2_DUR = { 24:2, 26:2, 28:2 };
+
+  // Never create a standalone AudioContext — only share the one tdAudio owns.
+  function ac() {
+    const shared = tdAudio.ctx;
+    if (!shared) return null;
+    if (actx !== shared) { actx = shared; masterGain = null; }
+    if (!masterGain) {
+      masterGain = actx.createGain();
+      masterGain.gain.value = tdAudio.muted ? 0 : 0.15;
+      masterGain.connect(actx.destination);
+    }
+    return actx;
+  }
+
+  function schedNote(freq, type, start, dur, vol) {
+    const g = actx.createGain(), o = actx.createOscillator();
+    o.type = type; o.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(vol, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.connect(g); g.connect(masterGain);
+    o.start(start); o.stop(start + dur + 0.01);
+  }
+
+  function schedKick(start) {
+    const g = actx.createGain(), o = actx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(130, start);
+    o.frequency.exponentialRampToValueAtTime(45, start + 0.11);
+    g.gain.setValueAtTime(0.5, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
+    o.connect(g); g.connect(masterGain);
+    o.start(start); o.stop(start + 0.16);
+  }
+
+  function schedSnare(start) {
+    const buf = actx.createBuffer(1, Math.ceil(actx.sampleRate * 0.09), actx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = actx.createBufferSource(), g = actx.createGain();
+    const f = actx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2200;
+    g.gain.setValueAtTime(0.22, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.09);
+    src.buffer = buf; src.connect(f); f.connect(g); g.connect(masterGain);
+    src.start(start); src.stop(start + 0.1);
+  }
+
+  function pump() {
+    if (!playing) return;
+    const c = ac(); if (!c) return;
+    const now = c.currentTime;
+    if (nextBeat < now - 1.0) nextBeat = now + 0.05;
+    while (nextBeat < now + LOOK) {
+      const step = beat % 32, b8 = step % 8, t = nextBeat;
+      try {
+        if (b8 === 0 || b8 === 4) schedKick(t);
+        if (b8 === 2 || b8 === 6) schedSnare(t);
+        if (BASS_STEPS[b8]) schedNote(BASS_STEPS[b8], 'sawtooth', t, S * 1.4, 0.12);
+        if (MELODY[step]) schedNote(MELODY[step], 'square', t, S * MELODY_DUR[step], 0.13);
+        if (HORN2[step])  schedNote(HORN2[step], 'square', t, S * HORN2_DUR[step], 0.075);
+        // rising tension strings — trembling under the brass from bar 3 onward
+        if (step >= 16 && step % 2 === 0) schedNote(step % 4 === 0 ? N.A3 : N.D4, 'triangle', t, S * 0.42, 0.035);
+      } catch(_) {}
+      beat++;
+      nextBeat += S;
+    }
+    timer = setTimeout(pump, 50);
+  }
+
+  function doStart(c) {
+    playing = true; pending = false;
+    beat = 0; nextBeat = c.currentTime + 0.15;
+    pump();
+  }
+
+  return {
+    start() {
+      if (playing) return;
+      const c = ac();
+      if (!c) { pending = true; return; }   // defer until onUnlock()
+      doStart(c);
+    },
+    stop() {
+      playing = false; pending = false;
+      clearTimeout(timer); timer = null;
+    },
+    get playing() { return playing; },
+    onUnlock() {
+      if (!pending) return;
+      const c = ac(); if (!c) return;
+      doStart(c);
+    },
+    restart() {
+      if (!playing) return;
+      clearTimeout(timer); timer = null;
+      const c = ac(); if (!c) return;
+      nextBeat = c.currentTime + 0.05;
+      pump();
+    },
+    setMuted(m) {
+      if (!masterGain || !actx) return;
+      masterGain.gain.setTargetAtTime(m ? 0 : 0.15, actx.currentTime, 0.08);
+    },
+  };
+})();
+
+// ── Music Lab (temporary A/B testing tool — 🎵 button on home screen) ──────
+// Auditions alternate map-theme arrangements against the shipped mapMusic
+// without navigating the map flow each time. Delete this whole section (plus
+// the music-lab-btn markup/listener and showMusicLab/hideMusicLab) once a
+// final theme is picked — it doesn't touch any game logic.
+function createLoopPlayer(cfg) {
+  let actx = null, masterGain = null;
+  let playing = false, pending = false, timer = null;
+  let beat = 0, nextBeat = 0;
+  const S = (60 / cfg.bpm) / 2;
+  const LOOK = 0.25;
+
+  function ac() {
+    const shared = tdAudio.ctx;
+    if (!shared) return null;
+    if (actx !== shared) { actx = shared; masterGain = null; }
+    if (!masterGain) {
+      masterGain = actx.createGain();
+      masterGain.gain.value = tdAudio.muted ? 0 : cfg.gain;
+      masterGain.connect(actx.destination);
+    }
+    return actx;
+  }
+
+  function schedNote(freq, type, start, dur, vol) {
+    const g = actx.createGain(), o = actx.createOscillator();
+    o.type = type; o.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(vol, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.connect(g); g.connect(masterGain);
+    o.start(start); o.stop(start + dur + 0.01);
+  }
+  function schedNoteThick(freq, type, start, dur, vol) {
+    schedNote(freq, type, start, dur, vol);
+    schedNote(freq / 2, type, start, dur, vol * 0.7);
+  }
+  // Generic pitch-swept percussive hit — kick is just the low-and-fast case;
+  // toms reuse this at a higher, gentler-sweeping pitch.
+  function schedThump(freqStart, freqEnd, start, dur, vol) {
+    const g = actx.createGain(), o = actx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freqStart, start);
+    o.frequency.exponentialRampToValueAtTime(freqEnd, start + dur * 0.8);
+    g.gain.setValueAtTime(vol, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.connect(g); g.connect(masterGain);
+    o.start(start); o.stop(start + dur + 0.01);
+  }
+  function schedKick(start) { schedThump(130, 45, start, 0.14, 0.5); }
+  function schedSnare(start, vol, dur) {
+    dur = dur !== undefined ? dur : 0.09;
+    const buf = actx.createBuffer(1, Math.ceil(actx.sampleRate * dur), actx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = actx.createBufferSource(), g = actx.createGain();
+    const f = actx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2200;
+    g.gain.setValueAtTime(vol !== undefined ? vol : 0.22, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    src.buffer = buf; src.connect(f); f.connect(g); g.connect(masterGain);
+    src.start(start); src.stop(start + dur + 0.01);
+  }
+
+  function pump() {
+    if (!playing) return;
+    const c = ac(); if (!c) return;
+    const now = c.currentTime;
+    if (nextBeat < now - 1.0) nextBeat = now + 0.05;
+    while (nextBeat < now + LOOK) {
+      const step = beat % cfg.steps, t = nextBeat;
+      try { cfg.onStep(step, t, { schedNote, schedNoteThick, schedThump, schedKick, schedSnare, S }); } catch(_) {}
+      beat++;
+      nextBeat += S;
+    }
+    timer = setTimeout(pump, 50);
+  }
+
+  function doStart(c) {
+    playing = true; pending = false;
+    beat = 0; nextBeat = c.currentTime + 0.15;
+    pump();
+  }
+
+  return {
+    start() {
+      if (playing) return;
+      const c = ac();
+      if (!c) { pending = true; return; }
+      doStart(c);
+    },
+    stop() {
+      playing = false; pending = false;
+      clearTimeout(timer); timer = null;
+    },
+    get playing() { return playing; },
+    onUnlock() { if (!pending) return; const c = ac(); if (!c) return; doStart(c); },
+    restart() {
+      if (!playing) return;
+      clearTimeout(timer); timer = null;
+      const c = ac(); if (!c) return;
+      nextBeat = c.currentTime + 0.05;
+      pump();
+    },
+    setMuted(m) {
+      if (!masterGain || !actx) return;
+      masterGain.gain.setTargetAtTime(m ? 0 : cfg.gain, actx.currentTime, 0.08);
+    },
+  };
+}
+
+const MAP_NOTES = {
+  A2:110.00, D3:146.83, F3:174.61,
+  D4:293.66, F4:349.23, A4:440.00,
+};
+const MAP_MELODY     = { 0:MAP_NOTES.D4, 3:MAP_NOTES.F4, 5:MAP_NOTES.A4, 8:MAP_NOTES.A4, 11:MAP_NOTES.F4, 13:MAP_NOTES.D4 };
+const MAP_BASS_STEPS = [MAP_NOTES.D3, 0, MAP_NOTES.A2, 0, MAP_NOTES.D3, 0, MAP_NOTES.F3, 0];
+
+// Variant 1 — fixes the "silent intro bar": melody, drone, and a thicker
+// (octave-doubled) mix all present from note one instead of building up.
+const mapMusicDense = createLoopPlayer({
+  bpm: 116, steps: 16, gain: 0.22,
+  onStep(step, t, { schedNote, schedNoteThick, schedKick, schedSnare, S }) {
+    const b8 = step % 8;
+    const dur = { 0:3, 3:2, 5:3, 8:2, 11:2, 13:3 }[step];
+    if (b8 === 0 || b8 === 4) schedKick(t);
+    if (b8 === 2 || b8 === 6) schedSnare(t, 0.24);
+    if (MAP_BASS_STEPS[b8]) schedNote(MAP_BASS_STEPS[b8], 'sawtooth', t, S * 1.6, 0.16);
+    schedNote(MAP_NOTES.A2, 'triangle', t, S * 0.9, 0.05); // constant low tension drone
+    if (MAP_MELODY[step]) schedNoteThick(MAP_MELODY[step], 'square', t, S * dur, 0.2);
+  },
+});
+
+// Variant 2 — isolates rhythm density: kick on every beat (not just 1 & 3)
+// plus a continuous soft shaker, for a galloping rather than half-time feel.
+const mapMusicGallop = createLoopPlayer({
+  bpm: 116, steps: 16, gain: 0.19,
+  onStep(step, t, { schedNote, schedKick, schedSnare, S }) {
+    const b8 = step % 8;
+    const dur = { 0:3, 3:2, 5:3, 8:2, 11:2, 13:3 }[step];
+    if (b8 % 2 === 0) schedKick(t);
+    if (b8 === 2 || b8 === 6) schedSnare(t, 0.22);
+    schedSnare(t, 0.045); // continuous 8th-note shaker
+    if (MAP_BASS_STEPS[b8]) schedNote(MAP_BASS_STEPS[b8], 'sawtooth', t, S * 1.1, 0.13);
+    if (MAP_MELODY[step]) schedNote(MAP_MELODY[step], 'square', t, S * dur, 0.14);
+  },
+});
+
+// Variant 3 — isolates instrument tone: dual saw+square layered melody and a
+// sustained low pedal drone, same rhythm section as the shipped version.
+const mapMusicBrass = createLoopPlayer({
+  bpm: 116, steps: 16, gain: 0.19,
+  onStep(step, t, { schedNote, schedKick, schedSnare, S }) {
+    const b8 = step % 8;
+    const dur = { 0:4, 3:3, 5:4, 8:3, 11:3, 13:4 }[step];
+    if (b8 === 0 || b8 === 4) schedKick(t);
+    if (b8 === 2 || b8 === 6) schedSnare(t, 0.22);
+    if (MAP_BASS_STEPS[b8]) schedNote(MAP_BASS_STEPS[b8], 'sawtooth', t, S * 1.4, 0.12);
+    if (step % 4 === 0) schedNote(MAP_NOTES.D3, 'triangle', t, S * 4.2, 0.06); // low pedal drone
+    if (MAP_MELODY[step]) {
+      schedNote(MAP_MELODY[step], 'sawtooth', t, S * dur, 0.15);
+      schedNote(MAP_MELODY[step], 'square',   t, S * dur, 0.1);
+    }
+  },
+});
+
+// Variant 4 — direct transcription of the uploaded Instrument.mid (program 42,
+// "Cello" — a wavering C4-[E4/D#4/F4]-G4-C5 arpeggio) + Drum_Machine.mid (a
+// 16-step kick/hat/tom groove, no snare). Extracted programmatically from the
+// actual MIDI event bytes, not hand-transcribed — both tracks share the exact
+// same 0.3s step grid, which is why one loop player can drive both at once.
+const MIDI_MELODY = [
+  261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 0
+];
+const MIDI_DRUM_KICK    = [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0];
+const MIDI_DRUM_HAT_CL  = [1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0];
+const MIDI_DRUM_TOM_LO  = [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
+const MIDI_DRUM_HAT_OP  = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0];
+const MIDI_DRUM_TOM_MID = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+const mapMusicMidiImport = createLoopPlayer({
+  // bpm:100 makes an 8th-note step (S) exactly 0.3s — the same grid both MIDI
+  // files were written on, so no time-stretching/quantizing is happening here.
+  bpm: 100, steps: 133, gain: 0.2,
+  onStep(step, t, { schedNote, schedThump, schedKick, schedSnare, S }) {
+    if (MIDI_DRUM_KICK[step])    schedKick(t);
+    if (MIDI_DRUM_TOM_LO[step])  schedThump(160, 90, t, 0.22, 0.32);
+    if (MIDI_DRUM_TOM_MID[step]) schedThump(190, 110, t, 0.2, 0.3);
+    if (MIDI_DRUM_HAT_CL[step])  schedSnare(t, 0.14, 0.045);
+    if (MIDI_DRUM_HAT_OP[step])  schedSnare(t, 0.12, 0.11);
+    if (MIDI_MELODY[step]) schedNote(MIDI_MELODY[step], 'sawtooth', t, S * 0.5, 0.16);
+  },
+});
+
+// Plays back a real audio file on loop instead of scheduling oscillators —
+// used for temp/reference tracks (a BandLab export, etc.) rather than
+// procedurally-generated ones. Shares tdAudio's AudioContext/unlock/mute
+// conventions so it slots into the same start/stop/setMuted interface as
+// every synthesized player above.
+function createAudioFilePlayer(url, gain) {
+  let actx = null, masterGain = null;
+  let buffer = null, loadPromise = null;
+  let source = null, playing = false, pending = false;
+
+  function ac() {
+    const shared = tdAudio.ctx;
+    if (!shared) return null;
+    if (actx !== shared) { actx = shared; masterGain = null; }
+    if (!masterGain) {
+      masterGain = actx.createGain();
+      masterGain.gain.value = tdAudio.muted ? 0 : gain;
+      masterGain.connect(actx.destination);
+    }
+    return actx;
+  }
+
+  function loadBuffer(c) {
+    if (buffer) return Promise.resolve(buffer);
+    if (loadPromise) return loadPromise;
+    loadPromise = fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(ab => c.decodeAudioData(ab))
+      .then(decoded => { buffer = decoded; return buffer; })
+      .catch(err => { loadPromise = null; throw err; });
+    return loadPromise;
+  }
+
+  function doStart(c) {
+    playing = true; pending = false;
+    loadBuffer(c).then(buf => {
+      if (!playing) return; // stopped again before the fetch/decode finished
+      source = c.createBufferSource();
+      source.buffer = buf;
+      source.loop = true;
+      source.connect(masterGain);
+      source.start(0);
+    }).catch(() => { playing = false; });
+  }
+
+  return {
+    start() {
+      if (playing) return;
+      const c = ac();
+      if (!c) { pending = true; return; }
+      doStart(c);
+    },
+    stop() {
+      playing = false; pending = false;
+      if (source) { try { source.stop(); } catch(_) {} source.disconnect(); source = null; }
+    },
+    get playing() { return playing; },
+    onUnlock() { if (!pending) return; const c = ac(); if (!c) return; doStart(c); },
+    // Native buffer playback doesn't drift the way our hand-scheduled
+    // oscillator loops can, so there's no beat clock to realign here.
+    restart() {},
+    setMuted(m) {
+      if (!masterGain || !actx) return;
+      masterGain.gain.setTargetAtTime(m ? 0 : gain, actx.currentTime, 0.08);
+    },
+  };
+}
+
+// Temp placeholder while music design continues — a real BandLab export,
+// not synthesized. Path is relative to index.html, so it resolves the same
+// regardless of which directory the dev server's root is.
+const mapMusic = createAudioFilePlayer('assets/audio/world-map-temp.mp3', 0.5);
+
+const MUSIC_LAB_TRACKS = [
+  { id: 'live',     label: 'Live (WorldMap.m4a)', desc: 'What’s actually playing now — your temp BandLab track, looped.', player: mapMusic },
+  { id: 'synth',    label: 'Original Synth March', desc: 'The first synthesized march (D minor, sparse intro).', player: mapMusicSynthOriginal },
+  { id: 'dense',    label: 'Full Density',      desc: 'No silent intro — melody, drone & thicker mix from note one.', player: mapMusicDense },
+  { id: 'gallop',   label: 'Driving Gallop',    desc: 'Kick on every beat + continuous shaker for a galloping feel.', player: mapMusicGallop },
+  { id: 'midi',     label: 'Your MIDI Import',  desc: 'Real transcription of Instrument.mid + Drum_Machine.mid, adapted to our synth engine.', player: mapMusicMidiImport },
+  { id: 'brass',    label: 'Big Brass',         desc: 'Layered saw+square melody and a sustained low drone underneath.', player: mapMusicBrass },
+];
+
+function showMusicLab() {
+  menuMusic.stop(); // don't let the home theme clash with whatever's auditioning
+  const overlay = document.createElement('div');
+  overlay.className = 'relic-equip-overlay';
+  overlay.id = 'music-lab-overlay';
+  overlay.innerHTML = `
+    <div class="relic-equip-sheet">
+      <div class="relic-equip-header">
+        <span class="relic-equip-title">\u{1F3B5} Music Lab (temp)</span>
+        <button class="relic-equip-close" id="music-lab-close">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.6rem;padding:.2rem 0 1rem">
+        ${MUSIC_LAB_TRACKS.map(tr => `
+          <div style="border:1px solid var(--border);border-radius:var(--radius);padding:.7rem .9rem;display:flex;align-items:center;justify-content:space-between;gap:.7rem">
+            <div>
+              <div style="font-weight:700">${tr.label}</div>
+              <div style="font-size:.8rem;color:var(--text-muted)">${tr.desc}</div>
+            </div>
+            <button class="td-map-btn music-lab-play" data-id="${tr.id}">▶ Play</button>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  function stopAll() { MUSIC_LAB_TRACKS.forEach(tr => tr.player.stop()); }
+
+  overlay.querySelectorAll('.music-lab-play').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tr = MUSIC_LAB_TRACKS.find(x => x.id === btn.dataset.id);
+      const wasPlaying = tr.player.playing;
+      stopAll();
+      overlay.querySelectorAll('.music-lab-play').forEach(b => b.textContent = '▶ Play');
+      if (!wasPlaying) { tr.player.start(); btn.textContent = '⏸ Stop'; }
+    });
+  });
+
+  function close() {
+    stopAll();
+    overlay.remove();
+    if (mode === 'home') menuMusic.start();
+  }
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  document.getElementById('music-lab-close').addEventListener('click', close);
+}
+
 // iOS Safari requires AudioContext creation/resume inside a user gesture.
 // Capture-phase so this fires before any element handler on the very first tap.
 // unlock() returns a Promise that resolves once the context is confirmed running;
@@ -2464,6 +2928,7 @@ function _audioUnlock() {
     if (!ok) return; // creation failed — leave _audioUnlocked false so we retry
     _audioUnlocked = true;
     menuMusic.onUnlock();
+    mapMusic.onUnlock();
     // Remove ourselves once we've succeeded
     ['touchstart', 'touchend', 'click'].forEach(e =>
       document.removeEventListener(e, _audioUnlock, true));
@@ -4076,6 +4541,7 @@ function showMapSelection() {
     td.running = false; td = null;
     tdMusic.stop();
   }
+  menuMusic.stop();
   EL.cardArea.style.display    = 'none';
   EL.bottomBar.style.display   = 'none';
   EL.progressWrap.style.display = 'none';
@@ -4133,7 +4599,7 @@ function _renderMapSelection() {
       </div>
       <div class="map-select-cards">${cardsHtml}</div>
     </div>`;
-  menuMusic.start();
+  mapMusic.start();
   bindTdHeaderActions(showHome);
 
   document.querySelectorAll('.map-card:not([disabled])').forEach(card => {
@@ -4151,6 +4617,8 @@ function showRunMap(run) {
   EL.progressWrap.style.display = 'none';
   EL.completeScreen.classList.remove('show');
   setTopBar('td-world');
+  menuMusic.stop();
+  mapMusic.start();
   // If the user closed the browser mid-battle, any node stuck in 'active'
   // state can never be clicked (pointer-events:none). Reset them here so
   // they're clickable again.
@@ -4745,6 +5213,7 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
     const muted = tdAudio.toggleMute();
     tdMusic.setMuted(muted);
     menuMusic.setMuted(muted);
+    mapMusic.setMuted(muted);
     EL.tdMuteBtn.textContent = muted ? '🔇' : '🔊';
   });
 
@@ -5515,7 +5984,7 @@ function tdStartWave(idx) {
   tdCloseRadialMenu();
   tdUpdateWavePreview();
   tdAudio.waveStart();
-  menuMusic.stop();
+  mapMusic.stop();
   tdMusic.start(); // no-op if already playing
 }
 
