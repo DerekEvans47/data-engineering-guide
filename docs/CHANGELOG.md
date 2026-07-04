@@ -131,6 +131,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
+- Mark EQ-7 done (inventory panel + relic-acquired prompt)
+
 - Nest assets by world; retire legacy deco loader; land frontier-town battle map (#81)
 
 - Reorganize docs into docs/, README leads with the game (#99)
