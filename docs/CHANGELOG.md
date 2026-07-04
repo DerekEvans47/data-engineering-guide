@@ -22,6 +22,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Commit chosen Verdant region world map + file W-7 map-life overlay (#75)
 
+- Fantasy-themed battle-screen HUD chrome (wave/quiz/radial/back buttons)
+
 - Landscape battle map + painted Verdant world map (G-9) (#88)
 
 - Mirror frontier-town for left-to-right flow; 11 slots centered in clearings (#84)
