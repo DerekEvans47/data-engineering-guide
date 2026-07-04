@@ -2630,26 +2630,30 @@ function createLoopPlayer(cfg) {
     schedNote(freq, type, start, dur, vol);
     schedNote(freq / 2, type, start, dur, vol * 0.7);
   }
-  function schedKick(start) {
+  // Generic pitch-swept percussive hit — kick is just the low-and-fast case;
+  // toms reuse this at a higher, gentler-sweeping pitch.
+  function schedThump(freqStart, freqEnd, start, dur, vol) {
     const g = actx.createGain(), o = actx.createOscillator();
     o.type = 'sine';
-    o.frequency.setValueAtTime(130, start);
-    o.frequency.exponentialRampToValueAtTime(45, start + 0.11);
-    g.gain.setValueAtTime(0.5, start);
-    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
+    o.frequency.setValueAtTime(freqStart, start);
+    o.frequency.exponentialRampToValueAtTime(freqEnd, start + dur * 0.8);
+    g.gain.setValueAtTime(vol, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
     o.connect(g); g.connect(masterGain);
-    o.start(start); o.stop(start + 0.16);
+    o.start(start); o.stop(start + dur + 0.01);
   }
-  function schedSnare(start, vol) {
-    const buf = actx.createBuffer(1, Math.ceil(actx.sampleRate * 0.09), actx.sampleRate);
+  function schedKick(start) { schedThump(130, 45, start, 0.14, 0.5); }
+  function schedSnare(start, vol, dur) {
+    dur = dur !== undefined ? dur : 0.09;
+    const buf = actx.createBuffer(1, Math.ceil(actx.sampleRate * dur), actx.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     const src = actx.createBufferSource(), g = actx.createGain();
     const f = actx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2200;
     g.gain.setValueAtTime(vol !== undefined ? vol : 0.22, start);
-    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.09);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
     src.buffer = buf; src.connect(f); f.connect(g); g.connect(masterGain);
-    src.start(start); src.stop(start + 0.1);
+    src.start(start); src.stop(start + dur + 0.01);
   }
 
   function pump() {
@@ -2659,7 +2663,7 @@ function createLoopPlayer(cfg) {
     if (nextBeat < now - 1.0) nextBeat = now + 0.05;
     while (nextBeat < now + LOOK) {
       const step = beat % cfg.steps, t = nextBeat;
-      try { cfg.onStep(step, t, { schedNote, schedNoteThick, schedKick, schedSnare, S }); } catch(_) {}
+      try { cfg.onStep(step, t, { schedNote, schedNoteThick, schedThump, schedKick, schedSnare, S }); } catch(_) {}
       beat++;
       nextBeat += S;
     }
@@ -2754,10 +2758,39 @@ const mapMusicBrass = createLoopPlayer({
   },
 });
 
+// Variant 4 — direct transcription of the uploaded Instrument.mid (program 42,
+// "Cello" — a wavering C4-[E4/D#4/F4]-G4-C5 arpeggio) + Drum_Machine.mid (a
+// 16-step kick/hat/tom groove, no snare). Extracted programmatically from the
+// actual MIDI event bytes, not hand-transcribed — both tracks share the exact
+// same 0.3s step grid, which is why one loop player can drive both at once.
+const MIDI_MELODY = [
+  261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 311.13, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 261.63, 349.23, 392.00, 523.25, 0
+];
+const MIDI_DRUM_KICK    = [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0];
+const MIDI_DRUM_HAT_CL  = [1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0];
+const MIDI_DRUM_TOM_LO  = [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0];
+const MIDI_DRUM_HAT_OP  = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0];
+const MIDI_DRUM_TOM_MID = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+const mapMusicMidiImport = createLoopPlayer({
+  // bpm:100 makes an 8th-note step (S) exactly 0.3s — the same grid both MIDI
+  // files were written on, so no time-stretching/quantizing is happening here.
+  bpm: 100, steps: 133, gain: 0.2,
+  onStep(step, t, { schedNote, schedThump, schedKick, schedSnare, S }) {
+    if (MIDI_DRUM_KICK[step])    schedKick(t);
+    if (MIDI_DRUM_TOM_LO[step])  schedThump(160, 90, t, 0.22, 0.32);
+    if (MIDI_DRUM_TOM_MID[step]) schedThump(190, 110, t, 0.2, 0.3);
+    if (MIDI_DRUM_HAT_CL[step])  schedSnare(t, 0.14, 0.045);
+    if (MIDI_DRUM_HAT_OP[step])  schedSnare(t, 0.12, 0.11);
+    if (MIDI_MELODY[step]) schedNote(MIDI_MELODY[step], 'sawtooth', t, S * 0.5, 0.16);
+  },
+});
+
 const MUSIC_LAB_TRACKS = [
   { id: 'current', label: 'Current (shipped)', desc: 'What’s live now — sparse intro, builds up over 4 bars.', player: mapMusic },
   { id: 'dense',    label: 'Full Density',      desc: 'No silent intro — melody, drone & thicker mix from note one.', player: mapMusicDense },
   { id: 'gallop',   label: 'Driving Gallop',    desc: 'Kick on every beat + continuous shaker for a galloping feel.', player: mapMusicGallop },
+  { id: 'midi',     label: 'Your MIDI Import',  desc: 'Real transcription of Instrument.mid + Drum_Machine.mid, adapted to our synth engine.', player: mapMusicMidiImport },
   { id: 'brass',    label: 'Big Brass',         desc: 'Layered saw+square melody and a sustained low drone underneath.', player: mapMusicBrass },
 ];
 

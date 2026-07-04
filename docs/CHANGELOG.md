@@ -8,6 +8,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Frontier Town bandit roster + Ranger L4 multi-projectile (#102)
 
+- Add Music Lab for A/B testing map-theme candidates
+
 - Author W-1 node spine + life coordinates; backlog alignment pass (#76)
 
 - Author frontier-town battle-map lanes + build slots (G-9 data template) (#82)
