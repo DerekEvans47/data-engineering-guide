@@ -30,6 +30,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Gemini sparkle watermark removal script + map art pipeline docs
 
+- Goblin pilot sprite assets (A-1 done) - walk keyframes + death sequence
+
 - Landscape battle map + painted Verdant world map (G-9) (#88)
 
 - Mirror frontier-town for left-to-right flow; 11 slots centered in clearings (#84)

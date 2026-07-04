@@ -2078,17 +2078,22 @@ html, body {
 }
 .td-wave-btn {
   --tdbtn-accent: 16,185,129;
-  flex: 1;
-  padding: .4rem .5rem;
+  /* Hug content instead of flex:1 — a full-width start bar covered a big
+     band of the battlefield (build slots + town) on landscape phones. */
+  flex: 0 1 auto;
+  margin-left: auto;
+  min-height: 38px;
+  padding: .25rem .7rem;
   color: #A7F3D0;
   flex-direction: column;
   justify-content: center;
-  gap: .1rem;
+  gap: .05rem;
 }
 .td-wave-btn-main {
-  font-size: .85rem;
+  font-size: .78rem;
   font-weight: 700;
   pointer-events: none;
+  white-space: nowrap;
 }
 /* wave preview chips embedded inside the start-wave button */
 .td-wave-btn .td-wave-preview {
