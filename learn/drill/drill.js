@@ -3010,13 +3010,6 @@ const TD_ENEMY_DEFS = {
   shaman: { maxHp:130, spd:1.1, reward:18, color:'#34D399', r:0.30, healer:true, healAmount:25, healInterval:2.0, healRadius:2.2 },
 };
 
-// ── Shop items (cost, effect) ──────────────────────────────────
-const TD_SHOP_ITEMS = [
-  { id:'extra_lives',  label:'+3 Lives',       icon:'❤️',  cost:80,  effect:'lives+3' },
-  { id:'gold_cache',   label:'+50 Gold',        icon:'🪙',  cost:60,  effect:'gold+50' },
-  { id:'rest_charge',  label:'Rest Next Battle',icon:'🔥',  cost:50,  effect:'rest_lives+2' },
-  { id:'gold_boost',   label:'+100 Gold Next',  icon:'💰',  cost:90,  effect:'rest_gold+100' },
-];
 
 // ── Power-up definitions (cost, scope, effect) ────────────────
 const TD_POWER_UPS = {
@@ -3038,6 +3031,24 @@ const TD_RELICS = [
   { id:'iron_constitution', name:'Iron Constitution', icon:'❤️', category:'lives',      rarity:'rare',     upkeep:15, desc:'+5 max lives per node', effect:{ type:'max-lives-add',  value:5    } },
 ];
 const TD_RELIC_CATEGORIES = { gold:'Gold', damage:'Damage', 'start-gold':'Start Gold', lives:'Lives' };
+
+// ── Store node (EQ-6) — relic pricing/odds by rarity ──────────
+const TD_RELIC_RARITY_COST   = { common:120, uncommon:180, rare:250, legendary:400 };
+const TD_RELIC_RARITY_WEIGHT = { common:0.40, uncommon:0.35, rare:0.20, legendary:0.05 };
+
+// Weighted-random pick from a relic pool, honoring TD_RELIC_RARITY_WEIGHT.
+// Falls back to a plain uniform pick if the pool's rarities happen to sum
+// to zero weight (shouldn't happen with the four known rarity tiers).
+function tdPickWeightedRelic(pool) {
+  const total = pool.reduce((sum, r) => sum + (TD_RELIC_RARITY_WEIGHT[r.rarity] || 0), 0);
+  if (total <= 0) return pool[Math.floor(Math.random() * pool.length)];
+  let roll = Math.random() * total;
+  for (const r of pool) {
+    roll -= (TD_RELIC_RARITY_WEIGHT[r.rarity] || 0);
+    if (roll <= 0) return r;
+  }
+  return pool[pool.length - 1];
+}
 
 // ╔══════════════════════════════════════════════════════════════
 //  TD CONTENT DATA — maps, sprites, events (not tuning targets)
@@ -4838,44 +4849,94 @@ function showInterNodePanel(node, run) {
     });
 
   } else if (node.type === 'shop') {
-    const currentGold = gold;
-    const itemsHtml = TD_SHOP_ITEMS.map(item => `
-      <div class="tdcp-shop-item${currentGold < item.cost ? ' cannot-afford' : ''}" data-item="${item.id}">
-        <span class="tdcp-shop-icon">${item.icon}</span>
-        <span class="tdcp-shop-label">${item.label}</span>
-        <span class="tdcp-shop-cost">🪙${item.cost}</span>
-      </div>`).join('');
-    panel.innerHTML = `
-      <div class="tdcp-panel">
-        <div class="tdcp-header">
-          <div class="tdcp-icon">${meta.icon}</div>
-          <div class="tdcp-title-wrap">
-            <div class="tdcp-name">Shop</div>
-            <div class="tdcp-act">Your gold: 🪙${currentGold}</div>
-          </div>
-        </div>
-        <div class="tdcp-shop-grid">${itemsHtml}</div>
-        <div class="tdcp-actions">
-          <button class="tdcp-btn-back">← Back</button>
-          <button class="tdcp-btn-play tdcp-btn-leave">Leave Shop</button>
-        </div>
-      </div>`;
-    panel.querySelector('.tdcp-btn-back').addEventListener('click', () => panel.remove());
-    panel.querySelector('.tdcp-btn-leave').addEventListener('click', finishNode);
-    panel.querySelectorAll('.tdcp-shop-item:not(.cannot-afford)').forEach(el => {
-      el.addEventListener('click', () => {
-        const item = TD_SHOP_ITEMS.find(i => i.id === el.dataset.item);
-        if (!item || gold < item.cost) return;
-        spendGold(item.cost);
-        const absVal = parseInt(item.effect.replace(/[^0-9]/g,''));
-        const eff    = item.effect.split('+')[0].split('-')[0];
-        if      (eff === 'lives')      { const c = tdLoadRestBonus(); tdSaveRestBonus({type:'lives', value:((c&&c.type==='lives')?c.value:0)+absVal}); }
-        else if (eff === 'gold')       { earnGold(absVal); }
-        else if (eff === 'rest_lives') { const c = tdLoadRestBonus(); tdSaveRestBonus({type:'lives', value:((c&&c.type==='lives')?c.value:0)+absVal}); }
-        else if (eff === 'rest_gold')  { const c = tdLoadRestBonus(); tdSaveRestBonus({type:'gold',  value:((c&&c.type==='gold') ?c.value:0)+absVal}); }
-        finishNode();
-      });
+    // EQ-6: 3 random power-up offers + 1 rarity-weighted relic offer, spent
+    // against the run's carry-over gold (not the permanent meta `gold`).
+    // Offers are rolled once per visit and held in closure — re-render()
+    // only rebuilds the DOM/listeners after a purchase, it never re-rolls.
+    const puOffers = Array.from({ length: 3 }, () => {
+      const pool = Object.values(TD_POWER_UPS);
+      return pool[Math.floor(Math.random() * pool.length)];
     });
+    let relicOffer  = null;
+    const relicPool = TD_RELICS.filter(r => !tdOwnedRelics.has(r.id));
+    if (relicPool.length) relicOffer = tdPickWeightedRelic(relicPool);
+    let relicSold = false;
+
+    function render() {
+      const carryGold = (run.stats && run.stats.carryGold) || 0;
+      const puFull = run.powerUps.length >= 3;
+      const puHtml = puOffers.map((pu, i) => {
+        const disabled = puFull || carryGold < pu.cost;
+        return `
+        <div class="tdcp-shop-item${disabled ? ' cannot-afford' : ''}" data-kind="powerup" data-idx="${i}">
+          <span class="tdcp-shop-icon">${pu.icon}</span>
+          <div class="tdcp-shop-text">
+            <span class="tdcp-shop-label">${pu.name}</span>
+            <span class="tdcp-shop-sub">${puFull ? 'Inventory full (3/3)' : pu.scope === 'wave' ? 'Lasts one wave' : 'Lasts this node'}</span>
+          </div>
+          <span class="tdcp-shop-cost">🪙${pu.cost}</span>
+        </div>`;
+      }).join('');
+      const relicCost = relicOffer ? TD_RELIC_RARITY_COST[relicOffer.rarity] : 0;
+      const relicHtml = !relicOffer ? `
+        <div class="tdcp-shop-item tdcp-shop-relic cannot-afford">
+          <span class="tdcp-shop-icon">🏺</span>
+          <div class="tdcp-shop-text">
+            <span class="tdcp-shop-label">All Relics Owned</span>
+            <span class="tdcp-shop-sub">Nothing left to offer right now</span>
+          </div>
+        </div>` : `
+        <div class="tdcp-shop-item tdcp-shop-relic${(relicSold || carryGold < relicCost) ? ' cannot-afford' : ''}" data-kind="relic">
+          <span class="tdcp-shop-icon">${relicOffer.icon}</span>
+          <div class="tdcp-shop-text">
+            <span class="tdcp-shop-label">${relicOffer.name}</span>
+            <span class="tdcp-shop-sub">${relicSold ? 'Sold' : `${relicOffer.rarity} · ${TD_RELIC_CATEGORIES[relicOffer.category] || relicOffer.category}`}</span>
+          </div>
+          <span class="tdcp-shop-cost">🪙${relicCost}</span>
+        </div>`;
+
+      panel.innerHTML = `
+        <div class="tdcp-panel">
+          <div class="tdcp-header">
+            <div class="tdcp-icon">${meta.icon}</div>
+            <div class="tdcp-title-wrap">
+              <div class="tdcp-name">Shop</div>
+              <div class="tdcp-act">Carry-over gold: 🪙${carryGold}</div>
+            </div>
+          </div>
+          <div class="tdcp-shop-grid">${puHtml}${relicHtml}</div>
+          <div class="tdcp-actions">
+            <button class="tdcp-btn-back">← Back</button>
+            <button class="tdcp-btn-play tdcp-btn-leave">Leave Shop</button>
+          </div>
+        </div>`;
+
+      panel.querySelector('.tdcp-btn-back').addEventListener('click', () => panel.remove());
+      panel.querySelector('.tdcp-btn-leave').addEventListener('click', finishNode);
+      panel.querySelectorAll('.tdcp-shop-item[data-kind="powerup"]:not(.cannot-afford)').forEach(el => {
+        el.addEventListener('click', () => {
+          const pu = puOffers[parseInt(el.dataset.idx)];
+          if (!pu || run.powerUps.length >= 3 || (run.stats.carryGold || 0) < pu.cost) return;
+          run.stats.carryGold -= pu.cost;
+          run.powerUps.push(pu.id);
+          tdSaveRun(run);
+          render();
+        });
+      });
+      const relicEl = panel.querySelector('.tdcp-shop-item[data-kind="relic"]:not(.cannot-afford)');
+      if (relicEl) {
+        relicEl.addEventListener('click', () => {
+          if (!relicOffer || relicSold || (run.stats.carryGold || 0) < relicCost) return;
+          run.stats.carryGold -= relicCost;
+          tdSaveRun(run);
+          tdOwnedRelics.add(relicOffer.id);
+          saveGameState();
+          relicSold = true;
+          render();
+        });
+      }
+    }
+    render();
 
   } else if (node.type === 'event') {
     const ev = TD_EVENTS[Math.floor(Math.random() * TD_EVENTS.length)];
