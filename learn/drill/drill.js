@@ -916,6 +916,24 @@ function showHome() {
     showTutorial(() => {});
   });
   document.getElementById('home-stat-xp').addEventListener('click', openProfile);
+  // Force-update escape hatch: tapping the version badge nukes the service
+  // worker + every cache and reloads from the network. For the "my bookmark
+  // is stuck on an old version" case where the normal SW update cycle
+  // (two reloads) doesn't kick in.
+  document.getElementById('home-version').addEventListener('click', async () => {
+    if (!confirm(`You're on v${APP_VERSION}. Force-update? This clears the offline cache and reloads the latest version from the network.`)) return;
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if (typeof caches !== 'undefined') {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch (_) { /* still reload — a plain reload is better than nothing */ }
+    location.reload();
+  });
   document.getElementById('home-theme-btn').addEventListener('click', toggleTheme);
   document.getElementById('music-lab-btn').addEventListener('click', showMusicLab);
   menuMusic.start();
@@ -5237,6 +5255,44 @@ function showTutorial(onClose) {
 }
 
 // ── Game screen ────────────────────────────────────────────────
+
+// Re-fit the battle canvas when the viewport changes mid-battle (rotating
+// the phone, browser chrome collapsing). initTDGame sizes the canvas ONCE,
+// so without this a battle entered in portrait keeps a portrait-width canvas
+// after rotating to landscape — a tiny map floating in black space. All
+// live pixel-space state (enemies, projectiles, particles, corpses, damage
+// numbers) is rescaled by the cell-size ratio; towers/slots/waypoints are
+// stored in grid units and need nothing.
+function tdRefitCanvas() {
+  if (!td || !td.canvas) return;
+  const wrap = document.getElementById('td-canvas-wrap');
+  if (!wrap) return;
+  const W = wrap.clientWidth || window.innerWidth;
+  const H = wrap.clientHeight || 0;
+  const cellByW = Math.floor(W / TD_COLS);
+  const cellByH = H > 0 ? Math.floor(H / TD_ROWS) : cellByW;
+  const newCs = Math.min(cellByW, cellByH);
+  if (!newCs || newCs < 4 || newCs === td.cellSize) return;
+  const k = newCs / td.cellSize;
+  td.cellSize = newCs;
+  td.canvas.width  = newCs * TD_COLS;
+  td.canvas.height = newCs * TD_ROWS;
+  td.canvas.style.width  = td.canvas.width  + 'px';
+  td.canvas.style.height = td.canvas.height + 'px';
+  for (const e of td.enemies) { e.x *= k; e.y *= k; if (e._px !== undefined) e._px *= k; }
+  for (const p of td.projectiles) {
+    p.x *= k; p.y *= k; p.spd *= k; p.splash *= k;
+    if (p.px !== undefined) { p.px *= k; p.py *= k; }
+  }
+  for (const p of td.particles) { p.x *= k; p.y *= k; p.vx *= k; p.vy *= k; p.r *= k; }
+  for (const n of td.damageNumbers) { n.x *= k; n.y *= k; }
+  for (const c of td.corpses) { c.x *= k; c.footY *= k; }
+}
+let _tdResizeTimer = null;
+['resize', 'orientationchange'].forEach(ev => window.addEventListener(ev, () => {
+  clearTimeout(_tdResizeTimer);
+  _tdResizeTimer = setTimeout(tdRefitCanvas, 200);
+}));
 
 function showTowerDefenseScreen(levelDef, nodeId, run) {
   const levelIdx = typeof nodeId === 'number' ? nodeId : -1; // compat
