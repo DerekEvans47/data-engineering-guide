@@ -143,6 +143,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Mark EQ-7 done (inventory panel + relic-acquired prompt)
 
+- Master battle-map prompt + unique prompts for all 14 Verdant levels
+
 - Nest assets by world; retire legacy deco loader; land frontier-town battle map (#81)
 
 - Reorganize docs into docs/, README leads with the game (#99)

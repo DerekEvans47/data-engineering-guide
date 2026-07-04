@@ -236,6 +236,26 @@ A cohesive system covering gold carry-over between nodes, power-ups (short-lived
 
 ---
 
+## A — Painted Unit Art (enemy/troop sprites via Nano)
+
+Replacing the procedural `TD_SPRITES` pixel frames with painted sprites in the
+battle-map art style. Generation items are **user + Nano** (like G-9's art);
+engine items are code. Follow the Asset Generation Notes below for every
+sheet: solid magenta `#FF00FF` background + closed silhouette outline, and
+attach the style reference image. Consistent rules for ALL unit sheets:
+same 3/4 side-view camera as the buildings/towers, fixed frame cell size,
+feet on a consistent baseline row in every frame (the engine anchors sprites
+by feet), one animation per sheet row.
+
+| ID  | Title | Effort | Priority | Status | Dependencies | Notes |
+|-----|-------|--------|----------|--------|--------------|-------|
+| A-1 | Enemy sheet template + goblin pilot | 20 | P1 | TODO | — | **User + Nano.** Define the reusable sheet spec and prove it end-to-end with one enemy (goblin): side-view facing RIGHT, walk cycle 6 frames (row 1), death 4 frames (row 2), fixed cell (e.g. 128×128), magenta bg, closed outline, feet baseline constant across frames. Scale anchor: enemy height ≈ 60–70% of a tower's base width so units read smaller than towers. No left-facing frames — the engine mirrors. Validate: chroma-key removal clean, frames align when flipped through as a strip. The template prompt gets documented in docs/MAP_PROMPTS_VERDANT.md style once proven. |
+| A-2 | Verdant enemy roster sheets | 35 | P1 | TODO | A-1 | **User + Nano.** Apply the A-1 template to the rest of the roster: orc, raider (fast), brute (armored), wisp (flying — needs hover bob in walk row instead of steps, no ground shadow baked in), shaman (healer — add a 4-frame cast row), boss (bigger cell, e.g. 192×192). One sheet per enemy, one PR per batch so a bad generation doesn't block the rest. "Running" needs no extra frames — speed is conveyed by playback rate (raider plays its walk cycle faster). |
+| A-3 | Engine: painted-enemy animation renderer | 30 | P1 | TODO | A-1 | Code item. Sprite-sheet loader (reuse the tower tiers loader pattern), per-enemy state machine (walk loop, death one-shot), feet-anchored `drawImage`, horizontal mirror when moving left, playback rate scaled by enemy speed. Keep V-19's type-specific death particles layered on top of the death frames. Fall back to procedural `TD_SPRITES` for any enemy without a painted sheet so the roster can migrate incrementally. |
+| A-4 | Combat animations (attack frames + friendly troops) | 40 | P2 | TODO | G-10, A-1 | **User + Nano** for the art, code for the hookup. Only needed when G-10 barracks lands: per-enemy attack row (4 frames) + a full friendly soldier sheet (idle/walk/attack/death). Do not generate these early — G-10's design decisions (block vs speed-bump, troop count) determine what states are actually needed. |
+
+---
+
 ## Asset Generation Notes — preventing another V-34/V-35
 
 **Root cause of V-34/V-35:** the image generator used for `deco-*.png` can't emit real
