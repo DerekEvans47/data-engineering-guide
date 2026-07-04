@@ -986,6 +986,7 @@ function switchTab(newMode) {
   if (td && td.running) { cancelAnimationFrame(td.animFrame); td.running = false; td = null; tdMusic.stop(); }
   menuMusic.stop();
   mapMusic.stop();
+  battleMusicHorn.stop();
 
   mode = newMode; dailyActive = false; studyPart = null;
   answered = false; sessionCorrect = 0; sessionTotal = 0; sessionXpEarned = 0;
@@ -3603,6 +3604,29 @@ const TD_TOWER_TIER_IMAGES = {
   },
 };
 
+// Painted enemy animation sheets (A-3) — walk is 2 keyframes played
+// A-B-A-B with the playback rate following enemy speed (the A-1 pilot
+// established Nano tops out at 2 distinct keyframes per generation);
+// death is a 4-pose sequence rendered as a corpse effect after the enemy
+// leaves play, so game logic (targeting, leaks, rewards) never sees a
+// "dying" state. Enemy types absent from this map fall back to the
+// procedural TD_SPRITES frames in tdRenderEnemies, same pattern as
+// TD_TOWER_TIER_IMAGES — the roster migrates one enemy at a time.
+function tdLoadEnemySheet(src, frames) {
+  const img = new Image();
+  img.src = src;
+  return { img, frames };
+}
+const TD_ENEMY_SHEET_IMAGES = {
+  goblin: {
+    walk:  tdLoadEnemySheet('assets/enemies/goblin-walk.png', 2),
+    death: tdLoadEnemySheet('assets/enemies/goblin-death.png', 4),
+  },
+};
+function tdEnemySheetReady(sheet, anim) {
+  return sheet && sheet[anim] && sheet[anim].img.complete && sheet[anim].img.naturalWidth > 0;
+}
+
 // Bespoke 3-wave composition for Frontier Town: bandits on foot, escalating
 // to faster bandit riders, closing with a single bandit boss. Kept separate
 // from the generic generateWaves (goblins/orcs/trolls/etc.) since that
@@ -3612,7 +3636,9 @@ const TD_TOWER_TIER_IMAGES = {
 // reusing one generic enemy pool everywhere.
 function frontierTownWaves(rng) {
   return [
-    [['bandit', 6 + Math.floor(rng() * 3), 0.9]],
+    // Wave 1 is all goblins (the one enemy with painted A-3 art) so the
+    // sprite work can be play-tested in isolation; waves 2-3 stay bandits.
+    [['goblin', 6 + Math.floor(rng() * 3), 0.9]],
     [['bandit', 5 + Math.floor(rng() * 3), 0.8], ['bandit_rider', 3 + Math.floor(rng() * 2), 1.1]],
     [['bandit', 4 + Math.floor(rng() * 3), 0.8], ['bandit_rider', 3 + Math.floor(rng() * 2), 1.0], ['bandit_boss', 1, 2.0]],
   ];
@@ -4701,6 +4727,7 @@ function showRunMap(run) {
   EL.completeScreen.classList.remove('show');
   setTopBar('td-world');
   menuMusic.stop();
+  battleMusicHorn.stop();
   mapMusic.start();
   // If the user closed the browser mid-battle, any node stuck in 'active'
   // state can never be clicked (pointer-events:none). Reset them here so
@@ -4710,7 +4737,7 @@ function showRunMap(run) {
   if (run.usesRegionMap) renderVerdantWorldMap(run); else renderRunMap(run);
 }
 
-function showTDWorldMap() { showMapSelection(); }
+function showTDWorldMap() { battleMusicHorn.stop(); showMapSelection(); }
 
 // ── Relic equip menu (EQ-4) ──────────────────────────────────────
 // Reachable from the run map / map select top bar. Category exclusivity is
@@ -5210,6 +5237,7 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
   const levelIdx = typeof nodeId === 'number' ? nodeId : -1; // compat
   if (td && td.running) { cancelAnimationFrame(td.animFrame); td.running = false; }
   mapMusic.stop();
+  battleMusicHorn.start(); // battle theme — battle screens only, loops
 
   // Apply and clear any pending rest bonus
   const restBonus = tdLoadRestBonus();
@@ -5528,7 +5556,7 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
     canvas:null, ctx:null, cellSize:40,
     lives: initialLives, gold: initialGold, maxLives: initialLives,
     waveIdx:-1, spawnQueue:[], spawnTimer:0, waveActive:false,
-    enemies:[], towers:[], projectiles:[], particles:[], damageNumbers:[],
+    enemies:[], towers:[], projectiles:[], particles:[], corpses:[], damageNumbers:[],
     radialMenu:null, eid:0,
     quizOpen:false, quizQ:null, quizAnswered:false, quizDone:null, quizOptional:false,
     tapCol:-1, tapRow:-1,
@@ -5612,6 +5640,13 @@ function tdUpdate(dt) {
 
   const died = td.enemies.filter(e => e.hp <= 0);
   for (const e of died) {
+    // Painted death sequence (A-3): purely a render-layer corpse effect —
+    // the enemy is removed from play immediately, so nothing downstream
+    // (targeting, leak counting, wave clears) knows corpses exist.
+    if (tdEnemySheetReady(TD_ENEMY_SHEET_IMAGES[e.type], 'death')) {
+      td.corpses.push({ type: e.type, x: e.x, footY: e.y + e.r * td.cellSize * 0.78,
+        r: e.r, faceLeft: !!e._faceLeft, t: 0 });
+    }
     const killReward = Math.round(e.reward * (td.powerUpMods?.killGoldMult || 1) * (td.relicMods?.killGoldMult || 1));
     td.gold += killReward;
     td.damageNumbers.push({ x: e.x + 8, y: e.y - e.r * td.cellSize - 10, label: '+' + killReward + '🪙', life: 0.85, maxLife: 0.85, color: '#FBBF24' });
@@ -5682,6 +5717,9 @@ function tdUpdate(dt) {
 
   td.particles = td.particles.filter(p => {
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; return p.life > 0;
+  });
+  td.corpses = td.corpses.filter(c => {
+    c.t += dt; return c.t < 1.5;
   });
 
   td.damageNumbers = td.damageNumbers.filter(n => {
@@ -6953,6 +6991,25 @@ function tdRenderTowers(ctx, cs, bgT) {
   }
 }
 
+// Corpse death sequences (A-3): 4 painted frames over ~0.55s, hold the
+// final lying pose, then fade. Drawn under living enemies.
+function tdRenderCorpses(ctx, cs) {
+  for (const c of td.corpses) {
+    const sheet = TD_ENEMY_SHEET_IMAGES[c.type];
+    if (!tdEnemySheetReady(sheet, 'death')) continue;
+    const img = sheet.death.img;
+    const fw = img.naturalWidth / sheet.death.frames, fh = img.naturalHeight;
+    const h = c.r * cs * 3.2, w = h * fw / fh;
+    const fr = Math.min(sheet.death.frames - 1, Math.floor(c.t / 0.14));
+    const alpha = c.t < 0.9 ? 1 : Math.max(0, 1 - (c.t - 0.9) / 0.6);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (c.faceLeft) { ctx.translate(c.x, 0); ctx.scale(-1, 1); ctx.translate(-c.x, 0); }
+    ctx.drawImage(img, fr * fw, 0, fw, fh, c.x - w / 2, c.footY - h, w, h);
+    ctx.restore();
+  }
+}
+
 function tdRenderEnemies(ctx, cs, bgT) {
   const sorted = [...td.enemies].sort((a,b) => b.dist - a.dist);
   for (const e of sorted) {
@@ -6972,16 +7029,42 @@ function tdRenderEnemies(ctx, cs, bgT) {
     // shadow
     ctx.beginPath(); ctx.ellipse(e.x, e.y + r*.65, r*.75, r*.25, 0, 0, Math.PI*2);
     ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fill();
-    // tinted backing circle
-    ctx.beginPath(); ctx.arc(e.x, e.y, r, 0, Math.PI*2);
-    ctx.fillStyle = e.color + '40'; ctx.fill();
-    ctx.strokeStyle = e.color; ctx.lineWidth = e.isBoss ? 3 : 1.5; ctx.stroke();
-    // pixel-art sprite
-    const eSpr = TD_SPRITES[e.type];
-    if (eSpr) {
-      const ePs  = Math.max(2, Math.floor(e.r * cs * 2.2 / eSpr.ph));
-      const eFr  = Math.floor((bgT * 7 + (e.animOffset || 0)) % 2);
-      tdDrawSprite(ctx, eSpr.frames, eFr, eSpr.pal, e.x, e.y, ePs);
+    // Painted animation sheet (A-3) if this enemy type has one; otherwise
+    // the original tinted-circle + procedural pixel sprite fallback.
+    const eSheet = TD_ENEMY_SHEET_IMAGES[e.type];
+    let paintedTopY = null;
+    if (tdEnemySheetReady(eSheet, 'walk')) {
+      // facing: mirror when actually moving left (vertical jogs keep the
+      // last horizontal facing)
+      if (e._px !== undefined) {
+        const dx = e.x - e._px;
+        if (dx < -0.5) e._faceLeft = true;
+        else if (dx > 0.5) e._faceLeft = false;
+      }
+      e._px = e.x;
+      const wImg = eSheet.walk.img;
+      const fw = wImg.naturalWidth / eSheet.walk.frames, fh = wImg.naturalHeight;
+      const eh = e.r * cs * 3.2, ew = eh * fw / fh;
+      // A-B-A-B playback, cadence scaled by the enemy's speed stat
+      const fr = Math.floor(bgT * 3.2 * (e.spd || 1.5) + (e.animOffset || 0)) % eSheet.walk.frames;
+      const footY = e.y + r * 0.78;
+      paintedTopY = footY - eh;
+      ctx.save();
+      if (e._faceLeft) { ctx.translate(e.x, 0); ctx.scale(-1, 1); ctx.translate(-e.x, 0); }
+      ctx.drawImage(wImg, fr * fw, 0, fw, fh, e.x - ew / 2, footY - eh, ew, eh);
+      ctx.restore();
+    } else {
+      // tinted backing circle
+      ctx.beginPath(); ctx.arc(e.x, e.y, r, 0, Math.PI*2);
+      ctx.fillStyle = e.color + '40'; ctx.fill();
+      ctx.strokeStyle = e.color; ctx.lineWidth = e.isBoss ? 3 : 1.5; ctx.stroke();
+      // pixel-art sprite
+      const eSpr = TD_SPRITES[e.type];
+      if (eSpr) {
+        const ePs  = Math.max(2, Math.floor(e.r * cs * 2.2 / eSpr.ph));
+        const eFr  = Math.floor((bgT * 7 + (e.animOffset || 0)) % 2);
+        tdDrawSprite(ctx, eSpr.frames, eFr, eSpr.pal, e.x, e.y, ePs);
+      }
     }
     // hit flash overlay
     if ((e.hitFlash || 0) > 0) {
@@ -7000,9 +7083,12 @@ function tdRenderEnemies(ctx, cs, bgT) {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(e.armored ? '🛡️' : e.flying ? '🕊️' : '➕', e.x, e.y - r - cs * 0.28);
     }
-    // HP bar (wider for bosses)
+    // HP bar (wider for bosses); painted sprites are taller than the old
+    // backing circle, so the bar rides above the sprite's actual top
     const bw = e.isBoss ? r*3.6 : r*2.4, bh = Math.max(e.isBoss ? 5 : 3, cs*.09);
-    const bx = e.x - bw/2, by = e.y - r - bh - (e.isBoss ? cs*0.55 : 3);
+    const bx = e.x - bw/2;
+    const by = paintedTopY !== null ? paintedTopY - bh - 3
+             : e.y - r - bh - (e.isBoss ? cs*0.55 : 3);
     const hpFrac = Math.max(0, e.hp / e.maxHp);
     ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(bx, by, bw, bh);
     ctx.fillStyle = hpFrac > .5 ? '#4ADE80' : hpFrac > .25 ? '#FBBF24' : '#EF4444';
@@ -7149,6 +7235,7 @@ function tdRender() {
   }
   tdRenderPlacementUI(ctx, cs, bgT);
   tdRenderTowers(ctx, cs, bgT);
+  tdRenderCorpses(ctx, cs);
   tdRenderEnemies(ctx, cs, bgT);
   tdRenderProjectiles(ctx, cs);
   tdRenderParticles(ctx);
