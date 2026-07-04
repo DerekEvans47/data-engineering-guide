@@ -1813,8 +1813,13 @@ html, body {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: min(100%, 1100px);
-  max-width: 1100px;
+  /* Was capped at 1100px — wasted ~20% of the screen as empty side margins
+     on wider landscape viewports (iPad Pro landscape and similar), exactly
+     where the region/battle maps most need the real estate. 1100px still
+     covers portrait phones fine (well under their width); this only opens
+     up headroom for landscape. */
+  width: min(100%, 1700px);
+  max-width: 1700px;
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
   display: flex;
   flex-direction: column;
@@ -2652,12 +2657,20 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* No max-width here — the outer #app[data-mode="tower"] cap (1700px) is
+     the only bound now. This used to also cap at 1040px, which bottlenecked
+     the map width independently of the outer cap on wide landscape screens. */
   width: 100%;
-  max-width: 1040px;
   margin: 0 auto;
   padding-bottom: .75rem;
   flex: 1;
   min-height: 0;
+  /* Top-align, not center: the floating header overlays the wrap's top
+     edge, so on width-constrained aspect ratios (leftover vertical space)
+     the map's own top edge needs to stay flush with it — centering left a
+     gap between the header and the map, with any unavoidable letterboxing
+     pushed to the bottom only instead of split top+bottom. */
+  justify-content: flex-start;
 }
 /* Floats over the map art itself (same fading-scrim treatment as the TD
    battle HUD) instead of a separate boxed bar stacked above the map —
@@ -2718,9 +2731,14 @@ html, body {
   cursor: pointer;
 }
 #rvm-svg {
-  width: 100%;
-  flex: 1;
-  min-height: 0;
+  /* width/height are set explicitly in px by JS right after render (see
+     renderVerdantWorldMap), the same fit-to-container pattern initTDGame
+     already uses for the battle canvas (Math.min of width-derived and
+     height-derived scale) — CSS-only aspect-ratio doesn't work here since
+     nothing forces one of width/height to stay "auto" for it to compute
+     from; these are just sane pre-JS/fallback values. */
+  display: block;
+  margin: 0 auto;
   border-radius: 10px;
   background: #0a0f08;
 }

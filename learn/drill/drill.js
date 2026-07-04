@@ -4560,6 +4560,15 @@ function renderVerdantWorldMap(run) {
     </div>`;
   bindTdHeaderActions(showHome);
 
+  // Fit the map to whichever dimension of the wrap is tighter, same
+  // Math.min(scaleByW, scaleByH) pattern initTDGame uses for the battle
+  // canvas — CSS aspect-ratio can't do this alone (see #rvm-svg comment).
+  const rvmWrap = document.getElementById('rvm-wrap');
+  const rvmSvg  = document.getElementById('rvm-svg');
+  const scale = Math.min(rvmWrap.clientWidth / VW, rvmWrap.clientHeight / VH);
+  rvmSvg.style.width  = (VW * scale) + 'px';
+  rvmSvg.style.height = (VH * scale) + 'px';
+
   document.querySelectorAll('.rvm-node[data-id]').forEach(g => {
     const node = run.nodes.find(n => n.id === g.dataset.id);
     if (!node || (node.state !== 'available' && node.state !== 'active')) return;
@@ -5312,7 +5321,11 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   EL.tdWavePreview  = document.getElementById('td-wave-preview');
   EL.tdPowerUpTray  = document.getElementById('td-powerup-tray');
 
-  const W = Math.min(wrap.clientWidth || window.innerWidth, 1100);
+  // No hardcoded width cap here — the wrap's actual size (bounded by the
+  // outer #app[data-mode="tower"] max-width) is the real ceiling. This used
+  // to additionally cap at 1100, which bottlenecked the battle canvas on
+  // wide landscape screens the same way the region map was bottlenecked.
+  const W = wrap.clientWidth || window.innerWidth;
   const H = wrap.clientHeight || 0;
   const cellByW = Math.floor(W / TD_COLS);
   const cellByH = H > 0 ? Math.floor(H / TD_ROWS) : cellByW;
