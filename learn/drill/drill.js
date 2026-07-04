@@ -3651,6 +3651,11 @@ function frontierTownLevelDef() {
   return {
     name: 'Frontier Town', act: mapDef.name, icon: '🏘️', color: mapDef.color,
     enemyMult: 1.0,
+    // The painted road is a straight ~20-cell west→east run — much shorter
+    // than the old map's ~30-cell winding path — so enemies at stock speed
+    // crossed in ~12s and were "almost dead on entry". Slow the whole map:
+    // tutorial level, crossing time back to ~20s.
+    enemySpeedMult: 0.6,
     // TEMP (testing, intentionally kept high): bumped from 160 so every tower,
     // enemy, animation, and other first-map item can be freely placed/tested
     // without a gold grind. Revert to 160 once the first map's content is
@@ -5756,7 +5761,7 @@ function tdSpawnEnemy(type) {
   td.enemies.push({
     id: td.eid++, type,
     hp: def.maxHp * mult, maxHp: def.maxHp * mult,
-    spd: def.spd * (td.powerUpMods?.enemySpeedMult || 1), color: def.color, r: def.r, reward: def.reward,
+    spd: def.spd * (td.levelDef.enemySpeedMult || 1) * (td.powerUpMods?.enemySpeedMult || 1), color: def.color, r: def.r, reward: def.reward,
     isBoss: def.isBoss || false, lifeLoss: (def.lifeLoss || 1) * (td.modifiers?.ironman ? 2 : 1),
     armored: def.armored || false, flying: def.flying || false, healer: def.healer || false,
     healAmount: def.healAmount || 0, healInterval: def.healInterval || 0, healRadius: def.healRadius || 0,
@@ -6999,7 +7004,7 @@ function tdRenderCorpses(ctx, cs) {
     if (!tdEnemySheetReady(sheet, 'death')) continue;
     const img = sheet.death.img;
     const fw = img.naturalWidth / sheet.death.frames, fh = img.naturalHeight;
-    const h = c.r * cs * 3.2, w = h * fw / fh;
+    const h = c.r * cs * 4.0, w = h * fw / fh;
     const fr = Math.min(sheet.death.frames - 1, Math.floor(c.t / 0.14));
     const alpha = c.t < 0.9 ? 1 : Math.max(0, 1 - (c.t - 0.9) / 0.6);
     ctx.save();
@@ -7044,7 +7049,7 @@ function tdRenderEnemies(ctx, cs, bgT) {
       e._px = e.x;
       const wImg = eSheet.walk.img;
       const fw = wImg.naturalWidth / eSheet.walk.frames, fh = wImg.naturalHeight;
-      const eh = e.r * cs * 3.2, ew = eh * fw / fh;
+      const eh = e.r * cs * 4.0, ew = eh * fw / fh;
       // A-B-A-B playback, cadence scaled by the enemy's speed stat
       const fr = Math.floor(bgT * 3.2 * (e.spd || 1.5) + (e.animOffset || 0)) % eSheet.walk.frames;
       const footY = e.y + r * 0.78;

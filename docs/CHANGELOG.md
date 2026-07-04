@@ -40,6 +40,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Painted Ranger tower art, code-side shadow, testing gold bump (#94)
 
+- Painted goblin renderer (A-3), all-goblin wave 1, battle music, compact wave button
+
 - Play a real temp audio file for the map theme (WorldMap.m4a)
 
 - Radial build/manage menu replaces persistent tower bar (#93)
