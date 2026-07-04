@@ -2865,8 +2865,16 @@ function createAudioFilePlayer(url, gain, loopEnd) {
 // 28.95s, so the last ~0.15s is decay/tail past the actual loop point.
 const mapMusic = createAudioFilePlayer('assets/audio/world-map-temp.mp3', 0.5, 28.8);
 
+// Battle-music contenders (temp testers, auditioned via the Music Lab).
+// Both are pre-trimmed seamless-loop exports (the files contain the loop
+// repeated a few times over), so we loop the whole buffer — no loopEnd cut.
+const battleMusicHorn    = createAudioFilePlayer('assets/audio/verdant-battle-horn.mp3', 0.5);
+const battleMusicStrings = createAudioFilePlayer('assets/audio/verdant-battle-strings.mp3', 0.5);
+
 const MUSIC_LAB_TRACKS = [
   { id: 'live',     label: 'Live (WorldMap.m4a)', desc: 'What’s actually playing now — your temp BandLab track, looped.', player: mapMusic },
+  { id: 'battleHorn',    label: 'Battle: Horn',    desc: 'Battle contender 1 — medieval battle theme, more horn.', player: battleMusicHorn },
+  { id: 'battleStrings', label: 'Battle: Strings', desc: 'Battle contender 2 — ascendant kingdom, more strings.', player: battleMusicStrings },
   { id: 'synth',    label: 'Original Synth March', desc: 'The first synthesized march (D minor, sparse intro).', player: mapMusicSynthOriginal },
   { id: 'dense',    label: 'Full Density',      desc: 'No silent intro — melody, drone & thicker mix from note one.', player: mapMusicDense },
   { id: 'gallop',   label: 'Driving Gallop',    desc: 'Kick on every beat + continuous shaker for a galloping feel.', player: mapMusicGallop },
@@ -2935,6 +2943,8 @@ function _audioUnlock() {
     _audioUnlocked = true;
     menuMusic.onUnlock();
     mapMusic.onUnlock();
+    battleMusicHorn.onUnlock();
+    battleMusicStrings.onUnlock();
     // Remove ourselves once we've succeeded
     ['touchstart', 'touchend', 'click'].forEach(e =>
       document.removeEventListener(e, _audioUnlock, true));
