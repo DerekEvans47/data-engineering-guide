@@ -2456,7 +2456,7 @@ const menuMusic = (() => {
 })();
 
 // ── World/region map background music — driving march, pushes the run forward ──
-const mapMusic = (() => {
+const mapMusicSynthOriginal = (() => {
   let actx = null, masterGain = null;
   let playing = false, pending = false, timer = null;
   let beat = 0, nextBeat = 0;
@@ -2786,8 +2786,82 @@ const mapMusicMidiImport = createLoopPlayer({
   },
 });
 
+// Plays back a real audio file on loop instead of scheduling oscillators —
+// used for temp/reference tracks (a BandLab export, etc.) rather than
+// procedurally-generated ones. Shares tdAudio's AudioContext/unlock/mute
+// conventions so it slots into the same start/stop/setMuted interface as
+// every synthesized player above.
+function createAudioFilePlayer(url, gain) {
+  let actx = null, masterGain = null;
+  let buffer = null, loadPromise = null;
+  let source = null, playing = false, pending = false;
+
+  function ac() {
+    const shared = tdAudio.ctx;
+    if (!shared) return null;
+    if (actx !== shared) { actx = shared; masterGain = null; }
+    if (!masterGain) {
+      masterGain = actx.createGain();
+      masterGain.gain.value = tdAudio.muted ? 0 : gain;
+      masterGain.connect(actx.destination);
+    }
+    return actx;
+  }
+
+  function loadBuffer(c) {
+    if (buffer) return Promise.resolve(buffer);
+    if (loadPromise) return loadPromise;
+    loadPromise = fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(ab => c.decodeAudioData(ab))
+      .then(decoded => { buffer = decoded; return buffer; })
+      .catch(err => { loadPromise = null; throw err; });
+    return loadPromise;
+  }
+
+  function doStart(c) {
+    playing = true; pending = false;
+    loadBuffer(c).then(buf => {
+      if (!playing) return; // stopped again before the fetch/decode finished
+      source = c.createBufferSource();
+      source.buffer = buf;
+      source.loop = true;
+      source.connect(masterGain);
+      source.start(0);
+    }).catch(() => { playing = false; });
+  }
+
+  return {
+    start() {
+      if (playing) return;
+      const c = ac();
+      if (!c) { pending = true; return; }
+      doStart(c);
+    },
+    stop() {
+      playing = false; pending = false;
+      if (source) { try { source.stop(); } catch(_) {} source.disconnect(); source = null; }
+    },
+    get playing() { return playing; },
+    onUnlock() { if (!pending) return; const c = ac(); if (!c) return; doStart(c); },
+    // Native buffer playback doesn't drift the way our hand-scheduled
+    // oscillator loops can, so there's no beat clock to realign here.
+    restart() {},
+    setMuted(m) {
+      if (!masterGain || !actx) return;
+      masterGain.gain.setTargetAtTime(m ? 0 : gain, actx.currentTime, 0.08);
+    },
+  };
+}
+
+// Temp placeholder while music design continues — a real BandLab export,
+// not synthesized. Path is relative to index.html, so it resolves the same
+// regardless of which directory the dev server's root is.
+const mapMusic = createAudioFilePlayer('assets/audio/world-map-temp.m4a', 0.5);
+
 const MUSIC_LAB_TRACKS = [
-  { id: 'current', label: 'Current (shipped)', desc: 'What’s live now — sparse intro, builds up over 4 bars.', player: mapMusic },
+  { id: 'live',     label: 'Live (WorldMap.m4a)', desc: 'What’s actually playing now — your temp BandLab track, looped.', player: mapMusic },
+  { id: 'synth',    label: 'Original Synth March', desc: 'The first synthesized march (D minor, sparse intro).', player: mapMusicSynthOriginal },
   { id: 'dense',    label: 'Full Density',      desc: 'No silent intro — melody, drone & thicker mix from note one.', player: mapMusicDense },
   { id: 'gallop',   label: 'Driving Gallop',    desc: 'Kick on every beat + continuous shaker for a galloping feel.', player: mapMusicGallop },
   { id: 'midi',     label: 'Your MIDI Import',  desc: 'Real transcription of Instrument.mid + Drum_Machine.mid, adapted to our synth engine.', player: mapMusicMidiImport },

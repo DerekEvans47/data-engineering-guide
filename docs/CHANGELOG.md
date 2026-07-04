@@ -10,6 +10,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add Music Lab for A/B testing map-theme candidates
 
+- Add real MIDI transcription as a 5th Music Lab candidate
+
 - Author W-1 node spine + life coordinates; backlog alignment pass (#76)
 
 - Author frontier-town battle-map lanes + build slots (G-9 data template) (#82)
