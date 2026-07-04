@@ -28,6 +28,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Fantasy-themed battle-screen HUD chrome (wave/quiz/radial/back buttons)
 
+- Gemini sparkle watermark removal script + map art pipeline docs
+
 - Landscape battle map + painted Verdant world map (G-9) (#88)
 
 - Mirror frontier-town for left-to-right flow; 11 slots centered in clearings (#84)
