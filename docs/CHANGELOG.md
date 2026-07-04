@@ -8,6 +8,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - EQ-6 store node — power-ups + rarity-weighted relic
 
+- EQ-7 inventory panel + relic-acquired equip prompt
+
 - Frontier Town bandit roster + Ranger L4 multi-projectile (#102)
 
 - Add Music Lab for A/B testing map-theme candidates
