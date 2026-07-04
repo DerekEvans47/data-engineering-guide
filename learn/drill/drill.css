@@ -3004,6 +3004,17 @@ html, body {
   font-size: .82rem;
   padding: 1.5rem 0;
 }
+.inv-section-label {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-subtle);
+  margin: .9rem 0 .5rem;
+}
+.inv-powerup-list { margin-bottom: .2rem; }
+.inv-powerup-card { cursor: default; }
+.inv-powerup-card:active { opacity: 1; }
 
 /* ╔══════════════════════════════════════════════════════════
    ANIMATIONS — all @keyframes + prefers-reduced-motion overrides,

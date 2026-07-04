@@ -604,7 +604,7 @@ function renderRelicBar() {
 // not two. This just wires the shared button ids up once markup is in.
 function bindTdHeaderActions(onBack) {
   document.getElementById('td-header-back')?.addEventListener('click', onBack || showHome);
-  document.getElementById('td-header-relics')?.addEventListener('click', showRelicEquipMenu);
+  document.getElementById('td-header-inventory')?.addEventListener('click', showInventoryPanel);
   document.getElementById('td-header-help')?.addEventListener('click', () => showTutorial(() => {}));
 }
 
@@ -4455,7 +4455,7 @@ function renderRunMap(run) {
           <div class="run-map-title region-map-title">${mapDef.icon} ${mapDef.name}</div>
         </div>
         <div class="td-header-right">
-          <button class="td-header-icon" id="td-header-relics" title="Relics">🏺</button>
+          <button class="td-header-icon" id="td-header-inventory" title="Inventory">🎒</button>
           <button class="td-header-icon" id="td-header-help" title="Help">?</button>
         </div>
       </div>
@@ -4552,7 +4552,7 @@ function renderVerdantWorldMap(run) {
           <span class="region-map-title">${mapDef.icon} ${mapDef.name}</span>
         </div>
         <div class="td-header-right">
-          <button class="td-header-icon" id="td-header-relics" title="Relics">🏺</button>
+          <button class="td-header-icon" id="td-header-inventory" title="Inventory">🎒</button>
           <button class="td-header-icon" id="td-header-help" title="Help">?</button>
         </div>
       </div>
@@ -4632,7 +4632,7 @@ function _renderMapSelection() {
           <div class="map-select-sub">Select a world to begin your run</div>
         </div>
         <div class="td-header-right">
-          <button class="td-header-icon" id="td-header-relics" title="Relics">🏺</button>
+          <button class="td-header-icon" id="td-header-inventory" title="Inventory">🎒</button>
           <button class="td-header-icon" id="td-header-help" title="Help">?</button>
         </div>
       </div>
@@ -4672,22 +4672,42 @@ function showTDWorldMap() { showMapSelection(); }
 // Reachable from the run map / map select top bar. Category exclusivity is
 // enforced silently on equip (old relic in that category auto-drops) — the
 // richer "Replace or skip?" conflict UI is EQ-7's job, not this item's.
-function showRelicEquipMenu() {
+// EQ-7 surface (2): consolidated inventory — the run's held power-ups (read-
+// only; they're spent from the pre-wave tray during battle, not managed
+// here) plus the existing relic collection/equip list. One 🎒 button now
+// covers both, replacing the relic-only 🏺 menu.
+function showInventoryPanel() {
   const existing = document.querySelector('.relic-equip-overlay');
   if (existing) existing.remove();
 
   const upkeep = tdComputeRelicMods().upkeepTotal;
   const owned  = TD_RELICS.filter(r => tdOwnedRelics.has(r.id));
+  const run    = tdLoadRun();
+  const heldPowerUps = (run && run.powerUps) || [];
 
   const overlay = document.createElement('div');
   overlay.className = 'relic-equip-overlay';
   overlay.innerHTML = `
     <div class="relic-equip-sheet">
       <div class="relic-equip-header">
-        <span class="relic-equip-title">🏺 Relics</span>
+        <span class="relic-equip-title">🎒 Inventory</span>
         <button class="relic-equip-close" id="relic-equip-close">✕</button>
       </div>
-      <div class="relic-equip-upkeep">Upkeep: ${upkeep}🪙 / node start</div>
+      <div class="inv-section-label">Power-ups (${heldPowerUps.length}/3) — spent from the pre-wave tray in battle</div>
+      <div class="relic-equip-list inv-powerup-list">
+        ${heldPowerUps.length ? heldPowerUps.map(pid => {
+          const pu = TD_POWER_UPS[pid];
+          if (!pu) return '';
+          return `<div class="relic-equip-card inv-powerup-card">
+            <div class="relic-equip-icon">${pu.icon}</div>
+            <div class="relic-equip-body">
+              <div class="relic-equip-name">${pu.name}</div>
+              <div class="relic-equip-meta">${pu.scope === 'wave' ? 'Lasts one wave' : 'Lasts this node'}</div>
+            </div>
+          </div>`;
+        }).join('') : '<div class="relic-equip-empty">No power-ups held right now.</div>'}
+      </div>
+      <div class="inv-section-label">Relics — upkeep: ${upkeep}🪙 / node start</div>
       <div class="relic-equip-list">
         ${owned.length ? owned.map(r => {
           const isEq = tdEquippedRelics.has(r.id);
@@ -4707,13 +4727,54 @@ function showRelicEquipMenu() {
 
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
   document.getElementById('relic-equip-close').addEventListener('click', () => overlay.remove());
-  overlay.querySelectorAll('.relic-equip-card').forEach(card => {
+  overlay.querySelectorAll('.relic-equip-card[data-relic-id]').forEach(card => {
     card.addEventListener('click', () => {
       const id = card.dataset.relicId;
       if (tdEquippedRelics.has(id)) tdUnequipRelic(id); else tdEquipRelic(id);
-      showRelicEquipMenu();
+      showInventoryPanel();
     });
   });
+}
+
+// EQ-7 surface (3): shown right after a relic purchase so the player can
+// decide immediately rather than having to separately open the inventory
+// panel. No-conflict case is a simple equip/later choice; a same-category
+// conflict gets the explicit "Replace or skip?" UI the backlog calls for,
+// instead of EQ-4's equip-menu default of silently auto-dropping the old one.
+function showRelicAcquiredPrompt(relic) {
+  const conflictId = [...tdEquippedRelics].find(id => {
+    const eq = TD_RELICS.find(r => r.id === id);
+    return eq && eq.category === relic.category && id !== relic.id;
+  });
+  const conflict = conflictId ? TD_RELICS.find(r => r.id === conflictId) : null;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'relic-equip-overlay';
+  // Needs to render above the shop panel (.tdcp-overlay, z-index 9000) since
+  // it can pop up while the shop is still open — the base .relic-equip-
+  // overlay z-index (400) assumes it's the only overlay on screen.
+  overlay.style.zIndex = '9500';
+  overlay.innerHTML = `
+    <div class="relic-equip-sheet">
+      <div class="relic-equip-header">
+        <span class="relic-equip-title">New Relic!</span>
+      </div>
+      <div class="relic-equip-card equipped" style="cursor:default">
+        <div class="relic-equip-icon">${relic.icon}</div>
+        <div class="relic-equip-body">
+          <div class="relic-equip-name">${relic.name} <span class="relic-equip-rarity rarity-${relic.rarity}">${relic.rarity}</span></div>
+          <div class="relic-equip-desc">${relic.desc}</div>
+        </div>
+      </div>
+      ${conflict ? `<div class="inv-section-label">You already have ${conflict.name} equipped in ${TD_RELIC_CATEGORIES[relic.category] || relic.category}</div>` : ''}
+      <div class="tdcp-actions" style="margin-top:.8rem">
+        <button class="tdcp-btn-back" id="relic-acquired-skip">${conflict ? 'Skip' : 'Later'}</button>
+        <button class="tdcp-btn-play" id="relic-acquired-equip">${conflict ? `Replace ${conflict.name}` : 'Equip now'}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('relic-acquired-skip').addEventListener('click', () => overlay.remove());
+  document.getElementById('relic-acquired-equip').addEventListener('click', () => { tdEquipRelic(relic.id); overlay.remove(); });
 }
 
 // Frontier Town's levelDef gets baked into a run's serialized node array at
@@ -4933,6 +4994,7 @@ function showInterNodePanel(node, run) {
           saveGameState();
           relicSold = true;
           render();
+          showRelicAcquiredPrompt(relicOffer);
         });
       }
     }
