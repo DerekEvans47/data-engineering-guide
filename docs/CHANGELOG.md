@@ -65,6 +65,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Stones node onto road; swap Lakeside Hamlet for Charcoal Burners' Camp (#78)
 
+- Swap map theme to MP3 (world-map-temp.mp3), drop broken M4A
+
 - Tower shadows follow each sprite's own silhouette (#96)
 
 - True landscape width, integrated map header, tower centering (#92)
