@@ -2791,7 +2791,7 @@ const mapMusicMidiImport = createLoopPlayer({
 // procedurally-generated ones. Shares tdAudio's AudioContext/unlock/mute
 // conventions so it slots into the same start/stop/setMuted interface as
 // every synthesized player above.
-function createAudioFilePlayer(url, gain) {
+function createAudioFilePlayer(url, gain, loopEnd) {
   let actx = null, masterGain = null;
   let buffer = null, loadPromise = null;
   let source = null, playing = false, pending = false;
@@ -2826,6 +2826,10 @@ function createAudioFilePlayer(url, gain) {
       source = c.createBufferSource();
       source.buffer = buf;
       source.loop = true;
+      // Cut off any trailing tail past the composition's actual loop point
+      // instead of looping the full decoded buffer (which can include a
+      // few hundred ms of decay/padding beyond where the music really ends).
+      if (loopEnd && loopEnd < buf.duration) source.loopEnd = loopEnd;
       source.connect(masterGain);
       source.start(0);
     }).catch(() => { playing = false; });
@@ -2857,7 +2861,9 @@ function createAudioFilePlayer(url, gain) {
 // Temp placeholder while music design continues — a real BandLab export,
 // not synthesized. Path is relative to index.html, so it resolves the same
 // regardless of which directory the dev server's root is.
-const mapMusic = createAudioFilePlayer('assets/audio/world-map-temp.mp3', 0.5);
+// Drum groove repeats every 4.8s (6 bars = 28.8s); the file itself runs
+// 28.95s, so the last ~0.15s is decay/tail past the actual loop point.
+const mapMusic = createAudioFilePlayer('assets/audio/world-map-temp.mp3', 0.5, 28.8);
 
 const MUSIC_LAB_TRACKS = [
   { id: 'live',     label: 'Live (WorldMap.m4a)', desc: 'What’s actually playing now — your temp BandLab track, looped.', player: mapMusic },
@@ -5014,6 +5020,7 @@ function showTutorial(onClose) {
 function showTowerDefenseScreen(levelDef, nodeId, run) {
   const levelIdx = typeof nodeId === 'number' ? nodeId : -1; // compat
   if (td && td.running) { cancelAnimationFrame(td.animFrame); td.running = false; }
+  mapMusic.stop();
 
   // Apply and clear any pending rest bonus
   const restBonus = tdLoadRestBonus();
