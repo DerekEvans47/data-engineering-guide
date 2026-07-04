@@ -125,6 +125,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Linear world-map pivot — add W section, rescope G-9, retire V-24/V-35 (#74)
 
+- Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
+
 - Nest assets by world; retire legacy deco loader; land frontier-town battle map (#81)
 
 - Reorganize docs into docs/, README leads with the game (#99)
