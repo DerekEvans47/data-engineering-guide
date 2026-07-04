@@ -1352,7 +1352,11 @@ html, body {
 #app[data-mode="home"] {
   position: fixed;
   inset: 0;
-  max-width: 540px;
+  /* Was capped at 540px like the base #app rule (a deliberate "phone-width
+     reading column" for text-heavy screens like study/drill) — but home has
+     its own full-bleed painted hero art, which that cap wasted ~35% of the
+     screen on in landscape. Match tower mode's wider cap instead. */
+  max-width: 1700px;
   margin: 0 auto;
   padding: 0;
   display: flex;
@@ -2665,16 +2669,20 @@ html, body {
   padding-bottom: .75rem;
   flex: 1;
   min-height: 0;
-  /* Top-align, not center: the floating header overlays the wrap's top
-     edge, so on width-constrained aspect ratios (leftover vertical space)
-     the map's own top edge needs to stay flush with it — centering left a
-     gap between the header and the map, with any unavoidable letterboxing
-     pushed to the bottom only instead of split top+bottom. */
-  justify-content: flex-start;
+  /* Cover-fit (see the JS fit calc) means the map is always >= the wrap in
+     both dimensions now — no more letterbox gap to worry about, so centered
+     is right again: whichever axis overflows gets cropped evenly from both
+     edges instead of committing entirely to one edge (which risked cropping
+     out nodes positioned toward whichever edge got trimmed away). */
+  justify-content: center;
+  overflow: hidden;
 }
 /* Floats over the map art itself (same fading-scrim treatment as the TD
    battle HUD) instead of a separate boxed bar stacked above the map —
-   one continuous painted scene instead of chrome + art. */
+   one continuous painted scene instead of chrome + art. Kept deliberately
+   faint (title relies on its own text-shadow for legibility, not a solid
+   backdrop) — the previous .85 peak read as a solid band blocking the top
+   of the map instead of a subtle scrim. */
 .region-map-header {
   position: absolute;
   top: 0; left: 0; right: 0;
@@ -2683,7 +2691,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: .5rem;
-  background: linear-gradient(to bottom, rgba(6,9,14,.85) 0%, rgba(6,9,14,.5) 65%, rgba(6,9,14,0) 100%);
+  background: linear-gradient(to bottom, rgba(6,9,14,.4) 0%, rgba(6,9,14,.18) 55%, rgba(6,9,14,0) 100%);
 }
 .region-map-header-text {
   flex: 1;
@@ -2736,9 +2744,13 @@ html, body {
      already uses for the battle canvas (Math.min of width-derived and
      height-derived scale) — CSS-only aspect-ratio doesn't work here since
      nothing forces one of width/height to stay "auto" for it to compute
-     from; these are just sane pre-JS/fallback values. */
+     from; these are just sane pre-JS/fallback values.
+     No margin:auto here — the wrap's align-items/justify-content:center
+     already center it, and auto-margins on a flex item that's *larger*
+     than its container (the whole point of cover-fit cropping) resolve to
+     0 instead of negative, which silently overrode align-items and left
+     the map flush to one edge instead of centered. */
   display: block;
-  margin: 0 auto;
   border-radius: 10px;
   background: #0a0f08;
 }
