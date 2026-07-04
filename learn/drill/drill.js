@@ -3414,9 +3414,12 @@ const FRONTIER_TOWN_MAP = {
     [631,280],[628,361],[636,410],[662,462],[692,518],[736,545],[836,555],[906,535],
     [967,512],[1030,482],[1096,425],[1176,400],[1261,385],
   ],
+  // Re-centered on each clearing's actual painted centroid (flood-filled
+  // from the original hand-placed points against frontier-town.png) — the
+  // original coordinates were up to ~34px off-center within their grove.
   buildSlotsPx: [
-    [711,142],[276,130],[161,290],[216,480],[286,555],[371,655],
-    [811,620],[1076,610],[476,115],[831,325],[1186,505],
+    [714,162],[267,162],[181,296],[232,469],[258,567],[384,654],
+    [790,641],[1077,614],[459,119],[844,333],[1194,501],
   ],
 };
 
@@ -3532,6 +3535,24 @@ const FRONTIER_TOWN_SLOTS = (() => {
   });
 })();
 
+// The hand-painted road curves smoothly, but tdComputePathSet/build-slot
+// blocking need an axis-aligned grid (FRONTIER_TOWN_WPS, used only for
+// that). Enemy *movement* has no such constraint, so it walks this exact
+// pixel-accurate polyline instead — same [x/cellW, y/cellH] normalization
+// as FRONTIER_TOWN_SLOT_CENTERS, just applied to the road instead of the
+// build slots. Without this, enemies cut straight through terrain (the
+// log pile, well, etc.) along the Manhattan-reduced path's straight hops.
+const FRONTIER_TOWN_WPS_EXACT = (() => {
+  const { viewBox, cols, rows, waypointsPx } = FRONTIER_TOWN_MAP;
+  const cellW = viewBox[2] / cols, cellH = viewBox[3] / rows;
+  const pts = waypointsPx.map(([x, y]) => [x / cellW, y / cellH]);
+  // Extend the final hop off the right edge, mirroring tdBuildManhattanWps,
+  // so enemies exit the map instead of stopping at the last painted point.
+  const [, lastR] = pts[pts.length - 1];
+  pts.push([cols, lastR]);
+  return pts;
+})();
+
 // Keyed by levelDef.usesPaintedBg — add an entry here when Decay/Void get
 // their own painted battle maps.
 const TD_PAINTED_BG_IMAGES = { 'frontier-town': FRONTIER_TOWN_MAP.image };
@@ -3584,6 +3605,7 @@ function frontierTownLevelDef() {
     // actually complete, not before.
     startGold: 99999, startLives: 25,
     wps: FRONTIER_TOWN_WPS,
+    wpsExact: FRONTIER_TOWN_WPS_EXACT,
     diffWeights: { easy: 0.8, medium: 0.2, hard: 0 },
     waveDefs, parts: mapDef.parts, deco: [], isBoss: false,
     usesPaintedBg: 'frontier-town',
@@ -5539,11 +5561,16 @@ function tdSpawnEnemy(type) {
 
 function tdMoveEnemy(e, dt) {
   const cs  = td.cellSize;
-  const wps = td.levelDef.wps;
+  // Prefer the exact painted-road polyline when the map supplies one (see
+  // FRONTIER_TOWN_WPS_EXACT) — falls back to the Manhattan grid path for
+  // maps without hand-painted art, unchanged from before.
+  const exactWps = td.levelDef.wpsExact;
+  const wps = exactWps || td.levelDef.wps;
   let rem = e.spd * cs * dt;
   while (rem > 0 && e.wpIdx < wps.length) {
     const [tc, tr] = wps[e.wpIdx];
-    const tx = tc * cs + cs / 2, ty = tr * cs + cs / 2;
+    const tx = exactWps ? tc * cs : tc * cs + cs / 2;
+    const ty = exactWps ? tr * cs : tr * cs + cs / 2;
     const dx = tx - e.x, dy = ty - e.y;
     const d  = Math.hypot(dx, dy);
     if (d < 0.5) { e.wpIdx++; continue; }
