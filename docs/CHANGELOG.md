@@ -99,6 +99,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Tune shadow squash for legibility at real mobile scale (#97)
 
+- Tutorial enemy speed on the straight road + bigger painted sprites
+
 
 ### 📚 Content
 
