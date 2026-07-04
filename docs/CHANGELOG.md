@@ -48,6 +48,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Tower facing — orient toward the road, front/back art (#98)
 
+- Wire new Frontier Town painted map (path + slots) and add unit-art backlog
+
 
 ### 🐛 Bug Fixes
 

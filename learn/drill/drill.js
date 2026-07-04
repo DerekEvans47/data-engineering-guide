@@ -3433,9 +3433,12 @@ const FRONTIER_TOWN_MAP = {
   // Traced from the painted road's pixel mask (continuity-tracked centerline,
   // then direction-change simplified) — see docs/MAP_ART_PIPELINE.md. The
   // road crosses the whole canvas west→east through both palisade gates.
+  // All y values deliberately sit ≤351 so every point quantizes to grid
+  // row 4 (row center y≈352, on the painted road): the raw trace dipped to
+  // y370/y381 where mud yards spill toward the lower houses, which rounded
+  // to row 5 and would have marched enemies ~86px below the road.
   waypointsPx: [
-    [0,344],[260,347],[500,358],[580,370],[820,341],[860,331],
-    [980,381],[1220,361],[1460,344],
+    [0,345],[260,347],[500,350],[820,338],[980,350],[1220,350],[1460,345],
   ],
   // Centroids of the 8 painted clearings (connected-component pass over the
   // pale-grass mask). Distances from the road span ~1.4–3.1 cells, so every
