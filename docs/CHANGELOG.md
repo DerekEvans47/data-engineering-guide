@@ -57,6 +57,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Bypass HTTP/CDN caching for SW-installed assets (#100)
 
+- Clamp Frontier Town waypoints to the road's grid row
+
 - Enemy pathing follows the painted road, re-center build slots
 
 - Frontier-town reduced to 10 build slots, aligned to painted clearings (#83)
