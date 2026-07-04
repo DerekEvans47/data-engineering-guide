@@ -2857,7 +2857,7 @@ function createAudioFilePlayer(url, gain) {
 // Temp placeholder while music design continues — a real BandLab export,
 // not synthesized. Path is relative to index.html, so it resolves the same
 // regardless of which directory the dev server's root is.
-const mapMusic = createAudioFilePlayer('assets/audio/world-map-temp.m4a', 0.5);
+const mapMusic = createAudioFilePlayer('assets/audio/world-map-temp.mp3', 0.5);
 
 const MUSIC_LAB_TRACKS = [
   { id: 'live',     label: 'Live (WorldMap.m4a)', desc: 'What’s actually playing now — your temp BandLab track, looped.', player: mapMusic },

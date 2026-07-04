@@ -1,10 +1,10 @@
-const CACHE = 'de-drill-v104';
+const CACHE = 'de-drill-v105';
 const ASSETS = [
   './index.html',
   './drill.css',
   './drill.js',
   './assets/splash-background.png',
-  './assets/audio/world-map-temp.m4a',
+  './assets/audio/world-map-temp.mp3',
   './assets/worlds/verdant/region.png',
   './assets/worlds/verdant/battlemaps/frontier-town.png',
   './assets/towers/ranger-tier1.png',
