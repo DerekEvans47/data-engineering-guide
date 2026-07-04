@@ -57,6 +57,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Home screen requires scrolling to see Start Game button (#90)
 
+- Landscape maps were wasting ~20-40% of screen width/height
+
 - Node spine onto road ribbon; name nodes + per-node battle themes (#77)
 
 - Nudge frontier-town s3 down into its clearing (161,290) (#85)

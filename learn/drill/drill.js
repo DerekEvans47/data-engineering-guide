@@ -4560,12 +4560,32 @@ function renderVerdantWorldMap(run) {
     </div>`;
   bindTdHeaderActions(showHome);
 
-  // Fit the map to whichever dimension of the wrap is tighter, same
-  // Math.min(scaleByW, scaleByH) pattern initTDGame uses for the battle
-  // canvas — CSS aspect-ratio can't do this alone (see #rvm-svg comment).
+  // Cover-fit, not contain-fit: Math.max (not Math.min) so the map fills
+  // the wrap completely, cropping whichever dimension overflows (wrap has
+  // overflow:hidden) instead of leaving letterbox margins to keep the full
+  // map uncropped. #rvm-wrap centers via align-items/justify-content, so
+  // whichever axis overflows gets trimmed evenly from both edges.
+  //
+  // But cover-fit alone can crop a spine node off-screen entirely on
+  // aspect ratios far from the map's own (e.g. a tablet-shaped landscape
+  // viewport clips x=915 — the boss node — before a phone-shaped one
+  // would). So the scale is also capped at whatever keeps every node's
+  // bounding box (plus a little padding for its label/circle) inside the
+  // visible window; only backs off from full cover-fit on those extreme
+  // ratios, and only as much as it has to.
   const rvmWrap = document.getElementById('rvm-wrap');
   const rvmSvg  = document.getElementById('rvm-svg');
-  const scale = Math.min(rvmWrap.clientWidth / VW, rvmWrap.clientHeight / VH);
+  const nodePad = 40;
+  const nodeXs = spine.map(s => s.x), nodeYs = spine.map(s => s.y);
+  const minX = Math.min(...nodeXs) - nodePad, maxX = Math.max(...nodeXs) + nodePad;
+  const minY = Math.min(...nodeYs) - nodePad, maxY = Math.max(...nodeYs) + nodePad;
+  const cx = VW / 2, cy = VH / 2;
+  const maxSafeScale = Math.min(
+    rvmWrap.clientWidth  / (2 * Math.max(cx - minX, maxX - cx)),
+    rvmWrap.clientHeight / (2 * Math.max(cy - minY, maxY - cy)),
+  );
+  const coverScale = Math.max(rvmWrap.clientWidth / VW, rvmWrap.clientHeight / VH);
+  const scale = Math.min(coverScale, maxSafeScale);
   rvmSvg.style.width  = (VW * scale) + 'px';
   rvmSvg.style.height = (VH * scale) + 'px';
 
