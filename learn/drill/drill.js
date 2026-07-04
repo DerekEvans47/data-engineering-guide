@@ -839,6 +839,7 @@ function showHome() {
     td = null;
     tdMusic.stop();
   }
+  mapMusic.stop();
   mode = 'home'; dailyActive = false; studyPart = null;
   answered = false;
   EL.cardArea.style.display = 'none';
@@ -982,6 +983,7 @@ function setupInstallBanner() {
 function switchTab(newMode) {
   if (td && td.running) { cancelAnimationFrame(td.animFrame); td.running = false; td = null; tdMusic.stop(); }
   menuMusic.stop();
+  mapMusic.stop();
 
   mode = newMode; dailyActive = false; studyPart = null;
   answered = false; sessionCorrect = 0; sessionTotal = 0; sessionXpEarned = 0;
@@ -2159,6 +2161,8 @@ const tdAudio = (() => {
           // If music is already pumping, realign nextBeat; otherwise honour pending.
           if (menuMusic.playing) menuMusic.restart();
           else menuMusic.onUnlock();
+          if (mapMusic.playing) mapMusic.restart();
+          else mapMusic.onUnlock();
         };
         actx.addEventListener('statechange', _stateChangeFn);
       }
@@ -2449,6 +2453,145 @@ const menuMusic = (() => {
   };
 })();
 
+// ── World/region map background music — driving march, pushes the run forward ──
+const mapMusic = (() => {
+  let actx = null, masterGain = null;
+  let playing = false, pending = false, timer = null;
+  let beat = 0, nextBeat = 0;
+
+  const BPM  = 116;
+  const S    = (60 / BPM) / 2;   // 8th-note step
+  const LOOK = 0.25;
+
+  // D natural minor — root/3rd/5th "call to arms" motif, doubled an octave
+  // up for the higher/tinnier second horn that joins in the final bar.
+  const N = {
+    A2:110.00, D3:146.83, F3:174.61, A3:220.00,
+    D4:293.66, F4:349.23, A4:440.00,
+    D5:587.33, F5:698.46, A5:880.00,
+  };
+
+  // Steady march cadence — same kick/snare/bass groove every bar, never lets up.
+  const BASS_STEPS = [N.D3, 0, N.A2, 0, N.D3, 0, N.F3, 0];
+
+  // 32-step (4-bar) arrangement: bar 1 is cadence-only, bar 2 brings in the
+  // brass call, bar 3 answers it under rising tension strings, bar 4 adds the
+  // second horn for the peak, then thins back to cadence to loop seamlessly.
+  const MELODY = new Array(32).fill(0);
+  MELODY[8]  = N.D4; MELODY[11] = N.F4; MELODY[13] = N.A4;
+  MELODY[16] = N.A4; MELODY[18] = N.F4; MELODY[20] = N.D4;
+  MELODY[24] = N.D4; MELODY[26] = N.F4; MELODY[28] = N.A4; MELODY[30] = N.D4;
+  const MELODY_DUR = { 8:3, 11:2, 13:3, 16:2, 18:2, 20:4, 24:2, 26:2, 28:2, 30:2 };
+
+  // Second, higher/tinnier horn — only answers in the final bar
+  const HORN2 = new Array(32).fill(0);
+  HORN2[24] = N.D5; HORN2[26] = N.F5; HORN2[28] = N.A5;
+  const HORN2_DUR = { 24:2, 26:2, 28:2 };
+
+  // Never create a standalone AudioContext — only share the one tdAudio owns.
+  function ac() {
+    const shared = tdAudio.ctx;
+    if (!shared) return null;
+    if (actx !== shared) { actx = shared; masterGain = null; }
+    if (!masterGain) {
+      masterGain = actx.createGain();
+      masterGain.gain.value = tdAudio.muted ? 0 : 0.15;
+      masterGain.connect(actx.destination);
+    }
+    return actx;
+  }
+
+  function schedNote(freq, type, start, dur, vol) {
+    const g = actx.createGain(), o = actx.createOscillator();
+    o.type = type; o.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(vol, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.connect(g); g.connect(masterGain);
+    o.start(start); o.stop(start + dur + 0.01);
+  }
+
+  function schedKick(start) {
+    const g = actx.createGain(), o = actx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(130, start);
+    o.frequency.exponentialRampToValueAtTime(45, start + 0.11);
+    g.gain.setValueAtTime(0.5, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
+    o.connect(g); g.connect(masterGain);
+    o.start(start); o.stop(start + 0.16);
+  }
+
+  function schedSnare(start) {
+    const buf = actx.createBuffer(1, Math.ceil(actx.sampleRate * 0.09), actx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = actx.createBufferSource(), g = actx.createGain();
+    const f = actx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2200;
+    g.gain.setValueAtTime(0.22, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.09);
+    src.buffer = buf; src.connect(f); f.connect(g); g.connect(masterGain);
+    src.start(start); src.stop(start + 0.1);
+  }
+
+  function pump() {
+    if (!playing) return;
+    const c = ac(); if (!c) return;
+    const now = c.currentTime;
+    if (nextBeat < now - 1.0) nextBeat = now + 0.05;
+    while (nextBeat < now + LOOK) {
+      const step = beat % 32, b8 = step % 8, t = nextBeat;
+      try {
+        if (b8 === 0 || b8 === 4) schedKick(t);
+        if (b8 === 2 || b8 === 6) schedSnare(t);
+        if (BASS_STEPS[b8]) schedNote(BASS_STEPS[b8], 'sawtooth', t, S * 1.4, 0.12);
+        if (MELODY[step]) schedNote(MELODY[step], 'square', t, S * MELODY_DUR[step], 0.13);
+        if (HORN2[step])  schedNote(HORN2[step], 'square', t, S * HORN2_DUR[step], 0.075);
+        // rising tension strings — trembling under the brass from bar 3 onward
+        if (step >= 16 && step % 2 === 0) schedNote(step % 4 === 0 ? N.A3 : N.D4, 'triangle', t, S * 0.42, 0.035);
+      } catch(_) {}
+      beat++;
+      nextBeat += S;
+    }
+    timer = setTimeout(pump, 50);
+  }
+
+  function doStart(c) {
+    playing = true; pending = false;
+    beat = 0; nextBeat = c.currentTime + 0.15;
+    pump();
+  }
+
+  return {
+    start() {
+      if (playing) return;
+      const c = ac();
+      if (!c) { pending = true; return; }   // defer until onUnlock()
+      doStart(c);
+    },
+    stop() {
+      playing = false; pending = false;
+      clearTimeout(timer); timer = null;
+    },
+    get playing() { return playing; },
+    onUnlock() {
+      if (!pending) return;
+      const c = ac(); if (!c) return;
+      doStart(c);
+    },
+    restart() {
+      if (!playing) return;
+      clearTimeout(timer); timer = null;
+      const c = ac(); if (!c) return;
+      nextBeat = c.currentTime + 0.05;
+      pump();
+    },
+    setMuted(m) {
+      if (!masterGain || !actx) return;
+      masterGain.gain.setTargetAtTime(m ? 0 : 0.15, actx.currentTime, 0.08);
+    },
+  };
+})();
+
 // iOS Safari requires AudioContext creation/resume inside a user gesture.
 // Capture-phase so this fires before any element handler on the very first tap.
 // unlock() returns a Promise that resolves once the context is confirmed running;
@@ -2464,6 +2607,7 @@ function _audioUnlock() {
     if (!ok) return; // creation failed — leave _audioUnlocked false so we retry
     _audioUnlocked = true;
     menuMusic.onUnlock();
+    mapMusic.onUnlock();
     // Remove ourselves once we've succeeded
     ['touchstart', 'touchend', 'click'].forEach(e =>
       document.removeEventListener(e, _audioUnlock, true));
@@ -4076,6 +4220,7 @@ function showMapSelection() {
     td.running = false; td = null;
     tdMusic.stop();
   }
+  menuMusic.stop();
   EL.cardArea.style.display    = 'none';
   EL.bottomBar.style.display   = 'none';
   EL.progressWrap.style.display = 'none';
@@ -4133,7 +4278,7 @@ function _renderMapSelection() {
       </div>
       <div class="map-select-cards">${cardsHtml}</div>
     </div>`;
-  menuMusic.start();
+  mapMusic.start();
   bindTdHeaderActions(showHome);
 
   document.querySelectorAll('.map-card:not([disabled])').forEach(card => {
@@ -4151,6 +4296,8 @@ function showRunMap(run) {
   EL.progressWrap.style.display = 'none';
   EL.completeScreen.classList.remove('show');
   setTopBar('td-world');
+  menuMusic.stop();
+  mapMusic.start();
   // If the user closed the browser mid-battle, any node stuck in 'active'
   // state can never be clicked (pointer-events:none). Reset them here so
   // they're clickable again.
@@ -4745,6 +4892,7 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
     const muted = tdAudio.toggleMute();
     tdMusic.setMuted(muted);
     menuMusic.setMuted(muted);
+    mapMusic.setMuted(muted);
     EL.tdMuteBtn.textContent = muted ? '🔇' : '🔊';
   });
 
@@ -5515,7 +5663,7 @@ function tdStartWave(idx) {
   tdCloseRadialMenu();
   tdUpdateWavePreview();
   tdAudio.waveStart();
-  menuMusic.stop();
+  mapMusic.stop();
   tdMusic.start(); // no-op if already playing
 }
 
