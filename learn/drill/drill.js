@@ -2083,6 +2083,12 @@ function bindUI() {
 // Default portrait grid; painted battle maps (frontierTownLevelDef) override
 // these per-level at initTDGame time via levelDef.gridCols/gridRows.
 const TD_DEFAULT_COLS = 9, TD_DEFAULT_ROWS = 10;
+
+// TEMP (testing): true = waves start immediately with no question gate and
+// the optional bonus-gold quiz button is hidden. Flip back to false once
+// tower/enemy/map testing settles — questions are the core learning loop,
+// this is not a permanent removal.
+const TD_QUIZ_DISABLED = true;
 let TD_COLS = TD_DEFAULT_COLS, TD_ROWS = TD_DEFAULT_ROWS;
 const TD_STARS_KEY = 'td_stars_v1';
 
@@ -5420,12 +5426,19 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
     td.buildSlotSet = new Set((levelDef.buildSlots || []).map(([c,r]) => `${c},${r}`));
     td.slotCenterMap = levelDef.slotCenters || null;
     td.slotFacingMap = levelDef.slotFacing || null;
+    // Fill the letterbox around the contain-fit canvas with the same map
+    // art, cover-fit and slightly darkened — dead black margins read as a
+    // vignette ("looking through a closing eye"); continuing forest doesn't.
+    wrap.style.background =
+      `linear-gradient(rgba(6,10,6,.35), rgba(6,10,6,.35)), ` +
+      `url('${td.paintedBg.src}') center / cover no-repeat`;
   } else {
     td.usesPaintedBg = null;
     td.paintedBg = null;
     td.buildSlotSet = null;
     td.slotCenterMap = null;
     td.slotFacingMap = null;
+    wrap.style.background = '';
   }
 
   // Cache TD HUD refs — injected dynamically so must be queried here, not in bindUI
@@ -5514,8 +5527,9 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   });
 
   EL.tdWaveBtn.addEventListener('click', tdOnWaveBtn);
+  if (TD_QUIZ_DISABLED) EL.tdQuizBtn.style.display = 'none';
   EL.tdQuizBtn.addEventListener('click', () => {
-    if (!td || td.quizOpen || td.over || td.won) return;
+    if (!td || td.quizOpen || td.over || td.won || TD_QUIZ_DISABLED) return;
     if (td.optQuizUsed >= 3) {
       const btn = EL.tdQuizBtn;
       if (btn) { btn.textContent = '📝 Max 3/wave'; setTimeout(() => tdUpdateHUD(), 1500); }
@@ -6267,13 +6281,15 @@ function tdOnWaveBtn() {
   if (!td || td.quizOpen || td.waveActive || td.over || td.won) return;
   const nextIdx = td.waveIdx + 1;
   if (nextIdx >= td.levelDef.waveDefs.length) return;
-  tdOpenQuiz(30, false, () => {
+  const begin = () => {
     td.waveIdx     = nextIdx;
     td.optQuizUsed = 0;
     tdStartWave(nextIdx);
     tdUpdateWaveBtn();
     tdUpdateHUD();
-  });
+  };
+  if (TD_QUIZ_DISABLED) { begin(); return; }
+  tdOpenQuiz(30, false, begin);
 }
 
 function tdStartWave(idx) {
@@ -6387,8 +6403,9 @@ function tdEnterEndless() {
   EL.tdWaveBtn     = document.getElementById('td-wave-btn');
   EL.tdQuizBtn     = document.getElementById('td-quiz-btn');
   EL.tdWaveBtn.addEventListener('click', tdOnWaveBtn);
+  if (TD_QUIZ_DISABLED) EL.tdQuizBtn.style.display = 'none';
   EL.tdQuizBtn.addEventListener('click', function() {
-    if (!td || td.quizOpen || td.waveActive || td.over || td.won) return;
+    if (!td || td.quizOpen || td.waveActive || td.over || td.won || TD_QUIZ_DISABLED) return;
     if (td.optQuizUsed >= 3) { const b = EL.tdQuizBtn; if (b) { b.textContent = '📝 Max 3/wave'; setTimeout(tdUpdateHUD, 1500); } return; }
     td.optQuizUsed++;
     tdOpenQuiz(25, true, function() { earnGold(25); tdUpdateHUD(); });
@@ -7060,7 +7077,7 @@ function tdRenderCorpses(ctx, cs) {
     if (!tdEnemySheetReady(sheet, 'death')) continue;
     const img = sheet.death.img;
     const fw = img.naturalWidth / sheet.death.frames, fh = img.naturalHeight;
-    const h = c.r * cs * 4.0, w = h * fw / fh;
+    const h = c.r * cs * 3.2, w = h * fw / fh;
     const fr = Math.min(sheet.death.frames - 1, Math.floor(c.t / 0.14));
     const alpha = c.t < 0.9 ? 1 : Math.max(0, 1 - (c.t - 0.9) / 0.6);
     ctx.save();
@@ -7105,7 +7122,7 @@ function tdRenderEnemies(ctx, cs, bgT) {
       e._px = e.x;
       const wImg = eSheet.walk.img;
       const fw = wImg.naturalWidth / eSheet.walk.frames, fh = wImg.naturalHeight;
-      const eh = e.r * cs * 4.0, ew = eh * fw / fh;
+      const eh = e.r * cs * 3.2, ew = eh * fw / fh;
       // A-B-A-B playback, cadence scaled by the enemy's speed stat
       const fr = Math.floor(bgT * 3.2 * (e.spd || 1.5) + (e.animOffset || 0)) % eSheet.walk.frames;
       const footY = e.y + r * 0.78;
