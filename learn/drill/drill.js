@@ -889,6 +889,15 @@ function showHome() {
             </div>
             <span class="home-card-arrow">›</span>
           </button>
+          ${runActive ? `
+          <button class="home-card home-card-secondary" id="btn-new-run">
+            <span class="home-card-icon">↺</span>
+            <div class="home-card-text">
+              <span class="home-card-title">New Run</span>
+              <span class="home-card-desc">Abandon progress and start over</span>
+            </div>
+            <span class="home-card-arrow">›</span>
+          </button>` : ''}
           <button class="home-card home-card-secondary" id="btn-how-to-play">
             <span class="home-card-icon">📖</span>
             <div class="home-card-text">
@@ -908,6 +917,14 @@ function showHome() {
     </div>`;
 
   document.getElementById('btn-play').addEventListener('click', () => {
+    mode = 'tower';
+    EL.app.dataset.mode = 'tower';
+    showTDWorldMap();
+  });
+  const newRunBtn = document.getElementById('btn-new-run');
+  if (newRunBtn) newRunBtn.addEventListener('click', () => {
+    if (!confirm('Start a new run? Current run progress (cleared nodes, relics, run gold) is abandoned. XP and rank are kept.')) return;
+    tdClearRun();
     mode = 'tower';
     EL.app.dataset.mode = 'tower';
     showTDWorldMap();
