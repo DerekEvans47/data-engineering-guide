@@ -46,6 +46,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Play a real temp audio file for the map theme (WorldMap.m4a)
 
+- Playtest round 3 - sprite size/quality, single battle song, HUD cleanup, two-tap build with stat card, arrow SFX
+
 - Radial build/manage menu replaces persistent tower bar (#93)
 
 - Relic system — data model, exclusivity, upkeep, equip menu
