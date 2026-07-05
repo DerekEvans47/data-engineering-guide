@@ -29,21 +29,31 @@ Direction convention (all maps): **defended objective/exit on the RIGHT edge**;
 enemies enter from left/top/bottom edges and flow left→right. Battle scenes are
 camera-relative, not compass-aligned with the world map.
 
+> **2026-07-05 spine revision:** nodes were re-placed and the journey reshaped —
+> the Abandoned Village node was cut, **Fishing Camp** (`lakeshore`, stilted
+> lakehouse on the lake's north shore) was added, and **The Corrupted Mile** was
+> renamed **The Abandoned Town** (it now sits at the lone ruined house; it keeps
+> the existing `ruins` scene block, and the `blighted-forest` scene block below is
+> retired/unused). The table reflects the new spine order; the numbered `###`
+> scene-block headings further down still use the old order — the `battleTheme`
+> filename in each heading is the canonical key. `lakeshore` still needs a scene
+> block, and the entrance/lane ladder needs a design pass where themes moved slots.
+
 | # | Node | Name | battleTheme | Entrances | Lanes | Clearings | Mood |
 |---|------|------|-------------|-----------|-------|-----------|------|
 | 0 | start | Frontier Town | `town-gate` | 1 (W) | 1 | 11 | morning — **DONE** |
 | 1 | n1 | Windmill Crossing | `windmill-bridge` | 1 (W) | 1 | 8–10 | morning |
 | 2 | n2 | Scarecrow Fields | `farmland` | 1 (W) | 1 | 9–11 | midday |
 | 3 | n3 | Miller's Homestead | `farmstead` | 1 (S) | 1 | 9–11 | midday |
-| 4 | n4 | Abandoned Village | `ruins` | 1 (W) | 1, tight corners | 10–12 | thin overcast |
-| 5 | n5 | Shepherd's Pasture | `pasture` | 2 (W+S) | 2 → merge mid | 10–12 | bright |
-| 6 | n6 | Beehive Bend | `apiary` | 1 (W) | 1, longest path | 10–12 | golden afternoon |
-| 7 | n7 | The Watchtower | `crag-tower` | 2 (NW+W) | 2 around crag → merge | 11–13 | clear |
-| 8 | n8 | The Standing Stones | `stone-circle` | 2 (W+S) | 2, late merge | 11–13 | pale sun |
-| 9 | n9 | Charcoal Burners' Camp | `charcoal-camp` | 2 (W+S) | 2, lanes CROSS once | 12–14 | hazy smoke |
-| 10 | n10 | Logging Camp | `timber-camp` | 3 (NW+W+SW) | 3 → staged merges | 12–14 | day |
-| 11 | n11 | The Lone Monolith | `moor-monolith` | 3 (W+N+S) | 3, late merge | 12–14 | overcast |
-| 12 | n12 | The Corrupted Mile | `blighted-forest` | 3 (W+NW+S) | 3, staged merges | 12–14 | grey gloom |
+| 4 | n4 | Shepherd's Pasture | `pasture` | 2 (W+S) | 2 → merge mid | 10–12 | bright |
+| 5 | n5 | Beehive Bend | `apiary` | 1 (W) | 1, longest path | 10–12 | golden afternoon |
+| 6 | n6 | The Watchtower | `crag-tower` | 2 (NW+W) | 2 around crag → merge | 11–13 | clear |
+| 7 | n7 | The Standing Stones | `stone-circle` | 2 (W+S) | 2, late merge | 11–13 | pale sun |
+| 8 | n8 | Charcoal Burners' Camp | `charcoal-camp` | 2 (W+S) | 2, lanes CROSS once | 12–14 | hazy smoke |
+| 9 | n9 | Logging Camp | `timber-camp` | 3 (NW+W+SW) | 3 → staged merges | 12–14 | day |
+| 10 | n10 | Fishing Camp | `lakeshore` | 2 (W+S) | 2, late merge | 12–14 | bright lakeside — **scene block TBD** |
+| 11 | n11 | The Abandoned Town | `ruins` | 1 (W) | 1, tight corners | 10–12 | thin overcast |
+| 12 | n12 | The Lone Monolith | `moor-monolith` | 3 (W+N+S) | 3, late merge | 12–14 | overcast |
 | 13 | boss | The Ruined Keep | `keep-siege` | 3 (W+N+S) | 3 → causeway | 13–15 | darkest, mist |
 
 ---

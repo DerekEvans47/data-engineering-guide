@@ -3468,32 +3468,35 @@ const TD_EVENTS = [
 // (1024×572), verified against the road-pixel mask by the art pass, so no
 // runtime layout/generation is needed, just rendering.
 // Node coordinates for the 2026-07-05 regenerated region art (2.16:1
-// parchment map, sparkle removed). Placement method (rev 2 — the first pass
-// eyeballed scaled renders and missed badly): detect the painted road's
-// pixel mask (tan color filter), pick each landmark from 2× zoomed
-// road-overlay crops, then SNAP every node to the nearest road pixel
-// programmatically. All 14 nodes verified on-road beside their landmarks:
-// town, bridge+windmill, scarecrow fields, manor, sheep-pen bend, lakeside
-// flock, skep farm, crag tower, standing stones, charcoal tents, log
-// piles/lakehouse, monolith, blighted band, keep road-end.
+// parchment map, sparkle removed). Placement method (rev 3 — user-targeted
+// grid cells): the map is divided into a 52×24 grid of 20px cells numbered
+// 1–1248 row-major; the user picked a cell per node from a numbered-overlay
+// render, and each cell center was snapped to the nearest pixel of the
+// painted road's tan-color mask (all landed within 4px — the cells were
+// chosen on the road). rev 3 also reshaped the journey: the old Abandoned
+// Village node was cut, a Fishing Camp (stilted lakehouse, north shore)
+// was added, and The Corrupted Mile was renamed to The Abandoned Town
+// (the lone ruined house it now sits at). Spine order follows the road:
+// south farmland loop west-about, then the northern stretch west→east
+// past the lake to the keep.
 const VERDANT_REGION = {
   image: 'assets/worlds/verdant/region.png',
   viewBox: [0, 0, 1024, 474],
   spine: [
     { id:'start', name:'Frontier Town',           x:269, y:333, battleTheme:'town-gate'       },
     { id:'n1',    name:'Windmill Crossing',        x:337, y:323, battleTheme:'windmill-bridge' },
-    { id:'n2',    name:'Scarecrow Fields',         x:440, y:350, battleTheme:'farmland'        },
-    { id:'n3',    name:"Miller's Homestead",       x:603, y:334, battleTheme:'farmstead'       },
-    { id:'n4',    name:'Abandoned Village',        x:644, y:357, battleTheme:'ruins'           },
-    { id:'n5',    name:"Shepherd's Pasture",       x:535, y:268, battleTheme:'pasture'         },
-    { id:'n6',    name:'Beehive Bend',             x:753, y:264, battleTheme:'apiary'          },
-    { id:'n7',    name:'The Watchtower',           x:432, y:258, battleTheme:'crag-tower'      },
-    { id:'n8',    name:'The Standing Stones',      x:420, y:119, battleTheme:'stone-circle'    },
-    { id:'n9',    name:"Charcoal Burners' Camp",   x:386, y:127, battleTheme:'charcoal-camp'   },
-    { id:'n10',   name:'Logging Camp',             x:559, y:114, battleTheme:'timber-camp'     },
-    { id:'n11',   name:'The Lone Monolith',        x:711, y:127, battleTheme:'moor-monolith'   },
-    { id:'n12',   name:'The Corrupted Mile',       x:760, y:128, battleTheme:'blighted-forest' },
-    { id:'boss',  name:'The Ruined Keep',          x:794, y:118, battleTheme:'keep-siege'      },
+    { id:'n2',    name:'Scarecrow Fields',         x:450, y:370, battleTheme:'farmland'        },
+    { id:'n3',    name:"Miller's Homestead",       x:570, y:390, battleTheme:'farmstead'       },
+    { id:'n4',    name:"Shepherd's Pasture",       x:690, y:330, battleTheme:'pasture'         },
+    { id:'n5',    name:'Beehive Bend',             x:611, y:250, battleTheme:'apiary'          },
+    { id:'n6',    name:'The Watchtower',           x:432, y:258, battleTheme:'crag-tower'      },
+    { id:'n7',    name:'The Standing Stones',      x:370, y:170, battleTheme:'stone-circle'    },
+    { id:'n8',    name:"Charcoal Burners' Camp",   x:386, y:127, battleTheme:'charcoal-camp'   },
+    { id:'n9',    name:'Logging Camp',             x:530, y:130, battleTheme:'timber-camp'     },
+    { id:'n10',   name:'Fishing Camp',             x:629, y:90,  battleTheme:'lakeshore'       },
+    { id:'n11',   name:'The Abandoned Town',       x:673, y:91,  battleTheme:'ruins'           },
+    { id:'n12',   name:'The Lone Monolith',        x:730, y:131, battleTheme:'moor-monolith'   },
+    { id:'boss',  name:'The Ruined Keep',          x:810, y:111, battleTheme:'keep-siege'      },
   ],
 };
 
