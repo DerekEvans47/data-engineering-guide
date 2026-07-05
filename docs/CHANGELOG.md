@@ -42,6 +42,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Mirror frontier-town for left-to-right flow; 11 slots centered in clearings (#84)
 
+- New regenerated region map (nodes re-placed) + road-structure occlusion
+
 - Original driving march theme for the world/region map
 
 - Painted Ranger tower art, code-side shadow, testing gold bump (#94)
