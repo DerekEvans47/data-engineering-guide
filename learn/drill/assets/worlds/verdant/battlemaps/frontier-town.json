@@ -1,5 +1,5 @@
 {
-  "_notes": "Battle-map authoring data for Frontier Town (tutorial, spine node 'start'). rev 4: new painted art (fortified frontier waypoint per docs/MAP_PROMPTS_VERDANT.md level 1 \u2014 town core inside a palisade ring, gatehouse towers mid-west and mid-east, dense-forest border). Road traced from the pixel mask (rev 4b: waypoint y values clamped to <=351 so all quantize to grid row 4 on the road - the raw trace dipped toward mud yards near the lower houses); enemies spawn in the WESTERN forest fringe (first waypoint off-canvas) and march east through both gates; leak point is the road running off the EAST edge. 8 build slots on the painted clearings' centroids (near/far mix: ~1.4-3.1 cells off the road so all tower types stay viable). Coordinates in image pixels; engine converts to grid space. Gemini sparkle watermark removed at (1398,585) via scripts/remove_gemini_sparkle.py.",
+  "_notes": "Battle-map authoring data for Frontier Town (tutorial, spine node 'start'). rev 4: new painted art (fortified frontier waypoint per docs/MAP_PROMPTS_VERDANT.md level 1 \u2014 town core inside a palisade ring, gatehouse towers mid-west and mid-east, dense-forest border). Road traced from the pixel mask (rev 4b: waypoint y values clamped to <=351 so all quantize to grid row 4 on the road - the raw trace dipped toward mud yards near the lower houses); enemies spawn in the WESTERN forest fringe (first waypoint off-canvas) and march east through both gates; leak point is the road running off the EAST edge. 8 build slots on the painted clearings' centroids (near/far mix: ~1.4-3.1 cells off the road so all tower types stay viable). Coordinates in image pixels; engine converts to grid space. Gemini sparkle watermark removed at (1398,585) via scripts/remove_gemini_sparkle.py. rev 5: occluders added - structures straddling the road are redrawn over enemies each frame (west/east gatehouse towers, bottom-center house roofline).",
   "image": "frontier-town.png",
   "viewBox": [
     0,
@@ -100,6 +100,35 @@
       "x": 1211,
       "y": 485,
       "pad": "open"
+    }
+  ],
+  "occluders": [
+    {
+      "id": "west-gatehouse",
+      "rect": [
+        450,
+        240,
+        514,
+        424
+      ]
+    },
+    {
+      "id": "east-gatehouse",
+      "rect": [
+        1094,
+        248,
+        1158,
+        426
+      ]
+    },
+    {
+      "id": "south-house-roof",
+      "rect": [
+        758,
+        330,
+        895,
+        417
+      ]
     }
   ]
 }

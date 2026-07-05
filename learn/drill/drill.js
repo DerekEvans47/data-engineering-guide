@@ -3467,24 +3467,30 @@ const TD_EVENTS = [
 // node coordinates are already in the painted region.png's pixel space
 // (1024×572), verified against the road-pixel mask by the art pass, so no
 // runtime layout/generation is needed, just rendering.
+// Node coordinates hand-placed against the 2026-07-05 regenerated region art
+// (2.16:1 parchment map, sparkle removed via scripts/remove_gemini_sparkle.py).
+// Placement validated with labeled-overlay renders: each node sits on (or on
+// the road beside) its painted landmark — town, windmill+bridge, scarecrow
+// fields, manor, road bend, sheep meadow, skep farm, crag tower, standing
+// stones, charcoal tents, log piles, monolith, blighted band, mossy keep.
 const VERDANT_REGION = {
   image: 'assets/worlds/verdant/region.png',
-  viewBox: [0, 0, 1024, 572],
+  viewBox: [0, 0, 1024, 474],
   spine: [
-    { id:'start', name:'Frontier Town',           x:202, y:418, battleTheme:'town-gate'       },
-    { id:'n1',    name:'Windmill Crossing',        x:300, y:393, battleTheme:'windmill-bridge' },
-    { id:'n2',    name:'Scarecrow Fields',         x:393, y:406, battleTheme:'farmland'        },
-    { id:'n3',    name:"Miller's Homestead",       x:463, y:458, battleTheme:'farmstead'       },
-    { id:'n4',    name:'Abandoned Village',        x:597, y:481, battleTheme:'ruins'           },
-    { id:'n5',    name:"Shepherd's Pasture",       x:700, y:432, battleTheme:'pasture'         },
-    { id:'n6',    name:'Beehive Bend',             x:647, y:327, battleTheme:'apiary'          },
-    { id:'n7',    name:'The Watchtower',           x:467, y:311, battleTheme:'crag-tower'      },
-    { id:'n8',    name:'The Standing Stones',      x:321, y:217, battleTheme:'stone-circle'    },
-    { id:'n9',    name:"Charcoal Burners' Camp",   x:340, y:149, battleTheme:'charcoal-camp'   },
-    { id:'n10',   name:'Logging Camp',             x:567, y:140, battleTheme:'timber-camp'     },
-    { id:'n11',   name:'The Lone Monolith',        x:724, y:117, battleTheme:'moor-monolith'   },
-    { id:'n12',   name:'The Corrupted Mile',       x:841, y:162, battleTheme:'blighted-forest' },
-    { id:'boss',  name:'The Ruined Keep',          x:915, y:135, battleTheme:'keep-siege'      },
+    { id:'start', name:'Frontier Town',           x:320, y:340, battleTheme:'town-gate'       },
+    { id:'n1',    name:'Windmill Crossing',        x:495, y:320, battleTheme:'windmill-bridge' },
+    { id:'n2',    name:'Scarecrow Fields',         x:445, y:390, battleTheme:'farmland'        },
+    { id:'n3',    name:"Miller's Homestead",       x:615, y:345, battleTheme:'farmstead'       },
+    { id:'n4',    name:'Abandoned Village',        x:700, y:350, battleTheme:'ruins'           },
+    { id:'n5',    name:"Shepherd's Pasture",       x:805, y:310, battleTheme:'pasture'         },
+    { id:'n6',    name:'Beehive Bend',             x:812, y:240, battleTheme:'apiary'          },
+    { id:'n7',    name:'The Watchtower',           x:657, y:302, battleTheme:'crag-tower'      },
+    { id:'n8',    name:'The Standing Stones',      x:428, y:162, battleTheme:'stone-circle'    },
+    { id:'n9',    name:"Charcoal Burners' Camp",   x:545, y:122, battleTheme:'charcoal-camp'   },
+    { id:'n10',   name:'Logging Camp',             x:770, y:85,  battleTheme:'timber-camp'     },
+    { id:'n11',   name:'The Lone Monolith',        x:728, y:125, battleTheme:'moor-monolith'   },
+    { id:'n12',   name:'The Corrupted Mile',       x:838, y:155, battleTheme:'blighted-forest' },
+    { id:'boss',  name:'The Ruined Keep',          x:897, y:98,  battleTheme:'keep-siege'      },
   ],
 };
 
@@ -3516,6 +3522,15 @@ const FRONTIER_TOWN_MAP = {
   buildSlotsPx: [
     [388,236],[647,129],[920,135],[1219,235],
     [391,486],[721,589],[974,560],[1211,485],
+  ],
+  // Structures that straddle or overhang the road (image-px rects): redrawn
+  // from the background AFTER enemies each frame, so units pass BEHIND the
+  // two gatehouse towers and the bottom-center house's roofline instead of
+  // walking over them.
+  occludersPx: [
+    [450,240,514,424],   // west gatehouse tower
+    [1094,248,1158,426], // east gatehouse tower
+    [758,330,895,417],   // bottom-center house roof (top intrudes into road band)
   ],
 };
 
@@ -3739,6 +3754,8 @@ function frontierTownLevelDef() {
     diffWeights: { easy: 0.8, medium: 0.2, hard: 0 },
     waveDefs, parts: mapDef.parts, deco: [], isBoss: false,
     usesPaintedBg: 'frontier-town',
+    occludersPx: FRONTIER_TOWN_MAP.occludersPx,
+    bgSize: [FRONTIER_TOWN_MAP.viewBox[2], FRONTIER_TOWN_MAP.viewBox[3]],
     gridCols: FRONTIER_TOWN_MAP.cols, gridRows: FRONTIER_TOWN_MAP.rows,
     buildSlots: FRONTIER_TOWN_SLOTS,
     slotCenters: FRONTIER_TOWN_SLOT_CENTERS,
@@ -5477,6 +5494,8 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
     td.buildSlotSet = new Set((levelDef.buildSlots || []).map(([c,r]) => `${c},${r}`));
     td.slotCenterMap = levelDef.slotCenters || null;
     td.slotFacingMap = levelDef.slotFacing || null;
+    td.occluders = levelDef.occludersPx || null;
+    td.bgSize = levelDef.bgSize || null;
     // Fill the letterbox around the contain-fit canvas with the same map
     // art, cover-fit and slightly darkened — dead black margins read as a
     // vignette ("looking through a closing eye"); continuing forest doesn't.
@@ -5489,6 +5508,8 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
     td.buildSlotSet = null;
     td.slotCenterMap = null;
     td.slotFacingMap = null;
+    td.occluders = null;
+    td.bgSize = null;
     wrap.style.background = '';
   }
 
@@ -7179,6 +7200,19 @@ function tdRenderTowers(ctx, cs, bgT) {
   }
 }
 
+// Structures that straddle the road (gate towers, overhanging rooflines):
+// their pixels are redrawn from the painted background AFTER enemies, so
+// units visibly pass BEHIND them — cheap occlusion without y-sorting.
+function tdRenderOccluders(ctx) {
+  if (!td.occluders || !td.paintedBg || !td.paintedBg.complete || !td.paintedBg.naturalWidth || !td.bgSize) return;
+  const [imgW, imgH] = td.bgSize;
+  const kx = td.canvas.width / imgW, ky = td.canvas.height / imgH;
+  for (const [x0, y0, x1, y1] of td.occluders) {
+    ctx.drawImage(td.paintedBg, x0, y0, x1 - x0, y1 - y0,
+      x0 * kx, y0 * ky, (x1 - x0) * kx, (y1 - y0) * ky);
+  }
+}
+
 // Corpse death sequences (A-3): 4 painted frames over ~0.55s, hold the
 // final lying pose, then fade. Drawn under living enemies.
 function tdRenderCorpses(ctx, cs) {
@@ -7439,6 +7473,7 @@ function tdRender() {
   }
   tdRenderCorpses(ctx, cs);
   tdRenderEnemies(ctx, cs, bgT);
+  tdRenderOccluders(ctx);
   tdRenderProjectiles(ctx, cs);
   tdRenderParticles(ctx);
   tdRenderDamageNumbers(ctx, cs);

@@ -65,6 +65,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### 🐛 Bug Fixes
 
+- HiDPI canvas - battle was rendering at 1/3 native resolution on phones
+
 - Accurate slot taps, grounded tower shadow, 4th ranger tier (#95)
 
 - Bypass HTTP/CDN caching for SW-installed assets (#100)
