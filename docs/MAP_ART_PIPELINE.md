@@ -97,7 +97,49 @@ Per generation, before accepting:
 - [ ] Sparkle watermark checked (step 1) — all four corners
 - [ ] No text/labels/icons anywhere
 
-## 4. Integration reminder
+## 4. Unit Readability Standard — outline + pop + reserved palette
+
+**The problem it solves:** the goblin pilot, rendered raw on the Frontier
+Town map, was nearly invisible — mossy-green skin against green grass,
+brown leather against the brown road, a small sprite sinking into a
+uniformly detailed painted background. Kingdom Rush units read instantly
+not because of art quality but because of three deliberate separation
+rules. We adopt all three:
+
+1. **Reserved palette.** Gameplay objects must not share the terrain's
+   dominant hues. Verdant terrain owns greens/browns/tans, so unit accent
+   colors (cloth, banners, glows) come from a reserved set — reds,
+   purples, blues, bone-white — that map art never uses. Bake this into
+   every A-2+ generation prompt ("crimson loincloth", "bone-white war
+   paint", etc.). A green-skinned enemy is fine as long as its *accents*
+   separate and rule 2 is applied.
+2. **Baked dark outline + saturation/brightness pop** — applied by
+   `scripts/pop_unit_sheet.py` to every unit sheet before it is
+   committed. This is what makes any palette readable at small sizes.
+3. **Quiet stage.** Map roads stay pale packed dirt, clearly lighter than
+   the surrounding grass, so units silhouette against them (rule added to
+   the master map prompt). Frontier Town's dark mud road predates this
+   rule and is the worst-case background the standard was tuned against.
+
+**When to apply the script:** every object rendered ON the battlefield at
+sub-cell size — enemies, friendly troops (G-10), pickups/projectiles if
+they ever become sprites. NOT towers (large, already carry outlines from
+generation) and NOT scenery (scenery is *supposed* to blend).
+
+```bash
+python3 scripts/pop_unit_sheet.py assets/enemies/<unit>-walk.png --frames 2
+python3 scripts/pop_unit_sheet.py assets/enemies/<unit>-death.png --frames 4
+```
+
+Defaults (cell height 100px ≈ 2× max in-game render, 4px outline, 1.45
+saturation, 1.12 brightness) were tuned visually against the Frontier Town
+road — keep them unless a specific unit proves otherwise. Run it on the
+**pristine** packed sheet only (outline/saturation stack if run twice); the
+pristine version is always recoverable from git history. The downscale to
+2× render size also eliminates runtime smoothing mush and cuts file size
+~8×.
+
+## 5. Integration reminder
 
 A cleaned map is scenery only. Before it's playable, hand-place against the
 final pixels: waypoint path, build-slot positions (in clearings), and any
