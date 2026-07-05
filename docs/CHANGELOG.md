@@ -14,6 +14,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - New Run option on the home screen
 
+- Unit Readability Standard - outline+pop pass for battlefield sprites
+
 - Add Music Lab for A/B testing map-theme candidates
 
 - Add battle-music contenders (horn & strings) to Music Lab
