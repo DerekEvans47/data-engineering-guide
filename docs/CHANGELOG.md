@@ -48,6 +48,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Radial build/manage menu replaces persistent tower bar (#93)
 
+- Reshape Verdant spine - node re-placement, Fishing Camp added (#130)
+
 - Seamless full-bleed game UI, remove duplicate top bar (#89)
 
 - Tower facing — orient toward the road, front/back art (#98)
