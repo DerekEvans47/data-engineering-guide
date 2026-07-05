@@ -1,11 +1,11 @@
 {
-  "_notes": "W-1 authoring data for the Verdant region world map. The spine is the canonical linear route; node coordinates are hand-placed on the painted road and verified against the road-pixel mask. Node types (battle/shop/campfire) shuffle per run within the spine under the constraints below; start and boss are fixed. 'life' holds W-7 ambient-animation coordinates, authored in the same pass. Approximate polylines \u2014 refine during W-7 implementation. 2026-07-02 rev 2: node coordinates corrected onto the road ribbon (density-filtered mask excludes clearings/blobs; every mid-spine node visually audited via crosshair crops); nodes gained display names and battleTheme keys \u2014 each node's TD battle map is themed to its world-map landmark. rev 3: Standing Stones moved onto the road ribbon west of the circle; Lakeside Hamlet node replaced by Charcoal Burners' Camp (the smoking huts, upper-left sweep) to even out landmark spacing \u2014 the hamlet remains scenery with its smoke/boat animation points. rev 4: bend-spread pass \u2014 pasture up its bend, stones onto the visible road center (wide road there is density-excluded from the ribbon mask; visually placed), monolith west along the road, corrupted mile down to the last healthy bend, boss at the keep gate on the grey road. rev 5: stones marker moved onto the road itself just west of the circle (321,217) per user annotation. rev 6: assets restructured under assets/worlds/verdant/; image path now relative to this file.",
+  "_notes": "W-1 authoring data for the Verdant region world map. The spine is the canonical linear route; node coordinates are hand-placed on the painted road and verified against the road-pixel mask. Node types (battle/shop/campfire) shuffle per run within the spine under the constraints below; start and boss are fixed. 'life' holds W-7 ambient-animation coordinates, authored in the same pass. Approximate polylines — refine during W-7 implementation. 2026-07-02 rev 2: node coordinates corrected onto the road ribbon (density-filtered mask excludes clearings/blobs; every mid-spine node visually audited via crosshair crops); nodes gained display names and battleTheme keys — each node's TD battle map is themed to its world-map landmark. rev 3: Standing Stones moved onto the road ribbon west of the circle; Lakeside Hamlet node replaced by Charcoal Burners' Camp (the smoking huts, upper-left sweep) to even out landmark spacing — the hamlet remains scenery with its smoke/boat animation points. rev 4: bend-spread pass — pasture up its bend, stones onto the visible road center (wide road there is density-excluded from the ribbon mask; visually placed), monolith west along the road, corrupted mile down to the last healthy bend, boss at the keep gate on the grey road. rev 5: stones marker moved onto the road itself just west of the circle (321,217) per user annotation. rev 6: assets restructured under assets/worlds/verdant/; image path now relative to this file. rev 7 (2026-07-05): spine re-synced to the regenerated region art (viewBox now 1024×474) and to drill.js's VERDANT_REGION — nodes re-placed via user-targeted grid cells (52×24 grid of 20px cells, cell centers snapped to the road-pixel mask); Abandoned Village node removed, Fishing Camp (stilted lakehouse, battleTheme lakeshore) added on the lake's north shore, The Corrupted Mile renamed The Abandoned Town (keeps the ruins theme); the 'life' block below is superseded by RVM_AMBIENT in drill.js (W-7 implemented) and its coordinates still reference the old 1024×572 art.",
   "image": "region.png",
   "viewBox": [
     0,
     0,
     1024,
-    572
+    474
   ],
   "world": "verdant",
   "preset": 1,
@@ -13,106 +13,106 @@
     "minBattles": 8,
     "shops": 2,
     "campfires": 2,
-    "eliteIsOptIn": "W-2 \u2014 elite is a per-battle engagement choice, not a node type"
+    "eliteIsOptIn": "W-2 — elite is a per-battle engagement choice, not a node type"
   },
   "spine": [
     {
       "id": "start",
       "name": "Frontier Town",
-      "x": 202,
-      "y": 418,
+      "x": 269,
+      "y": 333,
       "battleTheme": "town-gate",
       "fixedType": "start"
     },
     {
       "id": "n1",
       "name": "Windmill Crossing",
-      "x": 300,
-      "y": 393,
+      "x": 337,
+      "y": 323,
       "battleTheme": "windmill-bridge"
     },
     {
       "id": "n2",
       "name": "Scarecrow Fields",
-      "x": 393,
-      "y": 406,
+      "x": 450,
+      "y": 370,
       "battleTheme": "farmland"
     },
     {
       "id": "n3",
       "name": "Miller's Homestead",
-      "x": 463,
-      "y": 458,
+      "x": 570,
+      "y": 390,
       "battleTheme": "farmstead"
     },
     {
       "id": "n4",
-      "name": "Abandoned Village",
-      "x": 597,
-      "y": 481,
-      "battleTheme": "ruins"
-    },
-    {
-      "id": "n5",
       "name": "Shepherd's Pasture",
-      "x": 700,
-      "y": 432,
+      "x": 690,
+      "y": 330,
       "battleTheme": "pasture"
     },
     {
-      "id": "n6",
+      "id": "n5",
       "name": "Beehive Bend",
-      "x": 647,
-      "y": 327,
+      "x": 611,
+      "y": 250,
       "battleTheme": "apiary"
     },
     {
-      "id": "n7",
+      "id": "n6",
       "name": "The Watchtower",
-      "x": 467,
-      "y": 311,
+      "x": 432,
+      "y": 258,
       "battleTheme": "crag-tower"
     },
     {
-      "id": "n8",
+      "id": "n7",
       "name": "The Standing Stones",
-      "x": 321,
-      "y": 217,
+      "x": 370,
+      "y": 170,
       "battleTheme": "stone-circle"
     },
     {
-      "id": "n9",
+      "id": "n8",
       "name": "Charcoal Burners' Camp",
-      "x": 340,
-      "y": 149,
+      "x": 386,
+      "y": 127,
       "battleTheme": "charcoal-camp"
     },
     {
-      "id": "n10",
+      "id": "n9",
       "name": "Logging Camp",
-      "x": 567,
-      "y": 140,
+      "x": 530,
+      "y": 130,
       "battleTheme": "timber-camp"
     },
     {
+      "id": "n10",
+      "name": "Fishing Camp",
+      "x": 629,
+      "y": 90,
+      "battleTheme": "lakeshore"
+    },
+    {
       "id": "n11",
-      "name": "The Lone Monolith",
-      "x": 724,
-      "y": 117,
-      "battleTheme": "moor-monolith"
+      "name": "The Abandoned Town",
+      "x": 673,
+      "y": 91,
+      "battleTheme": "ruins"
     },
     {
       "id": "n12",
-      "name": "The Corrupted Mile",
-      "x": 841,
-      "y": 162,
-      "battleTheme": "blighted-forest"
+      "name": "The Lone Monolith",
+      "x": 730,
+      "y": 131,
+      "battleTheme": "moor-monolith"
     },
     {
       "id": "boss",
       "name": "The Ruined Keep",
-      "x": 915,
-      "y": 135,
+      "x": 810,
+      "y": 111,
       "battleTheme": "keep-siege",
       "fixedType": "boss"
     }
