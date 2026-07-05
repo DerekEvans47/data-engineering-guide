@@ -2177,9 +2177,10 @@ html, body {
   left: 0;
   right: 0;
   bottom: calc(var(--tab-h) + env(safe-area-inset-bottom));
-  background: rgba(0,0,0,.75);
+  background: rgba(0,0,0,.55);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: center;
   z-index: 300;
   opacity: 0;
   pointer-events: none;
@@ -2187,15 +2188,17 @@ html, body {
 }
 .td-q-overlay.open { opacity: 1; pointer-events: all; }
 
+/* Centered compact card instead of a full-width bottom sheet — the old
+   sheet covered essentially the whole battlefield on phones. */
 .td-q-sheet {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 20px 20px 0 0;
-  padding: 1.2rem 1rem 2rem;
-  width: 100%;
-  max-height: 88vh;
+  border-radius: 16px;
+  padding: .9rem .9rem 1.1rem;
+  width: min(560px, calc(100% - 2rem));
+  max-height: 80vh;
   overflow-y: auto;
-  transform: translateY(100%);
+  transform: translateY(24px);
   transition: transform .25s cubic-bezier(.2,.8,.4,1);
 }
 .td-q-overlay.open .td-q-sheet { transform: translateY(0); }

@@ -79,6 +79,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Prevent pull-to-refresh bounce, nudge install for true fullscreen (#91)
 
+- Re-fit battle canvas on rotation + force-update via version badge
+
 - Regenerate Frontier Town's levelDef fresh instead of a stale persisted snapshot (#101)
 
 - Remove Nano Banana watermark from verdant terrain background (#73)
