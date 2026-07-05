@@ -43,6 +43,9 @@ acceptance checklist).
   (Engine note: today's engine walks a single waypoint path; multi-path play
   is backlog item G-9. Generate the art with the branches anyway — art leads
   code, and an unused branch reads as an honest side road until G-9 lands.)
+- **Roads are the unit stage.** Pale, low-noise road surface (see PATHS) —
+  learned from Frontier Town's dark mud road, which camouflaged enemies and
+  forced the Unit Readability Standard (docs/MAP_ART_PIPELINE.md §4).
 - Tower range context for wiring (cells): Mortar 2.8–3.3, Bastion 3.0–3.6,
   Ranger 4.5–6.0. "Close to the path" ≈ within ~2.5 cells of some segment.
 
@@ -57,7 +60,10 @@ SCENE: [LEVEL SCENE — landmarks, mood, elevation feature if any].
 PATHS: [PATH SPEC — entrances, exits, branching]. Every road is a worn dirt
 path cut off by the frame where it enters or exits — this image is a cropped
 section of a larger world and each road visibly continues beyond the canvas.
-Roads never dead-end in an open field or clearing.
+Roads never dead-end in an open field or clearing. The road surface is pale
+packed dirt, clearly LIGHTER than the surrounding grass — a clean, low-noise
+band (units must silhouette against it; no dark mud, deep ruts, or heavy
+texture on the road itself).
 
 COMPOSITION: Dense, dark, impassable pine forest fills the border of the
 canvas on all sides — a thick band of old-growth trees pressing in on the

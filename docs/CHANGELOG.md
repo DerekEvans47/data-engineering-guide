@@ -12,6 +12,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Frontier Town bandit roster + Ranger L4 multi-projectile (#102)
 
+- New Run option on the home screen
+
 - Add Music Lab for A/B testing map-theme candidates
 
 - Add battle-music contenders (horn & strings) to Music Lab
