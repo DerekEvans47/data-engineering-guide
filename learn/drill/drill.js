@@ -5326,14 +5326,16 @@ function tdRefitCanvas() {
   const H = wrap.clientHeight || 0;
   const cellByW = Math.floor(W / TD_COLS);
   const cellByH = H > 0 ? Math.floor(H / TD_ROWS) : cellByW;
-  const newCs = Math.min(cellByW, cellByH);
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const cellCss = Math.min(cellByW, cellByH);
+  const newCs = Math.round(cellCss * dpr);
   if (!newCs || newCs < 4 || newCs === td.cellSize) return;
   const k = newCs / td.cellSize;
   td.cellSize = newCs;
   td.canvas.width  = newCs * TD_COLS;
   td.canvas.height = newCs * TD_ROWS;
-  td.canvas.style.width  = td.canvas.width  + 'px';
-  td.canvas.style.height = td.canvas.height + 'px';
+  td.canvas.style.width  = cellCss * TD_COLS + 'px';
+  td.canvas.style.height = cellCss * TD_ROWS + 'px';
   for (const e of td.enemies) { e.x *= k; e.y *= k; if (e._px !== undefined) e._px *= k; }
   for (const p of td.projectiles) {
     p.x *= k; p.y *= k; p.spd *= k; p.splash *= k;
@@ -5515,11 +5517,19 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   const H = wrap.clientHeight || 0;
   const cellByW = Math.floor(W / TD_COLS);
   const cellByH = H > 0 ? Math.floor(H / TD_ROWS) : cellByW;
-  td.cellSize   = Math.min(cellByW, cellByH);
+  // HiDPI: back the canvas at devicePixelRatio resolution and scale it down
+  // via CSS. Without this a 3x phone renders the whole battle at 1/3 native
+  // resolution and stretches it — the entire game looked slightly blurry on
+  // mobile. All game math runs in backing-store (canvas) pixels via
+  // td.cellSize; taps and DOM overlays already convert through
+  // getBoundingClientRect scaling, so only the sizing here changes.
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const cellCss = Math.min(cellByW, cellByH);
+  td.cellSize   = Math.round(cellCss * dpr);
   canvas.width  = td.cellSize * TD_COLS;
   canvas.height = td.cellSize * TD_ROWS;
-  canvas.style.width  = canvas.width  + 'px';
-  canvas.style.height = canvas.height + 'px';
+  canvas.style.width  = cellCss * TD_COLS + 'px';
+  canvas.style.height = cellCss * TD_ROWS + 'px';
 
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
