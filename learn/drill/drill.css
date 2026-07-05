@@ -2786,6 +2786,112 @@ html, body {
   color: var(--text-muted);
   cursor: pointer;
 }
+/* ── Region-map ambient animation layer ──────────────────────────
+   Decorative life over the painted map: mist, smoke, birds, water
+   glints, pennants, grazing sheep. All transform/opacity animations
+   (GPU-composited); the whole layer goes still under reduced motion. */
+.rvm-ambient { pointer-events: none; }
+.rvm-ambient * { transform-box: fill-box; transform-origin: center; }
+
+.rvm-mist {
+  fill: #cfd8d4;
+  opacity: var(--mist-op, .15);
+  filter: blur(9px);
+  animation: rvm-mist-drift 60s ease-in-out infinite alternate;
+}
+@keyframes rvm-mist-drift {
+  0%   { transform: translateX(-24px) translateY(3px); }
+  50%  { transform: translateX(14px)  translateY(-4px); }
+  100% { transform: translateX(34px)  translateY(2px); }
+}
+
+.rvm-smoke {
+  fill: #d6dad4;
+  opacity: 0;
+  animation: rvm-smoke-rise 4.8s linear infinite;
+}
+@keyframes rvm-smoke-rise {
+  0%   { transform: translateY(0) scale(.7);    opacity: 0; }
+  15%  { opacity: .35; }
+  70%  { opacity: .14; }
+  100% { transform: translateY(-26px) scale(1.9); opacity: 0; }
+}
+
+.rvm-glint {
+  fill: #ffffff;
+  opacity: 0;
+  animation: rvm-glint-shimmer 3s ease-in-out infinite;
+}
+@keyframes rvm-glint-shimmer {
+  0%, 100% { opacity: 0;   transform: translateX(0); }
+  45%      { opacity: .75; transform: translateX(1.5px); }
+  60%      { opacity: .35; }
+}
+
+.rvm-flock path {
+  fill: none;
+  stroke: #2c2a24;
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  opacity: .75;
+}
+.rvm-flock { opacity: 0; }
+.rvm-flock-a { animation: rvm-fly-a 52s linear infinite; }
+.rvm-flock-b { animation: rvm-fly-b 67s linear infinite; animation-delay: -30s; }
+/* fly across for ~60% of the cycle, idle off-screen the rest */
+@keyframes rvm-fly-a {
+  0%    { transform: translate(-60px, 195px); opacity: 0; }
+  2%    { opacity: .9; }
+  58%   { opacity: .9; }
+  60%   { transform: translate(1090px, 105px); opacity: 0; }
+  100%  { transform: translate(1090px, 105px); opacity: 0; }
+}
+@keyframes rvm-fly-b {
+  0%    { transform: translate(1080px, 60px); opacity: 0; }
+  2%    { opacity: .8; }
+  55%   { opacity: .8; }
+  57%   { transform: translate(-80px, 150px); opacity: 0; }
+  100%  { transform: translate(-80px, 150px); opacity: 0; }
+}
+
+.rvm-flag {
+  animation: rvm-flag-flutter 1.1s ease-in-out infinite;
+  transform-origin: left center;
+}
+@keyframes rvm-flag-flutter {
+  0%, 100% { transform: scaleX(1); }
+  35%      { transform: scaleX(.68) skewY(3deg); }
+  65%      { transform: scaleX(.88) skewY(-2deg); }
+}
+
+/* sheep graze in a slow wandering loop; tiny pauses read as nibbling */
+.rvm-sheep-0 { animation: rvm-graze-0 55s ease-in-out infinite; }
+.rvm-sheep-1 { animation: rvm-graze-1 68s ease-in-out infinite; }
+.rvm-sheep-2 { animation: rvm-graze-2 60s ease-in-out infinite; }
+@keyframes rvm-graze-0 {
+  0%, 12%  { translate: 0 0; }
+  30%, 42% { translate: 14px 4px; }
+  60%, 70% { translate: 6px 9px; }
+  88%,100% { translate: 0 0; }
+}
+@keyframes rvm-graze-1 {
+  0%, 15%  { translate: 0 0; }
+  35%, 45% { translate: -12px 5px; }
+  65%, 78% { translate: -4px -6px; }
+  95%,100% { translate: 0 0; }
+}
+@keyframes rvm-graze-2 {
+  0%, 10%  { translate: 0 0; }
+  28%, 40% { translate: 10px -5px; }
+  62%, 74% { translate: 16px 3px; }
+  90%,100% { translate: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rvm-ambient * { animation: none !important; }
+  .rvm-flock { opacity: 0 !important; }
+}
+
 #rvm-svg {
   /* width/height are set explicitly in px by JS right after render (see
      renderVerdantWorldMap), the same fit-to-container pattern initTDGame

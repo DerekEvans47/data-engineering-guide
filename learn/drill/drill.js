@@ -4621,6 +4621,77 @@ function renderRunMap(run) {
 // Renders the region.png spine as a real world map instead of the
 // procedural SVG node graph: node coords are already in the image's pixel
 // space, so this is a straight overlay, not a layout/generation pass.
+// ── Region-map ambient animation layer ─────────────────────────
+// Pure decoration between the painted art and the interactive nodes:
+// drifting mist over the corrupted zone, chimney smoke, bird flocks,
+// water glints, fluttering pennants, and a few grazing sheep dots (the
+// painted sheep are baked pixels — these extras read as flock life).
+// Everything is CSS-animated SVG, GPU-composited, no JS per frame, and
+// fully disabled under prefers-reduced-motion (see drill.css).
+// Coordinates are in the region viewBox (1024×474); water-glint points
+// were snapped to actual blue pixels of the painted rivers/lake.
+const RVM_AMBIENT = {
+  mist: [   // corrupted NE + eastern swamp
+    { cx: 780, cy: 90,  rx: 90,  ry: 40, dur: 62, delay: 0,   op: .16 },
+    { cx: 880, cy: 150, rx: 110, ry: 55, dur: 78, delay: -20, op: .20 },
+    { cx: 950, cy: 250, rx: 90,  ry: 50, dur: 55, delay: -35, op: .15 },
+    { cx: 830, cy: 205, rx: 70,  ry: 35, dur: 70, delay: -8,  op: .12 },
+  ],
+  smoke: [  // chimney/campfire sources
+    [363, 96], [383, 92],   // charcoal burners' tents
+    [247, 297],             // town chimney
+    [573, 312],             // manor chimney
+    [607, 102],             // lakehouse
+  ],
+  glints: [ // sparkle points on painted water
+    [234,106],[259,158],[300,250],[348,333],[298,394],[325,93],[326,144],
+    [338,268],[364,306],[590,140],[660,130],[700,180],[619,198],[708,196],[872,277],
+  ],
+  flags: [  // pennant poles: keep tower + crag watchtower
+    { x: 802, y: 42 }, { x: 438, y: 184 },
+  ],
+  sheep: [  // grazing wanderers near the painted flocks
+    { x: 560, y: 182, dur: 55, delay: 0 },
+    { x: 662, y: 372, dur: 68, delay: -22 },
+    { x: 862, y: 312, dur: 60, delay: -40 },
+  ],
+};
+
+function rvmAmbientHtml() {
+  const A = RVM_AMBIENT;
+  const mist = A.mist.map((m, i) => `
+    <ellipse class="rvm-mist" cx="${m.cx}" cy="${m.cy}" rx="${m.rx}" ry="${m.ry}"
+      style="animation-duration:${m.dur}s;animation-delay:${m.delay}s;--mist-op:${m.op}"/>`).join('');
+  const smoke = A.smoke.map(([x, y]) => [0, 1, 2].map(p => `
+    <circle class="rvm-smoke" cx="${x}" cy="${y}" r="2.4"
+      style="animation-delay:${(p * 1.6).toFixed(1)}s"/>`).join('')).join('');
+  const glints = A.glints.map(([x, y], i) => `
+    <circle class="rvm-glint" cx="${x}" cy="${y}" r="1.4"
+      style="animation-delay:${((i * 0.7) % 3.4).toFixed(1)}s;animation-duration:${(2.6 + (i % 4) * 0.5).toFixed(1)}s"/>`).join('');
+  const bird = 'M0 0 Q2 -2.2 4 0 Q6 -2.2 8 0';
+  const flock = (cls) => `
+    <g class="rvm-flock ${cls}">
+      <path d="${bird}" transform="translate(0,0) scale(1.05)"/>
+      <path d="${bird}" transform="translate(-11,6) scale(0.9)"/>
+      <path d="${bird}" transform="translate(-22,11) scale(0.75)"/>
+      <path d="${bird}" transform="translate(11,7) scale(0.85)"/>
+    </g>`;
+  const flags = A.flags.map(f => `
+    <g class="rvm-flagpole" transform="translate(${f.x},${f.y})">
+      <line x1="0" y1="0" x2="0" y2="-9" stroke="#3a2c1c" stroke-width="1"/>
+      <polygon class="rvm-flag" points="0,-9 8,-7.2 0,-5.4" fill="#B33A2F"/>
+    </g>`).join('');
+  const sheep = A.sheep.map((s, i) => `
+    <g class="rvm-sheep rvm-sheep-${i}" transform="translate(${s.x},${s.y})"
+       style="animation-duration:${s.dur}s;animation-delay:${s.delay}s">
+      <ellipse cx="0" cy="0" rx="2.6" ry="1.7" fill="#e8e4da"/>
+      <circle cx="2.4" cy="-0.4" r="0.9" fill="#57504a"/>
+    </g>`).join('');
+  return `<g class="rvm-ambient" aria-hidden="true">
+    ${glints}${smoke}${sheep}${flags}${mist}${flock('rvm-flock-a')}${flock('rvm-flock-b')}
+  </g>`;
+}
+
 function renderVerdantWorldMap(run) {
   const mapDef = TD_MAPS[run.mapId];
   const [, , VW, VH] = VERDANT_REGION.viewBox;
@@ -4679,6 +4750,7 @@ function renderVerdantWorldMap(run) {
   const svg = `<svg id="rvm-svg" viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg">
     <image href="${VERDANT_REGION.image}" x="0" y="0" width="${VW}" height="${VH}" preserveAspectRatio="xMidYMid slice"/>
     <rect x="0" y="0" width="${VW}" height="${VH}" fill="rgba(6,9,16,.12)"/>
+    ${rvmAmbientHtml()}
     ${roadsHtml}
     ${nodesHtml}
   </svg>`;
