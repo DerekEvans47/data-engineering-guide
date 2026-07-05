@@ -95,6 +95,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Regenerate Frontier Town's levelDef fresh instead of a stale persisted snapshot (#101)
 
+- Region map node placement redone with road-mask snapping
+
 - Remove Nano Banana watermark from verdant terrain background (#73)
 
 - Spine bend-spread pass — 5 nodes repositioned onto the trail (#79)
