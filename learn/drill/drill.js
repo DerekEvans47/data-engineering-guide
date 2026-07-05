@@ -3051,11 +3051,15 @@ const TD_TOWER_DEFS = [
   // tdFireTowers), which spreads across two different enemies when more
   // than one is in range, instead of just being a disguised damage
   // multiplier on a single target.
-  { id:'ranger',  name:'Ranger',  icon:'🏹', cost:90,  color:'#10B981', range:4.5, dmg:14,  rate:2.5,  splash:0,  pattern:'dots', projectiles:1,
+  // Rates rebalanced 2026-07-05 (playtest): the old 2.5–4.6/s spray put 4+
+  // slow arrows on screen from one tower. Arrows are now deliberate heavy
+  // shots — roughly 1/s at L1 — with damage raised to keep each tier's DPS
+  // where it was (14×2.5≈32×1.1, 24×3.2≈55×1.4, 44×4.0≈98×1.8).
+  { id:'ranger',  name:'Ranger',  icon:'🏹', cost:90,  color:'#10B981', range:4.5, dmg:32,  rate:1.1,  splash:0,  pattern:'dots', projectiles:1,
     upgrades:[
-      {cost:100, icon:'🏹', dmg:24,  rate:3.2, range:5.0, splash:0,   glow:'#34D399', projectiles:1},
-      {cost:180, icon:'🎯', dmg:44,  rate:4.0, range:5.6, splash:0,   glow:'#C084FC', projectiles:1},
-      {cost:280, icon:'💎', dmg:44,  rate:4.6, range:6.0, splash:0,   glow:'#A5F3FC', projectiles:2},
+      {cost:100, icon:'🏹', dmg:55,  rate:1.4, range:5.0, splash:0,   glow:'#34D399', projectiles:1},
+      {cost:180, icon:'🎯', dmg:98,  rate:1.8, range:5.6, splash:0,   glow:'#C084FC', projectiles:1},
+      {cost:280, icon:'💎', dmg:98,  rate:2.1, range:6.0, splash:0,   glow:'#A5F3FC', projectiles:2},
     ]},
   { id:'mortar',  name:'Mortar',  icon:'💣', cost:130, color:'#EF4444', range:2.8, dmg:60,  rate:0.55, splash:1.5, pattern:'cross',
     upgrades:[
@@ -4640,21 +4644,29 @@ const RVM_AMBIENT = {
     { cx: 950, cy: 250, rx: 90,  ry: 50, dur: 55, delay: -35, op: .15 },
     { cx: 830, cy: 205, rx: 70,  ry: 35, dur: 70, delay: -8,  op: .12 },
   ],
-  smoke: [  // chimney/campfire sources
-    [363, 96], [383, 92],   // charcoal burners' tents
-    [247, 297],             // town chimney
-    [573, 312],             // manor chimney
-    [607, 102],             // lakehouse
+  // Chimney/campfire sources as [x, y, dx]: dx is the horizontal drift (px)
+  // a puff picks up over its rise, matched to each landmark's PAINTED plume
+  // so the animated smoke continues the baked art instead of crossing it —
+  // the kiln plumes lean right, the town chimney's leans slightly left.
+  // Anchors sit on the actual chimney/kiln tips (verified on zoomed crops;
+  // the old lakehouse source hovered over the road).
+  smoke: [
+    [361, 88,  15], [387, 99, 15],  // charcoal kilns (painted plumes lean right)
+    [253, 286, -7],                 // town chimney (painted plume leans left)
+    [574, 311, 9],                  // manor chimney
+    [624, 107, 10],                 // lakehouse stovepipe
   ],
-  glints: [ // sparkle points on painted water
+  glints: [ // ripple squiggles on painted water
     [234,106],[259,158],[300,250],[348,333],[298,394],[325,93],[326,144],
     [338,268],[364,306],[590,140],[660,130],[700,180],[619,198],[708,196],[872,277],
   ],
-  flags: [  // pennant poles: keep tower + crag watchtower
-    { x: 802, y: 42 }, { x: 438, y: 184 },
+  // Pennant poles planted ON the tower tips (keep's central spire, the
+  // crag watchtower's roof apex) — earlier coords floated beside them.
+  flags: [
+    { x: 827, y: 37 }, { x: 444, y: 191 },
   ],
-  sheep: [  // grazing wanderers near the painted flocks
-    { x: 560, y: 182, dur: 55, delay: 0 },
+  sheep: [  // grazing wanderers inside the painted flocks' open grass
+    { x: 555, y: 235, dur: 55, delay: 0 },   // lakeside meadow (was in the trees NW of it)
     { x: 662, y: 372, dur: 68, delay: -22 },
     { x: 862, y: 312, dur: 60, delay: -40 },
   ],
@@ -4662,14 +4674,35 @@ const RVM_AMBIENT = {
 
 function rvmAmbientHtml() {
   const A = RVM_AMBIENT;
-  const mist = A.mist.map((m, i) => `
-    <ellipse class="rvm-mist" cx="${m.cx}" cy="${m.cy}" rx="${m.rx}" ry="${m.ry}"
-      style="animation-duration:${m.dur}s;animation-delay:${m.delay}s;--mist-op:${m.op}"/>`).join('');
-  const smoke = A.smoke.map(([x, y]) => [0, 1, 2].map(p => `
-    <circle class="rvm-smoke" cx="${x}" cy="${y}" r="2.4"
-      style="animation-delay:${(p * 1.6).toFixed(1)}s"/>`).join('')).join('');
+  // Each mist patch is a cluster of three soft-edged lobes on a radial
+  // gradient (opaque core fading to nothing) rather than one flat ellipse —
+  // a single uniform-fill ellipse read as a hard-rimmed "floating plate"
+  // even under blur. Lobes share the patch's drift but at staggered
+  // durations so the cluster stretches and re-forms as it moves.
+  const mistDefs = `<defs>
+    <radialGradient id="rvm-mist-grad">
+      <stop offset="0%"  stop-color="#cfd8d4" stop-opacity="1"/>
+      <stop offset="55%" stop-color="#cfd8d4" stop-opacity=".55"/>
+      <stop offset="100%" stop-color="#cfd8d4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>`;
+  const mist = A.mist.map((m, i) => {
+    const lobes = [
+      { ox: -m.rx * .40, oy:  m.ry * .22, fx: .62, fy: .74, dmul: 1.18 },
+      { ox:  m.rx * .38, oy: -m.ry * .18, fx: .70, fy: .66, dmul: 0.86 },
+      { ox: 0,           oy: 0,           fx: 1,   fy: 1,   dmul: 1    },
+    ];
+    return lobes.map((l, j) => `
+    <ellipse class="rvm-mist rvm-mist-${(i + j) % 2 ? 'b' : 'a'}" fill="url(#rvm-mist-grad)"
+      cx="${(m.cx + l.ox).toFixed(0)}" cy="${(m.cy + l.oy).toFixed(0)}"
+      rx="${(m.rx * l.fx).toFixed(0)}" ry="${(m.ry * l.fy).toFixed(0)}"
+      style="animation-duration:${(m.dur * l.dmul).toFixed(0)}s;animation-delay:${m.delay - j * 7}s;--mist-op:${m.op}"/>`).join('');
+  }).join('');
+  const smoke = A.smoke.map(([x, y, dx]) => [0, 1, 2, 3].map(p => `
+    <circle class="rvm-smoke" cx="${x}" cy="${y}" r="${(2.0 + p * 0.4).toFixed(1)}"
+      style="animation-delay:${(p * 1.4).toFixed(1)}s;--sdx:${dx}px"/>`).join('')).join('');
   const glints = A.glints.map(([x, y], i) => `
-    <circle class="rvm-glint" cx="${x}" cy="${y}" r="1.4"
+    <path class="rvm-glint" d="M-4 0 q2 -2.4 4 0 t4 0" transform="translate(${x},${y})"
       style="animation-delay:${((i * 0.7) % 3.4).toFixed(1)}s;animation-duration:${(2.6 + (i % 4) * 0.5).toFixed(1)}s"/>`).join('');
   const bird = 'M0 0 Q2 -2.2 4 0 Q6 -2.2 8 0';
   const flock = (cls) => `
@@ -4691,7 +4724,7 @@ function rvmAmbientHtml() {
       <circle cx="2.4" cy="-0.4" r="0.9" fill="#57504a"/>
     </g>`).join('');
   return `<g class="rvm-ambient" aria-hidden="true">
-    ${glints}${smoke}${sheep}${flags}${mist}${flock('rvm-flock-a')}${flock('rvm-flock-b')}
+    ${mistDefs}${glints}${smoke}${sheep}${flags}${mist}${flock('rvm-flock-a')}${flock('rvm-flock-b')}
   </g>`;
 }
 
@@ -6074,7 +6107,12 @@ function tdFireTowers(dt) {
         firstTarget = firstTarget || target;
         td.projectiles.push({
           x: tx, y: ty, eid: target.id,
-          spd: 280, dmg: stats.dmg * (td.relicMods?.towerDmgMult || 1),
+          // Speed in cell-units like enemy spd, not a fixed px/s — a flat
+          // 280 was tuned pre-HiDPI and turned into a crawl once the canvas
+          // rendered at device resolution (enemies scale with cellSize,
+          // projectiles didn't). 10 cells/s crosses a max-range shot in
+          // ~0.5s so an arrow lands before the next one nocks.
+          spd: cs * 10, dmg: stats.dmg * (td.relicMods?.towerDmgMult || 1),
           splash: stats.splash * cs,
           color: stats.glow || stats.color,
         });

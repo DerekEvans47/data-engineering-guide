@@ -648,6 +648,27 @@ html, body {
   flex-direction: column;
   gap: .85rem;
 }
+
+/* Landscape phones: the portrait stack (hero + stats + progress + 3 stacked
+   menu cards) is taller than the viewport and forced a scroll to reach the
+   Start button. Compact the chrome and lay the menu cards side-by-side so
+   everything fits on one screen. */
+@media (orientation: landscape) and (max-height: 640px) {
+  .home-screen { padding: .5rem 1rem calc(.7rem + env(safe-area-inset-bottom)); gap: .5rem; }
+  .home-hero { padding-top: .3rem; }
+  .home-title { font-size: 1.65rem; margin-bottom: .2rem; }
+  .home-subtitle { font-size: .64rem; padding: .22rem .65rem; }
+  .home-bottom { gap: .5rem; max-width: 860px; width: 100%; margin: 0 auto; }
+  .home-stat { padding: .26rem .7rem; font-size: .72rem; }
+  .home-progress-cell { padding: .45rem .5rem; gap: .1rem; }
+  .home-progress-val { font-size: 1rem; }
+  .home-menu { flex-direction: row; align-items: stretch; gap: .55rem; }
+  .home-menu .home-card { flex: 1 1 0; min-width: 0; }
+  .home-card-primary { padding: .75rem .8rem; }
+  .home-card-secondary { padding: .6rem .8rem; }
+  .home-card-primary .home-card-icon { font-size: 1.7rem; }
+  .home-card-icon { font-size: 1.4rem; }
+}
 .home-stats {
   display: flex;
   justify-content: center;
@@ -1354,11 +1375,12 @@ html, body {
   inset: 0;
   /* Was capped at 540px like the base #app rule (a deliberate "phone-width
      reading column" for text-heavy screens like study/drill) — but home has
-     its own full-bleed painted hero art, which that cap wasted ~35% of the
-     screen on in landscape. Match tower mode's wider cap instead. */
-  max-width: 1700px;
+     its own full-bleed painted hero art. No width cap at all now: the
+     interim 1700px cap still left black side bars on wider viewports. */
+  max-width: none;
   margin: 0 auto;
   padding: 0;
+  border: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1817,13 +1839,13 @@ html, body {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  /* Was capped at 1100px — wasted ~20% of the screen as empty side margins
-     on wider landscape viewports (iPad Pro landscape and similar), exactly
-     where the region/battle maps most need the real estate. 1100px still
-     covers portrait phones fine (well under their width); this only opens
-     up headroom for landscape. */
-  width: min(100%, 1700px);
-  max-width: 1700px;
+  /* Was capped at 1100px, then 1700px — any cap leaves black side bars on
+     viewports wider than it (playtest screenshot), exactly where the
+     region/battle maps most need the real estate. Full-bleed now; the
+     cover-fit map and the battle canvas both handle arbitrary widths. */
+  width: 100%;
+  max-width: none;
+  border: none;
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
   display: flex;
   flex-direction: column;
@@ -2714,7 +2736,8 @@ html, body {
      the map width independently of the outer cap on wide landscape screens. */
   width: 100%;
   margin: 0 auto;
-  padding-bottom: .75rem;
+  /* No padding-bottom — it showed as a bare strip of page background under
+     the cover-fit map art (the "extra space" in playtest screenshots). */
   flex: 1;
   min-height: 0;
   /* Cover-fit (see the JS fit calc) means the map is always >= the wrap in
@@ -2793,39 +2816,62 @@ html, body {
 .rvm-ambient { pointer-events: none; }
 .rvm-ambient * { transform-box: fill-box; transform-origin: center; }
 
+/* Fill comes from the #rvm-mist-grad radial gradient (opaque core → fully
+   transparent rim) set in the markup, so the blur only has soft edges to
+   work with — a flat fill + blur still showed a hard elliptical rim (the
+   "floating dinner plate"). Two drift variants (a/b) run on the staggered
+   lobes of each patch so a cluster stretches, shears, and re-forms rather
+   than gliding as one rigid plate. */
 .rvm-mist {
-  fill: #cfd8d4;
   opacity: var(--mist-op, .15);
-  filter: blur(9px);
-  animation: rvm-mist-drift 60s ease-in-out infinite alternate;
+  filter: blur(11px);
 }
-@keyframes rvm-mist-drift {
-  0%   { transform: translateX(-24px) translateY(3px); }
-  50%  { transform: translateX(14px)  translateY(-4px); }
-  100% { transform: translateX(34px)  translateY(2px); }
+.rvm-mist-a { animation: rvm-mist-drift-a 60s ease-in-out infinite alternate; }
+.rvm-mist-b { animation: rvm-mist-drift-b 60s ease-in-out infinite alternate; }
+@keyframes rvm-mist-drift-a {
+  0%   { transform: translate(-30px,  4px) scale(1, .92); }
+  35%  { transform: translate(  2px, -3px) scale(1.14, .84); }
+  70%  { transform: translate( 26px,  3px) scale(.94, 1.02); }
+  100% { transform: translate( 44px, -2px) scale(1.10, .88); }
+}
+@keyframes rvm-mist-drift-b {
+  0%   { transform: translate( 26px, -3px) scale(1.10, .86); }
+  40%  { transform: translate( -6px,  4px) scale(.92, 1.04); }
+  75%  { transform: translate(-28px, -2px) scale(1.16, .90); }
+  100% { transform: translate(-42px,  3px) scale(.96, 1.00); }
 }
 
+/* Puffs climb AND drift sideways by --sdx (set per source in the markup to
+   match the direction of that landmark's painted plume), blurring and
+   swelling as they go — reads as a smoke trail bending with the wind
+   instead of dots popping straight up. */
 .rvm-smoke {
   fill: #d6dad4;
   opacity: 0;
-  animation: rvm-smoke-rise 4.8s linear infinite;
+  filter: blur(.7px);
+  animation: rvm-smoke-drift 5.6s linear infinite;
 }
-@keyframes rvm-smoke-rise {
-  0%   { transform: translateY(0) scale(.7);    opacity: 0; }
-  15%  { opacity: .35; }
-  70%  { opacity: .14; }
-  100% { transform: translateY(-26px) scale(1.9); opacity: 0; }
+@keyframes rvm-smoke-drift {
+  0%   { transform: translate(0, 0) scale(.5); opacity: 0; }
+  12%  { transform: translate(calc(var(--sdx, 0px) * .12), -3px) scale(.75); opacity: .38; }
+  55%  { transform: translate(calc(var(--sdx, 0px) * .55), -14px) scale(1.4); opacity: .18; }
+  100% { transform: translate(var(--sdx, 0px), -26px) scale(2.3); opacity: 0; }
 }
 
+/* Ripple squiggle (a small ~ path in the markup), not a round dot — dots
+   on the water read as stray sheep from a distance. */
 .rvm-glint {
-  fill: #ffffff;
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1.1;
+  stroke-linecap: round;
   opacity: 0;
   animation: rvm-glint-shimmer 3s ease-in-out infinite;
 }
 @keyframes rvm-glint-shimmer {
-  0%, 100% { opacity: 0;   transform: translateX(0); }
-  45%      { opacity: .75; transform: translateX(1.5px); }
-  60%      { opacity: .35; }
+  0%, 100% { opacity: 0;   translate: 0 0; }
+  45%      { opacity: .65; translate: 2px 0; }
+  60%      { opacity: .30; translate: 2.6px 0; }
 }
 
 .rvm-flock path {
