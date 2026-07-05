@@ -146,8 +146,18 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
   }
   console.log(`✅ Radial menu on empty slot shows ${buildBtns.length} build option(s), no Sell/Upgrade`);
 
-  await buildBtns[0].click({ force: true }); // place the first tower option (Bastion)
+  // Two-tap build flow: first tap arms (stat card + range ring), second builds
+  await buildBtns[0].click({ force: true });
+  await page.waitForTimeout(250);
+  const infoCard = await page.$('.td-tower-info');
+  if (!infoCard) throw new Error('Armed build option did not show the tower stat card');
+  const armedPreview = await page.evaluate(() => !!td.rangePreview);
+  if (!armedPreview) throw new Error('Armed build option did not set the range preview ring');
+  console.log('✅ Build arm shows stat card + range preview');
+  await buildBtns[0].click({ force: true }); // second tap builds
   await page.waitForTimeout(400);
+  const towerPlaced = await page.evaluate(() => td.towers.length > 0);
+  if (!towerPlaced) throw new Error('Second tap on armed build option did not place a tower');
   const oscAfterPlace = await page.evaluate(() => window.__oscCount);
   if (oscAfterPlace === 0) throw new Error('No oscillator notes fired on tower placement — audio silent');
   console.log(`✅ Tower placement audio: ${oscAfterPlace} oscillator note(s) fired`);

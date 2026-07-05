@@ -1971,7 +1971,16 @@ html, body {
   display: flex;
   flex-direction: column;
   padding-bottom: env(safe-area-inset-bottom);
-  background: linear-gradient(to top, rgba(6,9,14,.92) 0%, rgba(6,9,14,.75) 55%, rgba(6,9,14,0) 100%);
+  /* No scrim — it painted a black band over the bottom of the battlefield
+     (part of the "closing eye"). The buttons carry their own chrome, and
+     pointer-events pass through everywhere except the controls so the
+     lower build slots stay tappable underneath. */
+  background: none;
+  pointer-events: none;
+}
+#td-bottom-bar button,
+#td-bottom-bar .td-powerup-tray {
+  pointer-events: auto;
 }
 
 /* Action bar */
@@ -2121,9 +2130,9 @@ html, body {
   gap: .4rem;
   flex-wrap: wrap;
   padding: .25rem .4rem;
-  margin-bottom: .25rem;
-  background: rgba(251,191,36,.06);
-  border: 1px solid rgba(251,191,36,.2);
+  margin-right: auto; /* sits left on the same row as the wave button */
+  background: rgba(10,12,10,.72);
+  border: 1px solid rgba(251,191,36,.25);
   border-radius: .45rem;
   animation: td-chip-in .18s ease;
 }
@@ -2370,6 +2379,37 @@ html, body {
 .td-radial-btn.disabled { opacity: .35; pointer-events: none; }
 .td-radial-icon { font-size: 1.3rem; line-height: 1; pointer-events: none; }
 .td-radial-sub { font-size: .56rem; font-weight: 800; color: #FBBF24; pointer-events: none; }
+/* Armed build option (two-tap placement): glow the picked button */
+.td-radial-btn.armed {
+  box-shadow: 0 0 0 3px rgba(255,255,255,.35), 0 0 14px 2px currentColor;
+  transform: scale(1.12);
+}
+/* Stacked tower stat card shown while a build option is armed */
+.td-tower-info {
+  position: absolute;
+  z-index: 5;
+  width: 122px;
+  padding: .4rem .5rem;
+  background: rgba(8,11,8,.92);
+  border: 1.5px solid;
+  border-radius: .5rem;
+  font-size: .62rem;
+  line-height: 1.5;
+  color: #E5E7EB;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0,0,0,.5);
+}
+.td-ti-name { font-weight: 800; font-size: .68rem; margin-bottom: .15rem; }
+.td-ti-row { display: flex; justify-content: space-between; gap: .5rem; }
+.td-ti-row span { color: rgba(255,255,255,.55); }
+.td-ti-hint {
+  margin-top: .2rem;
+  font-size: .55rem;
+  color: rgba(255,255,255,.45);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  text-align: center;
+}
 .td-radial-label {
   position: absolute;
   transform: translate(-50%, -50%);

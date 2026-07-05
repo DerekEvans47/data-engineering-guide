@@ -1,4 +1,4 @@
-const CACHE = 'de-drill-v119';
+const CACHE = 'de-drill-v120';
 const ASSETS = [
   './index.html',
   './drill.css',

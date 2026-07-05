@@ -26,6 +26,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Commit chosen Verdant region world map + file W-7 map-life overlay (#75)
 
+- Disable quiz gate for testing, compact quiz card, letterbox backdrop, smaller goblins
+
 - Fantasy-themed battle-screen HUD chrome (wave/quiz/radial/back buttons)
 
 - Gemini sparkle watermark removal script + map art pipeline docs

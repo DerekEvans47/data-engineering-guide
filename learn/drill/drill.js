@@ -2153,7 +2153,35 @@ const tdAudio = (() => {
 
   return {
     // positional SFX — pass colFrac (0–1) for stereo placement
-    shoot:     (colFrac=0.5) => tone(900, 'square',   0.07, 0.08, 420, colPan(colFrac)),
+    // Arrow "thwip": a filtered noise snap + a fast falling chirp — reads
+    // as a bowshot instead of the old square-wave laser zap.
+    shoot: (colFrac=0.5) => {
+      const c = ac(); if (!c || muted) return;
+      const t = c.currentTime + OFFSET;
+      const pan = colPan(colFrac);
+      // noise burst through a falling bandpass (string snap / fletching hiss)
+      const len = Math.floor(c.sampleRate * 0.09);
+      const buf = c.createBuffer(1, len, c.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      const src = c.createBufferSource(); src.buffer = buf;
+      const bp = c.createBiquadFilter();
+      bp.type = 'bandpass'; bp.Q.value = 1.2;
+      bp.frequency.setValueAtTime(2400, t);
+      bp.frequency.exponentialRampToValueAtTime(500, t + 0.09);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.10, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+      src.connect(bp); bp.connect(g);
+      try {
+        const p = c.createStereoPanner();
+        p.pan.value = Math.max(-1, Math.min(1, pan));
+        g.connect(p); p.connect(c.destination);
+      } catch(_) { g.connect(c.destination); }
+      src.start(t); src.stop(t + 0.1);
+      // soft low bow-thump under the snap
+      tone(150, 'sine', 0.05, 0.05, 90, pan);
+    },
     hit:       (colFrac=0.5) => tone(260, 'sine',     0.10, 0.12, 110, colPan(colFrac)),
     death:     (colFrac=0.5) => tone(360, 'sawtooth', 0.18, 0.18, 55,  colPan(colFrac)),
     place:     (colFrac=0.5) => tone(430, 'sine',     0.14, 0.16, 390, colPan(colFrac)),
@@ -3641,8 +3669,12 @@ function tdLoadEnemySheet(src, frames) {
   img.src = src;
   return { img, frames };
 }
+// Per-type `scale` sets rendered height as (enemy r × cellSize × scale).
+// Size ladder (vs a ~2.5-cell house): goblin ≤ ¼ house — one of the tiniest
+// enemies; human-sized units ≈ ½ house; bosses approach a full house.
 const TD_ENEMY_SHEET_IMAGES = {
   goblin: {
+    scale: 2.0,
     walk:  tdLoadEnemySheet('assets/enemies/goblin-walk.png', 2),
     death: tdLoadEnemySheet('assets/enemies/goblin-death.png', 4),
   },
@@ -5343,8 +5375,8 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
       </div>
       <div id="td-bottom-bar">
         <div id="td-actions">
-          <div id="td-powerup-tray" class="td-powerup-tray" style="display:none"></div>
           <div class="td-actions-row">
+            <div id="td-powerup-tray" class="td-powerup-tray" style="display:none"></div>
             <button class="td-quiz-btn" id="td-quiz-btn">📝 +25🪙 (3)</button>
             <button class="td-wave-btn" id="td-wave-btn">
               <span class="td-wave-btn-main">⚔️ Start Wave 1</span>
@@ -6038,6 +6070,7 @@ function tdOpenRadialMenu(col, row, tower) {
   } else {
     items = TD_TOWER_DEFS.map(def => ({
       id: def.id, icon: def.icon, sub: `${def.cost}🪙`, accent: def.color, cost: def.cost,
+      isBuild: true,
       disabled: td.gold < def.cost,
       onSelect: () => {
         td.gold -= def.cost;
@@ -6105,10 +6138,52 @@ function tdRenderRadialMenu(items, label) {
       e.stopPropagation();
       const item = items[+btn.dataset.idx];
       if (!item || item.disabled) return;
+      // Build options are two-tap: first tap arms (stat card + range ring
+      // preview at the placement spot), second tap on the same option
+      // builds. Upgrade/sell keep single-tap commit.
+      if (item.isBuild && td.radialArmedId !== item.id) {
+        td.radialArmedId = item.id;
+        menuEl.querySelectorAll('.td-radial-btn').forEach(b =>
+          b.classList.toggle('armed', +b.dataset.idx === +btn.dataset.idx));
+        tdShowTowerInfoCard(item, btn);
+        const def = TD_TOWER_DEFS.find(d => d.id === item.id);
+        const [pcx, pcy] = tdCellCenter(td.radialMenu.col, td.radialMenu.row, td.cellSize);
+        td.rangePreview = { x: pcx, y: pcy, r: def.range * td.cellSize, color: def.color };
+        return;
+      }
       item.onSelect();
       tdCloseRadialMenu();
     });
   });
+}
+
+// Compact stacked stat card shown while a build option is armed — our
+// stylized version of the reference TD's bottom stat strip, anchored next
+// to the placement spot instead of across the screen.
+function tdShowTowerInfoCard(item, btnEl) {
+  const menuEl = EL.tdRadialMenu;
+  const wrap = document.getElementById('td-canvas-wrap');
+  if (!menuEl || !wrap) return;
+  const def = TD_TOWER_DEFS.find(d => d.id === item.id);
+  if (!def) return;
+  let card = menuEl.querySelector('.td-tower-info');
+  if (!card) {
+    card = document.createElement('div');
+    card.className = 'td-tower-info';
+    menuEl.appendChild(card);
+  }
+  card.innerHTML = `
+    <div class="td-ti-name" style="color:${def.color}">${def.icon} ${def.name}</div>
+    <div class="td-ti-row"><span>🗡️ Damage</span><b>${def.dmg}</b></div>
+    <div class="td-ti-row"><span>🎯 Range</span><b>${def.range}</b></div>
+    <div class="td-ti-row"><span>⚡ Fire rate</span><b>${def.rate}/s</b></div>
+    <div class="td-ti-hint">tap again to build</div>`;
+  card.style.borderColor = def.color;
+  // beside the armed button, flipped left if it would leave the wrap
+  const wrapRect = wrap.getBoundingClientRect();
+  const bx = parseFloat(btnEl.style.left), by = parseFloat(btnEl.style.top);
+  card.style.top = Math.max(8, Math.min(wrapRect.height - 118, by - 44)) + 'px';
+  card.style.left = (bx + 44 + 128 > wrapRect.width ? bx - 44 - 128 : bx + 44) + 'px';
 }
 
 // Keeps affordability current if gold changes (e.g. a quiz reward) while
@@ -6127,6 +6202,8 @@ function tdRefreshRadialMenuAfford() {
 
 function tdCloseRadialMenu() {
   td.radialMenu = null;
+  td.radialArmedId = null;
+  td.rangePreview = null;
   const menuEl = EL.tdRadialMenu;
   if (menuEl) { menuEl.style.display = 'none'; menuEl.innerHTML = ''; }
 }
@@ -6305,7 +6382,8 @@ function tdStartWave(idx) {
   tdUpdateWavePreview();
   tdAudio.waveStart();
   mapMusic.stop();
-  tdMusic.start(); // no-op if already playing
+  // tdMusic (the old synthesized battle loop) no longer auto-starts —
+  // battleMusicHorn is the battle theme and both playing at once doubled up.
 }
 
 // ── Power-up runtime (EQ-2) ────────────────────────────────────
@@ -6410,7 +6488,7 @@ function tdEnterEndless() {
     td.optQuizUsed++;
     tdOpenQuiz(25, true, function() { earnGold(25); tdUpdateHUD(); });
   });
-  tdUpdateHUD(); tdUpdateWaveBtn(); tdUpdatePowerUpTray(); tdMusic.start();
+  tdUpdateHUD(); tdUpdateWaveBtn(); tdUpdatePowerUpTray();
 }
 
 function tdUpdateHUD() {
@@ -6435,7 +6513,7 @@ function tdUpdateHUD() {
     if (td.endless) {
       wEl.textContent = td.waveActive ? `⚡ Endless · Wave ${td.waveIdx + 1}` : `⚡ Wave clear! ${td.endlessKills} kills`;
     } else if (td.waveIdx < 0)           wEl.textContent = 'Place towers, then start!';
-    else if (td.waveActive)       wEl.textContent = `Wave ${td.waveIdx + 1} / ${wc}`;
+    else if (td.waveActive)       wEl.textContent = ''; // wave button is the single Wave X/Y indicator
     else if (td.waveIdx < wc - 1) wEl.textContent = `Wave ${td.waveIdx + 1} cleared!`;
     else                          wEl.textContent = 'All waves cleared!';
   }
@@ -6464,11 +6542,16 @@ function tdUpdateHUD() {
 function tdUpdateWaveBtn() {
   const btn = EL.tdWaveBtn;
   if (!btn) return;
-  const next = td.waveIdx + 1;
-  if (next >= td.levelDef.waveDefs.length) { btn.disabled = true; return; }
+  const wc = td.levelDef.waveDefs.length;
   const mainSpan = btn.querySelector('.td-wave-btn-main');
-  if (mainSpan) mainSpan.textContent = `⚔️ Start Wave ${next + 1}`;
-  else btn.textContent = `⚔️ Start Wave ${next + 1}`;
+  const setText = t => { if (mainSpan) mainSpan.textContent = t; else btn.textContent = t; };
+  // During a wave the button turns into the single progress indicator —
+  // "Wave X/Y" bottom-right, no duplicate labels elsewhere.
+  if (td.waveActive) { btn.disabled = true; setText(`⚔️ Wave ${td.waveIdx + 1}/${wc}`); return; }
+  const next = td.waveIdx + 1;
+  if (next >= wc) { btn.disabled = true; return; }
+  btn.disabled = false;
+  setText(`⚔️ Start Wave ${next + 1}`);
 }
 
 function tdUpdateWavePreview() {
@@ -7077,10 +7160,11 @@ function tdRenderCorpses(ctx, cs) {
     if (!tdEnemySheetReady(sheet, 'death')) continue;
     const img = sheet.death.img;
     const fw = img.naturalWidth / sheet.death.frames, fh = img.naturalHeight;
-    const h = c.r * cs * 3.2, w = h * fw / fh;
+    const h = c.r * cs * (sheet.scale || 3.2), w = h * fw / fh;
     const fr = Math.min(sheet.death.frames - 1, Math.floor(c.t / 0.14));
     const alpha = c.t < 0.9 ? 1 : Math.max(0, 1 - (c.t - 0.9) / 0.6);
     ctx.save();
+    ctx.imageSmoothingEnabled = false;
     ctx.globalAlpha = alpha;
     if (c.faceLeft) { ctx.translate(c.x, 0); ctx.scale(-1, 1); ctx.translate(-c.x, 0); }
     ctx.drawImage(img, fr * fw, 0, fw, fh, c.x - w / 2, c.footY - h, w, h);
@@ -7122,12 +7206,15 @@ function tdRenderEnemies(ctx, cs, bgT) {
       e._px = e.x;
       const wImg = eSheet.walk.img;
       const fw = wImg.naturalWidth / eSheet.walk.frames, fh = wImg.naturalHeight;
-      const eh = e.r * cs * 3.2, ew = eh * fw / fh;
+      const eh = e.r * cs * (eSheet.scale || 3.2), ew = eh * fw / fh;
       // A-B-A-B playback, cadence scaled by the enemy's speed stat
       const fr = Math.floor(bgT * 3.2 * (e.spd || 1.5) + (e.animOffset || 0)) % eSheet.walk.frames;
       const footY = e.y + r * 0.78;
       paintedTopY = footY - eh;
       ctx.save();
+      // Nearest-neighbor keeps the pixel-art crunch when downscaling the
+      // large source frames — smoothing turns them to mush against the map.
+      ctx.imageSmoothingEnabled = false;
       if (e._faceLeft) { ctx.translate(e.x, 0); ctx.scale(-1, 1); ctx.translate(-e.x, 0); }
       ctx.drawImage(wImg, fr * fw, 0, fw, fh, e.x - ew / 2, footY - eh, ew, eh);
       ctx.restore();
@@ -7313,6 +7400,16 @@ function tdRender() {
   }
   tdRenderPlacementUI(ctx, cs, bgT);
   tdRenderTowers(ctx, cs, bgT);
+  // Armed-build range preview ring (two-tap placement flow)
+  if (td.rangePreview) {
+    const rp = td.rangePreview;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = rp.color + 'CC'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = rp.color + '14'; ctx.fill();
+    ctx.restore();
+  }
   tdRenderCorpses(ctx, cs);
   tdRenderEnemies(ctx, cs, bgT);
   tdRenderProjectiles(ctx, cs);
