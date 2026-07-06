@@ -649,26 +649,6 @@ html, body {
   gap: .85rem;
 }
 
-/* Landscape phones: the portrait stack (hero + stats + progress + 3 stacked
-   menu cards) is taller than the viewport and forced a scroll to reach the
-   Start button. Compact the chrome and lay the menu cards side-by-side so
-   everything fits on one screen. */
-@media (orientation: landscape) and (max-height: 640px) {
-  .home-screen { padding: .5rem 1rem calc(.7rem + env(safe-area-inset-bottom)); gap: .5rem; }
-  .home-hero { padding-top: .3rem; }
-  .home-title { font-size: 1.65rem; margin-bottom: .2rem; }
-  .home-subtitle { font-size: .64rem; padding: .22rem .65rem; }
-  .home-bottom { gap: .5rem; max-width: 860px; width: 100%; margin: 0 auto; }
-  .home-stat { padding: .26rem .7rem; font-size: .72rem; }
-  .home-progress-cell { padding: .45rem .5rem; gap: .1rem; }
-  .home-progress-val { font-size: 1rem; }
-  .home-menu { flex-direction: row; align-items: stretch; gap: .55rem; }
-  .home-menu .home-card { flex: 1 1 0; min-width: 0; }
-  .home-card-primary { padding: .75rem .8rem; }
-  .home-card-secondary { padding: .6rem .8rem; }
-  .home-card-primary .home-card-icon { font-size: 1.7rem; }
-  .home-card-icon { font-size: 1.4rem; }
-}
 .home-stats {
   display: flex;
   justify-content: center;
@@ -841,6 +821,52 @@ html, body {
   flex-shrink: 0;
   min-width: 32px;
   min-height: 32px;
+}
+
+/* NOTE: these two landscape blocks must stay BELOW every base .home-* rule —
+   they override equal-specificity declarations purely by source order. */
+/* Landscape phones: the portrait stack (hero + stats + progress + 3 stacked
+   menu cards) is taller than the viewport and forced a scroll to reach the
+   Start button. Compact the chrome and lay the menu cards side-by-side so
+   everything fits on one screen. */
+@media (orientation: landscape) and (max-height: 640px) {
+  .home-screen { padding: .5rem 1rem calc(.7rem + env(safe-area-inset-bottom)); gap: .5rem; }
+  .home-hero { padding-top: .3rem; }
+  .home-title { font-size: 1.65rem; margin-bottom: .2rem; }
+  .home-subtitle { font-size: .64rem; padding: .22rem .65rem; }
+  .home-bottom { gap: .5rem; max-width: 860px; width: 100%; margin: 0 auto; }
+  .home-stat { padding: .26rem .7rem; font-size: .72rem; }
+  .home-progress-cell { padding: .45rem .5rem; gap: .1rem; }
+  .home-progress-val { font-size: 1rem; }
+  .home-menu { flex-direction: row; align-items: stretch; gap: .55rem; }
+  .home-menu .home-card { flex: 1 1 0; min-width: 0; }
+  .home-card-primary { padding: .75rem .8rem; }
+  .home-card-secondary { padding: .6rem .8rem; }
+  .home-card-primary .home-card-icon { font-size: 1.7rem; }
+  .home-card-icon { font-size: 1.4rem; }
+  /* Bottom-right badge overlapped the last menu card once the cards went
+     side-by-side; the top-left corner is free in landscape. */
+  .home-version { top: calc(.6rem + env(safe-area-inset-top)); bottom: auto;
+                  left: calc(.6rem + env(safe-area-inset-left)); right: auto; }
+}
+
+/* Mobile-Safari landscape: the URL/tool bar eats ~60px, leaving ~330px of
+   visual viewport on an iPhone 15 Pro — the tier above fits 390px exactly
+   and still scrolled there. Strip everything non-essential. */
+@media (orientation: landscape) and (max-height: 460px) {
+  .home-screen { padding: .35rem .9rem calc(.45rem + env(safe-area-inset-bottom)); gap: .35rem; }
+  .home-title { font-size: 1.3rem; margin-bottom: .15rem; }
+  .home-subtitle { display: none; }
+  .home-bottom { gap: .4rem; }
+  .home-stat { padding: .18rem .55rem; font-size: .66rem; }
+  .home-progress-cell { padding: .3rem .5rem; gap: .05rem; }
+  .home-progress-val { font-size: .9rem; }
+  .home-progress-label { font-size: .56rem; }
+  .home-card-desc { display: none; }
+  .home-card-primary { padding: .55rem .75rem; }
+  .home-card-secondary { padding: .45rem .75rem; }
+  /* Install prompt is portrait's job — it's 50px this layout can't spare. */
+  .install-banner { display: none !important; }
 }
 
 /* ── Tutorial overlay ────────────────────────────────────── */

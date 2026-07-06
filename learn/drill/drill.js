@@ -4720,7 +4720,7 @@ function rvmAmbientHtml() {
   const sheep = A.sheep.map((s, i) => `
     <g class="rvm-sheep rvm-sheep-${i}" transform="translate(${s.x},${s.y})"
        style="animation-duration:${s.dur}s;animation-delay:${s.delay}s">
-      <ellipse cx="0" cy="0" rx="2.6" ry="1.7" fill="#e8e4da"/>
+      <ellipse cx="0" cy="0" rx="2.6" ry="1.7" fill="#d9d5a8"/>
       <circle cx="2.4" cy="-0.4" r="0.9" fill="#57504a"/>
     </g>`).join('');
   return `<g class="rvm-ambient" aria-hidden="true">

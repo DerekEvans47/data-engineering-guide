@@ -101,6 +101,15 @@ git fetch origin main && git pull origin main
 
 Never branch from a stale commit when modifying shared files.
 
+## Mobile Testing — PR + Merge Immediately
+
+Standing instruction (2026-07-05): whenever a change needs testing on the user's
+phone (anything under `learn/drill/`), finish the loop in the same session —
+push the branch, open the PR, and **merge it** so GitHub Pages deploys. Do not
+leave changes sitting on an unmerged branch waiting for review. After merging,
+verify the `pages build and deployment` workflow actually succeeded (it fails
+transiently sometimes — re-run the FULL workflow if so, not just failed jobs).
+
 ## learn/drill — Service Worker Checklist
 
 Any time you modify files under `learn/drill/` (drill.js, drill.css, index.html, etc.),
