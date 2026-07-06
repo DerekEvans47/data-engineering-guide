@@ -77,6 +77,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Nudge frontier-town s3 down into its clearing (161,290) (#85)
 
+- Playtest round 4 - landscape home fit, arrow physics, full-bleed map, ambient polish
+
 - Prevent pull-to-refresh bounce, nudge install for true fullscreen (#91)
 
 - Re-fit battle canvas on rotation + force-update via version badge
