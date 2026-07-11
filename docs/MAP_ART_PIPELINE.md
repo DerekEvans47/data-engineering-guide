@@ -83,6 +83,30 @@ prompt language, verify with pixel detection and fix by cropping:
 - The game's fit code scales any aspect ratio, so post-crop dimensions don't
   need to hit 2.16:1 exactly — just record the new size for the map's config.
 
+## 2b. Zoom/scale — numeric check
+
+Battle maps come in three grid tiers (CLOSE 19×9 / MID 24×11 / WIDE 28×13 —
+see the Zoom ladder in `BATTLEMAP_GENERATION_PROMPTS.md`). All tiers ship at
+the same ~1520px output size; what differs is the painted feature scale. The
+acceptance metric is the road's **median vertical thickness**:
+
+```bash
+python3 scripts/measure_road_width.py candidate.png --band <y0>,<y1> \
+  --baseline learn/drill/assets/worlds/verdant/battlemaps/frontier-town.png \
+  --baseline-band 260,440 --expect-ratio <1.0|0.79|0.68>
+```
+
+- Frontier Town's measured baseline is **44px median** (band 260,440). Targets:
+  CLOSE ~44px, MID ~35px, WIDE ~30px, ±10%.
+- Give the candidate a generous band around wherever its road actually runs —
+  a full-height scan picks up roofs and mud yards and reads high.
+- The classifier is brown-dirt (`r > g > b` with red–blue separation), which
+  handles both pale packed-dirt roads and Frontier Town's legacy dark mud road.
+  The **tan** rule in section 2 above is stricter and only suits pale roads —
+  don't reuse it for thickness.
+- FAIL → regenerate. Never rescale the image to pass: upscaling softens the
+  art, and downscaling changes the px/cell contract the tier tables assume.
+
 ## 3. Content checklist (from the master prompt criteria)
 
 Per generation, before accepting:

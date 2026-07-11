@@ -73,11 +73,11 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Home screen width cap, region map crop-fill, header opacity
 
+- IPhone landscape home fit + sheep tint; docs: K-section backlog review + STATUS handoff (#132)
+
 - Landscape maps were wasting ~20-40% of screen width/height
 
-- Nudge frontier-town s3 down into its clearing (161,290) (#85)
-
-- Playtest round 4 - landscape home fit, arrow physics, full-bleed map, ambient polish
+- Playtest round 4 - landscape home fit, arrow physics, full-bleed map, ambient polish (#131)
 
 - Prevent pull-to-refresh bounce, nudge install for true fullscreen (#91)
 
@@ -110,11 +110,7 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add files via upload
 
-- Add files via upload
-
 - Home screen: splash-art background + fantasy-styled buttons (#87)
-
-- Battle-map generation prompt book — all 13 remaining Verdant maps (#86)
 
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
