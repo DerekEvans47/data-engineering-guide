@@ -77,6 +77,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Landscape maps were wasting ~20-40% of screen width/height
 
+- Normalize road-width zoom ratio by canvas width; anchor via fresh scene
+
 - Playtest round 4 - landscape home fit, arrow physics, full-bleed map, ambient polish (#131)
 
 - Prevent pull-to-refresh bounce, nudge install for true fullscreen (#91)

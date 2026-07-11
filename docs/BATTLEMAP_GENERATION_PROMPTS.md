@@ -44,9 +44,14 @@ the camera pulls back as the campaign escalates:
 number for anchors and generated maps (±10%).
 
 **The image does NOT get bigger.** All tiers generate at the same output size
-(~1520px wide, 16:9 then cropped ~2.15:1 — the aspect ratios 19:9, 24:11, 28:13
-are all within a few percent of each other, and the game's fit code scales any
-aspect). Zoom is a property of the painted
+(~1520px wide, cropped to ~2.15:1 — the grid aspects 19:9, 24:11, 28:13 are all
+within a few percent of each other and of phone landscape, and the game's fit
+code scales any aspect). **Generation aspect differs by tier:** CLOSE keeps the
+proven 16:9 recipe (its thick borders survive the vertical crop); MID/WIDE
+request **21:9** — their one-tree-row borders sit at the very top/bottom edge,
+so the crop to ~2.15 must come out of width (road contact), not height. If the
+model won't honor 21:9 and returns 16:9, accept slightly thicker forest bands
+so the vertical crop has something to trim.. Zoom is a property of the painted
 content: at WIDE, every feature is ~2/3 the CLOSE size. Effective sharpness on a
 3× phone is unchanged (same ~1.6× upscale at every tier), so there is no
 resolution cost to zooming out.
@@ -108,11 +113,11 @@ be scored. 28-col anchor prompt:
 > house is tall; at least forty individual pine trees are visible in the top
 > forest band alone.
 >
-> Landscape 16:9. No horizon, no sky, no atmospheric distance — the whole
-> canvas at one overhead height and scale. No parchment border, no frame, no
-> compass — terrain full-bleed to every edge. No text, letters, numbers,
-> labels, icons, markers, glowing pins, people, animals, enemies, towers, or
-> weapons.
+> Ultrawide landscape 21:9. No horizon, no sky, no atmospheric distance — the
+> whole canvas at one overhead height and scale. No parchment border, no
+> frame, no compass — terrain full-bleed to every edge. No text, letters,
+> numbers, labels, icons, markers, glowing pins, people, animals, enemies,
+> towers, or weapons.
 
 For the 24-col anchor: same prompt with "about a fifth smaller" instead of
 "about two-thirds smaller", and verify with `--expect-ratio 0.79`.
@@ -133,6 +138,9 @@ do not hand-edit zoom.
 
 ### MID/WIDE ADDENDUM — paste after the COMMON BLOCK for 24- and 28-col maps
 
+> Canvas is ULTRAWIDE LANDSCAPE 21:9, not 16:9 — this overrides the aspect
+> ratio stated above.
+>
 > This battlefield is seen from higher up than a village scene — match the
 > attached reference's zoom exactly. Composition budget: the forest fringe along
 > the top and bottom edges is THIN — one tree-row deep, no more than one-tenth
