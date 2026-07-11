@@ -63,28 +63,63 @@ retrofit it.
 
 The anchor is a **reference image only** — it never becomes a playable map and
 never gets a JSON. It exists because zoom is pinned by the attached reference,
-not by prose. Making it a zoomed-out repaint of Frontier Town (rather than a new
-scene) is what makes verification numeric: same scene → the road-thickness ratio
-directly measures the zoom.
+not by prose.
 
-Attach `battlemaps/frontier-town.png` and prompt (28-col version; for the 24-col
-anchor swap "two-thirds (about 68%)" for "four-fifths (about 79%)"):
+**Two approaches are PROVEN DEAD ENDS — do not retry them:**
 
-> Re-render this exact scene from higher altitude — zoom OUT so every feature
-> appears at two-thirds (about 68%) of its current size. Same fortified frontier
-> town, same layout: palisade ring, both gatehouse towers, the same buildings,
-> the same dirt road crossing west to east and still touching the left and right
-> edges. The newly revealed ground on all sides is dense pine forest matching
-> the existing border, with two or three additional small open grass clearings
-> and a few boulders scattered through it. Keep the painted-pixel-art rendering
-> identical: same dithered shading, same palette, same saturation, same camera
-> angle (steeper than a typical 3/4 view — buildings show a front face, trees
-> show side volume, never pure vertical top-down). Landscape 16:9. No horizon,
-> no sky, no border, no frame — terrain full-bleed to every edge. No text, no
-> labels, no icons, no people, no animals.
+1. **"Zoom out this image" edits.** Attaching `frontier-town.png` and asking
+   Nano to re-render the same scene at 68% returns the same scene at the SAME
+   zoom (tested twice; normalized zoom ratios 1.1–1.2, i.e. slightly zoomed
+   IN). The attached reference pins feature scale — that is exactly the
+   property the prompt system relies on — so it overrides any zoom-change
+   instruction. Same failure class as topology edits ("do not try to edit
+   topology, it doesn't work").
+2. **Mechanical downscale + reflect-padding.** Style and zoom are exact by
+   construction, but mirror-padding kaleidoscopes every structured feature
+   near the source edges (palisade, watchtower, clearings). Rejected on sight.
+
+**What works: generate a NEW scene composed at the wide scope from the start.**
+Attach `battlemaps/frontier-town.png` as a STYLE-ONLY reference and control
+scale through composition fractions and object counts (levers the model
+respects) rather than a zoom percentage (a lever it ignores). The verifier
+never needed a same-scene candidate — it measures the road's thickness as a
+fraction of canvas width, so any scene with one road crossing the frame can
+be scored. 28-col anchor prompt:
+
+> Attached image is a STYLE reference only — match its painted-pixel-art
+> rendering exactly: same dithered shading, same palette, same saturation,
+> same camera angle (steeper than a typical 3/4 view — buildings show a front
+> face and trees show side volume, never pure vertical top-down). Do NOT match
+> its zoom and do NOT copy its layout: this new scene is viewed from much
+> higher altitude — roughly twice as high — so every feature appears about
+> two-thirds smaller than in the reference.
+>
+> Scene: a small fortified waypoint village deep in vast pine-forest country,
+> seen from high above. A single winding dirt road enters at the left edge and
+> exits at the right edge, crossing the entire canvas. The village is COMPACT —
+> it occupies only the middle third of the canvas: five or six small timber
+> houses inside a wooden palisade ring, with a gatehouse tower where the road
+> passes through the wall on each side. Everything outside the palisade is
+> open grassy ground with about a dozen small, flat, completely empty grass
+> clearings, scattered boulders, and occasional lone pines — and a THIN band
+> of dense pine forest along the top and bottom edges, no deeper than one tree
+> row, about one-tenth of the canvas height. Scale cues: each house is no
+> wider than one-tenth of the canvas width; the road is narrower than any
+> house is tall; at least forty individual pine trees are visible in the top
+> forest band alone.
+>
+> Landscape 16:9. No horizon, no sky, no atmospheric distance — the whole
+> canvas at one overhead height and scale. No parchment border, no frame, no
+> compass — terrain full-bleed to every edge. No text, letters, numbers,
+> labels, icons, markers, glowing pins, people, animals, enemies, towers, or
+> weapons.
+
+For the 24-col anchor: same prompt with "about a fifth smaller" instead of
+"about two-thirds smaller", and verify with `--expect-ratio 0.79`.
 
 Accept/reject on the number, not the squint (find the road in the candidate and
-give a generous y-band around it; the baseline band 260,440 is fixed):
+give a generous y-band around it; the baseline band 260,440 is fixed; the ratio
+is normalized by canvas width, so any output resolution is comparable):
 
 ```bash
 python3 scripts/measure_road_width.py candidate.png --band <y0>,<y1> \

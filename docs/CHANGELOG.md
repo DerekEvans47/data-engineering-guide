@@ -112,6 +112,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Home screen: splash-art background + fantasy-styled buttons (#87)
 
+- Add battle-map zoom ladder (grid tiers, anchors, road-width verifier)
+
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
 - Mark EQ-7 done (inventory panel + relic-acquired prompt)

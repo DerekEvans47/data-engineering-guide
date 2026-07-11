@@ -88,8 +88,18 @@ def main():
         bband = (tuple(int(v) for v in args.baseline_band.split(","))
                  if args.baseline_band else band)
         b = road_thickness(args.baseline, bband)
-        ratio = r["median"] / b["median"]
-        print(f"baseline {b['image']}: median {b['median']}px -> ratio {ratio:.3f}")
+        # Normalize by canvas width: models keep feature scale as a FRACTION
+        # of the frame, and candidates arrive at varying output widths (1024,
+        # 1520, ...). Raw px ratio conflates output size with zoom — the
+        # first Nano anchor attempt measured a plausible 0.77 raw while
+        # actually being 1.15x zoomed IN once normalized.
+        frac_c = r["median"] / r["size"][0]
+        frac_b = b["median"] / b["size"][0]
+        ratio = frac_c / frac_b
+        print(f"baseline {b['image']}: median {b['median']}px "
+              f"({100*frac_b:.2f}% of width)")
+        print(f"candidate road = {100*frac_c:.2f}% of width -> "
+              f"normalized zoom ratio {ratio:.3f}")
         if args.expect_ratio:
             lo, hi = args.expect_ratio * 0.9, args.expect_ratio * 1.1
             ok = lo <= ratio <= hi
