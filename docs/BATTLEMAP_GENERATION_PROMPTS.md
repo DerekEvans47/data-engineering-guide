@@ -95,9 +95,14 @@ be scored. 28-col anchor prompt:
 > rendering exactly: same dithered shading, same palette, same saturation,
 > same camera angle (steeper than a typical 3/4 view — buildings show a front
 > face and trees show side volume, never pure vertical top-down). Do NOT match
-> its zoom and do NOT copy its layout: this new scene is viewed from much
-> higher altitude — roughly twice as high — so every feature appears about
-> two-thirds smaller than in the reference.
+> its zoom and do NOT copy its layout: this new scene is viewed from moderately
+> higher altitude — about one and a half times as high — so every feature
+> appears at about TWO-THIRDS OF ITS SIZE in the reference; only modestly
+> smaller, not miniature.
+>
+> **Phrasing hazard (cost one roll):** say "at two-thirds of its size", never
+> "two-thirds smaller" — the model reads the latter literally as reduction BY
+> two-thirds and returns a ~0.4x miniature.
 >
 > Scene: a small fortified waypoint village deep in vast pine-forest country,
 > seen from high above. A single winding dirt road enters at the left edge and
@@ -119,8 +124,9 @@ be scored. 28-col anchor prompt:
 > numbers, labels, icons, markers, glowing pins, people, animals, enemies,
 > towers, or weapons.
 
-For the 24-col anchor: same prompt with "about a fifth smaller" instead of
-"about two-thirds smaller", and verify with `--expect-ratio 0.79`.
+For the 24-col anchor: same prompt with "at about four-fifths of its size"
+instead of "at about two-thirds of its size", and verify with
+`--expect-ratio 0.79`.
 
 Accept/reject on the number, not the squint (find the road in the candidate and
 give a generous y-band around it; the baseline band 260,440 is fixed; the ratio

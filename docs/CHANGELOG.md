@@ -114,6 +114,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Home screen: splash-art background + fantasy-styled buttons (#87)
 
+- MID/WIDE tiers generate at 21:9, not 16:9
+
 - Add battle-map zoom ladder (grid tiers, anchors, road-width verifier)
 
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only

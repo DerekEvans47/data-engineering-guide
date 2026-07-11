@@ -26,11 +26,18 @@ import sys
 from PIL import Image
 
 
-def road_thickness(path, band=None, gap_tol=6, min_run=20, step=4):
+def road_thickness(path, band=None, gap_tol=6, min_run=None, step=4):
     im = Image.open(path).convert("RGB")
     w, h = im.size
     px = im.load()
     y0, y1 = band if band else (0, h)
+    # "Road present in this column" threshold. Must scale with image width:
+    # a fixed 20px floor sat exactly AT the expected WIDE-tier thickness on a
+    # 1024-wide candidate, silently dropping every thinner-than-median column
+    # and biasing the ratio upward (~0.9 reported for a true ~0.7 candidate).
+    # 0.8% of width = ~12px @1520, ~8px @1024 — well under any real road.
+    if min_run is None:
+        min_run = max(6, round(w * 0.008))
 
     def roadish(r, g, b):
         return r > 60 and r >= g - 5 and g > b and (r - b) >= 25
