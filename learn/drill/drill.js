@@ -3514,34 +3514,40 @@ const VERDANT_REGION = {
 // A true free-form-path engine is a larger follow-up, not this pass.
 const FRONTIER_TOWN_MAP = {
   image: 'assets/worlds/verdant/battlemaps/frontier-town.png',
-  viewBox: [0, 0, 1520, 704],
-  cols: 19, rows: 9,
-  // Traced from the painted road's pixel mask (continuity-tracked centerline,
-  // then direction-change simplified) — see docs/MAP_ART_PIPELINE.md. The
-  // road crosses the whole canvas west→east through both palisade gates.
-  // All y values deliberately sit ≤351 so every point quantizes to grid
-  // row 4 (row center y≈352, on the painted road): the raw trace dipped to
-  // y370/y381 where mud yards spill toward the lower houses, which rounded
-  // to row 5 and would have marched enemies ~86px below the road.
+  // rev 6 — WIDE-tier remake (two-pass generation: terrain pass + town edit
+  // pass, composited + graded, see docs/MAP_ART_PIPELINE.md). Painted at
+  // 1024×434, shipped 2× nearest-neighbor upscaled, so all coordinates here
+  // are in the 2048×868 shipped-pixel space. 30×13 grid ≈ 68px cells: houses
+  // land ~2 cells (vs 2.5 on the 19×9 original), which is the deliberate
+  // compressed size ladder — units read larger against buildings.
+  viewBox: [0, 0, 2048, 868],
+  cols: 30, rows: 13,
+  // Road traced from the terrain pass (building-free, so the mask is clean;
+  // the town edit was pixel-stable outside its additions, so coordinates
+  // transfer 1:1). Through town the line deliberately rides the road's NORTH
+  // half: enemy sprites draw upward from their feet, so a north-half line
+  // keeps every unit rendered IN FRONT of the south-row rooflines — which is
+  // why this map needs no occluders (see occludersPx note below).
   waypointsPx: [
-    [0,345],[260,347],[500,350],[820,338],[980,350],[1220,350],[1460,345],
+    [0,480],[200,496],[380,476],[430,462],[560,440],[720,430],[880,436],
+    [1040,440],[1200,428],[1360,410],[1496,400],[1632,380],[1760,380],
+    [1888,418],[2046,440],
   ],
-  // Centroids of the 8 painted clearings (connected-component pass over the
-  // pale-grass mask). Distances from the road span ~1.4–3.1 cells, so every
-  // slot serves most tower types with the far pair favoring long range.
+  // 8 slots hand-placed from the owner's markup (2026-07-12): 2 outside each
+  // gate on painted clearings, 4 inside the walls on open pads (the inside-
+  // west pad is where the wide barn stood before it was composited away —
+  // its roof sat on the road's south edge).
   buildSlotsPx: [
-    [388,236],[647,129],[920,135],[1219,235],
-    [391,486],[721,589],[974,560],[1211,485],
+    [242,310],[210,590],     // outside west gate (upper, lower clearing)
+    [1000,184],[540,494],    // inside: top-center pad, west plot (ex-barn)
+    [1010,580],[1320,600],   // inside: south-center pad, south-east pad
+    [1670,256],[1604,484],   // outside east gate (NE clearing, camp-side clearing)
   ],
-  // Structures that straddle or overhang the road (image-px rects): redrawn
-  // from the background AFTER enemies each frame, so units pass BEHIND the
-  // two gatehouse towers and the bottom-center house's roofline instead of
-  // walking over them.
-  occludersPx: [
-    [450,240,514,424],   // west gatehouse tower
-    [1094,248,1158,426], // east gatehouse tower
-    [758,330,895,417],   // bottom-center house roof (top intrudes into road band)
-  ],
+  // Empty ON PURPOSE — not "not yet authored". The north-half waypoint line
+  // keeps units in front of every structure (verified against goblin/boss
+  // sprite heights on the route audit), so nothing needs redrawing over
+  // enemies. Occluder redraws hide units behind scenery; zero is the ideal.
+  occludersPx: [],
 };
 
 function tdManhattanPathSet(wps, cols, rows) {
@@ -3749,11 +3755,16 @@ function frontierTownLevelDef() {
   return {
     name: 'Frontier Town', act: mapDef.name, icon: '🏘️', color: mapDef.color,
     enemyMult: 1.0,
-    // The painted road is a straight ~20-cell west→east run — much shorter
-    // than the old map's ~30-cell winding path — so enemies at stock speed
-    // crossed in ~12s and were "almost dead on entry". Slow the whole map:
-    // tutorial level, crossing time back to ~20s.
-    enemySpeedMult: 0.6,
+    // rev 6 map's road is a ~31-cell winding run (vs the old art's ~20), so
+    // the 0.6 crossing-time compensation would now overshoot to ~32s. 0.85
+    // puts the tutorial crossing back at ~23s.
+    enemySpeedMult: 0.85,
+    // rev 6 grid is 30×13 (68px cells) instead of 19×9 (80px): units sized in
+    // cells shrank ~15% on screen. Scale this map's enemies back up — also
+    // deliberately compresses the size ladder (goblin ≈ 0.7 cell ≈ ⅓ house
+    // instead of ¼), the unit-vs-building readability retune. Map-scoped so
+    // the procedural 9×10 maps (huge cells) keep their proportions.
+    enemyScaleMult: 1.25,
     // TEMP (testing, intentionally kept high): bumped from 160 so every tower,
     // enemy, animation, and other first-map item can be freely placed/tested
     // without a gold grind. Revert to 160 once the first map's content is
@@ -6022,7 +6033,8 @@ function tdSpawnEnemy(type) {
   td.enemies.push({
     id: td.eid++, type,
     hp: def.maxHp * mult, maxHp: def.maxHp * mult,
-    spd: def.spd * (td.levelDef.enemySpeedMult || 1) * (td.powerUpMods?.enemySpeedMult || 1), color: def.color, r: def.r, reward: def.reward,
+    spd: def.spd * (td.levelDef.enemySpeedMult || 1) * (td.powerUpMods?.enemySpeedMult || 1), color: def.color,
+    r: def.r * (td.levelDef.enemyScaleMult || 1), reward: def.reward,
     isBoss: def.isBoss || false, lifeLoss: (def.lifeLoss || 1) * (td.modifiers?.ironman ? 2 : 1),
     armored: def.armored || false, flying: def.flying || false, healer: def.healer || false,
     healAmount: def.healAmount || 0, healInterval: def.healInterval || 0, healRadius: def.healRadius || 0,

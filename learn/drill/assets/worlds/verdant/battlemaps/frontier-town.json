@@ -1,134 +1,33 @@
 {
-  "_notes": "Battle-map authoring data for Frontier Town (tutorial, spine node 'start'). rev 4: new painted art (fortified frontier waypoint per docs/MAP_PROMPTS_VERDANT.md level 1 \u2014 town core inside a palisade ring, gatehouse towers mid-west and mid-east, dense-forest border). Road traced from the pixel mask (rev 4b: waypoint y values clamped to <=351 so all quantize to grid row 4 on the road - the raw trace dipped toward mud yards near the lower houses); enemies spawn in the WESTERN forest fringe (first waypoint off-canvas) and march east through both gates; leak point is the road running off the EAST edge. 8 build slots on the painted clearings' centroids (near/far mix: ~1.4-3.1 cells off the road so all tower types stay viable). Coordinates in image pixels; engine converts to grid space. Gemini sparkle watermark removed at (1398,585) via scripts/remove_gemini_sparkle.py. rev 5: occluders added - structures straddling the road are redrawn over enemies each frame (west/east gatehouse towers, bottom-center house roofline).",
+  "_notes": "Battle-map authoring data for Frontier Town (tutorial, spine node 'start'). rev 6: WIDE-tier remake. Art via two-pass generation (Gemini flash 3.5, style ref = rev 4 art): pass 1 terrain-only (road/palisade/gates/clearings), pass 2 edit adds the town; the passes were pixel-stable outside additions, enabling composite surgery (out-of-walls caravan additions restored selectively, wide barn removed to free the inside-west slot, west camp house/cart erased to free the camp-side clearing). Sparkle removed at (946,350) 1024-space. Graded (grade B: V-gamma 0.75, sat x1.15, warm +5% -- owner-picked standard, see docs/MAP_ART_PIPELINE.md) and shipped 2x nearest-neighbor upscaled: all coordinates below are in 2048x868 shipped-pixel space (paint space was 1024x434). Grid 30x13 (~68px cells; houses ~2 cells = compressed size ladder). Road traced from the building-free pass-1 mask; through town the lane rides the road's NORTH half so units render in front of south-row rooflines -- occluders empty ON PURPOSE (route audit verified vs goblin/boss sprite heights). 8 slots hand-placed from owner markup 2026-07-12. levelDef pairing: enemySpeedMult 0.85 (~23s crossing over ~31 cells), enemyScaleMult 1.25 (map-scoped unit upsize).",
   "image": "frontier-town.png",
-  "viewBox": [
-    0,
-    0,
-    1520,
-    704
-  ],
+  "viewBox": [0, 0, 2048, 868],
   "world": "verdant",
   "battleTheme": "town-gate",
   "nodeId": "start",
   "difficulty": "tutorial",
+  "grid": { "cols": 30, "rows": 13 },
   "lanes": [
     {
       "id": "main",
       "spawnEdge": "west",
       "waypoints": [
-        [
-          0,
-          345
-        ],
-        [
-          260,
-          347
-        ],
-        [
-          500,
-          350
-        ],
-        [
-          820,
-          338
-        ],
-        [
-          980,
-          350
-        ],
-        [
-          1220,
-          350
-        ],
-        [
-          1460,
-          345
-        ]
+        [0, 480], [200, 496], [380, 476], [430, 462], [560, 440], [720, 430],
+        [880, 436], [1040, 440], [1200, 428], [1360, 410], [1496, 400],
+        [1632, 380], [1760, 380], [1888, 418], [2046, 440]
       ]
     }
   ],
-  "leak": {
-    "x": 1520,
-    "y": 345,
-    "landmark": "east gatehouse"
-  },
+  "leak": { "x": 2048, "y": 440, "landmark": "east road past the caravan camp" },
   "buildSlots": [
-    {
-      "id": "s1",
-      "x": 388,
-      "y": 236,
-      "pad": "open"
-    },
-    {
-      "id": "s2",
-      "x": 647,
-      "y": 129,
-      "pad": "open"
-    },
-    {
-      "id": "s3",
-      "x": 920,
-      "y": 135,
-      "pad": "open"
-    },
-    {
-      "id": "s4",
-      "x": 1219,
-      "y": 235,
-      "pad": "open"
-    },
-    {
-      "id": "s5",
-      "x": 391,
-      "y": 486,
-      "pad": "open"
-    },
-    {
-      "id": "s6",
-      "x": 721,
-      "y": 589,
-      "pad": "open"
-    },
-    {
-      "id": "s7",
-      "x": 974,
-      "y": 560,
-      "pad": "open"
-    },
-    {
-      "id": "s8",
-      "x": 1211,
-      "y": 485,
-      "pad": "open"
-    }
+    { "id": "s1", "x": 242,  "y": 310, "pad": "open", "note": "outside west gate, upper clearing" },
+    { "id": "s2", "x": 210,  "y": 590, "pad": "open", "note": "outside west gate, lower clearing" },
+    { "id": "s3", "x": 1000, "y": 184, "pad": "open", "note": "inside, top-center pad" },
+    { "id": "s4", "x": 540,  "y": 494, "pad": "open", "note": "inside west plot (ex-barn)" },
+    { "id": "s5", "x": 1010, "y": 580, "pad": "open", "note": "inside, south-center pad" },
+    { "id": "s6", "x": 1320, "y": 600, "pad": "open", "note": "inside, south-east pad" },
+    { "id": "s7", "x": 1670, "y": 256, "pad": "open", "note": "outside east gate, NE clearing" },
+    { "id": "s8", "x": 1604, "y": 484, "pad": "open", "note": "outside east gate, camp-side clearing" }
   ],
-  "occluders": [
-    {
-      "id": "west-gatehouse",
-      "rect": [
-        450,
-        240,
-        514,
-        424
-      ]
-    },
-    {
-      "id": "east-gatehouse",
-      "rect": [
-        1094,
-        248,
-        1158,
-        426
-      ]
-    },
-    {
-      "id": "south-house-roof",
-      "rect": [
-        758,
-        330,
-        895,
-        417
-      ]
-    }
-  ]
+  "occluders": []
 }

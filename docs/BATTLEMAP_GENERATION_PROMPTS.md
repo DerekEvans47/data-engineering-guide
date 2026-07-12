@@ -5,12 +5,16 @@ node sits beside (`battleTheme` in `learn/drill/assets/worlds/verdant/region-pre
 
 ## How to use this file
 
-1. Open a Nano Banana session and **attach
-   `learn/drill/assets/worlds/verdant/battlemaps/frontier-town.png` as the reference
-   image** — it is the proven style/scale/camera anchor for battle maps. Do this for
-   EVERY prompt; style prose alone does not hold (proven by A/B test, see
-   `ART_DIRECTION_HANDOFF.md`).
-2. Paste the **COMMON BLOCK** below, then the map's **SCENE BLOCK**, as one prompt.
+1. Open a Nano Banana session and **attach the map's ZOOM ANCHOR as the reference
+   image** — see the Grid column in the node table and the Zoom ladder section below.
+   CLOSE-tier (19×9) maps attach
+   `learn/drill/assets/worlds/verdant/battlemaps/frontier-town.png`; MID (24×11) and
+   WIDE (28×13) maps attach their tier's anchor from `learn/drill/assets/reference/`
+   (generate the anchor first if it doesn't exist yet — prompt in the Zoom ladder
+   section). Attach the anchor for EVERY prompt; style prose alone does not hold
+   (proven by A/B test, see `ART_DIRECTION_HANDOFF.md`).
+2. Paste the **COMMON BLOCK** below (plus the **MID/WIDE ADDENDUM** for 24- and
+   28-col maps), then the map's **SCENE BLOCK**, as one prompt.
 3. Run the **eyeball checklist**. If it fails structurally (wrong lane count, forked
    exit), regenerate — do not try to edit topology, it doesn't work. Small scenery
    flaws are fine; markers/towers cover a lot.
@@ -22,6 +26,146 @@ node sits beside (`battleTheme` in `learn/drill/assets/worlds/verdant/region-pre
    session: road-mask extraction → waypoints ordered spawn→leak → slots verified
    against clearings → `<battleTheme>.json` (schema template:
    `battlemaps/frontier-town.json`).
+
+## Zoom ladder — grid tiers, anchors, scale verification
+
+Multi-lane maps need more playable interior than the 19×9 tutorial framing can
+hold (a fork needs 3–4 rows of separation for the towers between lanes to have
+distinct coverage). Instead of one fixed zoom, grid size follows lane count —
+the camera pulls back as the campaign escalates:
+
+| Tier | Grid | Cells | Used by | Anchor image | px/cell @1520w | Road thickness* |
+|------|------|-------|---------|--------------|----------------|-----------------|
+| CLOSE | 19×9 | 171 | 1-lane maps | `battlemaps/frontier-town.png` | 80 | ~44px (measured) |
+| MID | 24×11 | 264 | 2-lane maps (+ apiary's hairpins) | `reference/verdant-zoom-anchor-24col.png` | 63 | ~35px (0.79×) |
+| WIDE | 28×13 | 364 | 3-lane maps | `reference/verdant-zoom-anchor-28col.png` | 54 | ~30px (0.68×) |
+
+\* median vertical thickness per `scripts/measure_road_width.py` — the acceptance
+number for anchors and generated maps (±10%).
+
+**The image does NOT get bigger.** All tiers generate at the same output size
+(~1520px wide, cropped to ~2.15:1 — the grid aspects 19:9, 24:11, 28:13 are all
+within a few percent of each other and of phone landscape, and the game's fit
+code scales any aspect). **Generation aspect differs by tier:** CLOSE keeps the
+proven 16:9 recipe (its thick borders survive the vertical crop); MID/WIDE
+request **21:9** — their one-tree-row borders sit at the very top/bottom edge,
+so the crop to ~2.15 must come out of width (road contact), not height. If the
+model won't honor 21:9 and returns 16:9, accept slightly thicker forest bands
+so the vertical crop has something to trim.. Zoom is a property of the painted
+content: at WIDE, every feature is ~2/3 the CLOSE size. Effective sharpness on a
+3× phone is unchanged (same ~1.6× upscale at every tier), so there is no
+resolution cost to zooming out.
+
+**Engine notes:** the grid is declared per level (`gridCols`/`gridRows` in the
+map def / JSON, read by `initTDGame`) — no engine change needed. Unit sprites are
+sized in cells, so MID/WIDE maps need the planned enemy retune (`r`/`scale` in
+`TD_ENEMY_DEFS` / `TD_ENEMY_SHEET_IMAGES`, e.g. goblin ~0.56 → ~0.7 cell) to hold
+their on-screen pixel size. Frontier Town stays 19×9 — the close-up tutorial is
+deliberate (it's where new players meet units, at maximum readability); do not
+retrofit it.
+
+### Creating a zoom anchor (one-time per tier)
+
+The anchor is a **reference image only** — it never becomes a playable map and
+never gets a JSON. It exists because zoom is pinned by the attached reference,
+not by prose.
+
+**2026-07-12 field results (rev 6 Frontier Town):** prompt scale cues plateau —
+five 1024-wide generations landed at 0.41-0.62 normalized zoom regardless of
+phrasing. At 1024 output the model has a canonical feature scale for this
+style; **output resolution is the real zoom dial** (features paint at roughly
+fixed pixel sizes, so a wider canvas IS the zoom-out; ~2240px output would hit
+the 28-col target natively). Practical consequence: accept the model's scale,
+declare the grid from the measured ratio (cols ≈ 19 / ratio, adjusted for
+touch targets), and use the two-pass workflow in MAP_ART_PIPELINE.md §2c —
+rev 6 shipped as 30×13 from 1024-wide art, 2× upscaled. Rerun at 2K output
+(Nano Banana Pro) when available to hit tier targets exactly.
+
+**Two approaches are PROVEN DEAD ENDS — do not retry them:**
+
+1. **"Zoom out this image" edits.** Attaching `frontier-town.png` and asking
+   Nano to re-render the same scene at 68% returns the same scene at the SAME
+   zoom (tested twice; normalized zoom ratios 1.1–1.2, i.e. slightly zoomed
+   IN). The attached reference pins feature scale — that is exactly the
+   property the prompt system relies on — so it overrides any zoom-change
+   instruction. Same failure class as topology edits ("do not try to edit
+   topology, it doesn't work").
+2. **Mechanical downscale + reflect-padding.** Style and zoom are exact by
+   construction, but mirror-padding kaleidoscopes every structured feature
+   near the source edges (palisade, watchtower, clearings). Rejected on sight.
+
+**What works: generate a NEW scene composed at the wide scope from the start.**
+Attach `battlemaps/frontier-town.png` as a STYLE-ONLY reference and control
+scale through composition fractions and object counts (levers the model
+respects) rather than a zoom percentage (a lever it ignores). The verifier
+never needed a same-scene candidate — it measures the road's thickness as a
+fraction of canvas width, so any scene with one road crossing the frame can
+be scored. 28-col anchor prompt:
+
+> Attached image is a STYLE reference only — match its painted-pixel-art
+> rendering exactly: same dithered shading, same palette, same saturation,
+> same camera angle (steeper than a typical 3/4 view — buildings show a front
+> face and trees show side volume, never pure vertical top-down). Do NOT match
+> its zoom and do NOT copy its layout: this new scene is viewed from moderately
+> higher altitude — about one and a half times as high — so every feature
+> appears at about TWO-THIRDS OF ITS SIZE in the reference; only modestly
+> smaller, not miniature.
+>
+> **Phrasing hazard (cost one roll):** say "at two-thirds of its size", never
+> "two-thirds smaller" — the model reads the latter literally as reduction BY
+> two-thirds and returns a ~0.4x miniature.
+>
+> Scene: a small fortified waypoint village deep in vast pine-forest country,
+> seen from high above. A single winding dirt road enters at the left edge and
+> exits at the right edge, crossing the entire canvas. The village is COMPACT —
+> it occupies only the middle third of the canvas: five or six small timber
+> houses inside a wooden palisade ring, with a gatehouse tower where the road
+> passes through the wall on each side. Everything outside the palisade is
+> open grassy ground with about a dozen small, flat, completely empty grass
+> clearings, scattered boulders, and occasional lone pines — and a THIN band
+> of dense pine forest along the top and bottom edges, no deeper than one tree
+> row, about one-tenth of the canvas height. Scale cues: each house is no
+> wider than one-tenth of the canvas width; the road is narrower than any
+> house is tall; at least forty individual pine trees are visible in the top
+> forest band alone.
+>
+> Ultrawide landscape 21:9. No horizon, no sky, no atmospheric distance — the
+> whole canvas at one overhead height and scale. No parchment border, no
+> frame, no compass — terrain full-bleed to every edge. No text, letters,
+> numbers, labels, icons, markers, glowing pins, people, animals, enemies,
+> towers, or weapons.
+
+For the 24-col anchor: same prompt with "at about four-fifths of its size"
+instead of "at about two-thirds of its size", and verify with
+`--expect-ratio 0.79`.
+
+Accept/reject on the number, not the squint (find the road in the candidate and
+give a generous y-band around it; the baseline band 260,440 is fixed; the ratio
+is normalized by canvas width, so any output resolution is comparable):
+
+```bash
+python3 scripts/measure_road_width.py candidate.png --band <y0>,<y1> \
+  --baseline learn/drill/assets/worlds/verdant/battlemaps/frontier-town.png \
+  --baseline-band 260,440 --expect-ratio 0.68   # 0.79 for the 24-col anchor
+```
+
+PASS → run the usual pipeline checks (sparkle, no border) and save to
+`learn/drill/assets/reference/verdant-zoom-anchor-<N>col.png`. FAIL → reroll;
+do not hand-edit zoom.
+
+### MID/WIDE ADDENDUM — paste after the COMMON BLOCK for 24- and 28-col maps
+
+> Canvas is ULTRAWIDE LANDSCAPE 21:9, not 16:9 — this overrides the aspect
+> ratio stated above.
+>
+> This battlefield is seen from higher up than a village scene — match the
+> attached reference's zoom exactly. Composition budget: the forest fringe along
+> the top and bottom edges is THIN — one tree-row deep, no more than one-tenth
+> of the canvas height; the map is defined by open ground, not by its border.
+> Buildings are sparse accents — only the structures the scene names, sized
+> relative to the trees exactly as in the reference. Most of the canvas is open
+> terrain with the named scenery spread out, leaving generous room along every
+> road for the build clearings.
 
 ## Difficulty ladder
 
@@ -39,22 +183,26 @@ camera-relative, not compass-aligned with the world map.
 > filename in each heading is the canonical key. `lakeshore` still needs a scene
 > block, and the entrance/lane ladder needs a design pass where themes moved slots.
 
-| # | Node | Name | battleTheme | Entrances | Lanes | Clearings | Mood |
-|---|------|------|-------------|-----------|-------|-----------|------|
-| 0 | start | Frontier Town | `town-gate` | 1 (W) | 1 | 11 | morning — **DONE** |
-| 1 | n1 | Windmill Crossing | `windmill-bridge` | 1 (W) | 1 | 8–10 | morning |
-| 2 | n2 | Scarecrow Fields | `farmland` | 1 (W) | 1 | 9–11 | midday |
-| 3 | n3 | Miller's Homestead | `farmstead` | 1 (S) | 1 | 9–11 | midday |
-| 4 | n4 | Shepherd's Pasture | `pasture` | 2 (W+S) | 2 → merge mid | 10–12 | bright |
-| 5 | n5 | Beehive Bend | `apiary` | 1 (W) | 1, longest path | 10–12 | golden afternoon |
-| 6 | n6 | The Watchtower | `crag-tower` | 2 (NW+W) | 2 around crag → merge | 11–13 | clear |
-| 7 | n7 | The Standing Stones | `stone-circle` | 2 (W+S) | 2, late merge | 11–13 | pale sun |
-| 8 | n8 | Charcoal Burners' Camp | `charcoal-camp` | 2 (W+S) | 2, lanes CROSS once | 12–14 | hazy smoke |
-| 9 | n9 | Logging Camp | `timber-camp` | 3 (NW+W+SW) | 3 → staged merges | 12–14 | day |
-| 10 | n10 | Fishing Camp | `lakeshore` | 2 (W+S) | 2, late merge | 12–14 | bright lakeside — **scene block TBD** |
-| 11 | n11 | The Abandoned Town | `ruins` | 1 (W) | 1, tight corners | 10–12 | thin overcast |
-| 12 | n12 | The Lone Monolith | `moor-monolith` | 3 (W+N+S) | 3, late merge | 12–14 | overcast |
-| 13 | boss | The Ruined Keep | `keep-siege` | 3 (W+N+S) | 3 → causeway | 13–15 | darkest, mist |
+| # | Node | Name | battleTheme | Entrances | Lanes | Grid | Clearings | Mood |
+|---|------|------|-------------|-----------|-------|------|-----------|------|
+| 0 | start | Frontier Town | `town-gate` | 1 (W) | 1 | 19×9 | 11 | morning — **DONE** |
+| 1 | n1 | Windmill Crossing | `windmill-bridge` | 1 (W) | 1 | 19×9 | 8–10 | morning |
+| 2 | n2 | Scarecrow Fields | `farmland` | 1 (W) | 1 | 19×9 | 9–11 | midday |
+| 3 | n3 | Miller's Homestead | `farmstead` | 1 (S) | 1 | 19×9 | 9–11 | midday |
+| 4 | n4 | Shepherd's Pasture | `pasture` | 2 (W+S) | 2 → merge mid | 24×11 | 10–12 | bright |
+| 5 | n5 | Beehive Bend | `apiary` | 1 (W) | 1, longest path | 24×11 | 10–12 | golden afternoon |
+| 6 | n6 | The Watchtower | `crag-tower` | 2 (NW+W) | 2 around crag → merge | 24×11 | 11–13 | clear |
+| 7 | n7 | The Standing Stones | `stone-circle` | 2 (W+S) | 2, late merge | 24×11 | 11–13 | pale sun |
+| 8 | n8 | Charcoal Burners' Camp | `charcoal-camp` | 2 (W+S) | 2, lanes CROSS once | 24×11 | 12–14 | hazy smoke |
+| 9 | n9 | Logging Camp | `timber-camp` | 3 (NW+W+SW) | 3 → staged merges | 28×13 | 12–14 | day |
+| 10 | n10 | Fishing Camp | `lakeshore` | 2 (W+S) | 2, late merge | 24×11 | 12–14 | bright lakeside — **scene block TBD** |
+| 11 | n11 | The Abandoned Town | `ruins` | 1 (W) | 1, tight corners | 19×9 | 10–12 | thin overcast |
+| 12 | n12 | The Lone Monolith | `moor-monolith` | 3 (W+N+S) | 3, late merge | 28×13 | 12–14 | overcast |
+| 13 | boss | The Ruined Keep | `keep-siege` | 3 (W+N+S) | 3 → causeway | 28×13 | 13–15 | darkest, mist |
+
+Grid follows lanes (1 → CLOSE 19×9, 2 → MID 24×11, 3 → WIDE 28×13), with one
+exception: Beehive Bend is 1-lane but MID — its two full hairpins sweep far
+north and far south, which 9 rows can't hold.
 
 ---
 
@@ -283,7 +431,10 @@ camera-relative, not compass-aligned with the world map.
    reaches the single right-edge exit; merges match the spec; no undeclared forks.
 2. **Count the clearings** — inside the stated range, each pad small and empty.
 3. **Camera** — buildings show fronts; not straight-down, no horizon or border.
-4. **Zoom** — road width ≈ the reference's road width. Wider = too close; regen.
+4. **Zoom** — road width ≈ the attached anchor's road width (wider = too close),
+   then confirm numerically: `scripts/measure_road_width.py` against
+   `frontier-town.png` with `--expect-ratio` 1.0 / 0.79 / 0.68 for
+   CLOSE / MID / WIDE. Regen on FAIL — never rescale a keeper to fix zoom.
 5. **Count guards held** (bridges, towers, monoliths, etc. per scene block).
 6. Sparkle watermark is expected; ignore it (cleaned in post).
 
@@ -293,3 +444,6 @@ Push keepers to `learn/drill/assets/worlds/verdant/battlemaps/<battleTheme>.png`
 then run an authoring session per map (Claude): watermark cleanup → road mask →
 waypoint lanes (each entrance = one lane entry, ordered spawn→leak) → build slots
 verified in clearings → `<battleTheme>.json` per the `frontier-town.json` schema.
+Declare the map's tier grid in its def (`cols`/`rows`, e.g. 24×11 or 28×13 —
+`gridCols`/`gridRows` flow through `levelDef`); px/cell for waypoint math is
+image width ÷ cols, not Frontier Town's 80.

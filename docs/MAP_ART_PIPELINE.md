@@ -83,6 +83,74 @@ prompt language, verify with pixel detection and fix by cropping:
 - The game's fit code scales any aspect ratio, so post-crop dimensions don't
   need to hit 2.16:1 exactly — just record the new size for the map's config.
 
+## 2b. Zoom/scale — numeric check
+
+Battle maps come in three grid tiers (CLOSE 19×9 / MID 24×11 / WIDE 28×13 —
+see the Zoom ladder in `BATTLEMAP_GENERATION_PROMPTS.md`). All tiers ship at
+the same ~1520px output size; what differs is the painted feature scale. The
+acceptance metric is the road's **median vertical thickness**:
+
+```bash
+python3 scripts/measure_road_width.py candidate.png --band <y0>,<y1> \
+  --baseline learn/drill/assets/worlds/verdant/battlemaps/frontier-town.png \
+  --baseline-band 260,440 --expect-ratio <1.0|0.79|0.68>
+```
+
+- Frontier Town's measured baseline is **44px median** (band 260,440). Targets:
+  CLOSE ~44px, MID ~35px, WIDE ~30px, ±10%.
+- Give the candidate a generous band around wherever its road actually runs —
+  a full-height scan picks up roofs and mud yards and reads high.
+- The classifier is brown-dirt (`r > g > b` with red–blue separation), which
+  handles both pale packed-dirt roads and Frontier Town's legacy dark mud road.
+  The **tan** rule in section 2 above is stricter and only suits pale roads —
+  don't reuse it for thickness.
+- FAIL → regenerate. Never rescale the image to pass: upscaling softens the
+  art, and downscaling changes the px/cell contract the tier tables assume.
+
+## 2c. Two-pass generation + composite surgery (proven on rev 6 Frontier Town)
+
+One-shot prompts could not hold zoom + composition + a clear road corridor
+simultaneously (5 rolls, all failed at least one). The split that worked:
+
+1. **Pass 1 — structure:** terrain, road, palisade, gates, clearings, NO
+   buildings. Low content pressure; corridor clean by construction; run the
+   road trace on THIS image (building-free mask).
+2. **Pass 2 — population:** an *edit* on the pass-1 keeper adding buildings.
+   Placement rule that matters: buildings may hug the road's NORTH side only;
+   the south side needs a full building-height setback (3/4-view camera paints
+   roofs UPWARD — any south-side building adjacent to the road overpaints it).
+
+Model edits are pixel-stable outside their additions (diff mean ~3-8 on
+untouched regions). That stability is a tool — composite surgery is cheap and
+seamless:
+
+- **Undo out-of-bounds additions:** mask = diff(pass2, pass1) > 30 in the
+  offending region, dilate ~4px, feather, blend pass-1 back over.
+- **Remove any single structure:** paste the pass-1 rect over its bounds
+  (feathered). Used to delete a road-overhanging barn — the freed foundation
+  plot became a build slot.
+- Waypoint/slot coordinates transfer 1:1 between passes.
+
+Route lanes on the road's NORTH half through settlements: units draw upward
+from their feet, so a north-half lane renders them in front of every south-row
+roofline — rev 6 ships with ZERO occluders (occluder redraws hide units;
+avoid them by routing, not add them by habit).
+
+## 2d. Color grade — standard, applied to every new battle map
+
+The art line generates dark (meanV 0.30-0.37). Owner-picked standard
+("grade B", 2026-07-12) lifts it to ~0.49 with warmed dirt/greens; unit
+readability improves (outline contrast up, reserved accent palette untouched):
+
+```bash
+python3 scripts/grade_map.py map-composited.png map-graded.png   # defaults = grade B
+```
+
+Order matters: composite/sparkle surgery → grade → 2× nearest-neighbor
+upscale (`Image.resize(2x, NEAREST)`) → ship. Grade before upscale, on the
+paint-resolution file. Existing ungraded assets (region map) converge to the
+standard as they get touched.
+
 ## 3. Content checklist (from the master prompt criteria)
 
 Per generation, before accepting:
