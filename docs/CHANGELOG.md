@@ -12,6 +12,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Frontier Town bandit roster + Ranger L4 multi-projectile (#102)
 
+- Frontier Town wide battle map (30x13, rev 6)
+
 - New Run option on the home screen
 
 - Unit Readability Standard - outline+pop pass for battlefield sprites

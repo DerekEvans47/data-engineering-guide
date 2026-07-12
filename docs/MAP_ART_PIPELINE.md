@@ -107,6 +107,50 @@ python3 scripts/measure_road_width.py candidate.png --band <y0>,<y1> \
 - FAIL → regenerate. Never rescale the image to pass: upscaling softens the
   art, and downscaling changes the px/cell contract the tier tables assume.
 
+## 2c. Two-pass generation + composite surgery (proven on rev 6 Frontier Town)
+
+One-shot prompts could not hold zoom + composition + a clear road corridor
+simultaneously (5 rolls, all failed at least one). The split that worked:
+
+1. **Pass 1 — structure:** terrain, road, palisade, gates, clearings, NO
+   buildings. Low content pressure; corridor clean by construction; run the
+   road trace on THIS image (building-free mask).
+2. **Pass 2 — population:** an *edit* on the pass-1 keeper adding buildings.
+   Placement rule that matters: buildings may hug the road's NORTH side only;
+   the south side needs a full building-height setback (3/4-view camera paints
+   roofs UPWARD — any south-side building adjacent to the road overpaints it).
+
+Model edits are pixel-stable outside their additions (diff mean ~3-8 on
+untouched regions). That stability is a tool — composite surgery is cheap and
+seamless:
+
+- **Undo out-of-bounds additions:** mask = diff(pass2, pass1) > 30 in the
+  offending region, dilate ~4px, feather, blend pass-1 back over.
+- **Remove any single structure:** paste the pass-1 rect over its bounds
+  (feathered). Used to delete a road-overhanging barn — the freed foundation
+  plot became a build slot.
+- Waypoint/slot coordinates transfer 1:1 between passes.
+
+Route lanes on the road's NORTH half through settlements: units draw upward
+from their feet, so a north-half lane renders them in front of every south-row
+roofline — rev 6 ships with ZERO occluders (occluder redraws hide units;
+avoid them by routing, not add them by habit).
+
+## 2d. Color grade — standard, applied to every new battle map
+
+The art line generates dark (meanV 0.30-0.37). Owner-picked standard
+("grade B", 2026-07-12) lifts it to ~0.49 with warmed dirt/greens; unit
+readability improves (outline contrast up, reserved accent palette untouched):
+
+```bash
+python3 scripts/grade_map.py map-composited.png map-graded.png   # defaults = grade B
+```
+
+Order matters: composite/sparkle surgery → grade → 2× nearest-neighbor
+upscale (`Image.resize(2x, NEAREST)`) → ship. Grade before upscale, on the
+paint-resolution file. Existing ungraded assets (region map) converge to the
+standard as they get touched.
+
 ## 3. Content checklist (from the master prompt criteria)
 
 Per generation, before accepting:

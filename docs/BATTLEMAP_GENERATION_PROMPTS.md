@@ -70,6 +70,17 @@ The anchor is a **reference image only** — it never becomes a playable map and
 never gets a JSON. It exists because zoom is pinned by the attached reference,
 not by prose.
 
+**2026-07-12 field results (rev 6 Frontier Town):** prompt scale cues plateau —
+five 1024-wide generations landed at 0.41-0.62 normalized zoom regardless of
+phrasing. At 1024 output the model has a canonical feature scale for this
+style; **output resolution is the real zoom dial** (features paint at roughly
+fixed pixel sizes, so a wider canvas IS the zoom-out; ~2240px output would hit
+the 28-col target natively). Practical consequence: accept the model's scale,
+declare the grid from the measured ratio (cols ≈ 19 / ratio, adjusted for
+touch targets), and use the two-pass workflow in MAP_ART_PIPELINE.md §2c —
+rev 6 shipped as 30×13 from 1024-wide art, 2× upscaled. Rerun at 2K output
+(Nano Banana Pro) when available to hit tier targets exactly.
+
 **Two approaches are PROVEN DEAD ENDS — do not retry them:**
 
 1. **"Zoom out this image" edits.** Attaching `frontier-town.png` and asking
