@@ -89,6 +89,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Region map node placement redone with road-mask snapping
 
+- Scale road-presence floor with image width; fix zoom phrasing hazard
+
 - Stop map music on entering battle, trim loop tail
 
 - Swap map theme to MP3 (world-map-temp.mp3), drop broken M4A
