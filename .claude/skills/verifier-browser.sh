@@ -75,12 +75,11 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
     localStorage.setItem('td_tutorial_v1', '1');
   });
   await page.click('#btn-play', { force: true });
-  await page.waitForTimeout(500);
-  const mapCard = await page.$('.map-card:not(.map-card-locked)');
-  if (!mapCard) throw new Error('No unlocked map card found');
-  await mapCard.click();
+  // The "Choose Your Map" screen was removed 2026-07-12 (one big run):
+  // play now routes STRAIGHT to the Verdant region map. If a map-card
+  // screen ever reappears here, that's a regression against that decision.
   await page.waitForTimeout(800);
-  // Verdant now renders the painted region map (region.png) with a linear
+  // Verdant renders the painted region map (region.png) with a linear
   // spine — Frontier Town ('start') is the sole available node on a fresh run.
   const regionImg = await page.$('#rvm-svg image');
   if (!regionImg) throw new Error('Painted region map <image> not found — renderVerdantWorldMap likely broken');

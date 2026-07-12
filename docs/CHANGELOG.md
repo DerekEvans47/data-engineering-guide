@@ -12,7 +12,7 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Frontier Town bandit roster + Ranger L4 multi-projectile (#102)
 
-- Frontier Town wide battle map (30x13, rev 6)
+- Frontier Town wide battle map (30x13, rev 6) + map art pipeline updates (#133)
 
 - New Run option on the home screen
 
@@ -79,8 +79,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Landscape maps were wasting ~20-40% of screen width/height
 
-- Normalize road-width zoom ratio by canvas width; anchor via fresh scene
-
 - Playtest round 4 - landscape home fit, arrow physics, full-bleed map, ambient polish (#131)
 
 - Prevent pull-to-refresh bounce, nudge install for true fullscreen (#91)
@@ -90,8 +88,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Regenerate Frontier Town's levelDef fresh instead of a stale persisted snapshot (#101)
 
 - Region map node placement redone with road-mask snapping
-
-- Scale road-presence floor with image width; fix zoom phrasing hazard
 
 - Stop map music on entering battle, trim loop tail
 
@@ -118,10 +114,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Home screen: splash-art background + fantasy-styled buttons (#87)
 
-- MID/WIDE tiers generate at 21:9, not 16:9
-
-- Add battle-map zoom ladder (grid tiers, anchors, road-width verifier)
-
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
 - Mark EQ-7 done (inventory panel + relic-acquired prompt)
@@ -129,5 +121,7 @@ A record of every feature, fix, and improvement shipped to the app.
 - Master battle-map prompt + unique prompts for all 14 Verdant levels
 
 - Reorganize docs into docs/, README leads with the game (#99)
+
+- Rev6 follow-ups working doc (survival checkpoint)
 
 

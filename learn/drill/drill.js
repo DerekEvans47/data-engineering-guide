@@ -3396,7 +3396,7 @@ const TD_WPS_POOL = [
 // ── Three themed maps ──────────────────────────────────────────
 const TD_MAPS = [
   {
-    id: 0, name: 'The Verdant Frontier', icon: '🌿', color: '#4ADE80',
+    id: 0, name: 'The Verdant Frontier', regionName: 'Eldervale', icon: '🌿', color: '#4ADE80',
     subtitle: 'Parts 1–3 · SQL, Modeling & Pipelines',
     parts: [1,2,3], unlockRequirement: 0,
     bgZones: ['#1a3d08','#0a2810','#060c03'], themeName: 'verdant',
@@ -3537,17 +3537,27 @@ const FRONTIER_TOWN_MAP = {
   // gate on painted clearings, 4 inside the walls on open pads (the inside-
   // west pad is where the wide barn stood before it was composited away —
   // its roof sat on the road's south edge).
+  // Slot retune 2026-07-12 (owner markup): s3/s7 re-centered onto their
+  // pads, s9 added on the big NE-of-camp patch. Unused standout pads got
+  // props composited on (barrels/crates/wagon cloned from the map itself)
+  // so open dirt = buildable, cluttered dirt = scenery.
   buildSlotsPx: [
     [242,310],[210,590],     // outside west gate (upper, lower clearing)
-    [1000,184],[540,494],    // inside: top-center pad, west plot (ex-barn)
+    [1050,190],[540,494],    // inside: top-center pad, west plot (ex-barn)
     [1010,580],[1320,600],   // inside: south-center pad, south-east pad
-    [1670,256],[1604,484],   // outside east gate (NE clearing, camp-side clearing)
+    [1584,240],[1604,484],   // outside east gate (NE clearing, camp-side clearing)
+    [1850,236],              // far-east patch past the camp (owner request)
   ],
-  // Empty ON PURPOSE — not "not yet authored". The north-half waypoint line
-  // keeps units in front of every structure (verified against goblin/boss
-  // sprite heights on the route audit), so nothing needs redrawing over
-  // enemies. Occluder redraws hide units behind scenery; zero is the ideal.
-  occludersPx: [],
+  // The north-half waypoint line keeps units in front of every SOUTH-side
+  // structure, but the road passes THROUGH both gatehouses — units overlapped
+  // the tower bodies there ("goblins walk right through the gate wall").
+  // These two tight rects redraw the gatehouses over enemies, so units read
+  // as passing behind/inside the gate for ~0.5s. The rest of the map stays
+  // occluder-free on purpose (occluder redraws hide units; zero elsewhere).
+  occludersPx: [
+    [392,328,466,496],   // west gatehouse tower body
+    [1436,316,1514,504], // east gatehouse tower body
+  ],
 };
 
 function tdManhattanPathSet(wps, cols, rows) {
@@ -4654,6 +4664,15 @@ const RVM_AMBIENT = {
     { cx: 880, cy: 150, rx: 110, ry: 55, dur: 78, delay: -20, op: .20 },
     { cx: 950, cy: 250, rx: 90,  ry: 50, dur: 55, delay: -35, op: .15 },
     { cx: 830, cy: 205, rx: 70,  ry: 35, dur: 70, delay: -8,  op: .12 },
+    // 2026-07-12: light vapor drifting out of the corrupted corner into the
+    // mid-region (owner request) — deliberately weaker (op .07-.12) and
+    // smaller than the corrupted-zone banks so it reads as thinning
+    // outflow, broken and uneven, not a second weather system. Same
+    // three-lobe gradient patches as above = same painted look.
+    { cx: 700, cy: 330, rx: 75, ry: 30, dur: 84, delay: -12, op: .10 },
+    { cx: 612, cy: 175, rx: 60, ry: 24, dur: 71, delay: -44, op: .07 },
+    { cx: 795, cy: 395, rx: 85, ry: 34, dur: 66, delay: -28, op: .12 },
+    { cx: 545, cy: 300, rx: 55, ry: 22, dur: 90, delay: -55, op: .07 },
   ],
   // Chimney/campfire sources as [x, y, dx]: dx is the horizontal drift (px)
   // a puff picks up over its rise, matched to each landmark's PAINTED plume
@@ -4671,10 +4690,11 @@ const RVM_AMBIENT = {
     [234,106],[259,158],[300,250],[348,333],[298,394],[325,93],[326,144],
     [338,268],[364,306],[590,140],[660,130],[700,180],[619,198],[708,196],[872,277],
   ],
-  // Pennant poles planted ON the tower tips (keep's central spire, the
-  // crag watchtower's roof apex) — earlier coords floated beside them.
+  // Pennant pole planted ON the crag watchtower's roof apex. The ruined
+  // keep's pennant was removed (owner, 2026-07-12): a crisp flying flag on
+  // a decrepit corrupted ruin read as out of place.
   flags: [
-    { x: 827, y: 37 }, { x: 444, y: 191 },
+    { x: 444, y: 191 },
   ],
   sheep: [  // grazing wanderers inside the painted flocks' open grass
     { x: 555, y: 235, dur: 55, delay: 0 },   // lakeside meadow (was in the trees NW of it)
@@ -4807,7 +4827,7 @@ function renderVerdantWorldMap(run) {
       <div class="region-map-header">
         <button class="td-header-back" id="td-header-back">← Home</button>
         <div class="region-map-header-text">
-          <span class="region-map-title">${mapDef.icon} ${mapDef.name}</span>
+          <span class="region-map-title region-map-title-fancy">${mapDef.regionName || mapDef.name}</span>
         </div>
         <div class="td-header-right">
           <button class="td-header-icon" id="td-header-inventory" title="Inventory">🎒</button>
@@ -4954,7 +4974,15 @@ function showRunMap(run) {
   if (run.usesRegionMap) renderVerdantWorldMap(run); else renderRunMap(run);
 }
 
-function showTDWorldMap() { battleMusicHorn.stop(); showMapSelection(); }
+// One big run (owner decision 2026-07-12): the "Choose Your Map" screen is
+// bypassed — play routes straight into the Verdant run. showMapSelection
+// stays intact (unreferenced) for if/when multiple worlds go live.
+function showTDWorldMap() {
+  battleMusicHorn.stop();
+  const existRun = tdLoadRun();
+  const run = isRunCompatible(existRun, 0) ? existRun : generateRun(0);
+  showRunMap(run);
+}
 
 // ── Relic equip menu (EQ-4) ──────────────────────────────────────
 // Reachable from the run map / map select top bar. Category exclusivity is
@@ -5385,7 +5413,7 @@ function showRunCompleteScreen(run, finalGoldReward) {
       </div>
       <div class="run-complete-btns">
         <button class="td-wave-btn" id="rc-play-again">▶ Play Again</button>
-        <button class="td-map-btn"  id="rc-choose-map">🗺️ Choose Map</button>
+        <button class="td-map-btn"  id="rc-choose-map">🗺️ World Map</button>
       </div>
     </div>`;
 
@@ -5393,7 +5421,7 @@ function showRunCompleteScreen(run, finalGoldReward) {
     const newRun = generateRun(run.mapId);
     showRunMap(newRun);
   });
-  document.getElementById('rc-choose-map').addEventListener('click', showMapSelection);
+  document.getElementById("rc-choose-map").addEventListener("click", showTDWorldMap);
 }
 
 // ── Tutorial ───────────────────────────────────────────────────
@@ -5619,10 +5647,14 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
     td.occluders = levelDef.occludersPx || null;
     td.bgSize = levelDef.bgSize || null;
     // Fill the letterbox around the contain-fit canvas with the same map
-    // art, cover-fit and slightly darkened — dead black margins read as a
-    // vignette ("looking through a closing eye"); continuing forest doesn't.
+    // art, cover-fit and darkened. The old .35 green-tinted wash was light
+    // enough that the stretched cover copy read as PART OF THE MAP ("why is
+    // there a green overlay / is it cut off?" — owner, 2026-07-12). Neutral
+    // blue-black at .82 keeps a hint of forest texture but is unmistakably
+    // backdrop, while still avoiding the dead-black vignette this exists
+    // to prevent.
     wrap.style.background =
-      `linear-gradient(rgba(6,10,6,.35), rgba(6,10,6,.35)), ` +
+      `linear-gradient(rgba(8,11,16,.82), rgba(8,11,16,.82)), ` +
       `url('${td.paintedBg.src}') center / cover no-repeat`;
   } else {
     td.usesPaintedBg = null;
