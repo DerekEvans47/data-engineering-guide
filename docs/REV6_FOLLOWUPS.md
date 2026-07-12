@@ -80,3 +80,11 @@ not pre-mark anything DONE.
   (444,290); new props: firewood in the yard (518,400), barrels above the
   wagon pad (616,566).
 - sw v131 -> v132 (font filename changed). Verifier PASS.
+
+## Authoring mode (2026-07-12)
+- `?author=1` on the app URL overlays, on painted battle maps: occluder
+  rects (red, labeled [x0,y0,x1,y1]), build slots (blue rings, s1..s9 +
+  [x,y]), enemy lane (yellow), live hover crosshair with image-space pixel
+  readout, and click-to-copy (last 5 clicks listed on screen + clipboard +
+  console). Owner self-service loop: hover/tap the pixel -> paste into
+  FRONTIER_TOWN_MAP.buildSlotsPx / occludersPx -> bump sw.js -> verify.

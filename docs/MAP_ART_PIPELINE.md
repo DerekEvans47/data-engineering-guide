@@ -213,3 +213,12 @@ A cleaned map is scenery only. Before it's playable, hand-place against the
 final pixels: waypoint path, build-slot positions (in clearings), and any
 region-map node coordinates. Budget real time for this — it is not a config
 tweak.
+
+## 6. Authoring overlay — ?author=1
+
+Load the app with `?author=1` and enter a painted battle map: occluder
+rects, build-slot rings (with ids + image-px coords), and the enemy lane
+render on top of the game; hovering shows a live image-space pixel readout
+and every click copies `[x,y]` to the clipboard (last 5 shown on screen).
+This is the intended way to hand-place or adjust `buildSlotsPx` /
+`occludersPx` / `waypointsPx` — point at the pixel, paste the number.

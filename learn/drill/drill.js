@@ -5710,6 +5710,30 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   canvas.style.width  = cellCss * TD_COLS + 'px';
   canvas.style.height = cellCss * TD_ROWS + 'px';
 
+  // Authoring probes (?author=1): live hover readout + click-to-copy, both
+  // in map-image pixel space (see tdRenderAuthorOverlay). Normal gameplay
+  // handlers below are untouched — the radial still opens on the same tap.
+  if (TD_AUTHOR_MODE) {
+    const toImagePx = e => {
+      const rect = canvas.getBoundingClientRect();
+      const px = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const py = (e.clientY - rect.top) * (canvas.height / rect.height);
+      if (!td.bgSize) return null;
+      return { px, py,
+        ix: Math.round(px * td.bgSize[0] / canvas.width),
+        iy: Math.round(py * td.bgSize[1] / canvas.height) };
+    };
+    canvas.addEventListener('mousemove', e => { td.__authorCursor = toImagePx(e); });
+    canvas.addEventListener('mouseleave', () => { td.__authorCursor = null; });
+    canvas.addEventListener('click', e => {
+      const p = toImagePx(e);
+      if (!p) return;
+      td.__authorClicks = [[p.ix, p.iy], ...(td.__authorClicks || [])].slice(0, 5);
+      console.log(`author click: [${p.ix},${p.iy}]`);
+      try { navigator.clipboard?.writeText(`[${p.ix},${p.iy}]`); } catch (_) {}
+    });
+  }
+
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
     const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
@@ -7645,6 +7669,66 @@ function tdRender() {
   ctx.restore();
 
   tdRenderOverlays(ctx, cs, W, H);
+  tdRenderAuthorOverlay(ctx, cs, W, H);
+}
+
+// ── Map authoring overlay (?author=1) ────────────────────────────
+// Dev-only: visit the app with ?author=1 to see, on painted battle maps,
+// every occluder rect (red, with its [x0,y0,x1,y1]), every build slot
+// (blue ring + its [x,y]), and the enemy lane (yellow). Hovering shows a
+// live crosshair + IMAGE-SPACE pixel readout (the same 2048×868 coordinates
+// FRONTIER_TOWN_MAP uses); every click/tap logs the coordinate, keeps the
+// last few on screen, and copies "[x,y]" to the clipboard — so authoring a
+// slot or occluder is: point at the pixel, read/paste the number.
+const TD_AUTHOR_MODE = typeof location !== 'undefined' &&
+  new URLSearchParams(location.search).has('author');
+
+function tdRenderAuthorOverlay(ctx, cs, W, H) {
+  if (!TD_AUTHOR_MODE || !td.bgSize) return;
+  const kx = W / td.bgSize[0], ky = H / td.bgSize[1];
+  const fs = Math.max(10, Math.round(cs * 0.24));
+  ctx.save();
+  ctx.font = `bold ${fs}px monospace`;
+  ctx.textBaseline = 'bottom';
+
+  ctx.strokeStyle = '#FBBF24AA'; ctx.lineWidth = 1.5;   // enemy lane
+  const lane = td.levelDef.wpsExact;
+  if (lane) {
+    ctx.beginPath();
+    lane.forEach(([gx, gy], i) => ctx[i ? 'lineTo' : 'moveTo'](gx * cs, gy * cs));
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = '#FF3B30'; ctx.fillStyle = '#FF3B30'; ctx.lineWidth = 2;
+  for (const [x0, y0, x1, y1] of (td.occluders || [])) {
+    ctx.strokeRect(x0 * kx, y0 * ky, (x1 - x0) * kx, (y1 - y0) * ky);
+    ctx.fillText(`[${x0},${y0},${x1},${y1}]`, x0 * kx, y0 * ky - 2);
+  }
+
+  ctx.strokeStyle = '#3B82F6'; ctx.fillStyle = '#60A5FA';
+  (td.levelDef.buildSlots || []).forEach(([c, r], i) => {
+    const ctr = td.slotCenterMap?.[`${c},${r}`];
+    const [gx, gy] = ctr || [c + 0.5, r + 0.5];
+    const px = gx * cs, py = gy * cs;
+    ctx.beginPath(); ctx.arc(px, py, cs * 0.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillText(`s${i + 1} [${Math.round(px / kx)},${Math.round(py / ky)}]`, px - cs * 0.5, py - cs * 0.5 - 2);
+  });
+
+  if (td.__authorCursor) {
+    const { px, py, ix, iy } = td.__authorCursor;
+    ctx.strokeStyle = '#FFFFFF88'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
+    ctx.fillStyle = '#FFF'; ctx.fillText(`[${ix},${iy}]`, px + 6, py - 4);
+  }
+  ctx.fillStyle = '#0009';
+  ctx.fillRect(0, 0, fs * 15, fs * 1.6 * (1 + (td.__authorClicks?.length || 0)));
+  ctx.fillStyle = '#4ADE80'; ctx.textBaseline = 'top';
+  ctx.fillText('AUTHOR MODE — click to copy [x,y]', 4, 2);
+  (td.__authorClicks || []).forEach((c, i) => {
+    ctx.fillStyle = '#FBBF24';
+    ctx.fillText(`[${c[0]},${c[1]}]`, 4, 2 + fs * 1.6 * (i + 1));
+  });
+  ctx.restore();
 }
 
 function tdRRect(ctx, x, y, w, h, r) {
