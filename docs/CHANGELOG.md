@@ -91,7 +91,7 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Rev6 follow-ups - one-run flow, Eldervale title, battle-map polish (#134)
 
-- Round-2 polish - Cinzel title, visible mist drift, precise occluders
+- Round-2 polish - Cinzel title, visible mist drift, precise occluders (#135)
 
 - Stop map music on entering battle, trim loop tail
 
