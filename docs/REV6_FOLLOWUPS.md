@@ -64,3 +64,19 @@ not pre-mark anything DONE.
   half its size down-right. Fix: keep translate, drop scale (glow only).
 - 9: occludersPx = west gatehouse [392,328,466,496], east [1436,316,1514,504]
   (tower bodies only; units hidden ~0.5s passing through the gate).
+
+## Round 2 (2026-07-12, second owner batch) — all landed
+- Font: MedievalSharp -> Cinzel Bold (engraved caps, 'e' unambiguous), 20 KB
+  woff2, outline now 8-direction 2px white shadows (~3x thicker).
+- Mist WAS animated but at ~1px/s (60s cycles) — imperceptible. Durations
+  halved (30-48s) + keyframe drift widened to ~±60px => ~2.5-3px/s.
+- 7 slots nudged to owner arrow tips: s2(224,620) s3(1058,212) s4(544,528)
+  s5(1014,606) s6(1296,622) s7(1590,260) s9(1842,278).
+- Two tip-only occluders added for the circled south-row roof peaks:
+  barn [692,388,752,436], south house [1140,404,1204,448].
+- Floating-box artifact: the round-1 barrel paste landed half OUTSIDE the
+  palisade and smeared dirt on the wall. Zone (360,224)-(516,336) restored
+  from the pre-props asset (git 50cf090), barrels re-pasted tight on-pad
+  (444,290); new props: firewood in the yard (518,400), barrels above the
+  wagon pad (616,566).
+- sw v131 -> v132 (font filename changed). Verifier PASS.

@@ -1,4 +1,4 @@
-const CACHE = 'de-drill-v131';
+const CACHE = 'de-drill-v132';
 const ASSETS = [
   './index.html',
   './drill.css',
@@ -9,7 +9,7 @@ const ASSETS = [
   './assets/audio/verdant-battle-strings.mp3',
   './assets/worlds/verdant/region.png',
   './assets/worlds/verdant/battlemaps/frontier-town.png',
-  './assets/fonts/MedievalSharp.woff2',
+  './assets/fonts/Cinzel-Bold.woff2',
   './assets/enemies/goblin-walk.png',
   './assets/enemies/goblin-death.png',
   './assets/towers/ranger-tier1.png',

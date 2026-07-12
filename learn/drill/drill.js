@@ -3541,22 +3541,25 @@ const FRONTIER_TOWN_MAP = {
   // pads, s9 added on the big NE-of-camp patch. Unused standout pads got
   // props composited on (barrels/crates/wagon cloned from the map itself)
   // so open dirt = buildable, cluttered dirt = scenery.
+  // Positions re-tuned 2026-07-12 (round 2) to the owner's arrow markup.
   buildSlotsPx: [
-    [242,310],[210,590],     // outside west gate (upper, lower clearing)
-    [1050,190],[540,494],    // inside: top-center pad, west plot (ex-barn)
-    [1010,580],[1320,600],   // inside: south-center pad, south-east pad
-    [1584,240],[1604,484],   // outside east gate (NE clearing, camp-side clearing)
-    [1850,236],              // far-east patch past the camp (owner request)
+    [242,310],[224,620],     // outside west gate (upper, lower clearing)
+    [1058,212],[544,528],    // inside: top-center pad, west plot (ex-barn)
+    [1014,606],[1296,622],   // inside: south-center pad, south-east pad
+    [1590,260],[1604,484],   // outside east gate (NE clearing, camp-side clearing)
+    [1842,278],              // far-east patch past the camp (owner request)
   ],
   // The north-half waypoint line keeps units in front of every SOUTH-side
-  // structure, but the road passes THROUGH both gatehouses — units overlapped
-  // the tower bodies there ("goblins walk right through the gate wall").
-  // These two tight rects redraw the gatehouses over enemies, so units read
-  // as passing behind/inside the gate for ~0.5s. The rest of the map stays
-  // occluder-free on purpose (occluder redraws hide units; zero elsewhere).
+  // structure except where painted pixels physically cross the lane: the
+  // two gatehouses the road passes through, plus the two south-row roof
+  // PEAKS that poke into the road band (owner-circled). Tip rects are
+  // deliberately tight — just the overriding pixels — so units vanish for
+  // only a few frames. Everything else stays occluder-free on purpose.
   occludersPx: [
     [392,328,466,496],   // west gatehouse tower body
     [1436,316,1514,504], // east gatehouse tower body
+    [692,388,752,436],   // A-frame barn roof peak (tip only)
+    [1140,404,1204,448], // south house roof peak (tip only)
   ],
 };
 
@@ -4659,20 +4662,21 @@ function renderRunMap(run) {
 // Coordinates are in the region viewBox (1024×474); water-glint points
 // were snapped to actual blue pixels of the painted rivers/lake.
 const RVM_AMBIENT = {
+  // Durations halved 2026-07-12 (with wider keyframe drift in drill.css):
+  // the old 55-90s cycles moved ~1px/s — imperceptible in practice.
   mist: [   // corrupted NE + eastern swamp
-    { cx: 780, cy: 90,  rx: 90,  ry: 40, dur: 62, delay: 0,   op: .16 },
-    { cx: 880, cy: 150, rx: 110, ry: 55, dur: 78, delay: -20, op: .20 },
-    { cx: 950, cy: 250, rx: 90,  ry: 50, dur: 55, delay: -35, op: .15 },
-    { cx: 830, cy: 205, rx: 70,  ry: 35, dur: 70, delay: -8,  op: .12 },
-    // 2026-07-12: light vapor drifting out of the corrupted corner into the
-    // mid-region (owner request) — deliberately weaker (op .07-.12) and
-    // smaller than the corrupted-zone banks so it reads as thinning
-    // outflow, broken and uneven, not a second weather system. Same
-    // three-lobe gradient patches as above = same painted look.
-    { cx: 700, cy: 330, rx: 75, ry: 30, dur: 84, delay: -12, op: .10 },
-    { cx: 612, cy: 175, rx: 60, ry: 24, dur: 71, delay: -44, op: .07 },
-    { cx: 795, cy: 395, rx: 85, ry: 34, dur: 66, delay: -28, op: .12 },
-    { cx: 545, cy: 300, rx: 55, ry: 22, dur: 90, delay: -55, op: .07 },
+    { cx: 780, cy: 90,  rx: 90,  ry: 40, dur: 34, delay: 0,   op: .16 },
+    { cx: 880, cy: 150, rx: 110, ry: 55, dur: 42, delay: -20, op: .20 },
+    { cx: 950, cy: 250, rx: 90,  ry: 50, dur: 30, delay: -18, op: .15 },
+    { cx: 830, cy: 205, rx: 70,  ry: 35, dur: 38, delay: -8,  op: .12 },
+    // Light vapor drifting out of the corrupted corner into the mid-region
+    // (owner request) — deliberately weaker (op .07-.12) and smaller than
+    // the corrupted-zone banks so it reads as thinning outflow, broken and
+    // uneven, not a second weather system. Same three-lobe gradient patches.
+    { cx: 700, cy: 330, rx: 75, ry: 30, dur: 44, delay: -12, op: .10 },
+    { cx: 612, cy: 175, rx: 60, ry: 24, dur: 37, delay: -22, op: .07 },
+    { cx: 795, cy: 395, rx: 85, ry: 34, dur: 34, delay: -15, op: .12 },
+    { cx: 545, cy: 300, rx: 55, ry: 22, dur: 48, delay: -28, op: .07 },
   ],
   // Chimney/campfire sources as [x, y, dx]: dx is the horizontal drift (px)
   // a puff picks up over its rise, matched to each landmark's PAINTED plume
