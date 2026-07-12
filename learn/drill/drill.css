@@ -2427,10 +2427,14 @@ html, body {
 .td-radial-btn.disabled { opacity: .35; pointer-events: none; }
 .td-radial-icon { font-size: 1.3rem; line-height: 1; pointer-events: none; }
 .td-radial-sub { font-size: .56rem; font-weight: 800; color: #FBBF24; pointer-events: none; }
-/* Armed build option (two-tap placement): glow the picked button */
+/* Armed build option (two-tap placement): glow the picked button.
+   NOTE: must repeat the base translate(-50%,-50%) — a bare scale() would
+   REPLACE it, which made the armed button grow AND jump down-right by half
+   its own size (the "second radial is larger and off in another direction"
+   bug). Same size, same place, glow only. */
 .td-radial-btn.armed {
   box-shadow: 0 0 0 3px rgba(255,255,255,.35), 0 0 14px 2px currentColor;
-  transform: scale(1.12);
+  transform: translate(-50%, -50%);
 }
 /* Stacked tower stat card shown while a build option is armed */
 .td-tower-info {
@@ -2804,6 +2808,27 @@ html, body {
     0 1px 0 #7c2d12,
     0 2px 8px rgba(0,0,0,.65),
     0 0 18px rgba(245,158,11,.3);
+}
+/* Region place-name treatment (owner spec 2026-07-12): gold, white-outlined,
+   old-script-but-readable. Font is self-hosted (offline PWA — no CDN fetch);
+   the serif stack below is the pre-load/failure fallback. White outline via
+   stacked 1px shadows: -webkit-text-stroke eats MedievalSharp's thin strokes
+   at this size. */
+@font-face {
+  font-family: 'MedievalSharp';
+  src: url('assets/fonts/MedievalSharp.woff2') format('woff2');
+  font-display: swap;
+}
+.region-map-title-fancy {
+  font-family: 'MedievalSharp', 'Palatino Linotype', Palatino, Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 400;
+  letter-spacing: .05em;
+  color: #E8B84B;
+  text-shadow:
+    -1px -1px 0 rgba(255,255,255,.85), 1px -1px 0 rgba(255,255,255,.85),
+    -1px  1px 0 rgba(255,255,255,.85), 1px  1px 0 rgba(255,255,255,.85),
+     0 3px 10px rgba(0,0,0,.75);
 }
 .region-map-header .td-header-back,
 .region-map-header .td-header-icon {

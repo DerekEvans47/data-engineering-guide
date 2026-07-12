@@ -122,4 +122,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Reorganize docs into docs/, README leads with the game (#99)
 
+- Rev6 follow-ups working doc (survival checkpoint)
+
 
