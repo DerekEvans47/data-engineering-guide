@@ -5730,7 +5730,21 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
       if (!p) return;
       td.__authorClicks = [[p.ix, p.iy], ...(td.__authorClicks || [])].slice(0, 5);
       console.log(`author click: [${p.ix},${p.iy}]`);
-      try { navigator.clipboard?.writeText(`[${p.ix},${p.iy}]`); } catch (_) {}
+      const txt = `[${p.ix},${p.iy}]`;
+      const flash = ok => { td.__authorCopied = { txt, ok, until: Date.now() + 1400 }; };
+      // Clipboard API rejects as a PROMISE (a sync try/catch never sees it),
+      // so confirm/fallback in .then/.catch. Fallback: the legacy hidden-
+      // textarea execCommand path for contexts where the API is blocked.
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(txt).then(() => flash(true)).catch(() => {
+          const ta = document.createElement('textarea');
+          ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.select();
+          let ok = false;
+          try { ok = document.execCommand('copy'); } catch (_) {}
+          ta.remove(); flash(ok);
+        });
+      } else flash(false);
     });
   }
 
@@ -7728,6 +7742,14 @@ function tdRenderAuthorOverlay(ctx, cs, W, H) {
     ctx.fillStyle = '#FBBF24';
     ctx.fillText(`[${c[0]},${c[1]}]`, 4, 2 + fs * 1.6 * (i + 1));
   });
+  // Copy confirmation flash (~1.4s) beside the cursor/click point
+  const cp = td.__authorCopied;
+  if (cp && Date.now() < cp.until) {
+    const cur = td.__authorCursor;
+    const fx = cur ? cur.px + 8 : 4, fy = cur ? cur.py + fs : fs * 2;
+    ctx.fillStyle = cp.ok ? '#4ADE80' : '#EF4444';
+    ctx.fillText(cp.ok ? `✓ copied ${cp.txt}` : `⚠ copy failed — use console`, fx, fy);
+  }
   ctx.restore();
 }
 
