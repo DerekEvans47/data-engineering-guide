@@ -36,6 +36,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Landscape battle map + painted Verdant world map (G-9) (#88)
 
+- Map authoring overlay (?author=1) (#136)
+
 - New regenerated region map (nodes re-placed) + road-structure occlusion
 
 - Original driving march theme for the world/region map
