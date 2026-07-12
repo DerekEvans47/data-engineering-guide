@@ -1,5 +1,5 @@
 {
-  "_notes": "Battle-map authoring data for Frontier Town (tutorial, spine node 'start'). rev 6: WIDE-tier remake. Art via two-pass generation (Gemini flash 3.5, style ref = rev 4 art): pass 1 terrain-only (road/palisade/gates/clearings), pass 2 edit adds the town; the passes were pixel-stable outside additions, enabling composite surgery (out-of-walls caravan additions restored selectively, wide barn removed to free the inside-west slot, west camp house/cart erased to free the camp-side clearing). Sparkle removed at (946,350) 1024-space. Graded (grade B: V-gamma 0.75, sat x1.15, warm +5% -- owner-picked standard, see docs/MAP_ART_PIPELINE.md) and shipped 2x nearest-neighbor upscaled: all coordinates below are in 2048x868 shipped-pixel space (paint space was 1024x434). Grid 30x13 (~68px cells; houses ~2 cells = compressed size ladder). Road traced from the building-free pass-1 mask; through town the lane rides the road's NORTH half so units render in front of south-row rooflines -- occluders empty ON PURPOSE (route audit verified vs goblin/boss sprite heights). 8 slots hand-placed from owner markup 2026-07-12. levelDef pairing: enemySpeedMult 0.85 (~23s crossing over ~31 cells), enemyScaleMult 1.25 (map-scoped unit upsize). rev 6b (2026-07-12 owner batch): s3/s7 re-centered, s9 added far-east; props composited onto 3 unused pads; gatehouse occluders reinstated (road passes THROUGH the gates - the exception to the zero-occluder rule).",
+  "_notes": "Battle-map authoring data for Frontier Town (tutorial, spine node 'start'). rev 6: WIDE-tier remake. Art via two-pass generation (Gemini flash 3.5, style ref = rev 4 art): pass 1 terrain-only (road/palisade/gates/clearings), pass 2 edit adds the town; the passes were pixel-stable outside additions, enabling composite surgery (out-of-walls caravan additions restored selectively, wide barn removed to free the inside-west slot, west camp house/cart erased to free the camp-side clearing). Sparkle removed at (946,350) 1024-space. Graded (grade B: V-gamma 0.75, sat x1.15, warm +5% -- owner-picked standard, see docs/MAP_ART_PIPELINE.md) and shipped 2x nearest-neighbor upscaled: all coordinates below are in 2048x868 shipped-pixel space (paint space was 1024x434). Grid 30x13 (~68px cells; houses ~2 cells = compressed size ladder). Road traced from the building-free pass-1 mask; through town the lane rides the road's NORTH half so units render in front of south-row rooflines -- occluders empty ON PURPOSE (route audit verified vs goblin/boss sprite heights). 8 slots hand-placed from owner markup 2026-07-12. levelDef pairing: enemySpeedMult 0.85 (~23s crossing over ~31 cells), enemyScaleMult 1.25 (map-scoped unit upsize). rev 6b (2026-07-12 owner batch): s3/s7 re-centered, s9 added far-east; props composited onto 3 unused pads; gatehouse occluders reinstated (road passes THROUGH the gates - the exception to the zero-occluder rule). rev 6c (2026-07-12 round 2): 7 slots nudged to owner arrow tips; roof-peak tip occluders added (A-frame barn, south house); floating-box prop paste reverted+redone tight on-pad; two new prop groups (yard firewood, pad barrels); title font MedievalSharp->Cinzel Bold; mist drift ~2x faster.",
   "image": "frontier-town.png",
   "viewBox": [
     0,
@@ -98,43 +98,43 @@
     },
     {
       "id": "s2",
-      "x": 210,
-      "y": 590,
+      "x": 224,
+      "y": 620,
       "pad": "open",
       "note": "outside west gate, lower clearing"
     },
     {
       "id": "s3",
-      "x": 1050,
-      "y": 190,
+      "x": 1058,
+      "y": 212,
       "pad": "open",
       "note": "inside, top-center pad"
     },
     {
       "id": "s4",
-      "x": 540,
-      "y": 494,
+      "x": 544,
+      "y": 528,
       "pad": "open",
       "note": "inside west plot (ex-barn)"
     },
     {
       "id": "s5",
-      "x": 1010,
-      "y": 580,
+      "x": 1014,
+      "y": 606,
       "pad": "open",
       "note": "inside, south-center pad"
     },
     {
       "id": "s6",
-      "x": 1320,
-      "y": 600,
+      "x": 1296,
+      "y": 622,
       "pad": "open",
       "note": "inside, south-east pad"
     },
     {
       "id": "s7",
-      "x": 1584,
-      "y": 240,
+      "x": 1590,
+      "y": 260,
       "pad": "open",
       "note": "outside east gate, NE clearing"
     },
@@ -147,8 +147,8 @@
     },
     {
       "id": "s9",
-      "x": 1850,
-      "y": 236,
+      "x": 1842,
+      "y": 278,
       "pad": "open",
       "note": "far-east patch past the camp"
     }
@@ -170,6 +170,24 @@
         316,
         1514,
         504
+      ]
+    },
+    {
+      "id": "barn-roof-peak",
+      "rect": [
+        692,
+        388,
+        752,
+        436
+      ]
+    },
+    {
+      "id": "south-house-roof-peak",
+      "rect": [
+        1140,
+        404,
+        1204,
+        448
       ]
     }
   ]

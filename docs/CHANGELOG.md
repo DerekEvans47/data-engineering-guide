@@ -89,6 +89,10 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Region map node placement redone with road-mask snapping
 
+- Rev6 follow-ups - one-run flow, Eldervale title, battle-map polish (#134)
+
+- Round-2 polish - Cinzel title, visible mist drift, precise occluders
+
 - Stop map music on entering battle, trim loop tail
 
 - Swap map theme to MP3 (world-map-temp.mp3), drop broken M4A
@@ -121,7 +125,5 @@ A record of every feature, fix, and improvement shipped to the app.
 - Master battle-map prompt + unique prompts for all 14 Verdant levels
 
 - Reorganize docs into docs/, README leads with the game (#99)
-
-- Rev6 follow-ups working doc (survival checkpoint)
 
 
