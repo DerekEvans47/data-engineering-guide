@@ -14,7 +14,8 @@ no shared lighting, no ground contact, wrong level of painterly detail. See
 "sticker map" problem, just on towers instead of terrain. The fix is the same one that
 worked for the maps — paint the tower in the same technique as the scene.
 
-**Status: Ranger — DONE, shipped, all 4 tiers wired, front + back facing.**
+**Status: Ranger — shipped and wired (all 4 tiers, front + back facing), but tiers
+1 and 4 are queued for an art regen — see "Regen queue" below (2026-07-13).**
 `learn/drill/assets/towers/ranger-tier{1,2,3,4}.png` (front) and
 `ranger-tier{1,2,3,4}-back.png` (back) are wired into
 `TD_TOWER_TIER_IMAGES`/`tdRenderTowers`, with `TD_TOWER_DEFS.ranger` carrying 3
@@ -120,6 +121,12 @@ tower's *own* surfaces face the camera, never which way its shadow points.
 > on the sheet.
 
 ## SUBJECT BLOCK — Ranger (arrow) tower — shipped
+
+**Note (2026-07-13):** the tier 1 and tier 4 paragraphs below are what originally
+shipped, kept for the record — both are superseded by the "Regen queue" section
+further down (tier 1's single-post silhouette reads as a treehouse; tier 4's cyan
+palette clashes with the warm-graded maps). Any future full-sheet regen should use
+the Regen queue's revised tier 1 and tier 4 specs in place of these paragraphs.
 
 > **Subject: a small enclosed archery watchtower, no visible occupant.** A single
 > central support column holding up a small fully-roofed cabin/turret with one small
@@ -266,23 +273,123 @@ draws — the upgrade ring, targeting flash, and level-badge text are drawn outs
 wrapper so text doesn't render backwards and the flash still points at the real target
 angle.
 
+## Regen queue — tier 1 (silhouette) + tier 4 (palette), 2026-07-13
+
+Play-testing on Frontier Town (owner, 2026-07-13) confirmed two of the four tiers
+need a regen. Tiers 2 and 3 are approved as shipped.
+
+### Why tier 1: reads as a treehouse, not a watchtower
+
+This is the "tier 1 silhouette inconsistency" previously listed under Future work,
+now confirmed bothering the eye in actual play. A tiny hut on one narrow post with a
+big leaning ladder reads as a backyard treehouse / hunting deer-stand. It clashes two
+ways: (a) every building on Frontier Town is wide, chunky, and ground-hugging — the
+map's own watchtower vernacular is the palisade gatehouse: a solid timber box planted
+on the ground; (b) tier 1 doesn't even read as the same building as its own upgrades
+(measured ground-contact centroid: tier 1 at ~74% of its own image width; tiers 2–4
+at ~49–51%).
+
+### Why tier 4: coldest, brightest object on a warm map
+
+Measured mean warmth (R−B of opaque pixels) and lightness, sprite vs map buildings:
+
+| Object | Warmth (R−B) | Lightness |
+|---|---|---|
+| Map wooden house | +60 | 0.35 |
+| Map gatehouse tower | +54 | 0.34 |
+| Map smithy (stone building) | +34 | 0.35 |
+| Ranger tier 2 | +42 | 0.33 |
+| Ranger tier 3 | −12 | 0.32 |
+| Ranger tier 4 | **−23** | **0.40** |
+
+Every shipped battle map goes through the warm grade (grade B, `scripts/grade_map.py`
+— gamma 0.75, sat ×1.15, warm +5%), so even the map's "grey" smithy stone leans brown.
+The tower sprites never got that grade, and for tier 4 the coolness is painted in
+(ice-blue stone + cyan crystal glow) — running the sprite through grade B was tested
+directly and does NOT fix it; the palette starts ~57 points cooler than the map's own
+stone. There's a thematic clash too: cyan glowing crystal reads frost/arcane on the
+most mundane map in the game. The fix is a warm glow: amber/gold ember-light, which
+also ties into the existing upgrade-feedback color language (upgrade ring and
+max-level badge are already amber `#F59E0B` / gold). Tier 3's slight coolness (−12)
+is acceptable — it reads as neutral grey next to the smithy and is approved as-is.
+
+### Sizing: checked, no change
+
+Render size is NOT part of the problem. All tiers render at the same height
+(`renderH = cs × 1.9` ≈ 130px in Frontier Town's 2048-wide space, `tdRenderTowers`).
+Measured against the map: regular houses ≈ 100px tall, the big barn (largest building)
+≈ 140px — so the tower stands taller than every house and just under barn height.
+Correct TD presence; keep `cs × 1.9`.
+
+### Single-tier regen process (differs from the full-sheet pipeline)
+
+1. Attach TWO reference images: `frontier-town.png` (style/palette/camera anchor, as
+   always) AND the shipped neighbor tier as the silhouette/family anchor —
+   `assets/towers/ranger-tier2.png` for the tier 1 regen,
+   `assets/towers/ranger-tier3.png` for the tier 4 regen.
+2. Paste the COMMON BLOCK (drop its "exactly 4 cells" paragraph), then the regen
+   SUBJECT BLOCK below. Ask for **ONE cell, one image, 384×384, magenta background** —
+   single-subject requests are what this model executes reliably (see Process notes
+   #3: simplify).
+3. Same alpha pipeline (`scripts/remove_magenta_bg.py`), no slicing needed. Save over
+   `assets/towers/ranger-tier1.png` / `ranger-tier4.png`.
+4. Regen the matching `-back` variant with the same Facing-variants amendment as
+   before (window + ladder relocated to the back-left face). Diff the processed back
+   file against the front to confirm it's genuinely different (see Facing variants
+   process note #3 — the wrong-file-upload trap).
+5. Before committing, composite all 4 tiers side-by-side onto Frontier Town at game
+   scale (`cs × 1.9`) and check the family read. If the regen'd cell doesn't read as
+   the same building line, regen the cell again — don't patch it.
+
+### SUBJECT BLOCK — Tier 1 regen (replaces the original tier 1 spec)
+
+> **Subject: a single tower, one image.** This is the tier-1 (base) stage of the
+> attached reference tower: the SAME structure, footprint, camera angle, and scale,
+> rebuilt entirely in rough-hewn raw timber — no stone anywhere. Match the attached
+> tower's wide, centered ground footprint exactly: a sturdy timber-frame / log-crib
+> base planted directly on the ground and filling the same width as the attachment's
+> stone base — **NOT a single narrow post, stilt, or pole**. The ladder leans against
+> the side of the base, same position as the attachment, visibly connecting to the
+> elevated cabin. One small square window. Peaked hay/thatch roof (bundled thatch
+> strands, warm golden-tan tone).
+>
+> The result must read as a frontier military watch platform — the same structural
+> vernacular as a palisade corner tower — never as a treehouse or a hunting
+> deer-stand.
+
+### SUBJECT BLOCK — Tier 4 regen (replaces the original tier 4 spec)
+
+> **Subject: a single tower, one image.** This is the tier-4 (ultimate) stage of the
+> attached reference tower: keep the attachment's silhouette, footprint, camera
+> angle, scale, and slate roof EXACTLY — only the materials change, in two ways:
+>
+> 1. The stone is warm grey — sun-warmed granite with subtle brown/tan undertones,
+>    matching the stonework of the smithy building in the attached battle-map
+>    reference. **Never blue, never icy, never cold grey.**
+> 2. Veins of glowing molten gold/amber ember-light run through the mortar joints and
+>    along the roof's ridge line — a warm orange-gold glow (`#F59E0B` family), like
+>    forge-light seeping through the seams. **NOT cyan, NOT blue, NOT white
+>    crystal.** The glow is subtle seam-light only — no flames, no floating
+>    particles, no aura.
+
+### Regen eyeball checklist (in addition to the main checklist above)
+
+- [ ] Tier 1: ground contact is a wide centered base (centroid near the sprite's own
+      horizontal center), ladder against the side — reads watchtower, not treehouse.
+- [ ] Tier 4: stone leans warm/neutral (spot-check: mean R ≥ mean B over the sprite's
+      opaque pixels), glow reads amber/gold, silhouette matches shipped tier 3.
+- [ ] Family read: regen'd tier composited next to the untouched tiers on
+      Frontier Town at `cs × 1.9` still reads as the same building line.
+
 ## Future work (deferred, not built yet)
 
 - **Bastion and Mortar** get their own SUBJECT BLOCK using this same COMMON BLOCK,
   grid spec, and eyeball checklist, once there's a reason to prioritize them — including
   their own front/back facing variants, following the same process as Ranger's.
-- **Tier 1 silhouette inconsistency (known asset issue, cosmetic only now):** tiers
-  2–4 share a wide, centered stone/wood base with a ladder leaned against one side —
-  tier 1 instead sits on a narrow single post with a separate ladder planted well off
-  to one side (measured: tier 1's ground-contact centroid sits at ~74% of its own
-  image width; tiers 2–4 sit at ~49–51%). This violates the "same footprint"
-  silhouette-continuity rule above. It no longer causes a shadow-placement bug — the
-  shadow is now a silhouette cutout of each tier's own sprite (see "Code-side shadow
-  rendering" below), so it automatically follows tier 1's off-center post+ladder
-  shape instead of needing to be manually anchored to it — but the tower design
-  itself is still inconsistent art-direction-wise across tiers. Worth a regen of
-  tier 1 alone (matching tiers 2–4's centered stone base silhouette, with the
-  wood-only tier-1 materials) if this keeps bothering the eye in play-testing.
+- ~~Tier 1 silhouette inconsistency~~ — promoted to the "Regen queue" section above
+  (2026-07-13) after play-testing confirmed it. The shadow-placement side of it was
+  already fixed by the silhouette-cutout shadow (see "Code-side shadow rendering"
+  below).
 
 ## Code-side shadow rendering
 
