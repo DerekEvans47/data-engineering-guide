@@ -48,6 +48,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Playtest round 3 - sprite size/quality, single battle song, HUD cleanup, two-tap build with stat card, arrow SFX
 
+- Regen ranger tier 1 as grounded timber watchtower
+
 - Reshape Verdant spine - node re-placement, Fishing Camp added (#130)
 
 - Tower facing — orient toward the road, front/back art (#98)
