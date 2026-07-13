@@ -3529,9 +3529,9 @@ const FRONTIER_TOWN_MAP = {
   // keeps every unit rendered IN FRONT of the south-row rooflines — which is
   // why this map needs no occluders (see occludersPx note below).
   waypointsPx: [
-    [0,480],[200,496],[380,476],[430,462],[560,440],[720,430],[880,436],
-    [1040,440],[1200,428],[1360,410],[1496,400],[1632,380],[1760,380],
-    [1888,418],[2046,440],
+    [0,470],[35,470],[120,490],[200,496],[380,476],[430,455],[560,440],[648,438],[720,430],[880,436],
+    [1040,440],[1200,428],[1360,430],[1496,400],[1632,380],[1760,375],
+    [1888,413],[2046,430],
   ],
   // 8 slots hand-placed from the owner's markup (2026-07-12): 2 outside each
   // gate on painted clearings, 4 inside the walls on open pads (the inside-
@@ -3544,10 +3544,10 @@ const FRONTIER_TOWN_MAP = {
   // Positions re-tuned 2026-07-12 (round 2) to the owner's arrow markup.
   buildSlotsPx: [
     [242,310],[224,620],     // outside west gate (upper, lower clearing)
-    [1058,212],[544,528],    // inside: top-center pad, west plot (ex-barn)
-    [1014,606],[1296,622],   // inside: south-center pad, south-east pad
-    [1590,260],[1604,484],   // outside east gate (NE clearing, camp-side clearing)
-    [1842,278],              // far-east patch past the camp (owner request)
+    [1000,169],[504,511],    // inside: top-center pad, west plot (ex-barn)
+    [1013,616],[1296,622],   // inside: south-center pad, south-east pad
+    [1636,257],[1591,493],   // outside east gate (NE clearing, camp-side clearing)
+    [1862,275],              // far-east patch past the camp (owner request)
   ],
   // The north-half waypoint line keeps units in front of every SOUTH-side
   // structure except where painted pixels physically cross the lane: the
@@ -3556,10 +3556,10 @@ const FRONTIER_TOWN_MAP = {
   // deliberately tight — just the overriding pixels — so units vanish for
   // only a few frames. Everything else stays occluder-free on purpose.
   occludersPx: [
-    [392,328,466,496],   // west gatehouse tower body
-    [1436,316,1514,504], // east gatehouse tower body
-    [692,388,752,436],   // A-frame barn roof peak (tip only)
-    [1140,404,1204,448], // south house roof peak (tip only)
+    [381,412,438,488],   // west gatehouse tower body
+    [1446,392,1499,482], // east gatehouse tower body
+    [681,425,749,457],   // A-frame barn roof peak (tip only)
+    [1135,427,1212,456], // south house roof peak (tip only)
   ],
 };
 
