@@ -48,8 +48,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Playtest round 3 - sprite size/quality, single battle song, HUD cleanup, two-tap build with stat card, arrow SFX
 
-- Radial build/manage menu replaces persistent tower bar (#93)
-
 - Reshape Verdant spine - node re-placement, Fishing Camp added (#130)
 
 - Tower facing — orient toward the road, front/back art (#98)
@@ -95,8 +93,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Tower shadows follow each sprite's own silhouette (#96)
 
-- True landscape width, integrated map header, tower centering (#92)
-
 - Tune Frontier Town enemy pathing, tower slots and occluders (#138)
 
 - Tune shadow squash for legibility at real mobile scale (#97)
@@ -119,6 +115,8 @@ A record of every feature, fix, and improvement shipped to the app.
 - Mark EQ-7 done (inventory panel + relic-acquired prompt)
 
 - Master battle-map prompt + unique prompts for all 14 Verdant levels
+
+- Remove dead multi-world code and retired deco/music systems from drill.js (#139)
 
 - Reorganize docs into docs/, README leads with the game (#99)
 
