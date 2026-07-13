@@ -837,7 +837,6 @@ function showHome() {
     if (td.autoSaveInterval) { clearInterval(td.autoSaveInterval); }
     td.running = false;
     td = null;
-    tdMusic.stop();
   }
   mapMusic.stop();
   mode = 'home'; dailyActive = false; studyPart = null;
@@ -1014,23 +1013,6 @@ function setupInstallBanner() {
     StorageManager.set(INSTALL_BANNER_KEY, '1');
     banner.remove();
   });
-}
-
-// ── Tab switching ──────────────────────────────────────────────
-function switchTab(newMode) {
-  if (td && td.running) { cancelAnimationFrame(td.animFrame); td.running = false; td = null; tdMusic.stop(); }
-  menuMusic.stop();
-  mapMusic.stop();
-  battleMusicHorn.stop();
-
-  mode = newMode; dailyActive = false; studyPart = null;
-  answered = false; sessionCorrect = 0; sessionTotal = 0; sessionXpEarned = 0;
-  EL.app.dataset.mode = newMode;
-
-  if (mode === 'study')       { setTopBar('study-list'); showPartList(); }
-  else if (mode === 'drill')  { setTopBar('drill'); buildDrillQueue(); showNext(); }
-  else if (mode === 'dungeon'){ dungeonMapData = null; showDungeonMap(); }
-  else if (mode === 'tower')  { showTDWorldMap(); }
 }
 
 // ── Study: Part list ───────────────────────────────────────────
@@ -2274,135 +2256,6 @@ const tdAudio = (() => {
   };
 })();
 
-// ── Background music (T-2 / T-4) ──────────────────────────────
-const tdMusic = (() => {
-  let actx = null, masterGain = null;
-  let playing = false, paused = false;
-  let beat = 0, nextBeat = 0, timer = null;
-  let intensity = 1; // 1=melody+bass  2=+harmony  3=+percussion
-
-  const BPM  = 124;
-  const S    = (60 / BPM) / 2;   // 8th-note duration in seconds
-  const LOOK = 0.25;              // schedule this far ahead
-
-  // C natural minor pentatonic (C Eb F G Bb)
-  const N = {
-    C3:130.81, F3:174.61, G3:196.00, Bb3:233.08,
-    C4:261.63, Eb4:311.13, F4:349.23, G4:392.00, Bb4:466.16,
-    C5:523.25, Eb5:622.25, F5:698.46, G5:783.99,
-  };
-
-  // 16-step (8th-note) patterns; 0 = rest
-  const MELODY = [N.C5,0,N.Eb5,0,N.G5,N.Bb4,N.G4,0, N.F4,0,N.Eb4,N.C4,N.Eb4,N.G4,N.F4,0];
-  const BASS   = [N.C3,N.G3,N.Bb3,N.F3];              // one note per 4 steps
-  const HARM   = [N.G4,0,N.Bb4,0,N.Eb5,N.G4,N.Eb4,0, N.C4,0,N.G4,N.Eb4,N.G4,N.Bb4,N.G4,0];
-
-  function ac() {
-    if (!actx) {
-      actx = tdAudio.ctx;
-      if (!actx) {
-        try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return null; }
-      }
-    }
-    if (actx.state === 'suspended') actx.resume().catch(() => {});
-    if (!masterGain) {
-      masterGain = actx.createGain();
-      masterGain.gain.value = tdAudio.muted ? 0 : 0.16;
-      masterGain.connect(actx.destination);
-    }
-    return actx;
-  }
-
-  function schedNote(freq, type, start, dur, vol) {
-    const g = actx.createGain(), o = actx.createOscillator();
-    o.type = type; o.frequency.setValueAtTime(freq, start);
-    g.gain.setValueAtTime(vol, start);
-    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-    o.connect(g); g.connect(masterGain);
-    o.start(start); o.stop(start + dur + 0.01);
-  }
-
-  function schedKick(start) {
-    const g = actx.createGain(), o = actx.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(140, start);
-    o.frequency.exponentialRampToValueAtTime(38, start + 0.09);
-    g.gain.setValueAtTime(0.55, start);
-    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.13);
-    o.connect(g); g.connect(masterGain);
-    o.start(start); o.stop(start + 0.15);
-  }
-
-  function schedHihat(start, open) {
-    const buf = actx.createBuffer(1, Math.ceil(actx.sampleRate * 0.08), actx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    const src = actx.createBufferSource(), g = actx.createGain();
-    const f = actx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 6500;
-    const dur = open ? 0.10 : 0.035;
-    g.gain.setValueAtTime(0.12, start);
-    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-    src.buffer = buf;
-    src.connect(f); f.connect(g); g.connect(masterGain);
-    src.start(start); src.stop(start + dur + 0.01);
-  }
-
-  function pump() {
-    if (!playing || paused) return;
-    const c = ac(); if (!c) return;
-    const now = c.currentTime;
-
-    while (nextBeat < now + LOOK) {
-      const b = beat % 16;
-      const t = nextBeat;
-
-      if (intensity >= 1) {
-        if (MELODY[b]) schedNote(MELODY[b], 'square',   t, S * 0.72, 0.11);
-        if (b % 4 === 0) schedNote(BASS[b >> 2], 'sawtooth', t, S * 3.5, 0.13);
-      }
-      if (intensity >= 2 && HARM[b])
-        schedNote(HARM[b], 'triangle', t, S * 0.55, 0.065);
-      if (intensity >= 3) {
-        if (b === 0 || b === 8) schedKick(t);
-        if (b % 2 === 0) schedHihat(t, b === 4 || b === 12);
-      }
-
-      beat++;
-      nextBeat += S;
-    }
-    timer = setTimeout(pump, 55);
-  }
-
-  return {
-    start() {
-      const c = ac(); if (!c || playing) return;
-      playing = true; paused = false;
-      beat = 0; nextBeat = c.currentTime + 0.15;
-      pump();
-    },
-    stop() {
-      playing = false;
-      clearTimeout(timer); timer = null;
-    },
-    setPaused(p) {
-      paused = p;
-      if (!p && playing) {
-        const c = actx;
-        if (c) nextBeat = c.currentTime + 0.08;
-        pump();
-      }
-    },
-    // T-4: scale layers based on enemy pressure
-    setIntensity(enemyCount, isBossWave) {
-      intensity = isBossWave || enemyCount >= 8 ? 3 : enemyCount >= 4 ? 2 : 1;
-    },
-    setMuted(m) {
-      if (!masterGain || !actx) return;
-      masterGain.gain.setTargetAtTime(m ? 0 : 0.16, actx.currentTime, 0.08);
-    },
-  };
-})();
-
 // ── Menu / map background music ────────────────────────────────
 const menuMusic = (() => {
   let actx = null, masterGain = null;
@@ -3233,56 +3086,6 @@ ranger: { pw:10, ph:12,
      '.KSsDDDSK.', '.KSsDDDSK.', '.KSssssSK.', '.KKKsKKK..'],
   ]},
 
-// ─── TERRAIN DECORATIONS ─────────────────────────────────────────────────
-// Drawn on non-path cells per level; prefix 'deco_' to avoid sprite conflicts.
-
-// deco_tree — 8×10, lush deciduous tree
-deco_tree: { pw:8, ph:10,
-  pal: { K:'#0A180A',h:'#40C060',l:'#2A8828',L:'#1A6018',B:'#6B3A0A',b:'#4A2208' },
-  frames: [['...hh...','..hllh..','.KlLLlK.','KhlLLlhK','KhlLLlhK',
-             '.KlLLlK.','..KllK..','...Bb...','...Bb...','...KK...']]},
-
-// deco_deadtree — 8×10, bare twisted branches (swamp / cursed)
-deco_deadtree: { pw:8, ph:10,
-  pal: { K:'#1A0A08',b:'#3A1A10',B:'#5A2A18',t:'#7A3A20' },
-  frames: [['...KK...','..KBbK..','.tBbK...', '.KtBbKt.','.KtBbt..',
-             '...Bb...','...bB...','...bB...','...bB...','..KBBK..']]},
-
-// deco_rock — 8×6, stone outcrop
-deco_rock: { pw:8, ph:6,
-  pal: { K:'#202020',S:'#606060',s:'#484848',h:'#808080',d:'#303030' },
-  frames: [['..hSSS..', '.hShhSs.','KShssshK','KSsssdsK','.KKSsKK.','...KKK..']]},
-
-// deco_mountain — 8×8, snow-capped peak
-deco_mountain: { pw:8, ph:8,
-  pal: { K:'#101010',S:'#708090',s:'#506070',W:'#E0E8F0',w:'#C0C8D0' },
-  frames: [['...WW...','..sWWs..','.KSWWSK.','KSswwssK',
-             'KssssssK','.KssssK.','.KKssKK.','.KKssKK.']]},
-
-// deco_shack — 10×10, log cabin
-deco_shack: { pw:10, ph:10,
-  pal: { K:'#1A0A08',R:'#6A3818',r:'#4A2810',B:'#8A5028',b:'#5A3018',
-         W:'#8A5A1A',D:'#100A08' },
-  frames: [['..KRRRK...', '.KrRRRrK..','KrRBDBRrK.','KrRBDBRrK.',
-             'KrRRRRRrK.','KbWbWbWbK.','KbWbWbWbK.','KrBDBBBrK.',
-             '.KrBBBrK..', '.KKKbKKK..']]},
-
-// deco_ruins — 10×8, crumbled stone
-deco_ruins: { pw:10, ph:8,
-  pal: { K:'#0A0810',S:'#5A5060',s:'#3A3048',W:'#808098',w:'#606078',M:'#1A1628' },
-  frames: [['KSKK.KSK..','KSwK.KwSK.','.KSWKKwK..','.KssKKsK..',
-             '.KMssMK...','..KsMsK...','..KMsKK...','....KKK...']]},
-
-// deco_gravestone — 6×8, grave marker
-deco_gravestone: { pw:6, ph:8,
-  pal: { K:'#0A0810',S:'#585868',s:'#383848',W:'#808090',w:'#505060' },
-  frames: [['.KSSK.','KWSsWK','KWSsWK','KwswwK','KKKKKK','.KsK..', '.KsK..','..KK..']]},
-
-// deco_reed — 4×8, swamp reed / cattail
-deco_reed: { pw:4, ph:8,
-  pal: { K:'#0A1A0A',G:'#30A030',g:'#185018',Y:'#C8C040' },
-  frames: [['.YY.','.GG.','KGGK','.gg.','.gg.','Kgg.','.gK.','.KK.']]},
-
 // MORTAR — 10×12, squat cannon emplacement
 mortar: { pw:10, ph:12,
   pals: [
@@ -3305,7 +3108,7 @@ mortar: { pw:10, ph:12,
 
 // ─── LANDMARK ANCHORS (V-15) ──────────────────────────────────────────────
 // 2×2-cell pixel-art landmarks anchored at map entry, exit, and midpoint.
-// 'watchtower'/'gate' are universal; the mid landmark is picked per themeName.
+// 'watchtower'/'gate' frame the entry/exit; 'shrine' is the mid landmark.
 const TD_LANDMARKS = {
   watchtower: {
     pal: { K:'#241a0a', S:'#9c8a6a', s:'#6b5a42', R:'#7a2020', W:'#FDE68A', w:'#B45309', F:'#4ADE80', P:'#3a2a14' },
@@ -3346,60 +3149,26 @@ const TD_LANDMARKS = {
        'K.K..GGGG..K.K', '.K.K......K.K.', '.K..K....K..K.', '..K........K..',
        '...KKKKKKKK...', '..............'],
     ]},
-  // Decay mid-landmark: crumbling mausoleum entrance.
-  crypt: {
-    pal: { K:'#1a1410', s:'#4b4038', S:'#7a6a5a', b:'#0a0806' },
-    frames: [
-      ['....KKKKKK....', '...KssssssK...', '..KssssssssK..', '.KsssKKKKsssK.',
-       '.KssKSSSSKssK.', '.KssKSbbSKssK.', '.KssKSbbSKssK.', '.KssKSSSSKssK.',
-       '.KsssKKKKsssK.', '.KssssssssssK.', 'KsssssssssssK.', 'KKKKKKKKKKKKK.'],
-      ['....KKKKKK....', '...KssssssK...', '..KssssssssK..', '.KsssKKKKsssK.',
-       '.KssKSSSSKssK.', '.KssKSbbSKssK.', '.KssKSbbbSssK.', '.KssKSSSSKssK.',
-       '.KsssKKKKsssK.', '.KssssssssssK.', 'KsssssssssssK.', 'KKKKKKKKKKKKK.'],
-    ]},
-  // Void mid-landmark: dark obsidian obelisk with a glowing rune band.
-  obelisk: {
-    pal: { K:'#0a0510', V:'#3b2154', e:'#7C3AED', E:'#C084FC' },
-    frames: [
-      ['......KK......', '.....KVVK.....', '.....KVVK.....', '....KVVVVK....',
-       '....KVVVVK....', '...KVVeeVVK...', '...KVVeeVVK...', '...KVVVVVVK...',
-       '..KVVVVVVVVK..', '..KVVVVVVVVK..', '.KVVVVVVVVVVK.', 'KKKKKKKKKKKKKK'],
-      ['......KK......', '.....KVVK.....', '.....KVVK.....', '....KVVVVK....',
-       '....KVVVVK....', '...KVVEEVVK...', '...KVVEEVVK...', '...KVVVVVVK...',
-       '..KVVVVVVVVK..', '..KVVVVVVVVK..', '.KVVVVVVVVVVK.', 'KKKKKKKKKKKKKK'],
-    ]},
 };
-const TD_LANDMARK_MID = { verdant: 'shrine', decay: 'crypt', void: 'obelisk' };
+const TD_LANDMARK_MID = { verdant: 'shrine' };
 
-// ── Waypoint pool (3 path groups × 3 waypoint configs each) ──
+// ── Waypoint pool for procedural (non-painted) battle maps — one grid path
+// is picked per spine battle node. (The old run graph's B/C path groups were
+// unreachable once every run went through the Verdant spine with pathId 0;
+// removed 2026-07-13.) ──
 const TD_WPS_POOL = [
-  // Path A (left branch)
-  [
-    [[-1,1],[7,1],[7,4],[2,4],[2,8],[9,8]],
-    [[-1,5],[3,5],[3,2],[7,2],[7,7],[4,7],[4,4],[9,4]],
-    [[-1,4],[3,4],[3,1],[6,1],[6,7],[3,7],[3,9],[9,9]],
-  ],
-  // Path B (center branch)
-  [
-    [[-1,2],[4,2],[4,1],[7,1],[7,7],[3,7],[3,5],[9,5]],
-    [[-1,0],[5,0],[5,2],[1,2],[1,5],[5,5],[5,8],[9,8]],
-    [[-1,1],[4,1],[4,3],[1,3],[1,7],[4,7],[4,9],[8,9],[8,5],[9,5]],
-  ],
-  // Path C (right branch)
-  [
-    [[-1,0],[8,0],[8,3],[1,3],[1,6],[8,6],[8,9],[9,9]],
-    [[-1,2],[2,2],[2,8],[6,8],[6,3],[9,3]],
-    [[-1,9],[1,9],[1,1],[7,1],[7,4],[3,4],[3,7],[7,7],[7,9],[9,9]],
-  ],
+  [[-1,1],[7,1],[7,4],[2,4],[2,8],[9,8]],
+  [[-1,5],[3,5],[3,2],[7,2],[7,7],[4,7],[4,4],[9,4]],
+  [[-1,4],[3,4],[3,1],[6,1],[6,7],[3,7],[3,9],[9,9]],
 ];
 
-// ── Three themed maps ──────────────────────────────────────────
+// ── World definition — a single world since the one-big-run decision
+// (2026-07-12). The Cursed Graveyard / Void worlds and the map-select screen
+// that reached them were removed 2026-07-13 (git history has them). ──
 const TD_MAPS = [
   {
     id: 0, name: 'The Verdant Frontier', regionName: 'Eldervale', icon: '🌿', color: '#4ADE80',
-    subtitle: 'Parts 1–3 · SQL, Modeling & Pipelines',
-    parts: [1,2,3], unlockRequirement: 0,
-    bgZones: ['#1a3d08','#0a2810','#060c03'], themeName: 'verdant',
+    parts: [1,2,3], themeName: 'verdant',
     diffByDepth: [
       {easy:0.75, medium:0.25, hard:0.00},
       {easy:0.45, medium:0.45, hard:0.10},
@@ -3407,46 +3176,9 @@ const TD_MAPS = [
       {easy:0.00, medium:0.30, hard:0.70},
     ],
   },
-  {
-    id: 1, name: 'The Cursed Graveyard', icon: '⚰️', color: '#6B7280',
-    subtitle: 'Parts 4–6 · Warehousing, Streaming & Cloud',
-    parts: [4,5,6], unlockRequirement: 1,
-    bgZones: ['#1a1a14','#1e1a10','#161410'], themeName: 'decay',
-    diffByDepth: [
-      {easy:0.40, medium:0.50, hard:0.10},
-      {easy:0.15, medium:0.55, hard:0.30},
-      {easy:0.00, medium:0.40, hard:0.60},
-      {easy:0.00, medium:0.15, hard:0.85},
-    ],
-  },
-  {
-    id: 2, name: 'The Void', icon: '🌀', color: '#7C3AED',
-    subtitle: 'Parts 7–9 · Orchestration, Quality & Performance',
-    parts: [7,8,9], unlockRequirement: 2,
-    bgZones: ['#0e0818','#12081e','#0a0614'], themeName: 'void',
-    diffByDepth: [
-      {easy:0.10, medium:0.50, hard:0.40},
-      {easy:0.00, medium:0.35, hard:0.65},
-      {easy:0.00, medium:0.15, hard:0.85},
-      {easy:0.00, medium:0.00, hard:1.00},
-    ],
-  },
 ];
 
 
-// ── Inter-node definitions (Bezier t=0.5 midpoints of road segments) ──────────
-const TD_INTER_NODES = [
-  { id:'in0', type:'shop',  x:119, y:436, fromLvl:0, toLvl:1, label:'Trading Post',  desc:'Spend gold on items' },
-  { id:'in1', type:'elite', x:221, y:436, fromLvl:0, toLvl:2, label:'Ambush Site',    desc:'Hard question — double gold reward' },
-  { id:'in2', type:'rest',  x:123, y:342, fromLvl:1, toLvl:3, label:'Campfire',       desc:'+30 gold or +2 lives next battle' },
-  { id:'in3', type:'event', x:217, y:342, fromLvl:2, toLvl:3, label:'Crossroads',     desc:'A random encounter awaits' },
-  { id:'in4', type:'event', x:116, y:258, fromLvl:3, toLvl:4, label:'Ancient Ruins',  desc:'A random encounter awaits' },
-  { id:'in5', type:'shop',  x:224, y:258, fromLvl:3, toLvl:5, label:'Black Market',   desc:'Spend gold on items' },
-  { id:'in6', type:'rest',  x:120, y:168, fromLvl:4, toLvl:6, label:'Sanctuary',      desc:'+30 gold or +2 lives next battle' },
-  { id:'in7', type:'elite', x:221, y:168, fromLvl:5, toLvl:6, label:'Elite Guard',    desc:'Hard question — double gold reward' },
-  { id:'in8', type:'rest',  x:125, y: 91, fromLvl:6, toLvl:7, label:'Ancient Shrine', desc:'+30 gold or +2 lives next battle' },
-  { id:'in9', type:'elite', x:219, y: 91, fromLvl:6, toLvl:8, label:'Final Gauntlet', desc:'Hard question — double gold reward' },
-];
 
 const TD_INTER_META = {
   shop:  { icon:'🛒', color:'#FBBF24', label:'Shop' },
@@ -3693,8 +3425,8 @@ const FRONTIER_TOWN_WPS_EXACT = (() => {
   return pts;
 })();
 
-// Keyed by levelDef.usesPaintedBg — add an entry here when Decay/Void get
-// their own painted battle maps.
+// Keyed by levelDef.usesPaintedBg — add an entry here as more spine nodes
+// get painted battle maps.
 const TD_PAINTED_BG_IMAGES = { 'frontier-town': FRONTIER_TOWN_MAP.image };
 
 // Painted-pixel-art tower tiers (V-36) — matches the battle-map art style instead
@@ -3861,21 +3593,6 @@ function tdSaveStars(levelIdx, stars) {
   StorageManager.set(TD_STARS_KEY, JSON.stringify(s));
 }
 
-function tdLoadInterCleared() {
-  try {
-    const raw = JSON.parse(StorageManager.get(TD_INTER_KEY));
-    return Array.isArray(raw) ? raw : [];
-  } catch { return []; }
-}
-function tdSaveInterCleared(cleared) {
-  StorageManager.set(TD_INTER_KEY, JSON.stringify(cleared));
-}
-function tdMarkInterCleared(id) {
-  const c = tdLoadInterCleared();
-  if (!c.includes(id)) c.push(id);
-  tdSaveInterCleared(c);
-}
-
 function tdLoadRestBonus() {
   try { return JSON.parse(StorageManager.get(TD_REST_BONUS_KEY)) || null; }
   catch { return null; }
@@ -3896,10 +3613,6 @@ function tdSaveMapBeaten(beaten) { StorageManager.set(TD_MAPS_BEATEN_KEY, JSON.s
 function tdMarkMapBeaten(mapId) {
   const b = tdLoadMapBeaten();
   if (!b.includes(mapId)) { b.push(mapId); tdSaveMapBeaten(b); }
-}
-function isMapUnlocked(mapId) {
-  if (mapId === 0) return true;
-  return tdLoadMapBeaten().includes(mapId - 1);
 }
 
 function tdLoadRun() {
@@ -3943,23 +3656,22 @@ function generateWaves(enemyMult, waveCount, rng) {
 const RUN_LEVEL_ADJ  = ['Verdant','Iron','Shadow','Cursed','Blazing','Frozen','Arcane','Ancient','Ruined','Forsaken'];
 const RUN_LEVEL_NOUN = ['Trail','Pass','Gate','Keep','Valley','Crossing','Ridge','Bastion','Hollow','Reach'];
 
-function generateLevelName(mapDef, nodeDepth, rng) {
+function generateLevelName(rng) {
   return RUN_LEVEL_ADJ[Math.floor(rng()*RUN_LEVEL_ADJ.length)] + ' ' + RUN_LEVEL_NOUN[Math.floor(rng()*RUN_LEVEL_NOUN.length)];
 }
 
-function generateBattleLevel(mapDef, nodeDepth, pathId, rng, isBossNode) {
+function generateBattleLevel(mapDef, nodeDepth, rng, isBossNode) {
   const depthBucket = nodeDepth <= 2 ? 0 : nodeDepth <= 4 ? 1 : nodeDepth <= 6 ? 2 : 3;
   const diffWeights = mapDef.diffByDepth[depthBucket];
   const isBoss      = isBossNode || nodeDepth >= 10;
   const enemyMult   = 1.0 + (nodeDepth / 11) * 3.5 + (mapDef.id * 0.5);
   const startGold   = 150 + nodeDepth * 12 + mapDef.id * 20;
   const startLives  = Math.max(8, 22 - Math.floor(nodeDepth * 1.2) - mapDef.id * 2);
-  const wpsPool     = TD_WPS_POOL[pathId % TD_WPS_POOL.length];
-  const wps         = wpsPool[Math.floor(rng() * wpsPool.length)];
+  const wps         = TD_WPS_POOL[Math.floor(rng() * TD_WPS_POOL.length)];
   const waveCount   = isBoss ? 7 : 4 + Math.floor(rng() * 2);
   const waveDefs    = generateWaves(enemyMult, waveCount, rng);
   return {
-    name:       isBoss ? mapDef.icon + ' ' + mapDef.name + ' Boss' : generateLevelName(mapDef, nodeDepth, rng),
+    name:       isBoss ? mapDef.icon + ' ' + mapDef.name + ' Boss' : generateLevelName(rng),
     act:        mapDef.name,
     icon:       isBoss ? '💀' : mapDef.icon,
     color:      isBoss ? '#EF4444' : mapDef.color,
@@ -3970,23 +3682,9 @@ function generateBattleLevel(mapDef, nodeDepth, pathId, rng, isBossNode) {
   };
 }
 
-// Node positions in SVG (340×540 viewBox, y increases downward, start is at bottom)
-const RUN_NODE_POS = {
-  start:    [170, 520],
-  a1:[65,478],  a2:[65,436],  a3:[65,394],  a4:[65,352],  a5:[65,310],  a6:[65,272],
-  b1:[170,478], b2:[170,436], b3:[170,394], b4:[170,352], b5:[170,310], b6:[170,272],
-  c1:[275,478], c2:[275,436], c3:[275,394], c4:[275,352], c5:[275,310], c6:[275,272],
-  merge1:   [118, 234],
-  postmerge:[170, 198],
-  fork2l:   [105, 154],
-  fork2r:   [235, 154],
-  preboss:  [170, 108],
-  boss:     [170, 62],
-};
-
-// Verdant (mapId 0) uses the painted region map's fixed 14-node spine
-// instead of the procedural fork/converge graph — only Verdant has world-map
-// art right now (Decay/Void fall through to the legacy generator below).
+// Runs use the painted region map's fixed 14-node spine. (The procedural
+// fork/converge run graph it replaced was removed 2026-07-13 along with the
+// Decay/Void worlds that still used it.)
 function generateVerdantRun() {
   const seed   = (Date.now() ^ (Math.random() * 0x7FFFFFFF | 0)) >>> 0;
   const rng    = makeSeedRng(seed);
@@ -4006,11 +3704,11 @@ function generateVerdantRun() {
     const type = isStart ? 'start' : isBoss ? 'battle' : typePool[i - 1];
     const needsDef = isStart || isBoss || type === 'battle' || type === 'elite';
     const levelDef = isStart ? frontierTownLevelDef()
-                    : needsDef ? generateBattleLevel(mapDef, i, 0, rng, isBoss)
+                    : needsDef ? generateBattleLevel(mapDef, i, rng, isBoss)
                     : null;
     return {
       id: s.id, name: s.name, battleTheme: s.battleTheme, type,
-      x: s.x, y: s.y, depth: i, pathId: 0,
+      x: s.x, y: s.y, depth: i,
       nextIds: isBoss ? [] : [spine[i + 1].id],
       prevIds: isStart ? [] : [spine[i - 1].id],
       levelDef, state: 'locked',
@@ -4023,77 +3721,6 @@ function generateVerdantRun() {
     powerUps: ['gold_rush'], stats: { battlesWon:0, goldEarned:0, xpEarned:0, carryGold:0 },
     usesRegionMap: true,
   };
-  tdSaveRun(run);
-  return run;
-}
-
-function generateRun(mapId) {
-  if (mapId === 0) return generateVerdantRun();
-  const seed   = (Date.now() ^ (Math.random() * 0x7FFFFFFF | 0)) >>> 0;
-  const rng    = makeSeedRng(seed);
-  const mapDef = TD_MAPS[mapId];
-
-  // 14 randomly-assigned node type slots: a2-a6 (5) + b2-b6 (5) + c2-c6 (5) - 1 each = 12 path random + fork2l + fork2r = 14
-  const typePool = ['shop','shop','rest','rest']; // guaranteed minimums
-  while (typePool.length < 14) {
-    const r = rng();
-    typePool.push(r < 0.60 ? 'battle' : r < 0.75 ? 'shop' : r < 0.85 ? 'rest' : r < 0.95 ? 'elite' : 'event');
-  }
-  for (let i = typePool.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [typePool[i], typePool[j]] = [typePool[j], typePool[i]];
-  }
-  let poolIdx = 0;
-
-  // Structural nodes kept at their fixed positions; regular path nodes get a
-  // seeded jitter so the map looks hand-placed rather than a perfect grid.
-  const FIXED_NODE_IDS = new Set(['start', 'merge1', 'postmerge', 'fork2l', 'fork2r', 'preboss', 'boss']);
-
-  function makeNode(id, depth, pathId, forcedType, nextIds, prevIds) {
-    const type       = forcedType || typePool[poolIdx++] || 'battle';
-    let   [x, y]    = RUN_NODE_POS[id];
-    if (!FIXED_NODE_IDS.has(id)) {
-      x += Math.round((rng() - 0.5) * 20);
-      y += Math.round((rng() - 0.5) * 16);
-    }
-    const needsDef = (type === 'battle' || type === 'elite') && id !== 'start';
-    const levelDef = needsDef ? generateBattleLevel(mapDef, depth, pathId < 0 ? 0 : pathId, rng, id === 'boss') : null;
-    return { id, type, x, y, depth, pathId, nextIds, prevIds, levelDef, state: 'locked' };
-  }
-
-  const nodes = [
-    makeNode('start',    0, -1, 'start',   ['a1','b1','c1'], []),
-    makeNode('a1',       1,  0, 'battle',  ['a2'],           ['start']),
-    makeNode('a2',       2,  0, null,      ['a3'],           ['a1']),
-    makeNode('a3',       3,  0, null,      ['a4'],           ['a2']),
-    makeNode('a4',       4,  0, null,      ['a5','b5'],      ['a3']),
-    makeNode('a5',       5,  0, null,      ['a6'],           ['a4']),
-    makeNode('a6',       6,  0, null,      ['merge1'],       ['a5']),
-    makeNode('b1',       1,  1, 'battle',  ['b2'],           ['start']),
-    makeNode('b2',       2,  1, null,      ['b3'],           ['b1']),
-    makeNode('b3',       3,  1, null,      ['b4'],           ['b2']),
-    makeNode('b4',       4,  1, null,      ['b5'],           ['b3']),
-    { ...makeNode('b5',  5,  1, null,      ['b6'],           ['b4','a4','c4']), prevMode: 'any' },
-    makeNode('b6',       6,  1, null,      ['merge1'],       ['b5']),
-    makeNode('c1',       1,  2, 'battle',  ['c2'],           ['start']),
-    makeNode('c2',       2,  2, null,      ['c3'],           ['c1']),
-    makeNode('c3',       3,  2, null,      ['c4'],           ['c2']),
-    makeNode('c4',       4,  2, null,      ['c5','b5'],      ['c3']),
-    makeNode('c5',       5,  2, null,      ['c6'],           ['c4']),
-    makeNode('c6',       6,  2, null,      ['postmerge'],    ['c5']),
-    makeNode('merge1',   7,  0, 'battle',  ['postmerge'],    ['a6','b6']),
-    makeNode('postmerge',8, -1, 'shop',    ['fork2l','fork2r'], ['merge1','c6']),
-    makeNode('fork2l',   9,  0, 'battle',  ['preboss'],      ['postmerge']),
-    makeNode('fork2r',   9,  2, 'battle',  ['preboss'],      ['postmerge']),
-    { ...makeNode('preboss',  10,-1, 'battle',  ['boss'],         ['fork2l','fork2r']), prevMode: 'any' },
-    makeNode('boss',     11,-1, 'battle',  [],               ['preboss']),
-  ];
-
-  // Mark start as completed and first path nodes as available
-  nodes.find(n => n.id === 'start').state = 'completed';
-  ['a1','b1','c1'].forEach(id => { const n = nodes.find(x => x.id === id); if (n) n.state = 'available'; });
-
-  const run = { mapId, seed, nodes, currentId:'start', visitedIds:['start'], activeId:null, powerUps:['gold_rush'], stats:{battlesWon:0,goldEarned:0,xpEarned:0,carryGold:0} };
   tdSaveRun(run);
   return run;
 }
@@ -4128,524 +3755,6 @@ function markNodeCompleted(run, nodeId) {
 function isRunComplete(run) {
   const boss = run.nodes.find(n => n.id === 'boss');
   return boss && boss.state === 'completed';
-}
-
-// ── SVG Run Map ────────────────────────────────────────────────
-
-function renderRunMap(run) {
-  const mapDef = TD_MAPS[run.mapId];
-
-  // Returns difficulty color, stars string, and tier label based on diffWeights
-  function getDiffInfo(levelDef) {
-    if (!levelDef || !levelDef.diffWeights) return { col: '#9CA3AF', stars: '', tier: '' };
-    const { hard } = levelDef.diffWeights;
-    if (hard >= 0.5)  return { col: '#EF4444', stars: '★★★', tier: 'HARD' };
-    if (hard >= 0.2)  return { col: '#FBBF24', stars: '★★☆', tier: 'MED' };
-    return { col: '#4ADE80', stars: '★☆☆', tier: 'EASY' };
-  }
-
-  function getNodeColor(node) {
-    if (node.id === 'boss') return '#EF4444';
-    if (node.type === 'battle' || node.type === 'elite') return getDiffInfo(node.levelDef).col;
-    const TC = { shop:'#FBBF24', rest:'#10B981', event:'#A78BFA' };
-    return TC[node.type] || mapDef.color;
-  }
-
-  // Road brightness: traversed = bright solid, ahead (from visited) = medium, future = dim dashed
-  function bezierRoad(x1, y1, x2, y2, prevId, nodeId) {
-    const midy = (y1 + y2) / 2;
-    const d = `M${x1},${y1} C${x1},${midy} ${x2},${midy} ${x2},${y2}`;
-    const prevDone = run.visitedIds.includes(prevId);
-    const nodeDone = run.visitedIds.includes(nodeId);
-    if (prevDone && nodeDone) {
-      // traversed – bright warm road
-      return `<path d="${d}" fill="none" stroke="#1a0a02" stroke-width="9" stroke-linecap="round"/>` +
-             `<path d="${d}" fill="none" stroke="#7a4a1a" stroke-width="5.5" stroke-linecap="round"/>` +
-             `<path d="${d}" fill="none" stroke="#d4903a" stroke-width="2" stroke-linecap="round" opacity=".6"/>`;
-    }
-    if (prevDone) {
-      // ahead from visited – medium brightness, dashed hint
-      return `<path d="${d}" fill="none" stroke="#120802" stroke-width="8" stroke-linecap="round"/>` +
-             `<path d="${d}" fill="none" stroke="#5a3010" stroke-width="5" stroke-linecap="round"/>` +
-             `<path d="${d}" fill="none" stroke="#b07030" stroke-width="2" stroke-linecap="round" stroke-dasharray="6 5" opacity=".5"/>`;
-    }
-    // future – dim, barely visible but present so paths are visible
-    return `<path d="${d}" fill="none" stroke="#0a0503" stroke-width="7" stroke-linecap="round"/>` +
-           `<path d="${d}" fill="none" stroke="#2a1808" stroke-width="4" stroke-linecap="round"/>` +
-           `<path d="${d}" fill="none" stroke="#6a4020" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3 6" opacity=".3"/>`;
-  }
-
-  const drawn = new Set();
-  const roads = run.nodes.filter(n => n.id !== 'start').flatMap(node =>
-    node.prevIds.map(pid => {
-      const key = pid + ':' + node.id;
-      if (drawn.has(key)) return '';
-      drawn.add(key);
-      const prev = run.nodes.find(n => n.id === pid);
-      return prev ? bezierRoad(prev.x, prev.y, node.x, node.y, pid, node.id) : '';
-    })
-  ).join('');
-
-  const TI = { battle:'⚔', shop:'🛒', rest:'🔥', elite:'💀', event:'🎲', boss:'☠' };
-
-  function goldBadge(node, x, y, alpha) {
-    if (!node.levelDef) return '';
-    const g = Math.round(node.levelDef.startGold / 10) * 10;
-    return `<text x="${x}" y="${y}" font-size="5.5" text-anchor="middle" fill="#FBBF24" opacity="${alpha}" font-weight="600">🪙${g}</text>`;
-  }
-
-  // Returns an SVG shape element for a node type (V-23).
-  // boss → diamond, shop → hexagon, event → star, battle/elite → pentagon, rest → circle.
-  function nodeShape(type, nodeId, cx, cy, r, fill, stroke, sw, extraAttrs) {
-    const a = extraAttrs || '';
-    const s = `fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${a}`;
-    if (nodeId === 'boss') {
-      const ry = r, rx = r * 0.72;
-      const d = `M${cx},${cy-ry} L${cx+rx},${cy} L${cx},${cy+ry} L${cx-rx},${cy}Z`;
-      return `<path d="${d}" ${s}/>`;
-    }
-    if (type === 'shop') {
-      const pts = Array.from({length:6}, (_, i) => {
-        const angle = (i * Math.PI / 3) - Math.PI / 6;
-        return `${(cx + r * Math.cos(angle)).toFixed(2)},${(cy + r * Math.sin(angle)).toFixed(2)}`;
-      }).join(' ');
-      return `<polygon points="${pts}" ${s}/>`;
-    }
-    if (type === 'event') {
-      const pts = Array.from({length:8}, (_, i) => {
-        const angle = (i * Math.PI / 4) - Math.PI / 2;
-        const ri = i % 2 === 0 ? r : r * 0.52;
-        return `${(cx + ri * Math.cos(angle)).toFixed(2)},${(cy + ri * Math.sin(angle)).toFixed(2)}`;
-      }).join(' ');
-      return `<polygon points="${pts}" ${s}/>`;
-    }
-    if (type === 'battle' || type === 'elite') {
-      const pts = Array.from({length:5}, (_, i) => {
-        const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
-        return `${(cx + r * Math.cos(angle)).toFixed(2)},${(cy + r * Math.sin(angle)).toFixed(2)}`;
-      }).join(' ');
-      return `<polygon points="${pts}" ${s}/>`;
-    }
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" ${s}/>`;
-  }
-
-  const nodesHtml = run.nodes.map(node => {
-    if (node.id === 'start') return '';
-    const { x, y, state, type, id, levelDef } = node;
-    const col  = getNodeColor(node);
-    const icon = TI[id === 'boss' ? 'boss' : type] || '⚔';
-    const { stars, tier } = getDiffInfo(levelDef);
-    // label appears above node for most, below for nodes near the top
-    const aboveY = y - 26;
-    const belowY = y + 28;
-
-    if (state === 'completed') {
-      return `<g class="rn-completed" data-id="${id}">
-        <circle cx="${x}" cy="${y}" r="14" fill="#07090e" stroke="#1c2e3e" stroke-width="1.5" opacity="0.75"/>
-        <text x="${x}" y="${y+4}" font-size="10" text-anchor="middle" fill="#2d4455">✓</text>
-      </g>`;
-    }
-
-    if (state === 'active') {
-      return `<g class="rn-active" data-id="${id}">
-        <circle cx="${x}" cy="${y}" r="23" fill="${col}20" stroke="${col}60" stroke-width="2"/>
-        ${nodeShape(type, id, x, y, 16, '#0c1020', col, '2.5')}
-        <text x="${x}" y="${y+5}" font-size="12" text-anchor="middle">${icon}</text>
-        ${stars ? `<text x="${x}" y="${aboveY}" font-size="5.5" text-anchor="middle" fill="${col}bb">${stars}</text>` : ''}
-      </g>`;
-    }
-
-    if (state === 'available') {
-      return `<g class="rn-available" data-id="${id}" style="cursor:pointer">
-        <circle class="rn-pulse" cx="${x}" cy="${y}" r="24" fill="${col}18" stroke="${col}50" stroke-width="1.5"/>
-        ${nodeShape(type, id, x, y, 16, '#0c1020', col, '2.5')}
-        <text x="${x}" y="${y+5}" font-size="12" text-anchor="middle">${icon}</text>
-        ${stars ? `<text x="${x}" y="${aboveY}" font-size="5.5" text-anchor="middle" fill="${col}ee" font-weight="700">${stars}</text>` :
-                  `<text x="${x}" y="${aboveY}" font-size="5" text-anchor="middle" fill="${col}bb" font-weight="600">${type.toUpperCase()}</text>`}
-        ${goldBadge(node, x, belowY, '0.7')}
-      </g>`;
-    }
-
-    // future (was 'locked') — fog of war: deeply unreachable nodes shown at low opacity
-    const prevNodes = (node.prevIds || []).map(pid => run.nodes.find(n => n.id === pid));
-    const nearReachable = prevNodes.some(p => p && (p.state === 'completed' || p.state === 'available' || p.state === 'active'));
-    const fogOpacity = nearReachable ? '1' : '0.28';
-    return `<g class="rn-future" data-id="${id}" opacity="${fogOpacity}">
-      ${nodeShape(type, id, x, y, 15, `${col}0a`, `${col}30`, '1.5')}
-      <text x="${x}" y="${y+4}" font-size="11" text-anchor="middle" opacity="0.4">${icon}</text>
-      ${tier ? `<text x="${x}" y="${aboveY}" font-size="4.5" text-anchor="middle" fill="${col}45" font-weight="700">${tier}</text>` : ''}
-      ${goldBadge(node, x, belowY, '0.25')}
-    </g>`;
-  }).join('');
-
-  // Character position marker – offset beside currentId node
-  const curNode = run.nodes.find(n => n.id === run.currentId);
-  const markerHtml = (curNode && run.currentId !== 'start') ? (() => {
-    const mx = curNode.x + 21, my = curNode.y - 19;
-    return `<g>
-      <circle cx="${mx}" cy="${my}" r="8" fill="#12141e" stroke="#FBBF2490" stroke-width="1.5"/>
-      <text x="${mx}" y="${my+3}" font-size="7.5" text-anchor="middle">🧑</text>
-    </g>`;
-  })() : '';
-
-  // Per-theme terrain decorations — animated sprites along map edges
-  function verdantTerrain() {
-    return `<g>
-      <!-- distant static bg trees -->
-      <g opacity="0.18">
-        <circle cx="22" cy="482" r="7" fill="#1a5a28"/><rect x="19" y="485" width="6" height="9" fill="#3a2008"/>
-        <circle cx="320" cy="472" r="6" fill="#1a5020"/><rect x="317" y="475" width="6" height="8" fill="#3a2008"/>
-        <circle cx="318" cy="428" r="7" fill="#165022"/><rect x="315" y="431" width="6" height="9" fill="#3a2008"/>
-      </g>
-      <!-- animated tree 1 (left, mid-low) -->
-      <g transform="translate(32,424)">
-        <rect x="-3" y="0" width="6" height="15" fill="#4a3010" rx="2"/>
-        <g>
-          <circle cx="0" cy="-9" r="13" fill="#2d7a38" opacity="0.95"/>
-          <circle cx="-7" cy="-3" r="9" fill="#1d6028" opacity="0.9"/>
-          <circle cx="7" cy="-3" r="9" fill="#267535" opacity="0.9"/>
-          <animateTransform attributeName="transform" type="rotate"
-            values="-1.8 0 15; 1.8 0 15; -1.8 0 15" dur="3.4s" repeatCount="indefinite"
-            calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/>
-        </g>
-      </g>
-      <!-- animated tree 2 (right, mid) -->
-      <g transform="translate(314,370)">
-        <rect x="-3" y="0" width="6" height="13" fill="#3a2508" rx="2"/>
-        <g>
-          <circle cx="0" cy="-8" r="12" fill="#1e6a2e" opacity="0.95"/>
-          <circle cx="-6" cy="-3" r="8" fill="#28703a" opacity="0.9"/>
-          <circle cx="5" cy="-4" r="8" fill="#1a5828" opacity="0.9"/>
-          <animateTransform attributeName="transform" type="rotate"
-            values="2 0 13; -2 0 13; 2 0 13" dur="2.9s" repeatCount="indefinite"
-            calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/>
-        </g>
-      </g>
-      <!-- animated tree 3 (left, upper) -->
-      <g transform="translate(28,305)">
-        <rect x="-2.5" y="0" width="5" height="11" fill="#3a2008" rx="1.5"/>
-        <g>
-          <circle cx="0" cy="-7" r="10" fill="#257030" opacity="0.95"/>
-          <circle cx="-5" cy="-2" r="7" fill="#1d6028" opacity="0.9"/>
-          <animateTransform attributeName="transform" type="rotate"
-            values="-2.2 0 11; 1.8 0 11; -2.2 0 11" dur="4.1s" repeatCount="indefinite"
-            calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/>
-        </g>
-      </g>
-      <!-- reflective water pool (right side) -->
-      <g transform="translate(316,292)" opacity="0.85">
-        <ellipse cx="0" cy="0" rx="18" ry="6" fill="#1a4a7a" opacity="0.4"/>
-        <ellipse cx="0" cy="-1" rx="16" ry="4" fill="#2a6aaa" opacity="0.25"/>
-        <ellipse cx="-4" cy="-1.5" rx="5" ry="1.5" fill="#70b8e0" opacity="0.55">
-          <animate attributeName="opacity" values="0.2;0.75;0.2" dur="1.9s" repeatCount="indefinite"/>
-          <animate attributeName="cx" values="-4;3;-4" dur="1.9s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/>
-        </ellipse>
-        <ellipse cx="4" cy="1" rx="3" ry="1" fill="#70b8e0" opacity="0.4">
-          <animate attributeName="opacity" values="0.5;0.1;0.5" dur="1.4s" begin="0.5s" repeatCount="indefinite"/>
-        </ellipse>
-      </g>
-      <!-- fireflies blinking -->
-      <circle cx="46" cy="345" r="1.8" fill="#c8f060" opacity="0">
-        <animate attributeName="opacity" values="0;0.9;0;0" dur="2.6s" begin="0.4s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="296" cy="328" r="1.6" fill="#c8f060" opacity="0">
-        <animate attributeName="opacity" values="0;0.8;0;0" dur="3.2s" begin="1.3s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="50" cy="285" r="1.5" fill="#c8f060" opacity="0">
-        <animate attributeName="opacity" values="0;0.9;0;0" dur="2.9s" begin="0.9s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="301" cy="265" r="1.7" fill="#c8f060" opacity="0">
-        <animate attributeName="opacity" values="0;0.7;0;0" dur="3.6s" begin="2.2s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="44" cy="230" r="1.5" fill="#c8f060" opacity="0">
-        <animate attributeName="opacity" values="0;0.8;0;0" dur="2.4s" begin="1.8s" repeatCount="indefinite"/>
-      </circle>
-      <!-- bobbing flowers -->
-      <g transform="translate(36,462)">
-        <rect x="-1" y="-7" width="2" height="8" fill="#3a7020" rx="1"/>
-        <circle cx="0" cy="-8" r="3" fill="#fbbf24">
-          <animate attributeName="cy" values="-8;-9.5;-8" dur="2.1s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/>
-        </circle>
-      </g>
-      <g transform="translate(320,445)">
-        <rect x="-1" y="-6" width="2" height="7" fill="#3a7020" rx="1"/>
-        <circle cx="0" cy="-7" r="2.8" fill="#f87171">
-          <animate attributeName="cy" values="-7;-8.5;-7" dur="2.5s" begin="0.6s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/>
-        </circle>
-      </g>
-      <g transform="translate(324,305)">
-        <rect x="-1" y="-5" width="2" height="6" fill="#3a7020" rx="1"/>
-        <circle cx="0" cy="-6" r="2.5" fill="#86efac">
-          <animate attributeName="cy" values="-6;-7.5;-6" dur="1.9s" begin="1.1s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/>
-        </circle>
-      </g>
-      <!-- rolling ground hills -->
-      <ellipse cx="22" cy="244" rx="24" ry="8" fill="#1e5828" opacity="0.3"/>
-      <ellipse cx="318" cy="234" rx="24" ry="7" fill="#1a5020" opacity="0.3"/>
-    </g>`;
-  }
-
-  function wastesTerrain() {
-    return `<g>
-      <!-- rock formations -->
-      <g opacity="0.55">
-        <polygon points="20,474 34,474 27,461" fill="#4a3520"/>
-        <polygon points="26,474 40,474 33,463" fill="#3a2810"/>
-        <polygon points="308,464 322,464 315,451" fill="#4a3520"/>
-        <polygon points="313,464 326,464 320,453" fill="#3a2810"/>
-        <polygon points="22,378 36,378 29,364" fill="#4a3520" opacity="0.7"/>
-        <polygon points="308,365 320,365 315,354" fill="#3a2810" opacity="0.7"/>
-      </g>
-      <!-- large rotating gear (left) -->
-      <g transform="translate(30,300)">
-        <circle cx="0" cy="0" r="11" fill="none" stroke="#7a4a18" stroke-width="2.5" opacity="0.7"/>
-        <circle cx="0" cy="0" r="4" fill="#4a2a0a" opacity="0.8"/>
-        <g opacity="0.7">
-          <rect x="-2.5" y="-14.5" width="5" height="7" fill="#7a4a18" rx="2"/>
-          <rect x="-2.5" y="7.5" width="5" height="7" fill="#7a4a18" rx="2"/>
-          <rect x="-14.5" y="-2.5" width="7" height="5" fill="#7a4a18" rx="2"/>
-          <rect x="7.5" y="-2.5" width="7" height="5" fill="#7a4a18" rx="2"/>
-          <rect x="-11" y="-11" width="5" height="5" fill="#6a3a12" rx="1" transform="rotate(45 -8.5 -8.5)"/>
-          <rect x="6" y="-11" width="5" height="5" fill="#6a3a12" rx="1" transform="rotate(45 8.5 -8.5)"/>
-          <rect x="-11" y="6" width="5" height="5" fill="#6a3a12" rx="1" transform="rotate(45 -8.5 8.5)"/>
-          <rect x="6" y="6" width="5" height="5" fill="#6a3a12" rx="1" transform="rotate(45 8.5 8.5)"/>
-          <animateTransform attributeName="transform" type="rotate"
-            from="0 0 0" to="360 0 0" dur="12s" repeatCount="indefinite"/>
-        </g>
-      </g>
-      <!-- small counter-rotating gear (right) -->
-      <g transform="translate(314,390)">
-        <circle cx="0" cy="0" r="8" fill="none" stroke="#6a3a14" stroke-width="2" opacity="0.65"/>
-        <circle cx="0" cy="0" r="3" fill="#3a1808" opacity="0.75"/>
-        <g opacity="0.65">
-          <rect x="-2" y="-10.5" width="4" height="5.5" fill="#6a3a14" rx="1.5"/>
-          <rect x="-2" y="5" width="4" height="5.5" fill="#6a3a14" rx="1.5"/>
-          <rect x="-10.5" y="-2" width="5.5" height="4" fill="#6a3a14" rx="1.5"/>
-          <rect x="5" y="-2" width="5.5" height="4" fill="#6a3a14" rx="1.5"/>
-          <animateTransform attributeName="transform" type="rotate"
-            from="360 0 0" to="0 0 0" dur="8s" repeatCount="indefinite"/>
-        </g>
-      </g>
-      <!-- volcano (right side, upper) -->
-      <g transform="translate(320,195)" opacity="0.8">
-        <polygon points="0,22 -18,22 -9,0 9,0 18,22" fill="#3a1a08"/>
-        <polygon points="-3,14 3,14 1,0 -1,0" fill="#8a2000" opacity="0.6"/>
-        <ellipse cx="0" cy="22" rx="16" ry="4" fill="#ef4444" opacity="0.25">
-          <animate attributeName="opacity" values="0.15;0.45;0.15" dur="1.6s" repeatCount="indefinite"/>
-        </ellipse>
-        <!-- smoke puffs -->
-        <circle cx="-2" cy="-1" r="0" fill="#7a6050">
-          <animate attributeName="r" values="0;7;8" dur="2.4s" repeatCount="indefinite"/>
-          <animate attributeName="cy" values="-1;-22;-26" dur="2.4s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0.8;0.4;0" dur="2.4s" repeatCount="indefinite"/>
-        </circle>
-        <circle cx="2" cy="-1" r="0" fill="#6a5040">
-          <animate attributeName="r" values="0;6;7" dur="2.4s" begin="0.9s" repeatCount="indefinite"/>
-          <animate attributeName="cy" values="-1;-18;-22" dur="2.4s" begin="0.9s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0.7;0.3;0" dur="2.4s" begin="0.9s" repeatCount="indefinite"/>
-        </circle>
-        <circle cx="-1" cy="-1" r="0" fill="#8a7060">
-          <animate attributeName="r" values="0;5;6" dur="2.4s" begin="1.6s" repeatCount="indefinite"/>
-          <animate attributeName="cy" values="-1;-15;-18" dur="2.4s" begin="1.6s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0.6;0.25;0" dur="2.4s" begin="1.6s" repeatCount="indefinite"/>
-        </circle>
-      </g>
-      <!-- ember sparks drifting from volcano -->
-      <circle cx="316" cy="183" r="1.5" fill="#ef4444" opacity="0">
-        <animate attributeName="cx" values="316;304;296" dur="1.9s" begin="0.3s" repeatCount="indefinite"/>
-        <animate attributeName="cy" values="183;165;155" dur="1.9s" begin="0.3s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="0;0.9;0" dur="1.9s" begin="0.3s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="318" cy="183" r="1.2" fill="#fb923c" opacity="0">
-        <animate attributeName="cx" values="318;326;333" dur="1.6s" begin="1.0s" repeatCount="indefinite"/>
-        <animate attributeName="cy" values="183;167;158" dur="1.6s" begin="1.0s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="0;0.8;0" dur="1.6s" begin="1.0s" repeatCount="indefinite"/>
-      </circle>
-      <circle cx="320" cy="185" r="1" fill="#fbbf24" opacity="0">
-        <animate attributeName="cx" values="320;313;308" dur="2.1s" begin="1.7s" repeatCount="indefinite"/>
-        <animate attributeName="cy" values="185;163;150" dur="2.1s" begin="1.7s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values="0;0.7;0" dur="2.1s" begin="1.7s" repeatCount="indefinite"/>
-      </circle>
-      <!-- heat shimmer lines -->
-      <line x1="24" y1="450" x2="36" y2="450" stroke="#fb923c" stroke-width="1.2" opacity="0">
-        <animate attributeName="opacity" values="0;0.4;0" dur="0.9s" repeatCount="indefinite"/>
-        <animate attributeName="y1" values="450;449;450" dur="0.9s" repeatCount="indefinite"/>
-        <animate attributeName="y2" values="450;449;450" dur="0.9s" repeatCount="indefinite"/>
-      </line>
-      <line x1="310" y1="440" x2="322" y2="440" stroke="#fb923c" stroke-width="1" opacity="0">
-        <animate attributeName="opacity" values="0;0.35;0" dur="1.2s" begin="0.4s" repeatCount="indefinite"/>
-      </line>
-    </g>`;
-  }
-
-  function shadowTerrain() {
-    return `<g>
-      <!-- crystal formations (static base) -->
-      <g opacity="0.55">
-        <polygon points="20,466 26,449 32,466 26,470" fill="#7b35b8"/>
-        <polygon points="26,470 32,455 38,470 32,474" fill="#6b2aaa"/>
-        <polygon points="308,456 314,439 320,456 314,460" fill="#7b35b8"/>
-        <polygon points="314,460 320,445 326,460 320,464" fill="#6b2aaa"/>
-        <!-- upper crystals -->
-        <polygon points="19,368 24,354 29,368 24,371" fill="#7b35b8" opacity="0.7"/>
-        <polygon points="312,358 317,344 322,358 317,362" fill="#6b2aaa" opacity="0.7"/>
-      </g>
-      <!-- crystal glow pulses -->
-      <ellipse cx="26" cy="462" rx="12" ry="9" fill="#7b35b8" opacity="0.08">
-        <animate attributeName="opacity" values="0.04;0.18;0.04" dur="2.1s" repeatCount="indefinite"/>
-        <animate attributeName="rx" values="12;16;12" dur="2.1s" repeatCount="indefinite"/>
-      </ellipse>
-      <ellipse cx="314" cy="452" rx="12" ry="9" fill="#7b35b8" opacity="0.08">
-        <animate attributeName="opacity" values="0.06;0.2;0.06" dur="2.7s" begin="0.9s" repeatCount="indefinite"/>
-      </ellipse>
-      <!-- gravestones -->
-      <g opacity="0.5">
-        <rect x="24" y="295" width="11" height="15" fill="#2a1040" rx="5.5"/>
-        <rect x="26" y="310" width="7" height="6" fill="#2a1040"/>
-        <rect x="309" y="285" width="11" height="15" fill="#221038" rx="5.5"/>
-        <rect x="311" y="300" width="7" height="6" fill="#221038"/>
-      </g>
-      <!-- flickering candle left -->
-      <g transform="translate(33,318)">
-        <rect x="-3" y="-2" width="6" height="14" fill="#5a4020" rx="1.5"/>
-        <rect x="-2.5" y="-4" width="5" height="3" fill="#7a6030"/>
-        <g transform="translate(0,-10)">
-          <ellipse cx="0" cy="0" rx="2.8" ry="4.5" fill="#ff8c00">
-            <animate attributeName="rx" values="2.8;2;3.2;2.8" dur="0.38s" repeatCount="indefinite"/>
-            <animate attributeName="ry" values="4.5;5.5;3.5;4.5" dur="0.38s" repeatCount="indefinite"/>
-          </ellipse>
-          <ellipse cx="0" cy="1" rx="1.6" ry="2.8" fill="#ffdd44" opacity="0.85">
-            <animate attributeName="rx" values="1.6;1;2;1.6" dur="0.38s" repeatCount="indefinite"/>
-          </ellipse>
-          <ellipse cx="0" cy="0" rx="9" ry="9" fill="#ff8c00" opacity="0.08">
-            <animate attributeName="opacity" values="0.04;0.18;0.04" dur="0.38s" repeatCount="indefinite"/>
-            <animate attributeName="rx" values="9;13;9" dur="0.38s" repeatCount="indefinite"/>
-            <animate attributeName="ry" values="9;13;9" dur="0.38s" repeatCount="indefinite"/>
-          </ellipse>
-        </g>
-      </g>
-      <!-- flickering candle right -->
-      <g transform="translate(311,308)">
-        <rect x="-3" y="-2" width="6" height="13" fill="#5a4020" rx="1.5"/>
-        <rect x="-2.5" y="-4" width="5" height="3" fill="#7a6030"/>
-        <g transform="translate(0,-9)">
-          <ellipse cx="0" cy="0" rx="2.8" ry="4.5" fill="#ff8c00">
-            <animate attributeName="rx" values="3;2.2;2.8;3.2;3" dur="0.42s" begin="0.18s" repeatCount="indefinite"/>
-            <animate attributeName="ry" values="4.5;5.5;3.8;5;4.5" dur="0.42s" begin="0.18s" repeatCount="indefinite"/>
-          </ellipse>
-          <ellipse cx="0" cy="1" rx="1.5" ry="2.8" fill="#ffdd44" opacity="0.85"/>
-          <ellipse cx="0" cy="0" rx="9" ry="9" fill="#ff8c00" opacity="0.08">
-            <animate attributeName="opacity" values="0.06;0.2;0.06" dur="0.42s" begin="0.18s" repeatCount="indefinite"/>
-          </ellipse>
-        </g>
-      </g>
-      <!-- floating soul orbs -->
-      <g>
-        <circle cx="42" cy="355" r="5" fill="#C084FC" opacity="0.22">
-          <animate attributeName="cy" values="355;344;355" dur="3.2s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/>
-          <animate attributeName="opacity" values="0.12;0.32;0.12" dur="3.2s" repeatCount="indefinite"/>
-        </circle>
-        <circle cx="42" cy="355" r="2.5" fill="#e0b0ff" opacity="0.4">
-          <animate attributeName="cy" values="355;344;355" dur="3.2s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/>
-        </circle>
-        <circle cx="301" cy="345" r="4" fill="#A855F7" opacity="0.18">
-          <animate attributeName="cy" values="345;335;345" dur="3.8s" begin="1.1s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/>
-          <animate attributeName="opacity" values="0.1;0.28;0.1" dur="3.8s" begin="1.1s" repeatCount="indefinite"/>
-        </circle>
-        <circle cx="301" cy="345" r="2" fill="#d0a0ff" opacity="0.35">
-          <animate attributeName="cy" values="345;335;345" dur="3.8s" begin="1.1s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/>
-        </circle>
-      </g>
-      <!-- bat 1 — flies left to right -->
-      <g opacity="0.72">
-        <animateMotion path="M20,135 Q100,108 170,120 Q240,132 330,110" dur="8s" repeatCount="indefinite" calcMode="linear"/>
-        <g>
-          <animateTransform attributeName="transform" type="scale" values="1,1; 1,-0.65; 1,1" dur="0.42s" repeatCount="indefinite"/>
-          <ellipse cx="0" cy="0" rx="4.5" ry="2.5" fill="#1a0828"/>
-          <path d="M-4.5,0 Q-13,-7 -15,-1 Q-10,2.5 -4.5,0Z" fill="#1a0828"/>
-          <path d="M4.5,0 Q13,-7 15,-1 Q10,2.5 4.5,0Z" fill="#1a0828"/>
-        </g>
-      </g>
-      <!-- bat 2 — flies right to left, higher -->
-      <g opacity="0.5">
-        <animateMotion path="M330,200 Q240,178 170,188 Q100,198 20,175" dur="10s" begin="4s" repeatCount="indefinite" calcMode="linear"/>
-        <g>
-          <animateTransform attributeName="transform" type="scale" values="1,1; 1,-0.65; 1,1" dur="0.38s" begin="0.2s" repeatCount="indefinite"/>
-          <ellipse cx="0" cy="0" rx="3.5" ry="2" fill="#150820"/>
-          <path d="M-3.5,0 Q-10,-5 -12,-0.5 Q-8,2 -3.5,0Z" fill="#150820"/>
-          <path d="M3.5,0 Q10,-5 12,-0.5 Q8,2 3.5,0Z" fill="#150820"/>
-        </g>
-      </g>
-      <!-- fog wisps near convergence -->
-      <ellipse cx="22" cy="236" rx="26" ry="7" fill="#7b35b8" opacity="0.12">
-        <animate attributeName="opacity" values="0.06;0.18;0.06" dur="4s" repeatCount="indefinite"/>
-        <animate attributeName="rx" values="26;32;26" dur="4s" repeatCount="indefinite"/>
-      </ellipse>
-      <ellipse cx="318" cy="228" rx="24" ry="6" fill="#6b2aaa" opacity="0.1">
-        <animate attributeName="opacity" values="0.08;0.2;0.08" dur="5s" begin="1.5s" repeatCount="indefinite"/>
-      </ellipse>
-    </g>`;
-  }
-
-  const terrainHtml = mapDef.themeName === 'verdant' ? verdantTerrain() :
-                      mapDef.themeName === 'wastes'  ? wastesTerrain() :
-                      shadowTerrain();
-
-  const [bg0, bg1, bg2] = mapDef.bgZones;
-  const mc = mapDef.color;
-  const svg = `<svg id="tdm-svg" viewBox="0 0 340 540" xmlns="http://www.w3.org/2000/svg" overflow="hidden">
-    <defs>
-      <linearGradient id="rmBg" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${bg2}"/>
-        <stop offset="50%" stop-color="${bg1}"/>
-        <stop offset="100%" stop-color="${bg0}"/>
-      </linearGradient>
-    </defs>
-    <rect x="0" y="0" width="340" height="540" fill="url(#rmBg)"/>
-    ${terrainHtml}
-    <line x1="0" y1="245" x2="340" y2="245" stroke="${mc}12" stroke-width="1" stroke-dasharray="6 8"/>
-    <line x1="0" y1="182" x2="340" y2="182" stroke="${mc}12" stroke-width="1" stroke-dasharray="6 8"/>
-    <text x="170" y="228" font-size="6" text-anchor="middle" fill="${mc}28" font-weight="700" letter-spacing="3">CONVERGENCE</text>
-    <text x="170" y="506" font-size="6" text-anchor="middle" fill="${mc}40" font-weight="700" letter-spacing="2">CHOOSE YOUR PATH</text>
-    <text x="65"  y="514" font-size="6" text-anchor="middle" fill="${mc}45" letter-spacing="1">PATH A</text>
-    <text x="170" y="514" font-size="6" text-anchor="middle" fill="${mc}45" letter-spacing="1">PATH B</text>
-    <text x="275" y="514" font-size="6" text-anchor="middle" fill="${mc}45" letter-spacing="1">PATH C</text>
-    ${roads}
-    ${nodesHtml}
-    ${markerHtml}
-    <text x="170" y="47"  font-size="7" text-anchor="middle" fill="#EF444488" font-weight="700" letter-spacing="2">BOSS</text>
-    <text x="170" y="95"  font-size="6" text-anchor="middle" fill="${mc}55" font-weight="700" letter-spacing="1.5">PRE-BOSS</text>
-  </svg>`;
-
-  EL.contentArea.innerHTML = `
-    <div id="tdm-wrap" class="run-map-wrap">
-      <div class="run-map-header region-map-header">
-        <button class="td-header-back" id="td-header-back">← Home</button>
-        <div class="region-map-header-text">
-          <div class="run-map-title region-map-title">${mapDef.icon} ${mapDef.name}</div>
-        </div>
-        <div class="td-header-right">
-          <button class="td-header-icon" id="td-header-inventory" title="Inventory">🎒</button>
-          <button class="td-header-icon" id="td-header-help" title="Help">?</button>
-        </div>
-      </div>
-      ${svg}
-    </div>`;
-  bindTdHeaderActions(showHome);
-
-  document.querySelectorAll('.rn-available').forEach(g => {
-    g.addEventListener('click', () => {
-      const nodeId = g.dataset.id;
-      const node   = run.nodes.find(n => n.id === nodeId);
-      if (!node) return;
-      markNodeEntered(run, nodeId);
-      if (node.type === 'battle' || node.type === 'elite' || node.id === 'boss') {
-        showLevelConfirmPanel(node.levelDef, nodeId, run);
-      } else {
-        showInterNodePanel(node, run);
-      }
-    });
-  });
 }
 
 // ── Verdant painted world map (G-9) ─────────────────────────────
@@ -4882,83 +3991,12 @@ function renderVerdantWorldMap(run) {
   });
 }
 
-// ── Map Selection Screen ───────────────────────────────────────
-
-function showMapSelection() {
-  if (td && td.running) {
-    cancelAnimationFrame(td.animFrame);
-    if (td.autoSaveInterval) clearInterval(td.autoSaveInterval);
-    td.running = false; td = null;
-    tdMusic.stop();
-  }
-  menuMusic.stop();
-  EL.cardArea.style.display    = 'none';
-  EL.bottomBar.style.display   = 'none';
-  EL.progressWrap.style.display = 'none';
-  EL.completeScreen.classList.remove('show');
-  setTopBar('td-world');
-  if (!StorageManager.get(TUTORIAL_KEY)) { showTutorial(_renderMapSelection); return; }
-  _renderMapSelection();
-}
-
 // A run is only resumable if it matches the current map schema — old
 // pre-painted-map Verdant runs (no usesRegionMap flag) are from the
 // superseded 25-node procedural graph and can't be continued on the new
 // spine, so they're treated as stale and replaced with a fresh run.
 function isRunCompatible(run, mapId) {
   return !!run && run.mapId === mapId && (mapId !== 0 || run.usesRegionMap === true);
-}
-
-function _renderMapSelection() {
-  const beaten   = tdLoadMapBeaten();
-  const existRunRaw = tdLoadRun();
-  const existRun = isRunCompatible(existRunRaw, existRunRaw && existRunRaw.mapId) ? existRunRaw : null;
-
-  const cardsHtml = TD_MAPS.map(map => {
-    const unlocked = isMapUnlocked(map.id);
-    const hasRun   = existRun && existRun.mapId === map.id;
-    const isBeaten = beaten.includes(map.id);
-    const lockedCls= unlocked ? '' : ' map-card-locked';
-    const disAttr  = unlocked ? '' : 'disabled';
-    const btnLabel = !unlocked ? '🔒 Locked' : hasRun ? '▶ Continue' : '⚔️ Start Run';
-    return `<button class="map-card${lockedCls}" data-mapid="${map.id}" ${disAttr}>
-      <div class="map-card-icon" style="color:${map.color}">${map.icon}</div>
-      <div class="map-card-body">
-        <div class="map-card-name" style="color:${map.color}">${map.name}</div>
-        <div class="map-card-sub">${map.subtitle}</div>
-        ${isBeaten ? '<div class="map-card-beaten">✓ Cleared</div>' : ''}
-        ${!unlocked ? '<div class="map-card-req">Clear previous map to unlock</div>' : ''}
-        ${hasRun && !isBeaten ? '<div class="map-card-active">Run in progress</div>' : ''}
-      </div>
-      <div class="map-card-btn">${btnLabel}</div>
-    </button>`;
-  }).join('');
-
-  EL.contentArea.innerHTML = `
-    <div class="map-select-screen">
-      <div class="map-select-header">
-        <button class="td-header-back" id="td-header-back">← Home</button>
-        <div class="map-select-header-text">
-          <div class="map-select-title">🛡️ Choose Your Map</div>
-          <div class="map-select-sub">Select a world to begin your run</div>
-        </div>
-        <div class="td-header-right">
-          <button class="td-header-icon" id="td-header-inventory" title="Inventory">🎒</button>
-          <button class="td-header-icon" id="td-header-help" title="Help">?</button>
-        </div>
-      </div>
-      <div class="map-select-cards">${cardsHtml}</div>
-    </div>`;
-  mapMusic.start();
-  bindTdHeaderActions(showHome);
-
-  document.querySelectorAll('.map-card:not([disabled])').forEach(card => {
-    card.addEventListener('click', () => {
-      const mapId = parseInt(card.dataset.mapid);
-      const run   = (existRun && existRun.mapId === mapId) ? existRun : generateRun(mapId);
-      showRunMap(run);
-    });
-  });
 }
 
 function showRunMap(run) {
@@ -4975,16 +4013,15 @@ function showRunMap(run) {
   // they're clickable again.
   run.nodes.forEach(n => { if (n.state === 'active') { n.state = 'available'; run.activeId = null; } });
   tdSaveRun(run);
-  if (run.usesRegionMap) renderVerdantWorldMap(run); else renderRunMap(run);
+  renderVerdantWorldMap(run); // all runs are Verdant region runs (isRunCompatible discards stale saves)
 }
 
-// One big run (owner decision 2026-07-12): the "Choose Your Map" screen is
-// bypassed — play routes straight into the Verdant run. showMapSelection
-// stays intact (unreferenced) for if/when multiple worlds go live.
+// One big run (owner decision 2026-07-12): play routes straight into the
+// Verdant run. The old "Choose Your Map" screen was removed 2026-07-13.
 function showTDWorldMap() {
   battleMusicHorn.stop();
   const existRun = tdLoadRun();
-  const run = isRunCompatible(existRun, 0) ? existRun : generateRun(0);
+  const run = isRunCompatible(existRun, 0) ? existRun : generateVerdantRun();
   showRunMap(run);
 }
 
@@ -5422,7 +4459,7 @@ function showRunCompleteScreen(run, finalGoldReward) {
     </div>`;
 
   document.getElementById('rc-play-again').addEventListener('click', () => {
-    const newRun = generateRun(run.mapId);
+    const newRun = generateVerdantRun();
     showRunMap(newRun);
   });
   document.getElementById("rc-choose-map").addEventListener("click", showTDWorldMap);
@@ -5586,7 +4623,6 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
   td.__run    = run || null;
   td.__nodeId = nodeId;
   td.mapId    = run ? run.mapId : 0;
-  tdLoadSpriteAssets(td);
 
   if (!StorageManager.get(TD_TUTORIAL_KEY)) {
     tdShowTutorial();
@@ -5789,7 +4825,6 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
 
   EL.tdMuteBtn.addEventListener('click', () => {
     const muted = tdAudio.toggleMute();
-    tdMusic.setMuted(muted);
     menuMusic.setMuted(muted);
     mapMusic.setMuted(muted);
     EL.tdMuteBtn.textContent = muted ? '🔇' : '🔊';
@@ -5799,7 +4834,6 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
     if (!td || td.over || td.won) return;
     td.paused = !td.paused;
     EL.tdPauseBtn.textContent = td.paused ? '▶' : '⏸';
-    tdMusic.setPaused(td.paused);
   });
 
   EL.tdWaveBtn.addEventListener('click', tdOnWaveBtn);
@@ -5912,7 +4946,7 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
     quizOpen:false, quizQ:null, quizAnswered:false, quizDone:null, quizOptional:false,
     tapCol:-1, tapRow:-1,
     over:false, won:false, shake:0, bossFlash:0, lastShootSnd:0,
-    bgTime: 0, terrainDeco: [], mapId: -1, spriteSheets: {},
+    bgTime: 0, mapId: -1,
     levelDef, levelIdx,
     pathSet: tdComputePathSet(levelDef.wps),
     optQuizUsed: 0,
@@ -5925,7 +4959,6 @@ function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) 
 }
 
 let td = null;
-let tdSpriteManifest = null;
 let tdOwnedRelics    = new Set();
 let tdEquippedRelics = new Set();
 
@@ -5938,11 +4971,6 @@ function tdLoop(ts) {
   td.bgTime += dt;
   if (!td.paused && !td.over && !td.won) {
     tdUpdate(dt);
-    // T-4: update music intensity based on enemy pressure
-    if (td.waveActive) {
-      const isBossWave = td.levelDef.waveDefs[td.waveIdx]?.some(([t]) => TD_ENEMY_DEFS[t]?.isBoss);
-      tdMusic.setIntensity(td.enemies.length, isBossWave);
-    }
   }
   tdRender();
   td.animFrame = requestAnimationFrame(tdLoop);
@@ -6632,8 +5660,6 @@ function tdStartWave(idx) {
   tdUpdateWavePreview();
   tdAudio.waveStart();
   mapMusic.stop();
-  // tdMusic (the old synthesized battle loop) no longer auto-starts —
-  // battleMusicHorn is the battle theme and both playing at once doubled up.
 }
 
 // ── Power-up runtime (EQ-2) ────────────────────────────────────
@@ -6828,7 +5854,6 @@ function tdUpdateWavePreview() {
 function tdGameOver() {
   td.over = true;
   tdClearAutosave();
-  tdMusic.stop();
   tdAudio.gameOver();
   earnGold(15);
   const actDiv = EL.tdActions;
@@ -6852,7 +5877,6 @@ function tdGameOver() {
 function tdVictory() {
   td.won = true;
   tdClearAutosave();
-  tdMusic.stop();
   tdAudio.victory();
   const livesLost  = td.maxLives - td.lives;
   const stars      = livesLost === 0 ? 3 : livesLost <= 5 ? 2 : 1;
@@ -6902,16 +5926,6 @@ function tdVictory() {
   }
 }
 
-// ── Sprite sheet asset loader (V-29 — retired 2026-07-02) ─────
-// The per-cell deco sprite system (manifest.json + deco-*.png sheets) was
-// removed with the pivot to painted battle-map backgrounds (G-9). Painted
-// scenes ship per battle map under assets/worlds/<world>/battlemaps/.
-// Kept as a stub so call sites stay valid; terrainDeco stays empty.
-
-async function tdLoadSpriteAssets(tdState) {
-  tdState.terrainDeco = [];
-}
-
 // ╔══════════════════════════════════════════════════════════════
 //  TD RENDERER — canvas draw calls only, no game-state mutation
 //  sprites · terrain · towers/enemies · particles · HUD overlays (S-4)
@@ -6936,57 +5950,9 @@ function tdDrawSprite(ctx, frames, fIdx, pal, cx, cy, ps) {
   }
 }
 
-// ── Deco animation helper ──────────────────────────────────────
-// Applies canvas-math animation transforms for a deco sprite.
-// Call with ctx.save() already in effect; restores are caller's responsibility.
-function applyDecoAnimation(ctx, spriteDef, phase, bgTime) {
-  const t = bgTime + phase;
-  switch (spriteDef.animate) {
-    case 'glow-pulse': {
-      const alpha = 0.55 + 0.45 * Math.sin(t * 1.8);
-      ctx.globalAlpha = (ctx.globalAlpha ?? 1) * alpha;
-      break;
-    }
-    case 'flicker': {
-      const alpha = 0.6 + 0.4 * (Math.sin(t * 6.3) * Math.sin(t * 11.7 + 1.2));
-      ctx.globalAlpha = (ctx.globalAlpha ?? 1) * Math.max(0.2, alpha);
-      break;
-    }
-    case 'flicker-rotate': {
-      const angle = Math.sin(t * 7.1) * 0.18;
-      ctx.rotate(angle);
-      const alpha = 0.65 + 0.35 * Math.sin(t * 5.5);
-      ctx.globalAlpha = (ctx.globalAlpha ?? 1) * Math.max(0.25, alpha);
-      break;
-    }
-    case 'scale-breathe': {
-      const scale = 0.90 + 0.10 * Math.sin(t * 1.3);
-      ctx.scale(scale, scale);
-      break;
-    }
-    case 'rotate': {
-      ctx.rotate(t * 0.6);
-      break;
-    }
-    case 'ripple': {
-      const scale = 1.0 + 0.06 * Math.sin(t * 2.1);
-      ctx.scale(1, scale);
-      break;
-    }
-    case 'blink':
-      // Deferred — needs frame strips. Treat as static for now.
-      console.warn('applyDecoAnimation: blink not yet implemented');
-      break;
-    default:
-      break;
-  }
-}
-
 // Per-theme background cell colour palettes (3 shades, picked by cell seed)
 const TD_THEME_CELLS = {
   verdant: ['#162a10', '#122409', '#1a3012'],
-  decay:   ['#18180f', '#1c1c12', '#141409'],
-  void:    ['#0d0818', '#0f0a1c', '#0b0615'],
 };
 
 // ── Background & terrain ─────────────────────────────────────────
@@ -7018,28 +5984,9 @@ function tdRenderBackground(ctx, cs, W, H, isLight, PAL) {
   }
 }
 
-// Sprite-sheet terrain decoration (V-31) + edge vignette
-function tdRenderTerrainDeco(ctx, cs, bgT, W, H) {
-  const DECO_SCALE = { large: 0.85, medium: 0.60, small: 0.35 };
-  for (const d of td.terrainDeco) {
-    const sheet = td.spriteSheets?.[d.sheetKey];
-    if (!sheet?.complete) continue;
-    const sheetData = tdSpriteManifest?.sheets?.[d.sheetKey];
-    if (!sheetData) continue;
-    const spriteDef = sheetData.sprites[d.spriteKey];
-    if (!spriteDef) continue;
-    const [sc, sr] = spriteDef.pos;
-    const scale = DECO_SCALE[d.size] ?? 0.60;
-    const rSize = cs * scale;
-    const cx = d.col * cs + d.fx * cs;
-    const cy = d.row * cs + d.fy * cs;
-    ctx.save();
-    ctx.translate(cx, cy);
-    if (spriteDef.animate) applyDecoAnimation(ctx, spriteDef, d.phase, bgT);
-    ctx.drawImage(sheet, sc * 256, sr * 256, 256, 256, -rSize / 2, -rSize / 2, rSize, rSize);
-    ctx.restore();
-  }
-  // Subtle edge vignette that breathes slowly
+// Edge vignette that breathes slowly (the V-31 sprite-sheet terrain-deco
+// system this function also drew was retired 2026-07-02 and removed 2026-07-13)
+function tdRenderVignette(ctx, bgT, W, H) {
   const vig = 0.06 + 0.022 * Math.sin(bgT * 0.28);
   const vGrad = ctx.createRadialGradient(W*.5, H*.5, W*.18, W*.5, H*.5, W*.88);
   vGrad.addColorStop(0, 'rgba(0,0,0,0)');
@@ -7635,7 +6582,7 @@ function tdRender() {
   tdRenderBackground(ctx, cs, W, H, isLight, PAL);
   // Painted maps already depict scenery/road/gate in the art itself — skip
   // the procedural terrain deco layer that's meant for the flat theme fill.
-  if (!td.paintedBg) tdRenderTerrainDeco(ctx, cs, bgT, W, H);
+  if (!td.paintedBg) tdRenderVignette(ctx, bgT, W, H);
 
   let sx = 0, sy = 0;
   if (td.shake > 0) {

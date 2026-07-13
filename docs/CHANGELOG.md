@@ -34,8 +34,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Goblin pilot sprite assets (A-1 done) - walk keyframes + death sequence
 
-- Landscape battle map + painted Verdant world map (G-9) (#88)
-
 - Map authoring overlay (?author=1) (#136)
 
 - New regenerated region map (nodes re-placed) + road-structure occlusion
@@ -54,8 +52,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Reshape Verdant spine - node re-placement, Fishing Camp added (#130)
 
-- Seamless full-bleed game UI, remove duplicate top bar (#89)
-
 - Tower facing — orient toward the road, front/back art (#98)
 
 - Wire new Frontier Town painted map (path + slots) and add unit-art backlog
@@ -67,13 +63,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Accurate slot taps, grounded tower shadow, 4th ranger tier (#95)
 
+- Author-mode copy confirmation flash + clipboard fallback (#137)
+
 - Bypass HTTP/CDN caching for SW-installed assets (#100)
 
 - Clamp Frontier Town waypoints to the road's grid row
 
 - Enemy pathing follows the painted road, re-center build slots
-
-- Home screen requires scrolling to see Start Game button (#90)
 
 - Home screen width cap, region map crop-fill, header opacity
 
@@ -82,8 +78,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Landscape maps were wasting ~20-40% of screen width/height
 
 - Playtest round 4 - landscape home fit, arrow physics, full-bleed map, ambient polish (#131)
-
-- Prevent pull-to-refresh bounce, nudge install for true fullscreen (#91)
 
 - Re-fit battle canvas on rotation + force-update via version badge
 
@@ -103,6 +97,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - True landscape width, integrated map header, tower centering (#92)
 
+- Tune Frontier Town enemy pathing, tower slots and occluders (#138)
+
 - Tune shadow squash for legibility at real mobile scale (#97)
 
 - Tutorial enemy speed on the straight road + bigger painted sprites
@@ -117,8 +113,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Add files via upload
 
 - Add files via upload
-
-- Home screen: splash-art background + fantasy-styled buttons (#87)
 
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
