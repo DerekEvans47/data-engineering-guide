@@ -110,11 +110,17 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add files via upload
 
+- Add files via upload
+
+- Merge main (raw tier-1 keeper uploads)
+
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
 - Mark EQ-7 done (inventory panel + relic-acquired prompt)
 
 - Master battle-map prompt + unique prompts for all 14 Verdant levels
+
+- Queue ranger tier 1 + tier 4 art regen prompts
 
 - Remove dead multi-world code and retired deco/music systems from drill.js (#139)
 
