@@ -112,7 +112,7 @@ transiently sometimes — re-run the FULL workflow if so, not just failed jobs).
 
 ## learn/drill — Service Worker Checklist
 
-Any time you modify files under `learn/drill/` (drill.js, drill.css, index.html, etc.),
+Any time you modify files under `learn/drill/` (drill-*.js, drill.css, index.html, etc.),
 you **must** bump the cache version in `learn/drill/sw.js` before committing:
 
 ```bash
@@ -130,7 +130,7 @@ the old files even after GitHub Pages deploys the new ones.
 
 ### Display version (APP_VERSION) — auto-derived, do not set manually
 
-`APP_VERSION` in `drill.js` is **not a hardcoded constant**. On startup, it reads
+`APP_VERSION` in `drill-core.js` is **not a hardcoded constant**. On startup, it reads
 `caches.keys()` and extracts the numeric part from the active `de-drill-v*` cache name.
 This means the home-screen version badge (`v61`, `v62`, etc.) tracks the SW cache
 automatically — bumping `sw.js` is the only step required.
@@ -149,7 +149,7 @@ automatically — bumping `sw.js` is the only step required.
 ## Verification Gate — MANDATORY before every `git push`
 
 **Never push `learn/drill/` changes without running the browser verification first.**
-This applies to every commit that touches `drill.js`, `drill.css`, `index.html`, or `sw.js`.
+This applies to every commit that touches any `drill-*.js` file, `drill.css`, `index.html`, or `sw.js`.
 
 ### How to run
 
@@ -194,6 +194,6 @@ After any `replace_all` edit touching `document.getElementById` or `EL.*`,
 **grep the result** to confirm no assignment lines became self-referential:
 
 ```bash
-grep -n "EL\.\w* = EL\." learn/drill/drill.js
+grep -n "EL\.\w* = EL\." learn/drill/drill-*.js
 # must return empty — any match is a bug
 ```

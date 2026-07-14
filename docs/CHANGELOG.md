@@ -110,6 +110,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add files via upload
 
+- Load painted-map data from assets/worlds JSON at boot
+
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
 - Mark EQ-7 done (inventory panel + relic-acquired prompt)

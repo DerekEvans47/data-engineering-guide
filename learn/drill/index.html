@@ -45,7 +45,12 @@
 <div class="achievement-toast" id="achievement-toast"></div>
 <div class="profile-sheet" id="profile-sheet"></div>
 
-<script src="drill.js"></script>
+<!-- Classic scripts sharing the global scope — load order matters
+     (core defines the storage/EL layer the rest bind to at boot). -->
+<script src="drill-core.js"></script>
+<script src="drill-audio.js"></script>
+<script src="drill-world.js"></script>
+<script src="drill-td.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});

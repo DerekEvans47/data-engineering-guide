@@ -80,12 +80,12 @@ Read all of these files before writing a single line of code:
 
   1. CLAUDE.md                     ← read in full; rules are non-negotiable
   2. BACKLOG.md                    ← read in full; derive picking order here
-  3. learn/drill/drill.js          ← do NOT read the entire file upfront;
-                                      use Grep/Glob to locate the specific
-                                      functions your chosen item touches, then
-                                      Read only those sections in full.
-                                      (The file is 4 500+ lines — a full read
-                                      wastes context before you start coding.)
+  3. learn/drill/drill-*.js        ← four classic scripts loaded in order
+                                      (core → audio → world → td, see each
+                                      file's header). Do NOT read them in
+                                      full upfront; use Grep/Glob to locate
+                                      the specific functions your chosen item
+                                      touches, then Read only those sections.
   4. learn/drill/drill.css         ← read in full if your item touches CSS
   5. content/question-bank.json    ← read in full only if adding questions;
                                       otherwise just check the max `num` and
@@ -145,7 +145,7 @@ Rules:
 
 Codebase-specific pitfalls — verify each one before committing:
 
-  drill.js
+  drill-*.js
   ├─ TD grid is 9 cols (0–8) × 10 rows (0–9). Col 9 does not exist; off-by-one
   │  silently places towers or enemies out of bounds.
   ├─ switchTab(), setTopBar(), showHome() are called from many places. Any
@@ -191,7 +191,7 @@ Codebase-specific pitfalls — verify each one before committing:
 
 Run every check that applies:
 
-  node --check learn/drill/drill.js
+  for f in learn/drill/drill-*.js; do node --check $f; done
   node -e "JSON.parse(require('fs').readFileSync('content/question-bank.json','utf8'))"
 
 SW version check (required for EVERY learn/drill/ change — no exceptions):
@@ -218,7 +218,7 @@ Playwright visual verification (required for EVERY learn/drill/ change):
     Attempt 1: diagnose the failure output, fix the specific check that failed,
                re-run the verifier.
     Attempt 2: if still failing, check for EL self-reference bugs:
-               grep -n "EL\.\w* = EL\." learn/drill/drill.js  (must return empty)
+               grep -n "EL\.\w* = EL\." learn/drill/drill-*.js  (must return empty)
                Fix any matches, re-run the verifier.
     Give up:   if still failing after two fix attempts, revert ALL changes for
                this item (git checkout -- <files>), mark the item PARTIAL in

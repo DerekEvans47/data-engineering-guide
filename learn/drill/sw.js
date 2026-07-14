@@ -1,8 +1,11 @@
-const CACHE = 'de-drill-v145';
+const CACHE = 'de-drill-v146';
 const ASSETS = [
   './index.html',
   './drill.css',
-  './drill.js',
+  './drill-core.js',
+  './drill-audio.js',
+  './drill-world.js',
+  './drill-td.js',
   './assets/splash-background.png',
   './assets/audio/world-map-temp.mp3',
   './assets/audio/verdant-battle-horn.mp3',
