@@ -6,7 +6,7 @@ produces painted-pixel-art **tower sprite sheets** instead of full battle-map
 backgrounds.
 
 **Why this exists:** the original towers (`TD_SPRITES.bastion/ranger/mortar` in
-`learn/drill/drill.js`) are flat, hand-authored pixel-art frames recolored per upgrade
+`learn/drill/drill-world.js`) are flat, hand-authored pixel-art frames recolored per upgrade
 tier (`pals[lvl]`). That's the same rendering technique the old procedural terrain
 used, and it read as a sticker pasted on top of the painted battle-map backgrounds —
 no shared lighting, no ground contact, wrong level of painterly detail. See
@@ -254,7 +254,7 @@ forbids text/letters, and early passes of this had actual English-letter shapes.
 
 ## Code-side facing logic
 
-`tdComputeSlotFacing` (in `learn/drill/drill.js`) derives a `{ back, mirror }` pair
+`tdComputeSlotFacing` (in `learn/drill/drill-world.js`) derives a `{ back, mirror }` pair
 per build slot from pure geometry — the direction from that slot's pixel position to
 the nearest point on the map's road polyline (`tdNearestPointOnPolyline`) — computed
 once at module load per map, same pattern as `FRONTIER_TOWN_SLOT_CENTERS`. Nothing is
@@ -396,7 +396,7 @@ Correct TD presence; keep `cs × 1.9`.
 The shadow is drawn by redrawing each tier's own sprite through the canvas
 `brightness(0)` filter (blackens every RGB pixel, alpha untouched), then squashed
 and sheared toward lower-left with a single shared affine transform
-(`tdRenderTowerShadow` in `learn/drill/drill.js`). This makes the shadow a true
+(`tdRenderTowerShadow` in `learn/drill/drill-td.js`). This makes the shadow a true
 silhouette of whatever that tier's art actually is — a ladder casts a ladder-shaped
 shadow, a wide stone base casts a wide stone-shaped one — instead of a generic
 ellipse, and it requires no per-tier tuning: any future tier or tower type gets a

@@ -1,14 +1,19 @@
-const CACHE = 'de-drill-v145';
+const CACHE = 'de-drill-v146';
 const ASSETS = [
   './index.html',
   './drill.css',
-  './drill.js',
+  './drill-core.js',
+  './drill-audio.js',
+  './drill-world.js',
+  './drill-td.js',
   './assets/splash-background.png',
   './assets/audio/world-map-temp.mp3',
   './assets/audio/verdant-battle-horn.mp3',
   './assets/audio/verdant-battle-strings.mp3',
   './assets/worlds/verdant/region.png',
+  './assets/worlds/verdant/region-preset.json',
   './assets/worlds/verdant/battlemaps/frontier-town.png',
+  './assets/worlds/verdant/battlemaps/frontier-town.json',
   './assets/fonts/Cinzel-Bold.woff2',
   './assets/enemies/goblin-walk.png',
   './assets/enemies/goblin-death.png',
