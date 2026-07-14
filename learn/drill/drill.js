@@ -274,6 +274,9 @@ function resetDrillSeen() { StorageManager.remove(SEEN_KEY); }
 // ── Boot ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   try {
+    // World/map data loads in parallel with the question bank; both are
+    // required, so either failing lands on the same retry screen below.
+    const worldReady = loadWorldData();
     const res = await fetch('../../content/question-bank.json');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const raw = await res.json();
@@ -284,10 +287,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const prevVer = StorageManager.get(QB_VER_KEY);
       if (prevVer !== raw.version) StorageManager.set(QB_VER_KEY, raw.version);
     }
+    await worldReady;
   } catch (_) {
     document.getElementById('app').innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:1rem;padding:2rem;text-align:center;font-family:system-ui">' +
       '<div style="font-size:2rem">📡</div>' +
-      '<div style="color:#E6EDF3;font-size:1rem;font-weight:600">Could not load question bank</div>' +
+      '<div style="color:#E6EDF3;font-size:1rem;font-weight:600">Could not load game data</div>' +
       '<div style="color:#8899bb;font-size:.85rem">Check your connection and try again.</div>' +
       '<button onclick="location.reload()" style="margin-top:.5rem;padding:.7rem 1.5rem;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer">&#x27F3; Retry</button>' +
       '</div>';
@@ -3198,102 +3202,110 @@ const TD_EVENTS = [
   { icon:'📡', title:'Signal Boost',   desc:'Your team gets extra starting funds.',      effect:'gold+50' },
 ];
 
-// ── Verdant region world map (G-9) ──────────────────────────────
-// Mirrors assets/worlds/verdant/region-preset.json's hand-placed spine —
-// node coordinates are already in the painted region.png's pixel space
-// (1024×572), verified against the road-pixel mask by the art pass, so no
-// runtime layout/generation is needed, just rendering.
-// Node coordinates for the 2026-07-05 regenerated region art (2.16:1
-// parchment map, sparkle removed). Placement method (rev 3 — user-targeted
-// grid cells): the map is divided into a 52×24 grid of 20px cells numbered
-// 1–1248 row-major; the user picked a cell per node from a numbered-overlay
-// render, and each cell center was snapped to the nearest pixel of the
-// painted road's tan-color mask (all landed within 4px — the cells were
-// chosen on the road). rev 3 also reshaped the journey: the old Abandoned
-// Village node was cut, a Fishing Camp (stilted lakehouse, north shore)
-// was added, and The Corrupted Mile was renamed to The Abandoned Town
-// (the lone ruined house it now sits at). Spine order follows the road:
-// south farmland loop west-about, then the northern stretch west→east
-// past the lake to the keep.
-const VERDANT_REGION = {
-  image: 'assets/worlds/verdant/region.png',
-  viewBox: [0, 0, 1024, 474],
-  spine: [
-    { id:'start', name:'Frontier Town',           x:269, y:333, battleTheme:'town-gate'       },
-    { id:'n1',    name:'Windmill Crossing',        x:337, y:323, battleTheme:'windmill-bridge' },
-    { id:'n2',    name:'Scarecrow Fields',         x:450, y:370, battleTheme:'farmland'        },
-    { id:'n3',    name:"Miller's Homestead",       x:570, y:390, battleTheme:'farmstead'       },
-    { id:'n4',    name:"Shepherd's Pasture",       x:690, y:330, battleTheme:'pasture'         },
-    { id:'n5',    name:'Beehive Bend',             x:611, y:250, battleTheme:'apiary'          },
-    { id:'n6',    name:'The Watchtower',           x:432, y:258, battleTheme:'crag-tower'      },
-    { id:'n7',    name:'The Standing Stones',      x:370, y:170, battleTheme:'stone-circle'    },
-    { id:'n8',    name:"Charcoal Burners' Camp",   x:386, y:127, battleTheme:'charcoal-camp'   },
-    { id:'n9',    name:'Logging Camp',             x:530, y:130, battleTheme:'timber-camp'     },
-    { id:'n10',   name:'Fishing Camp',             x:629, y:90,  battleTheme:'lakeshore'       },
-    { id:'n11',   name:'The Abandoned Town',       x:673, y:91,  battleTheme:'ruins'           },
-    { id:'n12',   name:'The Lone Monolith',        x:730, y:131, battleTheme:'moor-monolith'   },
-    { id:'boss',  name:'The Ruined Keep',          x:810, y:111, battleTheme:'keep-siege'      },
-  ],
-};
+// ── World data — loaded at boot from assets/worlds/ (V-40) ──────
+// The authoring JSONs under assets/worlds/ are the SINGLE source of truth
+// for painted-map data: region-preset.json (spine node placement, verified
+// against the road-pixel mask — see its _notes for the full placement
+// history) and battlemaps/*.json (lanes, build slots, occluders — see each
+// file's _notes for art-pass/retune history). They used to be mirrored as
+// inline constants here, which drifted (the #138 pathing/slot/occluder
+// retune never made it back to the JSON); now loadWorldData() fetches them
+// during boot and tdInitWorldData() adapts the authoring schema to the
+// runtime shapes the engine uses, deriving the grid-path and slot tables
+// that used to be computed inline at parse time. Adding a battle map means
+// adding a JSON+PNG pair under assets/worlds/ (plus sw.js ASSETS entries) —
+// zero new lines here.
+let VERDANT_REGION = null;
+let FRONTIER_TOWN_MAP = null;
+let FRONTIER_TOWN_WPS = null;
+let FRONTIER_TOWN_WPS_EXACT = null;
+let FRONTIER_TOWN_SLOTS = null;
+let FRONTIER_TOWN_SLOT_CENTERS = {};
+let FRONTIER_TOWN_SLOT_FACING = {};
+let TD_PAINTED_BG_IMAGES = {};
 
-// ── Frontier Town battle map (first painted battle map, tutorial fight
-// at the 'start' spine node) ────────────────────────────────────
-// Mirrors assets/worlds/verdant/battlemaps/frontier-town.json. The path
-// there is a smooth hand-authored polyline, but the TD engine's path-set/
-// movement (tdComputePathSet) only supports axis-aligned segments — so
-// tdBuildManhattanWps reduces it to a stair-stepped grid path that tracks
-// the painted road's silhouette rather than reproducing it pixel-for-pixel.
-// A true free-form-path engine is a larger follow-up, not this pass.
-const FRONTIER_TOWN_MAP = {
-  image: 'assets/worlds/verdant/battlemaps/frontier-town.png',
-  // rev 6 — WIDE-tier remake (two-pass generation: terrain pass + town edit
-  // pass, composited + graded, see docs/MAP_ART_PIPELINE.md). Painted at
-  // 1024×434, shipped 2× nearest-neighbor upscaled, so all coordinates here
-  // are in the 2048×868 shipped-pixel space. 30×13 grid ≈ 68px cells: houses
-  // land ~2 cells (vs 2.5 on the 19×9 original), which is the deliberate
-  // compressed size ladder — units read larger against buildings.
-  viewBox: [0, 0, 2048, 868],
-  cols: 30, rows: 13,
-  // Road traced from the terrain pass (building-free, so the mask is clean;
-  // the town edit was pixel-stable outside its additions, so coordinates
-  // transfer 1:1). Through town the line deliberately rides the road's NORTH
-  // half: enemy sprites draw upward from their feet, so a north-half line
-  // keeps every unit rendered IN FRONT of the south-row rooflines — which is
-  // why this map needs no occluders (see occludersPx note below).
-  waypointsPx: [
-    [0,470],[35,470],[120,490],[200,496],[380,476],[430,455],[560,440],[648,438],[720,430],[880,436],
-    [1040,440],[1200,428],[1360,430],[1496,400],[1632,380],[1760,375],
-    [1888,413],[2046,430],
-  ],
-  // 8 slots hand-placed from the owner's markup (2026-07-12): 2 outside each
-  // gate on painted clearings, 4 inside the walls on open pads (the inside-
-  // west pad is where the wide barn stood before it was composited away —
-  // its roof sat on the road's south edge).
-  // Slot retune 2026-07-12 (owner markup): s3/s7 re-centered onto their
-  // pads, s9 added on the big NE-of-camp patch. Unused standout pads got
-  // props composited on (barrels/crates/wagon cloned from the map itself)
-  // so open dirt = buildable, cluttered dirt = scenery.
-  // Positions re-tuned 2026-07-12 (round 2) to the owner's arrow markup.
-  buildSlotsPx: [
-    [242,310],[224,620],     // outside west gate (upper, lower clearing)
-    [1000,169],[504,511],    // inside: top-center pad, west plot (ex-barn)
-    [1013,616],[1296,622],   // inside: south-center pad, south-east pad
-    [1636,257],[1591,493],   // outside east gate (NE clearing, camp-side clearing)
-    [1862,275],              // far-east patch past the camp (owner request)
-  ],
-  // The north-half waypoint line keeps units in front of every SOUTH-side
-  // structure except where painted pixels physically cross the lane: the
-  // two gatehouses the road passes through, plus the two south-row roof
-  // PEAKS that poke into the road band (owner-circled). Tip rects are
-  // deliberately tight — just the overriding pixels — so units vanish for
-  // only a few frames. Everything else stays occluder-free on purpose.
-  occludersPx: [
-    [381,412,438,488],   // west gatehouse tower body
-    [1446,392,1499,482], // east gatehouse tower body
-    [681,425,749,457],   // A-frame barn roof peak (tip only)
-    [1135,427,1212,456], // south house roof peak (tip only)
-  ],
-};
+async function loadWorldData() {
+  const base = 'assets/worlds/verdant/';
+  const [regionRes, ftRes] = await Promise.all([
+    fetch(base + 'region-preset.json'),
+    fetch(base + 'battlemaps/frontier-town.json'),
+  ]);
+  if (!regionRes.ok || !ftRes.ok) {
+    throw new Error(`world data HTTP ${regionRes.status}/${ftRes.status}`);
+  }
+  tdInitWorldData(await regionRes.json(), await ftRes.json());
+}
+
+function tdInitWorldData(regionJson, ftJson) {
+  VERDANT_REGION = {
+    image: 'assets/worlds/verdant/' + regionJson.image,
+    viewBox: regionJson.viewBox,
+    spine: regionJson.spine,
+  };
+
+  // The authored path is a smooth hand-traced polyline, but the TD engine's
+  // path-set/build-slot blocking (tdComputePathSet) only supports axis-
+  // aligned segments — tdBuildManhattanWps reduces it to a stair-stepped
+  // grid path. Enemy *movement* walks the exact polyline (wpsExact below).
+  FRONTIER_TOWN_MAP = {
+    image: 'assets/worlds/verdant/battlemaps/' + ftJson.image,
+    viewBox: ftJson.viewBox,
+    cols: ftJson.grid.cols, rows: ftJson.grid.rows,
+    waypointsPx: ftJson.lanes[0].waypoints,
+    buildSlotsPx: ftJson.buildSlots.map(s => [s.x, s.y]),
+    occludersPx: ftJson.occluders.map(o => o.rect),
+  };
+
+  const { viewBox, cols, rows, waypointsPx, buildSlotsPx } = FRONTIER_TOWN_MAP;
+  const cellW = viewBox[2] / cols, cellH = viewBox[3] / rows;
+
+  FRONTIER_TOWN_WPS = tdBuildManhattanWps(waypointsPx, viewBox[2], viewBox[3], cols, rows);
+
+  // Build-slot pixel coords → grid cells, nudged off the path/each other if
+  // rounding collides them (computed once at load). Also keeps the exact
+  // (unrounded) pixel position each slot was hand-painted at, so a placed
+  // tower can render dead-center in its clearing instead of at the center
+  // of whichever grid cell the rounding happened to land on, plus which way
+  // it should face the road (see tdComputeSlotFacing).
+  FRONTIER_TOWN_SLOT_CENTERS = {};
+  FRONTIER_TOWN_SLOT_FACING = {};
+  const pathSet = tdManhattanPathSet(FRONTIER_TOWN_WPS, cols, rows);
+  const used = new Set();
+  const NEIGHBORS = [[0,0],[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,-1],[-1,1],[1,1]];
+  FRONTIER_TOWN_SLOTS = buildSlotsPx.map(([x, y]) => {
+    const baseC = Math.min(cols-1, Math.max(0, Math.round(x / cellW)));
+    const baseR = Math.min(rows-1, Math.max(0, Math.round(y / cellH)));
+    for (const [dc, dr] of NEIGHBORS) {
+      const c = baseC + dc, r = baseR + dr;
+      if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
+      const key = `${c},${r}`;
+      if (pathSet.has(key) || used.has(key)) continue;
+      used.add(key);
+      FRONTIER_TOWN_SLOT_CENTERS[key] = [x / cellW, y / cellH];
+      FRONTIER_TOWN_SLOT_FACING[key] = tdComputeSlotFacing(x, y, waypointsPx);
+      return [c, r];
+    }
+    // no free neighbor found — keep original cell, still usable most of the time
+    const fallbackKey = `${baseC},${baseR}`;
+    FRONTIER_TOWN_SLOT_CENTERS[fallbackKey] = [x / cellW, y / cellH];
+    FRONTIER_TOWN_SLOT_FACING[fallbackKey] = tdComputeSlotFacing(x, y, waypointsPx);
+    return [baseC, baseR];
+  });
+
+  // Exact pixel-accurate movement polyline — same [x/cellW, y/cellH]
+  // normalization as the slot centers, applied to the road. Without this,
+  // enemies cut straight through terrain (the log pile, well, etc.) along
+  // the Manhattan-reduced path's straight hops.
+  const pts = waypointsPx.map(([x, y]) => [x / cellW, y / cellH]);
+  // Extend the final hop off the right edge, mirroring tdBuildManhattanWps,
+  // so enemies exit the map instead of stopping at the last painted point.
+  pts.push([cols, pts[pts.length - 1][1]]);
+  FRONTIER_TOWN_WPS_EXACT = pts;
+
+  // Keyed by levelDef.usesPaintedBg — grows automatically as more spine
+  // nodes get painted battle maps.
+  TD_PAINTED_BG_IMAGES = { 'frontier-town': FRONTIER_TOWN_MAP.image };
+}
 
 function tdManhattanPathSet(wps, cols, rows) {
   const s = new Set();
@@ -3329,11 +3341,6 @@ function tdBuildManhattanWps(pointsPx, viewW, viewH, cols, rows) {
   if (lc < cols) wps.push([cols, lr]);
   return wps;
 }
-
-const FRONTIER_TOWN_WPS = tdBuildManhattanWps(
-  FRONTIER_TOWN_MAP.waypointsPx, FRONTIER_TOWN_MAP.viewBox[2], FRONTIER_TOWN_MAP.viewBox[3],
-  FRONTIER_TOWN_MAP.cols, FRONTIER_TOWN_MAP.rows
-);
 
 // Nearest point on a pixel-space polyline to a query point — used by
 // tdComputeSlotFacing to find which way a tower should face without
@@ -3371,63 +3378,6 @@ function tdComputeSlotFacing(px, py, waypointsPx) {
   const mirror = back ? dx >= 0 : dx < 0;
   return { back, mirror };
 }
-
-// Build-slot pixel coords → grid cells, nudged off the path/each other if
-// rounding collides them (offline, computed once at load). Also keeps the
-// exact (unrounded) pixel position each slot was hand-painted at, so a
-// placed tower can render dead-center in its clearing instead of at the
-// center of whichever grid cell the rounding happened to land on, plus
-// which way it should face the road (see tdComputeSlotFacing).
-const FRONTIER_TOWN_SLOT_CENTERS = {};
-const FRONTIER_TOWN_SLOT_FACING = {};
-const FRONTIER_TOWN_SLOTS = (() => {
-  const { viewBox, cols, rows, buildSlotsPx, waypointsPx } = FRONTIER_TOWN_MAP;
-  const cellW = viewBox[2] / cols, cellH = viewBox[3] / rows;
-  const pathSet = tdManhattanPathSet(FRONTIER_TOWN_WPS, cols, rows);
-  const used = new Set();
-  const NEIGHBORS = [[0,0],[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,-1],[-1,1],[1,1]];
-  return buildSlotsPx.map(([x, y]) => {
-    const baseC = Math.min(cols-1, Math.max(0, Math.round(x / cellW)));
-    const baseR = Math.min(rows-1, Math.max(0, Math.round(y / cellH)));
-    for (const [dc, dr] of NEIGHBORS) {
-      const c = baseC + dc, r = baseR + dr;
-      if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
-      const key = `${c},${r}`;
-      if (pathSet.has(key) || used.has(key)) continue;
-      used.add(key);
-      FRONTIER_TOWN_SLOT_CENTERS[key] = [x / cellW, y / cellH];
-      FRONTIER_TOWN_SLOT_FACING[key] = tdComputeSlotFacing(x, y, waypointsPx);
-      return [c, r];
-    }
-    // no free neighbor found — keep original cell, still usable most of the time
-    const fallbackKey = `${baseC},${baseR}`;
-    FRONTIER_TOWN_SLOT_CENTERS[fallbackKey] = [x / cellW, y / cellH];
-    FRONTIER_TOWN_SLOT_FACING[fallbackKey] = tdComputeSlotFacing(x, y, waypointsPx);
-    return [baseC, baseR];
-  });
-})();
-
-// The hand-painted road curves smoothly, but tdComputePathSet/build-slot
-// blocking need an axis-aligned grid (FRONTIER_TOWN_WPS, used only for
-// that). Enemy *movement* has no such constraint, so it walks this exact
-// pixel-accurate polyline instead — same [x/cellW, y/cellH] normalization
-// as FRONTIER_TOWN_SLOT_CENTERS, just applied to the road instead of the
-// build slots. Without this, enemies cut straight through terrain (the
-// log pile, well, etc.) along the Manhattan-reduced path's straight hops.
-const FRONTIER_TOWN_WPS_EXACT = (() => {
-  const { viewBox, cols, rows, waypointsPx } = FRONTIER_TOWN_MAP;
-  const cellW = viewBox[2] / cols, cellH = viewBox[3] / rows;
-  const pts = waypointsPx.map(([x, y]) => [x / cellW, y / cellH]);
-  // Extend the final hop off the right edge, mirroring tdBuildManhattanWps,
-  // so enemies exit the map instead of stopping at the last painted point.
-  const [, lastR] = pts[pts.length - 1];
-  pts.push([cols, lastR]);
-  return pts;
-})();
-
-// Keyed by levelDef.usesPaintedBg — add an entry here as more spine nodes
-// get painted battle maps.
-const TD_PAINTED_BG_IMAGES = { 'frontier-town': FRONTIER_TOWN_MAP.image };
 
 // Painted-pixel-art tower tiers (V-36) — matches the battle-map art style instead
 // of the flat hand-authored TD_SPRITES pixel frames. Only Ranger has painted art

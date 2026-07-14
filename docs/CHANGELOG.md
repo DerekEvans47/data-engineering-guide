@@ -40,15 +40,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Original driving march theme for the world/region map
 
-- Painted Ranger tower art, code-side shadow, testing gold bump (#94)
-
 - Painted goblin renderer (A-3), all-goblin wave 1, battle music, compact wave button
 
 - Play a real temp audio file for the map theme (WorldMap.m4a)
 
 - Playtest round 3 - sprite size/quality, single battle song, HUD cleanup, two-tap build with stat card, arrow SFX
 
-- Regen ranger tier 1 as grounded timber watchtower
+- Regen ranger tier 1 as grounded timber watchtower (#140)
 
 - Reshape Verdant spine - node re-placement, Fishing Camp added (#130)
 
@@ -112,17 +110,11 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add files via upload
 
-- Add files via upload
-
-- Merge main (raw tier-1 keeper uploads)
-
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
 - Mark EQ-7 done (inventory panel + relic-acquired prompt)
 
 - Master battle-map prompt + unique prompts for all 14 Verdant levels
-
-- Queue ranger tier 1 + tier 4 art regen prompts
 
 - Remove dead multi-world code and retired deco/music systems from drill.js (#139)
 
