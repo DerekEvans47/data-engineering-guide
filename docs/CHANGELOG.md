@@ -26,6 +26,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Ambient animation layer on the region map
 
+- Author mode v2 - in-app battle-map editor (?author=1)
+
 - Disable quiz gate for testing, compact quiz card, letterbox backdrop, smaller goblins
 
 - Fantasy-themed battle-screen HUD chrome (wave/quiz/radial/back buttons)
@@ -48,9 +50,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Regen ranger tier 1 as grounded timber watchtower (#140)
 
+- Region-map node editor in author mode (?author=1)
+
 - Reshape Verdant spine - node re-placement, Fishing Camp added (#130)
 
 - Tower facing — orient toward the road, front/back art (#98)
+
+- Tuning tables to config.json + live dev panel (?dev=1)
 
 - Wire new Frontier Town painted map (path + slots) and add unit-art backlog
 
@@ -110,13 +116,15 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add files via upload
 
-- Load painted-map data from assets/worlds JSON at boot
+- CI gate for learn/drill PRs - verifier workflow + auto SW bump
 
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
 - Mark EQ-7 done (inventory panel + relic-acquired prompt)
 
 - Master battle-map prompt + unique prompts for all 14 Verdant levels
+
+- Modularize Quiz Defense - map data from JSON, drill.js split in four (#141)
 
 - Remove dead multi-world code and retired deco/music systems from drill.js (#139)
 

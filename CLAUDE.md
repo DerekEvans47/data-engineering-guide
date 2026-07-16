@@ -110,6 +110,25 @@ leave changes sitting on an unmerged branch waiting for review. After merging,
 verify the `pages build and deployment` workflow actually succeeded (it fails
 transiently sometimes — re-run the FULL workflow if so, not just failed jobs).
 
+## learn/drill — Dev Tooling (2026-07-14)
+
+- **`?author=1`** — in-app map editor. On the painted battle map: drag build
+  slots / lane points / occluder corners; toolbar tools add/delete them;
+  👻 ghost-walks a test goblin (real renderer, no gameplay effects);
+  📋 exports the updated `frontier-town.json` to the clipboard. On the
+  region map: drag spine nodes; 📋 exports `region-preset.json`. Paste
+  exports over the files in `learn/drill/assets/worlds/` — the JSONs are
+  the runtime source of truth (loaded at boot by `loadWorldData`).
+- **`?dev=1`** — battle tuning panel: +500 gold, wave clear, FPS meter,
+  LIVE enemy-speed / tower-damage sliders, and a copy-multipliers button.
+- **`learn/drill/config.json`** — ALL tower/enemy/power-up/relic/event
+  tuning plus the Frontier Town knobs. Balance changes are JSON edits, not
+  JS edits.
+- **CI gate** — `.github/workflows/drill-verify.yml` runs the browser
+  verifier on every PR touching `learn/drill/` and auto-commits the SW
+  cache bump if the PR forgot it (local bumps are still preferred — the
+  auto-bump is a backstop, and it only works for same-repo PRs).
+
 ## learn/drill — Service Worker Checklist
 
 Any time you modify files under `learn/drill/` (drill-*.js, drill.css, index.html, etc.),

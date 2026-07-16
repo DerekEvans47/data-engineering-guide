@@ -163,6 +163,7 @@ learn/
   drill/                               ← Quiz Defense (game + Study/Drill modes)
     index.html, drill.css, sw.js
     drill-core.js, drill-audio.js, drill-world.js, drill-td.js
+    config.json                      ← all gameplay tuning (towers/enemies/…)
     assets/                            ← battle maps, tower art, world/region art
 guide/
   index.html                           ← Cover page / table of contents

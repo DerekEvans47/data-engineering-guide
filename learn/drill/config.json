@@ -1,0 +1,397 @@
+{
+  "_notes": "Runtime tuning config, loaded at boot alongside the world/map JSONs (loadWorldData -> tdApplyConfig in drill-world.js). Edit numbers HERE - no JS required; the drill-verify CI job auto-bumps the SW cache on PRs. Sections: towers (cost/range/dmg/rate + upgrade tiers - L4 ranger keeps L3 per-shot dmg on purpose, its payoff is the 2nd projectile; rates are the 2026-07-05 heavy-shot rebalance), enemies (per-type hp/speed/reward; frontier bandit roster + generic fantasy set + G-2 specials: armored halves splash, flying skips mortar, healer heals nearby on a timer), powerUps, relics (+category labels, shop pricing/odds by rarity), events (inter-node card deck), frontierTown (map-scoped knobs: enemySpeedMult 0.85 keeps the ~23s crossing on the rev6 road, enemyScaleMult 1.25 is the unit-vs-building readability retune, startGold 99999 is a TEMP testing value - revert to 160 once first-map content is complete).",
+  "towers": [
+    {
+      "id": "bastion",
+      "name": "Bastion",
+      "icon": "🏰",
+      "cost": 60,
+      "color": "#3B82F6",
+      "range": 3,
+      "dmg": 22,
+      "rate": 1.5,
+      "splash": 0,
+      "pattern": "diagonal",
+      "upgrades": [
+        {
+          "cost": 80,
+          "icon": "🏰",
+          "dmg": 38,
+          "rate": 1.8,
+          "range": 3.2,
+          "splash": 0,
+          "glow": "#60A5FA"
+        },
+        {
+          "cost": 150,
+          "icon": "🏯",
+          "dmg": 70,
+          "rate": 2.1,
+          "range": 3.6,
+          "splash": 0,
+          "glow": "#C084FC"
+        }
+      ]
+    },
+    {
+      "id": "ranger",
+      "name": "Ranger",
+      "icon": "🏹",
+      "cost": 90,
+      "color": "#10B981",
+      "range": 4.5,
+      "dmg": 32,
+      "rate": 1.1,
+      "splash": 0,
+      "pattern": "dots",
+      "projectiles": 1,
+      "upgrades": [
+        {
+          "cost": 100,
+          "icon": "🏹",
+          "dmg": 55,
+          "rate": 1.4,
+          "range": 5,
+          "splash": 0,
+          "glow": "#34D399",
+          "projectiles": 1
+        },
+        {
+          "cost": 180,
+          "icon": "🎯",
+          "dmg": 98,
+          "rate": 1.8,
+          "range": 5.6,
+          "splash": 0,
+          "glow": "#C084FC",
+          "projectiles": 1
+        },
+        {
+          "cost": 280,
+          "icon": "💎",
+          "dmg": 98,
+          "rate": 2.1,
+          "range": 6,
+          "splash": 0,
+          "glow": "#A5F3FC",
+          "projectiles": 2
+        }
+      ]
+    },
+    {
+      "id": "mortar",
+      "name": "Mortar",
+      "icon": "💣",
+      "cost": 130,
+      "color": "#EF4444",
+      "range": 2.8,
+      "dmg": 60,
+      "rate": 0.55,
+      "splash": 1.5,
+      "pattern": "cross",
+      "upgrades": [
+        {
+          "cost": 120,
+          "icon": "💣",
+          "dmg": 100,
+          "rate": 0.65,
+          "range": 3,
+          "splash": 1.8,
+          "glow": "#F87171"
+        },
+        {
+          "cost": 200,
+          "icon": "💥",
+          "dmg": 180,
+          "rate": 0.8,
+          "range": 3.3,
+          "splash": 2.3,
+          "glow": "#C084FC"
+        }
+      ]
+    }
+  ],
+  "enemies": {
+    "bandit": {
+      "maxHp": 75,
+      "spd": 1.5,
+      "reward": 5,
+      "color": "#B45309",
+      "r": 0.28
+    },
+    "bandit_rider": {
+      "maxHp": 55,
+      "spd": 2.1,
+      "reward": 8,
+      "color": "#92400E",
+      "r": 0.3,
+      "fast": true
+    },
+    "bandit_boss": {
+      "maxHp": 350,
+      "spd": 0.7,
+      "reward": 60,
+      "color": "#7C2D12",
+      "r": 0.5,
+      "isBoss": true,
+      "lifeLoss": 2
+    },
+    "goblin": {
+      "maxHp": 80,
+      "spd": 1.6,
+      "reward": 5,
+      "color": "#4ADE80",
+      "r": 0.28
+    },
+    "orc": {
+      "maxHp": 220,
+      "spd": 1,
+      "reward": 12,
+      "color": "#FBBF24",
+      "r": 0.36
+    },
+    "scout": {
+      "maxHp": 55,
+      "spd": 2.6,
+      "reward": 8,
+      "color": "#F472B6",
+      "r": 0.22
+    },
+    "troll": {
+      "maxHp": 480,
+      "spd": 0.7,
+      "reward": 28,
+      "color": "#C084FC",
+      "r": 0.42
+    },
+    "boss": {
+      "maxHp": 2000,
+      "spd": 0.5,
+      "reward": 100,
+      "color": "#EF4444",
+      "r": 0.55,
+      "isBoss": true,
+      "lifeLoss": 3
+    },
+    "raider": {
+      "maxHp": 50,
+      "spd": 3.2,
+      "reward": 9,
+      "color": "#38BDF8",
+      "r": 0.24,
+      "fast": true
+    },
+    "brute": {
+      "maxHp": 260,
+      "spd": 0.9,
+      "reward": 15,
+      "color": "#78716C",
+      "r": 0.34,
+      "armored": true
+    },
+    "wisp": {
+      "maxHp": 70,
+      "spd": 1.8,
+      "reward": 14,
+      "color": "#A5F3FC",
+      "r": 0.26,
+      "flying": true
+    },
+    "shaman": {
+      "maxHp": 130,
+      "spd": 1.1,
+      "reward": 18,
+      "color": "#34D399",
+      "r": 0.3,
+      "healer": true,
+      "healAmount": 25,
+      "healInterval": 2,
+      "healRadius": 2.2
+    }
+  },
+  "powerUps": {
+    "gold_rush": {
+      "id": "gold_rush",
+      "name": "Gold Rush",
+      "icon": "💰",
+      "cost": 40,
+      "scope": "wave",
+      "effect": {
+        "type": "gold-now",
+        "value": 50
+      }
+    },
+    "rapid_fire": {
+      "id": "rapid_fire",
+      "name": "Rapid Fire",
+      "icon": "🏹",
+      "cost": 50,
+      "scope": "wave",
+      "effect": {
+        "type": "tower-rate",
+        "value": 0.3
+      }
+    },
+    "pathsalt": {
+      "id": "pathsalt",
+      "name": "Pathsalt",
+      "icon": "🧂",
+      "cost": 80,
+      "scope": "wave",
+      "effect": {
+        "type": "enemy-speed",
+        "value": -0.25
+      }
+    },
+    "fortify": {
+      "id": "fortify",
+      "name": "Fortify",
+      "icon": "🛡️",
+      "cost": 80,
+      "scope": "node",
+      "effect": {
+        "type": "lives",
+        "value": 3
+      }
+    },
+    "scavenger": {
+      "id": "scavenger",
+      "name": "Scavenger",
+      "icon": "🪝",
+      "cost": 70,
+      "scope": "node",
+      "effect": {
+        "type": "kill-gold",
+        "value": 1.5
+      }
+    }
+  },
+  "relics": [
+    {
+      "id": "midas_touch",
+      "name": "Midas Touch",
+      "icon": "💰",
+      "category": "gold",
+      "rarity": "uncommon",
+      "upkeep": 10,
+      "desc": "+25% kill gold",
+      "effect": {
+        "type": "kill-gold-mult",
+        "value": 1.25
+      }
+    },
+    {
+      "id": "runed_blade",
+      "name": "Runed Blade",
+      "icon": "⚔️",
+      "category": "damage",
+      "rarity": "uncommon",
+      "upkeep": 12,
+      "desc": "Towers +15% damage",
+      "effect": {
+        "type": "tower-dmg-mult",
+        "value": 1.15
+      }
+    },
+    {
+      "id": "merchants_purse",
+      "name": "Merchant's Purse",
+      "icon": "👛",
+      "category": "start-gold",
+      "rarity": "common",
+      "upkeep": 0,
+      "desc": "+60 node start gold",
+      "effect": {
+        "type": "start-gold-add",
+        "value": 60
+      }
+    },
+    {
+      "id": "iron_constitution",
+      "name": "Iron Constitution",
+      "icon": "❤️",
+      "category": "lives",
+      "rarity": "rare",
+      "upkeep": 15,
+      "desc": "+5 max lives per node",
+      "effect": {
+        "type": "max-lives-add",
+        "value": 5
+      }
+    }
+  ],
+  "relicCategories": {
+    "gold": "Gold",
+    "damage": "Damage",
+    "start-gold": "Start Gold",
+    "lives": "Lives"
+  },
+  "relicRarityCost": {
+    "common": 120,
+    "uncommon": 180,
+    "rare": 250,
+    "legendary": 400
+  },
+  "relicRarityWeight": {
+    "common": 0.4,
+    "uncommon": 0.35,
+    "rare": 0.2,
+    "legendary": 0.05
+  },
+  "events": [
+    {
+      "icon": "💰",
+      "title": "Grant Funding",
+      "desc": "A research grant comes through.",
+      "effect": "gold+60"
+    },
+    {
+      "icon": "☕",
+      "title": "Coffee Break",
+      "desc": "The team recharges for your next battle.",
+      "effect": "lives+2"
+    },
+    {
+      "icon": "📉",
+      "title": "Data Breach",
+      "desc": "A security incident drains resources.",
+      "effect": "gold-30"
+    },
+    {
+      "icon": "🎓",
+      "title": "Hackathon Win",
+      "desc": "You place first. Bonus XP awarded.",
+      "effect": "xp+100"
+    },
+    {
+      "icon": "⚙️",
+      "title": "System Outage",
+      "desc": "Infrastructure issues disrupt your forces.",
+      "effect": "lives-1"
+    },
+    {
+      "icon": "🔮",
+      "title": "Mystery Cache",
+      "desc": "Hidden data cache uncovered.",
+      "effect": "gold+40"
+    },
+    {
+      "icon": "🪙",
+      "title": "Tax Refund",
+      "desc": "Unexpected reimbursement arrives.",
+      "effect": "gold+80"
+    },
+    {
+      "icon": "📡",
+      "title": "Signal Boost",
+      "desc": "Your team gets extra starting funds.",
+      "effect": "gold+50"
+    }
+  ],
+  "frontierTown": {
+    "enemySpeedMult": 0.85,
+    "enemyScaleMult": 1.25,
+    "startGold": 99999,
+    "startLives": 25
+  }
+}
