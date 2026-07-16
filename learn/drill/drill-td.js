@@ -1436,13 +1436,15 @@ const TD_THEME_CELLS = {
 function tdRenderBackground(ctx, cs, W, H, isLight, PAL) {
   if (td.paintedBg) {
     if (td.paintedBg.complete && td.paintedBg.naturalWidth) {
-      // Nearest-neighbor, matching the enemy/corpse sprites: the map ships
-      // as 2× NN-upscaled pixel art, and bilinear resampling to the canvas
-      // size (2048 source → e.g. 2520 backing px on a dpr-3 phone) smears
-      // every pixel edge — the map looked blurry next to the crisp
-      // units/towers drawn with smoothing off.
+      // Sampling mode comes from the map JSON's pixelArt flag (default
+      // true). Today's art is 2× NN-upscaled pixel art: bilinear
+      // resampling to the canvas (2048 source → e.g. 2520 backing px on a
+      // dpr-3 phone) smears every pixel edge, so it draws nearest-neighbor
+      // to match the sprites. When a high-density repaint ships, flip
+      // pixelArt to false in the JSON: real detail downscales better with
+      // bilinear (NN would alias) — no code change needed.
       const smooth = ctx.imageSmoothingEnabled;
-      ctx.imageSmoothingEnabled = false;
+      ctx.imageSmoothingEnabled = td.levelDef.pixelArt === false;
       ctx.drawImage(td.paintedBg, 0, 0, W, H);
       ctx.imageSmoothingEnabled = smooth;
       return;
@@ -1840,6 +1842,11 @@ function tdRenderOccluders(ctx) {
   if (!td.occluders || !td.paintedBg || !td.paintedBg.complete || !td.paintedBg.naturalWidth || !td.bgSize) return;
   const [imgW, imgH] = td.bgSize;
   const kx = td.canvas.width / imgW, ky = td.canvas.height / imgH;
+  // Authoring coordinates live in the JSON's logical viewBox space
+  // (td.bgSize, 2048×868 today) no matter what resolution the PNG actually
+  // ships at — sx/sy rescale the source rect so a higher-density repaint
+  // is a pure asset swap with zero coordinate migration.
+  const sx = td.paintedBg.naturalWidth / imgW, sy = td.paintedBg.naturalHeight / imgH;
   // Occluders are polygons (rects arrive pre-converted, see
   // tdInitWorldData): clip to the shape, then blit its bounding box of the
   // map art back over whatever was drawn — only the pixels inside the
@@ -1847,10 +1854,11 @@ function tdRenderOccluders(ctx) {
   for (const poly of td.occluders) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     ctx.save();
-    // Same nearest-neighbor draw as tdRenderBackground — the blit re-draws
+    // Same sampling mode as tdRenderBackground — the blit re-draws
     // background pixels, so a smoothing mismatch would make every occluder
-    // patch visibly softer than the map around it. (restore() resets it.)
-    ctx.imageSmoothingEnabled = false;
+    // patch visibly softer/sharper than the map around it. (restore()
+    // resets it.)
+    ctx.imageSmoothingEnabled = td.levelDef.pixelArt === false;
     ctx.beginPath();
     poly.forEach(([x, y], i) => {
       ctx[i ? 'lineTo' : 'moveTo'](x * kx, y * ky);
@@ -1859,7 +1867,7 @@ function tdRenderOccluders(ctx) {
     });
     ctx.closePath();
     ctx.clip();
-    ctx.drawImage(td.paintedBg, x0, y0, x1 - x0, y1 - y0,
+    ctx.drawImage(td.paintedBg, x0 * sx, y0 * sy, (x1 - x0) * sx, (y1 - y0) * sy,
       x0 * kx, y0 * ky, (x1 - x0) * kx, (y1 - y0) * ky);
     ctx.restore();
   }
