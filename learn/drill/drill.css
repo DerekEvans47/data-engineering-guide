@@ -3495,3 +3495,11 @@ html, body {
   text-align: right;
   color: #fbbf24;
 }
+
+/* Region-map author editor hint (?author=1) */
+.rvm-author-hint {
+  align-self: center;
+  font: 700 11px monospace;
+  color: #4ade80;
+  padding: 0 4px;
+}

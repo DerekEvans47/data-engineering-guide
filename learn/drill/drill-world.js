@@ -997,6 +997,104 @@ function renderVerdantWorldMap(run) {
       else showLevelConfirmPanel(tdFreshLevelDefFor(node), node.id, run);
     });
   });
+
+  // Author mode (?author=1): every spine node becomes draggable and the
+  // updated region-preset.json is exportable — see rvmAuthorInitEditor.
+  if (TD_AUTHOR_MODE) rvmAuthorInitEditor(run);
+}
+
+// ── Region-map node editor (?author=1) ─────────────────────────
+// The world-map counterpart of the battle-map editor in drill-td.js: drag
+// any spine node (pointer events, touch included) to reposition it on the
+// painted road; roads connected to it follow live, the coordinates write
+// through to VERDANT_REGION_JSON.spine (shared object with
+// VERDANT_REGION.spine) AND the active run's nodes, and 📋 exports the
+// full updated region-preset.json to the clipboard. No road-mask snapping
+// — position by eye with the painted road visible under the node; the
+// verifier + a playtest remain the guardrail, same as battle-map edits.
+function rvmAuthorInitEditor(run) {
+  const svg  = document.getElementById('rvm-svg');
+  const wrap = document.getElementById('rvm-wrap');
+  if (!svg || !wrap || !VERDANT_REGION_JSON) return;
+  const spine = VERDANT_REGION_JSON.spine;
+  const [, , VW] = VERDANT_REGION.viewBox;
+  svg.style.touchAction = 'none';
+
+  const bar = document.createElement('div');
+  bar.id = 'rvm-author-bar';
+  bar.className = 'td-author-bar';
+  bar.innerHTML = `<span class="rvm-author-hint">AUTHOR — drag nodes</span>
+    <button class="td-author-btn" data-act="export" title="Copy updated region-preset.json">📋</button>`;
+  wrap.appendChild(bar);
+  bar.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    e.stopPropagation();
+    const txt = JSON.stringify(VERDANT_REGION_JSON, null, 2) + '\n';
+    console.log(txt);
+    tdAuthorCopy(txt, ok => {
+      b.textContent = ok ? '✓' : '⚠';
+      setTimeout(() => { b.textContent = '📋'; }, 1400);
+    });
+  });
+
+  // client → viewBox coords (uniform scale: the svg's CSS size is set
+  // proportional to the viewBox by the fit logic above)
+  const toVb = e => {
+    const r = svg.getBoundingClientRect();
+    const k = VW / r.width;
+    return { x: Math.round((e.clientX - r.left) * k), y: Math.round((e.clientY - r.top) * k) };
+  };
+
+  const lines = [...svg.querySelectorAll('.rvm-road')];
+  svg.querySelectorAll('.rvm-node[data-id]').forEach(g => {
+    g.style.cursor = 'move';
+    // Future/completed nodes ship with pointer-events:none (not clickable
+    // in normal play) — the editor needs to drag ALL nodes.
+    g.style.pointerEvents = 'auto';
+    g.addEventListener('pointerdown', e => {
+      const si = spine.findIndex(s => s.id === g.dataset.id);
+      if (si < 0) return;
+      e.preventDefault();
+      g.setPointerCapture(e.pointerId);
+      const s = spine[si];
+      const ox = s.x, oy = s.y;
+      const p0 = toVb(e);
+      let dragged = false;
+      const onMove = ev => {
+        const p = toVb(ev);
+        const nx = ox + (p.x - p0.x), ny = oy + (p.y - p0.y);
+        if (nx === s.x && ny === s.y) return;
+        dragged = true;
+        s.x = nx; s.y = ny;
+        const rn = run.nodes.find(n => n.id === s.id);
+        if (rn) { rn.x = nx; rn.y = ny; }
+        // Nodes render at their original coords — translate the group and
+        // re-aim the two road segments touching it; everything else stays.
+        g.setAttribute('transform', `translate(${nx - ox},${ny - oy})`);
+        if (lines[si - 1]) { lines[si - 1].setAttribute('x2', nx); lines[si - 1].setAttribute('y2', ny); }
+        if (lines[si])     { lines[si].setAttribute('x1', nx);     lines[si].setAttribute('y1', ny); }
+      };
+      const onUp = () => {
+        g.removeEventListener('pointermove', onMove);
+        g.removeEventListener('pointerup', onUp);
+        g.removeEventListener('pointercancel', onUp);
+        if (dragged) {
+          tdSaveRun(run); // moved layout previews across screens this run
+          // Swallow the click synthesized by this drag's pointerup so an
+          // available node doesn't launch its battle. Expires quickly in
+          // case no click follows (some touch sequences), so it can never
+          // eat a later legitimate tap.
+          const swallow = ev2 => { ev2.stopImmediatePropagation(); ev2.preventDefault(); };
+          g.addEventListener('click', swallow, { capture: true, once: true });
+          setTimeout(() => g.removeEventListener('click', swallow, { capture: true }), 400);
+        }
+      };
+      g.addEventListener('pointermove', onMove);
+      g.addEventListener('pointerup', onUp);
+      g.addEventListener('pointercancel', onUp);
+    });
+  });
 }
 
 // A run is only resumable if it matches the current map schema — old
