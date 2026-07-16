@@ -336,6 +336,11 @@ const TD_EVENTS = [
 // adding a JSON+PNG pair under assets/worlds/ (plus sw.js ASSETS entries) —
 // zero new lines here.
 let VERDANT_REGION = null;
+// Raw authoring JSONs, kept as fetched (and mutated by author mode's
+// in-app editors) so ?author=1 can re-derive runtime state after an edit
+// and export a file-ready replacement for the JSON on disk.
+let VERDANT_REGION_JSON = null;
+let FRONTIER_TOWN_JSON = null;
 let FRONTIER_TOWN_MAP = null;
 let FRONTIER_TOWN_WPS = null;
 let FRONTIER_TOWN_WPS_EXACT = null;
@@ -357,6 +362,8 @@ async function loadWorldData() {
 }
 
 function tdInitWorldData(regionJson, ftJson) {
+  VERDANT_REGION_JSON = regionJson;
+  FRONTIER_TOWN_JSON = ftJson;
   VERDANT_REGION = {
     image: 'assets/worlds/verdant/' + regionJson.image,
     viewBox: regionJson.viewBox,

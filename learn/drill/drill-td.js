@@ -237,43 +237,14 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   canvas.style.width  = cellCss * TD_COLS + 'px';
   canvas.style.height = cellCss * TD_ROWS + 'px';
 
-  // Authoring probes (?author=1): live hover readout + click-to-copy, both
-  // in map-image pixel space (see tdRenderAuthorOverlay). Normal gameplay
-  // handlers below are untouched — the radial still opens on the same tap.
-  if (TD_AUTHOR_MODE) {
-    const toImagePx = e => {
-      const rect = canvas.getBoundingClientRect();
-      const px = (e.clientX - rect.left) * (canvas.width / rect.width);
-      const py = (e.clientY - rect.top) * (canvas.height / rect.height);
-      if (!td.bgSize) return null;
-      return { px, py,
-        ix: Math.round(px * td.bgSize[0] / canvas.width),
-        iy: Math.round(py * td.bgSize[1] / canvas.height) };
-    };
-    canvas.addEventListener('mousemove', e => { td.__authorCursor = toImagePx(e); });
-    canvas.addEventListener('mouseleave', () => { td.__authorCursor = null; });
-    canvas.addEventListener('click', e => {
-      const p = toImagePx(e);
-      if (!p) return;
-      td.__authorClicks = [[p.ix, p.iy], ...(td.__authorClicks || [])].slice(0, 5);
-      console.log(`author click: [${p.ix},${p.iy}]`);
-      const txt = `[${p.ix},${p.iy}]`;
-      const flash = ok => { td.__authorCopied = { txt, ok, until: Date.now() + 1400 }; };
-      // Clipboard API rejects as a PROMISE (a sync try/catch never sees it),
-      // so confirm/fallback in .then/.catch. Fallback: the legacy hidden-
-      // textarea execCommand path for contexts where the API is blocked.
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(txt).then(() => flash(true)).catch(() => {
-          const ta = document.createElement('textarea');
-          ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
-          document.body.appendChild(ta); ta.select();
-          let ok = false;
-          try { ok = document.execCommand('copy'); } catch (_) {}
-          ta.remove(); flash(ok);
-        });
-      } else flash(false);
-    });
-  }
+  // Authoring tools (?author=1): the v1 hover/copy probes plus, on maps
+  // whose authoring JSON is loaded (Frontier Town), the in-app editor —
+  // drag slots / lane points / occluder corners, add/delete via the
+  // toolbar, ghost-walk a test enemy, export the updated JSON. Registered
+  // BEFORE the gameplay click handler below so the editor can intercept
+  // taps it consumed (see the capture-phase click router in
+  // tdAuthorInitEditor); untouched gameplay taps still reach the radial.
+  if (TD_AUTHOR_MODE) tdAuthorInitEditor(canvas);
 
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
@@ -476,6 +447,11 @@ function tdUpdate(dt) {
       td.spawnTimer = gap;
     }
   }
+
+  // Author-mode ghost walkers: move like real enemies (same tdMoveEnemy,
+  // same lane) but live outside td.enemies so towers never target them,
+  // leaking costs nothing, and wave-clear logic never sees them.
+  if (td.__ghosts?.length) td.__ghosts = td.__ghosts.filter(g => !tdMoveEnemy(g, dt));
 
   const leaked = [];
   for (const e of td.enemies) {
@@ -1874,7 +1850,10 @@ function tdRenderCorpses(ctx, cs) {
 }
 
 function tdRenderEnemies(ctx, cs, bgT) {
-  const sorted = [...td.enemies].sort((a,b) => b.dist - a.dist);
+  // Ghost walkers (author mode) render through the exact same path as real
+  // enemies — that's the point: they test sprite scale and occluder rects
+  // with the true renderer, not an approximation.
+  const sorted = [...td.enemies, ...(td.__ghosts || [])].sort((a,b) => b.dist - a.dist);
   for (const e of sorted) {
     const r = e.r * cs;
     // Boss pulsing outer ring
@@ -2124,14 +2103,27 @@ function tdRender() {
   tdRenderAuthorOverlay(ctx, cs, W, H);
 }
 
-// ── Map authoring overlay (?author=1) ────────────────────────────
-// Dev-only: visit the app with ?author=1 to see, on painted battle maps,
-// every occluder rect (red, with its [x0,y0,x1,y1]), every build slot
-// (blue ring + its [x,y]), and the enemy lane (yellow). Hovering shows a
-// live crosshair + IMAGE-SPACE pixel readout (the same 2048×868 coordinates
-// FRONTIER_TOWN_MAP uses); every click/tap logs the coordinate, keeps the
-// last few on screen, and copies "[x,y]" to the clipboard — so authoring a
-// slot or occluder is: point at the pixel, read/paste the number.
+// ── Map authoring tools (?author=1) — v2, in-app editor ──────────
+// Dev-only. On painted battle maps the overlay shows every occluder rect
+// (red, with its [x0,y0,x1,y1]), every build slot (blue ring + [x,y]), and
+// the enemy lane (yellow); hovering shows a live crosshair + IMAGE-SPACE
+// pixel readout (the same 2048×868 coordinates the authoring JSON uses),
+// and a tap on empty ground still copies "[x,y]" like v1.
+//
+// v2 (2026-07-14): on maps whose authoring JSON is loaded (Frontier Town),
+// the map is EDITABLE in place. A floating toolbar picks the tool:
+//   ✥  move    — drag slots, lane points (orange dots), occluder corners
+//   ⊕  slot    — tap adds a build slot
+//   ➜  lane    — tap inserts a lane waypoint into the nearest segment
+//   ▦  occl    — tap adds an occluder rect (drag corners to fit)
+//   ✕  delete  — tap removes the slot / lane point / occluder under it
+//   👻 ghost   — walks a test goblin down the lane (real renderer, real
+//                occlusion, no targeting/lives/wave effects)
+//   📋 export  — copies the full updated frontier-town.json to clipboard
+//                (also printed to console), ready to paste over the file
+// Every edit mutates FRONTIER_TOWN_JSON and re-runs tdInitWorldData, so
+// path, slot cells, and facing re-derive live — what you see is exactly
+// what the exported JSON will play like.
 const TD_AUTHOR_MODE = typeof location !== 'undefined' &&
   new URLSearchParams(location.search).has('author');
 
@@ -2166,6 +2158,27 @@ function tdRenderAuthorOverlay(ctx, cs, W, H) {
     ctx.fillText(`s${i + 1} [${Math.round(px / kx)},${Math.round(py / ky)}]`, px - cs * 0.5, py - cs * 0.5 - 2);
   });
 
+  // Editable-map handles: lane points (orange), occluder corners (small
+  // red squares). Slots already draw as blue rings above. The handle the
+  // finger is currently dragging highlights white.
+  if (tdAuthorEditable()) {
+    const j = FRONTIER_TOWN_JSON, drag = td.__authorDrag;
+    j.lanes[0].waypoints.forEach(([x, y], i) => {
+      const on = drag && drag.kind === 'wp' && drag.i === i;
+      ctx.beginPath(); ctx.arc(x * kx, y * ky, on ? 8 : 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = on ? '#FFFFFF' : '#FB923C'; ctx.fill();
+      ctx.strokeStyle = '#0008'; ctx.lineWidth = 1; ctx.stroke();
+    });
+    j.occluders.forEach((o, i) => {
+      const [x0, y0, x1, y1] = o.rect;
+      [[x0, y0, 0], [x1, y0, 1], [x0, y1, 2], [x1, y1, 3]].forEach(([cx, cy, c]) => {
+        const on = drag && drag.kind === 'occ-corner' && drag.i === i && drag.c === c;
+        ctx.fillStyle = on ? '#FFFFFF' : '#FF3B30';
+        ctx.fillRect(cx * kx - (on ? 6 : 4), cy * ky - (on ? 6 : 4), on ? 12 : 8, on ? 12 : 8);
+      });
+    });
+  }
+
   if (td.__authorCursor) {
     const { px, py, ix, iy } = td.__authorCursor;
     ctx.strokeStyle = '#FFFFFF88'; ctx.lineWidth = 1;
@@ -2175,7 +2188,10 @@ function tdRenderAuthorOverlay(ctx, cs, W, H) {
   ctx.fillStyle = '#0009';
   ctx.fillRect(0, 0, fs * 15, fs * 1.6 * (1 + (td.__authorClicks?.length || 0)));
   ctx.fillStyle = '#4ADE80'; ctx.textBaseline = 'top';
-  ctx.fillText('AUTHOR MODE — click to copy [x,y]', 4, 2);
+  const toolLbl = tdAuthorEditable()
+    ? `AUTHOR ✎ ${td.__authorTool || 'move'} — see toolbar`
+    : 'AUTHOR MODE — click to copy [x,y]';
+  ctx.fillText(toolLbl, 4, 2);
   (td.__authorClicks || []).forEach((c, i) => {
     ctx.fillStyle = '#FBBF24';
     ctx.fillText(`[${c[0]},${c[1]}]`, 4, 2 + fs * 1.6 * (i + 1));
@@ -2189,6 +2205,270 @@ function tdRenderAuthorOverlay(ctx, cs, W, H) {
     ctx.fillText(cp.ok ? `✓ copied ${cp.txt}` : `⚠ copy failed — use console`, fx, fy);
   }
   ctx.restore();
+}
+
+// True when the current battle map's authoring JSON is loaded and the
+// in-app editor can round-trip it (only Frontier Town has painted-map
+// JSON today; procedural maps have nothing to edit).
+function tdAuthorEditable() {
+  return TD_AUTHOR_MODE && td && td.usesPaintedBg === 'frontier-town' && !!FRONTIER_TOWN_JSON;
+}
+
+// Clipboard write with the legacy hidden-textarea fallback (the Clipboard
+// API rejects as a PROMISE — a sync try/catch never sees it). Shared by
+// the coordinate probe and the JSON export.
+function tdAuthorCopy(txt, flash) {
+  const legacy = () => {
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) {}
+    ta.remove(); flash(ok);
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(txt).then(() => flash(true)).catch(legacy);
+  } else legacy();
+}
+
+// Re-derive everything downstream of the authoring JSON after an edit:
+// world globals via tdInitWorldData, then the live battle's levelDef and
+// td state, so the change is visible (and playable) the same frame.
+function tdAuthorApplyWorldEdits() {
+  tdInitWorldData(VERDANT_REGION_JSON, FRONTIER_TOWN_JSON);
+  const ld = td.levelDef;
+  ld.wps         = FRONTIER_TOWN_WPS;
+  ld.wpsExact    = FRONTIER_TOWN_WPS_EXACT;
+  ld.occludersPx = FRONTIER_TOWN_MAP.occludersPx;
+  ld.buildSlots  = FRONTIER_TOWN_SLOTS;
+  ld.slotCenters = FRONTIER_TOWN_SLOT_CENTERS;
+  ld.slotFacing  = FRONTIER_TOWN_SLOT_FACING;
+  td.pathSet       = tdComputePathSet(ld.wps);
+  td.buildSlotSet  = new Set(ld.buildSlots.map(([c, r]) => `${c},${r}`));
+  td.slotCenterMap = ld.slotCenters;
+  td.slotFacingMap = ld.slotFacing;
+  td.occluders     = ld.occludersPx;
+}
+
+// Distance from point to segment, image-px space (for lane-point insertion).
+function tdAuthorSegDist(px, py, [x1, y1], [x2, y2]) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  let t = lenSq > 0 ? ((px - x1) * dx + (py - y1) * dy) / lenSq : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+// Nearest editable handle under an image-px point. Priority when radii
+// overlap: whatever is closest wins across kinds; occluder BODY only hits
+// when no handle was close enough (so corners stay grabbable inside rects).
+function tdAuthorHitTest(ix, iy) {
+  const j = FRONTIER_TOWN_JSON;
+  let best = null, bestD = Infinity;
+  const consider = (d, lim, hit) => { if (d <= lim && d < bestD) { bestD = d; best = hit; } };
+  j.lanes[0].waypoints.forEach((p, i) =>
+    consider(Math.hypot(ix - p[0], iy - p[1]), 30, { kind: 'wp', i }));
+  j.buildSlots.forEach((s, i) =>
+    consider(Math.hypot(ix - s.x, iy - s.y), 42, { kind: 'slot', i }));
+  j.occluders.forEach((o, i) => {
+    const [x0, y0, x1, y1] = o.rect;
+    [[x0, y0, 0], [x1, y0, 1], [x0, y1, 2], [x1, y1, 3]].forEach(([cx, cy, c]) =>
+      consider(Math.hypot(ix - cx, iy - cy), 30, { kind: 'occ-corner', i, c }));
+  });
+  if (!best) {
+    j.occluders.forEach((o, i) => {
+      const [x0, y0, x1, y1] = o.rect;
+      if (!best && ix >= x0 && ix <= x1 && iy >= y0 && iy <= y1) best = { kind: 'occ-body', i };
+    });
+  }
+  return best;
+}
+
+// One tap with a non-move tool active: add / insert / delete at the point.
+function tdAuthorAct(tool, ix, iy) {
+  const j = FRONTIER_TOWN_JSON;
+  const wps = j.lanes[0].waypoints;
+  if (tool === 'slot') {
+    j.buildSlots.push({ id: 's' + (j.buildSlots.length + 1), x: ix, y: iy,
+      pad: 'open', note: 'authored in-app' });
+  } else if (tool === 'wp') {
+    let bi = 0, bd = Infinity;
+    for (let i = 0; i < wps.length - 1; i++) {
+      const d = tdAuthorSegDist(ix, iy, wps[i], wps[i + 1]);
+      if (d < bd) { bd = d; bi = i; }
+    }
+    wps.splice(bi + 1, 0, [ix, iy]);
+  } else if (tool === 'occl') {
+    j.occluders.push({ id: 'occ-' + (j.occluders.length + 1),
+      rect: [ix - 40, iy - 40, ix + 40, iy + 40] });
+  } else if (tool === 'del') {
+    const hit = tdAuthorHitTest(ix, iy);
+    if (!hit) return;
+    if (hit.kind === 'wp') { if (wps.length > 2) wps.splice(hit.i, 1); }
+    else if (hit.kind === 'slot') j.buildSlots.splice(hit.i, 1);
+    else j.occluders.splice(hit.i, 1);
+  }
+  tdAuthorApplyWorldEdits();
+}
+
+// Walks a test goblin down the lane. Reuses the real spawner so the ghost
+// matches live tuning (speed/scale mults) exactly, then reroutes it to the
+// ghost list — rendered and moved like a real enemy, ignored by everything
+// else (see tdUpdate / tdRenderEnemies).
+function tdAuthorSpawnGhost() {
+  if (!td || !td.levelDef) return;
+  tdSpawnEnemy('goblin');
+  const g = td.enemies.pop();
+  g.__ghost = true;
+  (td.__ghosts = td.__ghosts || []).push(g);
+}
+
+function tdAuthorExport() {
+  const txt = JSON.stringify(FRONTIER_TOWN_JSON, null, 2) + '\n';
+  console.log(txt);
+  const flash = ok => {
+    td.__authorCopied = { txt: 'frontier-town.json', ok, until: Date.now() + 2200 };
+  };
+  tdAuthorCopy(txt, flash);
+}
+
+function tdAuthorBuildToolbar() {
+  const wrap = document.getElementById('td-canvas-wrap');
+  if (!wrap) return;
+  document.getElementById('td-author-bar')?.remove();
+  const bar = document.createElement('div');
+  bar.id = 'td-author-bar';
+  bar.className = 'td-author-bar';
+  const editable = tdAuthorEditable();
+  const tools = [
+    ['move', '✥',  'Move — drag slots, lane points, occluder corners'],
+    ['slot', '⊕',  'Add build slot at tap'],
+    ['wp',   '➜',  'Insert lane waypoint at tap'],
+    ['occl', '▦',  'Add occluder rect at tap'],
+    ['del',  '✕',  'Delete slot / lane point / occluder at tap'],
+  ];
+  bar.innerHTML =
+    (editable ? tools.map(([id, icon, title]) =>
+      `<button class="td-author-btn" data-tool="${id}" title="${title}">${icon}</button>`).join('') : '') +
+    `<button class="td-author-btn" data-act="ghost" title="Ghost-walk a test goblin down the lane">👻</button>` +
+    (editable ? `<button class="td-author-btn" data-act="export" title="Copy updated frontier-town.json">📋</button>` : '');
+  wrap.appendChild(bar);
+  const sync = () => bar.querySelectorAll('[data-tool]').forEach(b =>
+    b.classList.toggle('active', b.dataset.tool === (td.__authorTool || 'move')));
+  bar.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    e.stopPropagation();
+    if (b.dataset.tool) { td.__authorTool = b.dataset.tool; sync(); }
+    else if (b.dataset.act === 'ghost') tdAuthorSpawnGhost();
+    else if (b.dataset.act === 'export') tdAuthorExport();
+  });
+  sync();
+}
+
+// Wires the author tools onto a freshly-built battle canvas. Called from
+// initTDGame (before the gameplay click handler is registered) whenever
+// TD_AUTHOR_MODE is on — for non-editable maps it degrades to the v1
+// probes: hover readout + tap-to-copy.
+function tdAuthorInitEditor(canvas) {
+  const toImg = e => {
+    const rect = canvas.getBoundingClientRect();
+    const px = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const py = (e.clientY - rect.top) * (canvas.height / rect.height);
+    if (!td.bgSize) return null;
+    return { px, py,
+      ix: Math.round(px * td.bgSize[0] / canvas.width),
+      iy: Math.round(py * td.bgSize[1] / canvas.height) };
+  };
+  td.__authorTool = 'move';
+  // Without this, touch-dragging a handle scrolls/zooms the page instead
+  // of firing pointermove.
+  canvas.style.touchAction = 'none';
+
+  canvas.addEventListener('mousemove', e => { td.__authorCursor = toImg(e); });
+  canvas.addEventListener('mouseleave', () => { td.__authorCursor = null; });
+
+  // ── Drag handling (move tool) — pointer events cover mouse AND touch ──
+  let drag = null, moved = false;
+  canvas.addEventListener('pointerdown', e => {
+    if (!tdAuthorEditable() || (td.__authorTool || 'move') !== 'move') return;
+    const p = toImg(e);
+    if (!p) return;
+    const hit = tdAuthorHitTest(p.ix, p.iy);
+    if (!hit) return;
+    drag = { ...hit, lastX: p.ix, lastY: p.iy };
+    moved = false;
+    td.__authorDrag = drag;
+    canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const p = toImg(e);
+    if (!p) return;
+    const dx = p.ix - drag.lastX, dy = p.iy - drag.lastY;
+    if (!dx && !dy) return;
+    drag.lastX = p.ix; drag.lastY = p.iy;
+    moved = true;
+    const j = FRONTIER_TOWN_JSON;
+    if (drag.kind === 'wp') {
+      const w = j.lanes[0].waypoints[drag.i]; w[0] += dx; w[1] += dy;
+    } else if (drag.kind === 'slot') {
+      const s = j.buildSlots[drag.i]; s.x += dx; s.y += dy;
+    } else if (drag.kind === 'occ-corner') {
+      const r = j.occluders[drag.i].rect;
+      if (drag.c === 0 || drag.c === 2) r[0] += dx; else r[2] += dx;
+      if (drag.c === 0 || drag.c === 1) r[1] += dy; else r[3] += dy;
+      // keep the rect normalized (x0<x1, y0<y1) while crossing over
+      if (r[0] > r[2]) { [r[0], r[2]] = [r[2], r[0]]; drag.c ^= 1; }
+      if (r[1] > r[3]) { [r[1], r[3]] = [r[3], r[1]]; drag.c ^= 2; }
+    } else if (drag.kind === 'occ-body') {
+      const r = j.occluders[drag.i].rect;
+      r[0] += dx; r[2] += dx; r[1] += dy; r[3] += dy;
+    }
+    tdAuthorApplyWorldEdits();
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    drag = null;
+    td.__authorDrag = null;
+    // A real drag happened — swallow the click that follows pointerup so
+    // it neither copies a coordinate nor opens the radial menu.
+    if (moved) td.__authorClickBlockUntil = performance.now() + 350;
+  };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  // ── Click router (capture phase = runs before the probe + gameplay
+  // listeners): swallow post-drag clicks; route non-move tools to
+  // tdAuthorAct; let everything else fall through untouched. ──
+  canvas.addEventListener('click', e => {
+    if (performance.now() < (td.__authorClickBlockUntil || 0)) {
+      // Consume-once: only the click synthesized by the drag's own
+      // pointerup gets swallowed, never a fast follow-up tap.
+      td.__authorClickBlockUntil = 0;
+      e.stopImmediatePropagation(); e.preventDefault();
+      return;
+    }
+    if (!tdAuthorEditable() || (td.__authorTool || 'move') === 'move') return;
+    const p = toImg(e);
+    if (!p) return;
+    tdAuthorAct(td.__authorTool, p.ix, p.iy);
+    e.stopImmediatePropagation(); e.preventDefault();
+  }, true);
+
+  // ── v1 coordinate probe: tap-to-copy (bubble phase — anything the
+  // editor consumed never reaches here) ──
+  canvas.addEventListener('click', e => {
+    const p = toImg(e);
+    if (!p) return;
+    td.__authorClicks = [[p.ix, p.iy], ...(td.__authorClicks || [])].slice(0, 5);
+    console.log(`author click: [${p.ix},${p.iy}]`);
+    const txt = `[${p.ix},${p.iy}]`;
+    tdAuthorCopy(txt, ok => { td.__authorCopied = { txt, ok, until: Date.now() + 1400 }; });
+  });
+
+  tdAuthorBuildToolbar();
 }
 
 function tdRRect(ctx, x, y, w, h, r) {
