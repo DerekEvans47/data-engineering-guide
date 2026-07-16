@@ -1436,7 +1436,15 @@ const TD_THEME_CELLS = {
 function tdRenderBackground(ctx, cs, W, H, isLight, PAL) {
   if (td.paintedBg) {
     if (td.paintedBg.complete && td.paintedBg.naturalWidth) {
+      // Nearest-neighbor, matching the enemy/corpse sprites: the map ships
+      // as 2× NN-upscaled pixel art, and bilinear resampling to the canvas
+      // size (2048 source → e.g. 2520 backing px on a dpr-3 phone) smears
+      // every pixel edge — the map looked blurry next to the crisp
+      // units/towers drawn with smoothing off.
+      const smooth = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
       ctx.drawImage(td.paintedBg, 0, 0, W, H);
+      ctx.imageSmoothingEnabled = smooth;
       return;
     }
     // Image still loading — flat fallback fill for this frame only.
@@ -1839,6 +1847,10 @@ function tdRenderOccluders(ctx) {
   for (const poly of td.occluders) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     ctx.save();
+    // Same nearest-neighbor draw as tdRenderBackground — the blit re-draws
+    // background pixels, so a smoothing mismatch would make every occluder
+    // patch visibly softer than the map around it. (restore() resets it.)
+    ctx.imageSmoothingEnabled = false;
     ctx.beginPath();
     poly.forEach(([x, y], i) => {
       ctx[i ? 'lineTo' : 'moveTo'](x * kx, y * ky);
