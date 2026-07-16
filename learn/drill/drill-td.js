@@ -1832,9 +1832,24 @@ function tdRenderOccluders(ctx) {
   if (!td.occluders || !td.paintedBg || !td.paintedBg.complete || !td.paintedBg.naturalWidth || !td.bgSize) return;
   const [imgW, imgH] = td.bgSize;
   const kx = td.canvas.width / imgW, ky = td.canvas.height / imgH;
-  for (const [x0, y0, x1, y1] of td.occluders) {
+  // Occluders are polygons (rects arrive pre-converted, see
+  // tdInitWorldData): clip to the shape, then blit its bounding box of the
+  // map art back over whatever was drawn — only the pixels inside the
+  // polygon land.
+  for (const poly of td.occluders) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    ctx.save();
+    ctx.beginPath();
+    poly.forEach(([x, y], i) => {
+      ctx[i ? 'lineTo' : 'moveTo'](x * kx, y * ky);
+      x0 = Math.min(x0, x); y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+    });
+    ctx.closePath();
+    ctx.clip();
     ctx.drawImage(td.paintedBg, x0, y0, x1 - x0, y1 - y0,
       x0 * kx, y0 * ky, (x1 - x0) * kx, (y1 - y0) * ky);
+    ctx.restore();
   }
 }
 
@@ -2155,6 +2170,7 @@ function tdDevBuildPanel() {
   panel.className = 'td-dev-panel';
   panel.innerHTML =
     `<div class="td-dev-row">
+       <button data-act="back" title="Back to the region map">⬅</button>
        <button data-act="gold" title="+500 gold">+500🪙</button>
        <button data-act="wave" title="Clear the wave: kills every enemy, empties the spawn queue">☠️ wave</button>
        <span class="td-dev-val" id="td-dev-fps">–</span>
@@ -2181,6 +2197,7 @@ function tdDevBuildPanel() {
     const btn = e.target.closest('button');
     if (!btn) return;
     e.stopPropagation();
+    if (btn.dataset.act === 'back') { showTDWorldMap(); return; }
     if (btn.dataset.act === 'gold') { td.gold += 500; tdUpdateHUD(); }
     else if (btn.dataset.act === 'wave') { td.spawnQueue = []; td.enemies.forEach(en => { en.hp = 0; }); }
     else if (btn.dataset.act === 'copy') {
@@ -2222,9 +2239,12 @@ function tdRenderAuthorOverlay(ctx, cs, W, H) {
   }
 
   ctx.strokeStyle = '#FF3B30'; ctx.fillStyle = '#FF3B30'; ctx.lineWidth = 2;
-  for (const [x0, y0, x1, y1] of (td.occluders || [])) {
-    ctx.strokeRect(x0 * kx, y0 * ky, (x1 - x0) * kx, (y1 - y0) * ky);
-    ctx.fillText(`[${x0},${y0},${x1},${y1}]`, x0 * kx, y0 * ky - 2);
+  for (const poly of (td.occluders || [])) {
+    ctx.beginPath();
+    poly.forEach(([x, y], i) => ctx[i ? 'lineTo' : 'moveTo'](x * kx, y * ky));
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fillText(`[${poly[0][0]},${poly[0][1]}] ${poly.length}pt`, poly[0][0] * kx, poly[0][1] * ky - 2);
   }
 
   ctx.strokeStyle = '#3B82F6'; ctx.fillStyle = '#60A5FA';
@@ -2248,6 +2268,14 @@ function tdRenderAuthorOverlay(ctx, cs, W, H) {
       ctx.strokeStyle = '#0008'; ctx.lineWidth = 1; ctx.stroke();
     });
     j.occluders.forEach((o, i) => {
+      if (o.poly) {
+        o.poly.forEach(([cx, cy], v) => {
+          const on = drag && drag.kind === 'occ-vert' && drag.i === i && drag.v === v;
+          ctx.fillStyle = on ? '#FFFFFF' : '#FF3B30';
+          ctx.fillRect(cx * kx - (on ? 6 : 4), cy * ky - (on ? 6 : 4), on ? 12 : 8, on ? 12 : 8);
+        });
+        return;
+      }
       const [x0, y0, x1, y1] = o.rect;
       [[x0, y0, 0], [x1, y0, 1], [x0, y1, 2], [x1, y1, 3]].forEach(([cx, cy, c]) => {
         const on = drag && drag.kind === 'occ-corner' && drag.i === i && drag.c === c;
@@ -2349,17 +2377,43 @@ function tdAuthorHitTest(ix, iy) {
   j.buildSlots.forEach((s, i) =>
     consider(Math.hypot(ix - s.x, iy - s.y), 42, { kind: 'slot', i }));
   j.occluders.forEach((o, i) => {
+    if (o.poly) {
+      o.poly.forEach(([cx, cy], v) =>
+        consider(Math.hypot(ix - cx, iy - cy), 30, { kind: 'occ-vert', i, v }));
+      return;
+    }
     const [x0, y0, x1, y1] = o.rect;
     [[x0, y0, 0], [x1, y0, 1], [x0, y1, 2], [x1, y1, 3]].forEach(([cx, cy, c]) =>
       consider(Math.hypot(ix - cx, iy - cy), 30, { kind: 'occ-corner', i, c }));
   });
   if (!best) {
     j.occluders.forEach((o, i) => {
-      const [x0, y0, x1, y1] = o.rect;
-      if (!best && ix >= x0 && ix <= x1 && iy >= y0 && iy <= y1) best = { kind: 'occ-body', i };
+      if (best) return;
+      const inside = o.poly
+        ? tdAuthorPointInPoly(ix, iy, o.poly)
+        : (ix >= o.rect[0] && ix <= o.rect[2] && iy >= o.rect[1] && iy <= o.rect[3]);
+      if (inside) best = { kind: 'occ-body', i };
     });
   }
   return best;
+}
+
+// Ray-cast point-in-polygon (image-px space).
+function tdAuthorPointInPoly(px, py, poly) {
+  let inside = false;
+  for (let a = 0, b = poly.length - 1; a < poly.length; b = a++) {
+    const [xa, ya] = poly[a], [xb, yb] = poly[b];
+    if ((ya > py) !== (yb > py) && px < (xb - xa) * (py - ya) / (yb - ya) + xa) inside = !inside;
+  }
+  return inside;
+}
+
+// An occluder's editable outline as a polygon regardless of storage form.
+function tdAuthorOccPoly(o) {
+  return o.poly || [
+    [o.rect[0], o.rect[1]], [o.rect[2], o.rect[1]],
+    [o.rect[2], o.rect[3]], [o.rect[0], o.rect[3]],
+  ];
 }
 
 // One tap with a non-move tool active: add / insert / delete at the point.
@@ -2377,13 +2431,36 @@ function tdAuthorAct(tool, ix, iy) {
     }
     wps.splice(bi + 1, 0, [ix, iy]);
   } else if (tool === 'occl') {
-    j.occluders.push({ id: 'occ-' + (j.occluders.length + 1),
-      rect: [ix - 40, iy - 40, ix + 40, iy + 40] });
+    // Tap near an existing occluder's edge → insert a vertex there (the
+    // path to non-rectangular shapes: a rect converts to a 4-point poly on
+    // its first extra vertex, then every vertex drags freely). Tap on open
+    // ground → new rect occluder.
+    let edge = null;
+    j.occluders.forEach((o, i) => {
+      const poly = tdAuthorOccPoly(o);
+      for (let s = 0; s < poly.length; s++) {
+        const d = tdAuthorSegDist(ix, iy, poly[s], poly[(s + 1) % poly.length]);
+        if (d <= 25 && (!edge || d < edge.d)) edge = { i, seg: s, d };
+      }
+    });
+    if (edge) {
+      const o = j.occluders[edge.i];
+      if (!o.poly) { o.poly = tdAuthorOccPoly(o); delete o.rect; }
+      o.poly.splice(edge.seg + 1, 0, [ix, iy]);
+    } else {
+      j.occluders.push({ id: 'occ-' + (j.occluders.length + 1),
+        rect: [ix - 40, iy - 40, ix + 40, iy + 40] });
+    }
   } else if (tool === 'del') {
     const hit = tdAuthorHitTest(ix, iy);
     if (!hit) return;
     if (hit.kind === 'wp') { if (wps.length > 2) wps.splice(hit.i, 1); }
     else if (hit.kind === 'slot') j.buildSlots.splice(hit.i, 1);
+    else if (hit.kind === 'occ-vert' && j.occluders[hit.i].poly.length > 3) {
+      // deleting a vertex keeps the shape; a triangle's vertex deletes the
+      // whole occluder (a 2-point polygon can't occlude anything)
+      j.occluders[hit.i].poly.splice(hit.v, 1);
+    }
     else j.occluders.splice(hit.i, 1);
   }
   tdAuthorApplyWorldEdits();
@@ -2419,13 +2496,14 @@ function tdAuthorBuildToolbar() {
   bar.className = 'td-author-bar';
   const editable = tdAuthorEditable();
   const tools = [
-    ['move', '✥',  'Move — drag slots, lane points, occluder corners'],
+    ['move', '✥',  'Move — drag slots, lane points, occluder corners/vertices'],
     ['slot', '⊕',  'Add build slot at tap'],
     ['wp',   '➜',  'Insert lane waypoint at tap'],
-    ['occl', '▦',  'Add occluder rect at tap'],
-    ['del',  '✕',  'Delete slot / lane point / occluder at tap'],
+    ['occl', '▦',  'Add occluder rect at tap — tap an existing occluder\'s edge to insert a vertex (non-square shapes)'],
+    ['del',  '✕',  'Delete slot / lane point / occluder (or one polygon vertex) at tap'],
   ];
   bar.innerHTML =
+    `<button class="td-author-btn" data-act="back" title="Back to the region map">⬅</button>` +
     (editable ? tools.map(([id, icon, title]) =>
       `<button class="td-author-btn" data-tool="${id}" title="${title}">${icon}</button>`).join('') : '') +
     `<button class="td-author-btn" data-act="ghost" title="Ghost-walk a test goblin down the lane">👻</button>` +
@@ -2438,6 +2516,7 @@ function tdAuthorBuildToolbar() {
     if (!b) return;
     e.stopPropagation();
     if (b.dataset.tool) { td.__authorTool = b.dataset.tool; sync(); }
+    else if (b.dataset.act === 'back') showTDWorldMap();
     else if (b.dataset.act === 'ghost') tdAuthorSpawnGhost();
     else if (b.dataset.act === 'export') tdAuthorExport();
   });
@@ -2493,6 +2572,8 @@ function tdAuthorInitEditor(canvas) {
       const w = j.lanes[0].waypoints[drag.i]; w[0] += dx; w[1] += dy;
     } else if (drag.kind === 'slot') {
       const s = j.buildSlots[drag.i]; s.x += dx; s.y += dy;
+    } else if (drag.kind === 'occ-vert') {
+      const v = j.occluders[drag.i].poly[drag.v]; v[0] += dx; v[1] += dy;
     } else if (drag.kind === 'occ-corner') {
       const r = j.occluders[drag.i].rect;
       if (drag.c === 0 || drag.c === 2) r[0] += dx; else r[2] += dx;
@@ -2501,8 +2582,9 @@ function tdAuthorInitEditor(canvas) {
       if (r[0] > r[2]) { [r[0], r[2]] = [r[2], r[0]]; drag.c ^= 1; }
       if (r[1] > r[3]) { [r[1], r[3]] = [r[3], r[1]]; drag.c ^= 2; }
     } else if (drag.kind === 'occ-body') {
-      const r = j.occluders[drag.i].rect;
-      r[0] += dx; r[2] += dx; r[1] += dy; r[3] += dy;
+      const o = j.occluders[drag.i];
+      if (o.poly) o.poly.forEach(v => { v[0] += dx; v[1] += dy; });
+      else { const r = o.rect; r[0] += dx; r[2] += dx; r[1] += dy; r[3] += dy; }
     }
     tdAuthorApplyWorldEdits();
   });
