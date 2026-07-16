@@ -318,7 +318,14 @@ function tdInitWorldData(regionJson, ftJson) {
     cols: ftJson.grid.cols, rows: ftJson.grid.rows,
     waypointsPx: ftJson.lanes[0].waypoints,
     buildSlotsPx: ftJson.buildSlots.map(s => [s.x, s.y]),
-    occludersPx: ftJson.occluders.map(o => o.rect),
+    // Occluders normalize to polygons ([[x,y],…]) at runtime: rect entries
+    // ([x0,y0,x1,y1]) stay the compact authoring form for boxes, poly
+    // entries support free shapes (roof peaks, gate arches). The renderer
+    // and editor only ever see polygons.
+    occludersPx: ftJson.occluders.map(o => o.poly || [
+      [o.rect[0], o.rect[1]], [o.rect[2], o.rect[1]],
+      [o.rect[2], o.rect[3]], [o.rect[0], o.rect[3]],
+    ]),
   };
 
   const { viewBox, cols, rows, waypointsPx, buildSlotsPx } = FRONTIER_TOWN_MAP;
@@ -1023,13 +1030,15 @@ function rvmAuthorInitEditor(run) {
   const bar = document.createElement('div');
   bar.id = 'rvm-author-bar';
   bar.className = 'td-author-bar';
-  bar.innerHTML = `<span class="rvm-author-hint">AUTHOR — drag nodes</span>
+  bar.innerHTML = `<button class="td-author-btn" data-act="back" title="Back home">⬅</button>
+    <span class="rvm-author-hint">AUTHOR — drag nodes</span>
     <button class="td-author-btn" data-act="export" title="Copy updated region-preset.json">📋</button>`;
   wrap.appendChild(bar);
   bar.addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) return;
     e.stopPropagation();
+    if (b.dataset.act === 'back') { showHome(); return; }
     const txt = JSON.stringify(VERDANT_REGION_JSON, null, 2) + '\n';
     console.log(txt);
     tdAuthorCopy(txt, ok => {
