@@ -314,6 +314,8 @@ function tdInitWorldData(regionJson, ftJson) {
   // grid path. Enemy *movement* walks the exact polyline (wpsExact below).
   FRONTIER_TOWN_MAP = {
     image: 'assets/worlds/verdant/battlemaps/' + ftJson.image,
+    // pixelArt: NN vs bilinear sampling at render time — see the JSON flag.
+    pixelArt: ftJson.pixelArt !== false,
     viewBox: ftJson.viewBox,
     cols: ftJson.grid.cols, rows: ftJson.grid.rows,
     waypointsPx: ftJson.lanes[0].waypoints,
@@ -535,6 +537,7 @@ function frontierTownLevelDef() {
     diffWeights: { easy: 0.8, medium: 0.2, hard: 0 },
     waveDefs, parts: mapDef.parts, deco: [], isBoss: false,
     usesPaintedBg: 'frontier-town',
+    pixelArt: FRONTIER_TOWN_MAP.pixelArt,
     occludersPx: FRONTIER_TOWN_MAP.occludersPx,
     bgSize: [FRONTIER_TOWN_MAP.viewBox[2], FRONTIER_TOWN_MAP.viewBox[3]],
     gridCols: FRONTIER_TOWN_MAP.cols, gridRows: FRONTIER_TOWN_MAP.rows,

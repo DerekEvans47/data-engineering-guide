@@ -71,6 +71,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Clamp Frontier Town waypoints to the road's grid row
 
+- Draw the painted map nearest-neighbor - map was blurry vs crisp units (#144)
+
 - Enemy pathing follows the painted road, re-center build slots
 
 - Home screen width cap, region map crop-fill, header opacity

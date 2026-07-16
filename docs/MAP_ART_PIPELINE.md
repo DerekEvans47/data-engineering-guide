@@ -214,11 +214,62 @@ final pixels: waypoint path, build-slot positions (in clearings), and any
 region-map node coordinates. Budget real time for this — it is not a config
 tweak.
 
-## 6. Authoring overlay — ?author=1
+## 6. Authoring editor — ?author=1 (v2, 2026-07-16)
 
-Load the app with `?author=1` and enter a painted battle map: occluder
-rects, build-slot rings (with ids + image-px coords), and the enemy lane
-render on top of the game; hovering shows a live image-space pixel readout
-and every click copies `[x,y]` to the clipboard (last 5 shown on screen).
-This is the intended way to hand-place or adjust `buildSlotsPx` /
-`occludersPx` / `waypointsPx` — point at the pixel, paste the number.
+Load the app with `?author=1` and enter a painted battle map. The overlay
+(occluder shapes, build-slot rings, enemy lane, live image-px readout,
+click-to-copy) is now a full **editor** on maps with authoring JSON:
+
+- **✥ move** — drag build slots, lane points, occluder corners/vertices
+  (touch works; everything re-derives live)
+- **⊕ / ➜ / ▦ / ✕** — add slot; insert lane waypoint; add occluder rect
+  (tap an existing occluder's *edge* to insert a vertex — first insert
+  converts the rect to a free polygon for roof peaks / arches); delete
+- **👻** — ghost-walk a test goblin (real renderer + occlusion, no
+  gameplay effects) — the fastest occlusion/pathing check
+- **📋** — export the complete updated `frontier-town.json` to the
+  clipboard, ready to paste over the file (the JSON on disk is the
+  runtime source of truth)
+
+The region map has the same treatment: drag spine nodes, 📋 exports
+`region-preset.json`. Hand-transcribing coordinates is obsolete.
+
+## 7. High-density repaint — closing the map-vs-sprite sharpness gap
+
+The rev 6 Frontier Town map was painted at 1024×434 and shipped 2×
+nearest-neighbor upscaled: ~34 real pixels per grid cell, versus several
+hundred per 2-cell tower sprite. The v149 renderer change (NN sampling for
+`pixelArt` maps) removed the *resampling* blur; the remaining gap is
+source detail, fixable only by repainting denser. Owner decision
+2026-07-16: do this for the next art pass.
+
+**The swap contract (already in code — makes the repaint a pure asset swap):**
+
+- All JSON coordinates (lanes, slots, occluders) live in the **2048×868
+  viewBox space** regardless of the shipped PNG's pixel size — the
+  renderer rescales by `naturalWidth / viewBox` everywhere it samples the
+  image. **No coordinate migration, ever.**
+- `frontier-town.json` has a **`pixelArt` flag**: `true` (current art)
+  draws nearest-neighbor; set it to **`false`** when the high-density
+  repaint ships so real detail downscales bilinear instead of aliasing.
+- Ship steps: overwrite `frontier-town.png` → flip `pixelArt` → PR (CI
+  runs the verifier and auto-bumps the SW cache) → merge.
+
+**Generation practicalities:**
+
+- Output resolution is the real zoom dial (see
+  BATTLEMAP_GENERATION_PROMPTS.md) — request the largest export
+  (~1520+ wide) and re-run the 2b numeric zoom check against the tier
+  anchor at that resolution; feature scale will not match the 1024
+  generations.
+- The two-pass terrain/town flow (2c) and the standard grade (2d) are
+  unchanged.
+- To reach ≥2048 real px: either tile the generation (overlapping
+  halves + the 2c composite-surgery method) or run a *real* upscaler
+  (Lanczos or ESRGAN-class — **never** nearest-neighbor doubling) on the
+  full-res export. Ship at 2048×868; go higher only if the source detail
+  genuinely supports it (mind PNG size — the SW precaches it).
+- Occluders/slots/lane carry over untouched *if* the repaint is
+  silhouette-stable. If building outlines move, re-fit them in minutes
+  with the ?author=1 editor (section 6) — drag the vertices onto the new
+  pixels, ghost-walk, export.
