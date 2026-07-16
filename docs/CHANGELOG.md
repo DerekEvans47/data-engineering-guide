@@ -110,13 +110,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add files via upload
 
-- Load painted-map data from assets/worlds JSON at boot
-
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
 - Mark EQ-7 done (inventory panel + relic-acquired prompt)
 
 - Master battle-map prompt + unique prompts for all 14 Verdant levels
+
+- Modularize Quiz Defense - map data from JSON, drill.js split in four (#141)
 
 - Remove dead multi-world code and retired deco/music systems from drill.js (#139)
 

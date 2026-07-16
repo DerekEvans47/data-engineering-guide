@@ -1,0 +1,82 @@
+# Quiz Defense PR gate — runs the same Playwright smoke test Claude sessions
+# run locally (.claude/skills/verifier-browser.sh), plus auto-bumps the
+# service-worker cache version when a PR touches learn/drill/ without one.
+# Together these make small self-serve edits (map JSON tweaks, tuning
+# changes made in the GitHub web UI) safe to merge without a local checkout.
+name: drill verify
+
+on:
+  pull_request:
+    paths:
+      - 'learn/drill/**'
+      - 'content/question-bank.json'
+      - '.claude/skills/verifier-browser.sh'
+      - '.github/workflows/drill-verify.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: drill-verify-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  # If learn/drill/ changed but the de-drill-v* cache name didn't move past
+  # the base branch's, commit the bump to the PR branch. Without the bump,
+  # phones with a cached SW keep serving old files after deploy (see
+  # CLAUDE.md "Service Worker Checklist"). Pushes made with GITHUB_TOKEN
+  # don't retrigger workflows, so this can't loop; the verify job below
+  # checks out the branch AFTER this job, so it tests the bumped state.
+  sw-bump:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Bump SW cache version if missing
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          BASE="origin/${{ github.base_ref }}"
+          if git diff --quiet "$BASE"...HEAD -- learn/drill/; then
+            echo "No learn/drill changes — no bump needed."; exit 0
+          fi
+          base_v=$(git show "$BASE":learn/drill/sw.js | grep -oE "de-drill-v[0-9]+" | grep -oE "[0-9]+")
+          head_v=$(grep -oE "de-drill-v[0-9]+" learn/drill/sw.js | grep -oE "[0-9]+")
+          if [ "$head_v" -gt "$base_v" ]; then
+            echo "Already bumped (v$base_v -> v$head_v)."; exit 0
+          fi
+          new_v=$((base_v + 1))
+          sed -i "s/de-drill-v${head_v}/de-drill-v${new_v}/" learn/drill/sw.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add learn/drill/sw.js
+          git commit -m "chore: bump SW cache to v${new_v} (auto)"
+          git push origin "HEAD:${{ github.head_ref }}"
+          echo "Bumped v$head_v -> v$new_v and pushed."
+
+  verify:
+    needs: sw-bump
+    if: ${{ !cancelled() && needs.sw-bump.result != 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright + Chromium
+        run: |
+          npm init -y > /dev/null
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Run browser verifier
+        run: DRILL_SCRATCH=/tmp/drill-verify DRILL_KEEP=1 bash .claude/skills/verifier-browser.sh
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-screenshot
+          path: /tmp/drill-verify/*.png
+          if-no-files-found: ignore

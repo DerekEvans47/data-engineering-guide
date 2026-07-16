@@ -10,7 +10,9 @@
 
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-SCRATCHPAD="${TMPDIR:-/tmp}/drill-verify-$$"
+# DRILL_SCRATCH/DRILL_KEEP: CI overrides — fixed dir + keep the screenshot
+# for artifact upload instead of the default per-run tmpdir that's wiped.
+export SCRATCHPAD="${DRILL_SCRATCH:-${TMPDIR:-/tmp}/drill-verify-$$}"
 mkdir -p "$SCRATCHPAD"
 
 # ── Start local HTTP server ────────────────────────────────────────────────
@@ -18,21 +20,29 @@ PORT=8797
 python3 -m http.server "$PORT" --directory "$REPO_ROOT" \
   > "$SCRATCHPAD/server.log" 2>&1 &
 SERVER_PID=$!
-trap 'kill $SERVER_PID 2>/dev/null; rm -rf "$SCRATCHPAD"' EXIT
+trap 'kill $SERVER_PID 2>/dev/null; [ -z "${DRILL_KEEP:-}" ] && rm -rf "$SCRATCHPAD"' EXIT
 sleep 1
 
 # ── Playwright test ────────────────────────────────────────────────────────
 node - <<'JSEOF'
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+// Resolve playwright: repo-local node_modules first (CI installs it there),
+// then the Claude remote-env global install.
+let chromium;
+try { ({ chromium } = require('playwright')); }
+catch { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
 const PORT = process.env.DRILL_PORT || 8797;
 const BASE = `http://localhost:${PORT}/learn/drill/index.html`;
 const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
 
 (async () => {
-  const browser = await chromium.launch({
-    executablePath: '/opt/pw-browsers/chromium',
+  // The pre-installed Chromium exists in the Claude remote env; elsewhere
+  // (CI) fall back to playwright's own downloaded browser.
+  const launchOpts = {
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--autoplay-policy=no-user-gesture-required']
-  });
+  };
+  const preinstalled = process.env.DRILL_CHROMIUM || '/opt/pw-browsers/chromium';
+  if (require('fs').existsSync(preinstalled)) launchOpts.executablePath = preinstalled;
+  const browser = await chromium.launch(launchOpts);
   const ctx  = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await ctx.newPage();
 
@@ -57,6 +67,12 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
   page.on('pageerror',  err => errors.push(`PAGEERROR: ${err.message}`));
   page.on('console',   msg => { if (msg.type() === 'error' && !msg.text().includes('fonts')) errors.push(msg.text()); });
   page.on('response',  res => { if (res.status() >= 400 && !res.url().includes('fonts')) errors.push(`HTTP ${res.status()} ${res.url()}`); });
+
+  // External font fetches are known noise (no internet in the remote env),
+  // but the proxy sometimes HANGS them instead of resetting, which stalls
+  // networkidle until the goto timeout. Abort them deterministically —
+  // the app never depends on them.
+  await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
 
   // ── 1. App loads, home screen renders ──────────────────────────────────
   await page.goto(BASE, { waitUntil: 'networkidle', timeout: 15000 });
