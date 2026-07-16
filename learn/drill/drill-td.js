@@ -246,6 +246,10 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   // tdAuthorInitEditor); untouched gameplay taps still reach the radial.
   if (TD_AUTHOR_MODE) tdAuthorInitEditor(canvas);
 
+  // Dev panel (?dev=1): cheats + live tuning sliders + FPS. Independent of
+  // author mode — tuning sessions don't need the editor overlay.
+  if (TD_DEV_MODE) tdDevBuildPanel();
+
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
     const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
@@ -435,6 +439,7 @@ function tdLoop(ts) {
     tdUpdate(dt);
   }
   tdRender();
+  if (TD_DEV_MODE) tdDevTickFps(ts);
   td.animFrame = requestAnimationFrame(tdLoop);
 }
 
@@ -622,7 +627,8 @@ function tdMoveEnemy(e, dt) {
   // maps without hand-painted art, unchanged from before.
   const exactWps = td.levelDef.wpsExact;
   const wps = exactWps || td.levelDef.wps;
-  let rem = e.spd * cs * dt;
+  // ?dev=1 live enemy-speed multiplier (1 otherwise); applies to ghosts too.
+  let rem = e.spd * cs * dt * (td.__devMods?.enemySpeed || 1);
   while (rem > 0 && e.wpIdx < wps.length) {
     const [tc, tr] = wps[e.wpIdx];
     const tx = exactWps ? tc * cs : tc * cs + cs / 2;
@@ -717,14 +723,17 @@ function tdMoveProjectiles(dt) {
     const d  = Math.hypot(dx, dy);
     if (p.spd * dt >= d) {
       const hx = target.x, hy = target.y;
+      // ?dev=1 live tower-damage multiplier (1 otherwise) — applied at hit
+      // time so slider changes affect projectiles already in flight too.
+      const dmg = p.dmg * (td.__devMods?.towerDmg || 1);
       if (p.splash > 0) {
         for (const e of td.enemies) {
-          if (Math.hypot(e.x - hx, e.y - hy) <= p.splash) e.hp -= e.armored ? p.dmg * 0.5 : p.dmg;
+          if (Math.hypot(e.x - hx, e.y - hy) <= p.splash) e.hp -= e.armored ? dmg * 0.5 : dmg;
         }
       } else {
-        target.hp -= p.dmg;
+        target.hp -= dmg;
       }
-      td.damageNumbers.push({ x: hx, y: hy - 8, val: Math.round(p.dmg), life: 0.65, maxLife: 0.65, color: p.color });
+      td.damageNumbers.push({ x: hx, y: hy - 8, val: Math.round(dmg), life: 0.65, maxLife: 0.65, color: p.color });
       if (target) target.hitFlash = 0.14;
       tdAudio.hit(td.canvas ? hx / td.canvas.width : 0.5);
       tdSpawnParticles(hx, hy, p.color, 5);
@@ -2126,6 +2135,75 @@ function tdRender() {
 // what the exported JSON will play like.
 const TD_AUTHOR_MODE = typeof location !== 'undefined' &&
   new URLSearchParams(location.search).has('author');
+
+// ── Dev panel (?dev=1) ────────────────────────────────────────────
+// Battle-screen tuning aid, independent of author mode: gold cheat, wave
+// clear, FPS meter, and LIVE multipliers for enemy speed / tower damage
+// (applied in tdMoveEnemy / tdMoveProjectiles, so they take effect
+// mid-wave). "📋 multipliers" copies the current values as JSON — settle
+// on numbers while playing, then fold them into config.json's tables.
+const TD_DEV_MODE = typeof location !== 'undefined' &&
+  new URLSearchParams(location.search).has('dev');
+
+function tdDevBuildPanel() {
+  const wrap = document.getElementById('td-canvas-wrap');
+  if (!wrap) return;
+  document.getElementById('td-dev-panel')?.remove();
+  td.__devMods = { enemySpeed: 1, towerDmg: 1 };
+  const panel = document.createElement('div');
+  panel.id = 'td-dev-panel';
+  panel.className = 'td-dev-panel';
+  panel.innerHTML =
+    `<div class="td-dev-row">
+       <button data-act="gold" title="+500 gold">+500🪙</button>
+       <button data-act="wave" title="Clear the wave: kills every enemy, empties the spawn queue">☠️ wave</button>
+       <span class="td-dev-val" id="td-dev-fps">–</span>
+     </div>
+     <div class="td-dev-row" title="Enemy speed multiplier (live)">🐌
+       <input type="range" data-mod="enemySpeed" min="0.25" max="2.5" step="0.05" value="1">
+       <span class="td-dev-val" data-val="enemySpeed">1.00</span>
+     </div>
+     <div class="td-dev-row" title="Tower damage multiplier (live)">⚔️
+       <input type="range" data-mod="towerDmg" min="0.25" max="3" step="0.05" value="1">
+       <span class="td-dev-val" data-val="towerDmg">1.00</span>
+     </div>
+     <div class="td-dev-row">
+       <button data-act="copy" title="Copy current multipliers as JSON — fold the keepers into config.json">📋 multipliers</button>
+     </div>`;
+  wrap.appendChild(panel);
+  panel.addEventListener('input', e => {
+    const mod = e.target.dataset && e.target.dataset.mod;
+    if (!mod) return;
+    td.__devMods[mod] = parseFloat(e.target.value);
+    panel.querySelector(`[data-val="${mod}"]`).textContent = td.__devMods[mod].toFixed(2);
+  });
+  panel.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    e.stopPropagation();
+    if (btn.dataset.act === 'gold') { td.gold += 500; tdUpdateHUD(); }
+    else if (btn.dataset.act === 'wave') { td.spawnQueue = []; td.enemies.forEach(en => { en.hp = 0; }); }
+    else if (btn.dataset.act === 'copy') {
+      const txt = JSON.stringify({
+        devEnemySpeedMult: td.__devMods.enemySpeed,
+        devTowerDmgMult: td.__devMods.towerDmg,
+      }, null, 2);
+      console.log(txt);
+      tdAuthorCopy(txt, ok => { btn.textContent = ok ? '✓ copied' : '⚠ see console'; setTimeout(() => { btn.textContent = '📋 multipliers'; }, 1400); });
+    }
+  });
+}
+
+let __tdDevFrames = 0, __tdDevFpsTs = 0;
+function tdDevTickFps(ts) {
+  __tdDevFrames++;
+  if (ts - __tdDevFpsTs >= 500) {
+    const el = document.getElementById('td-dev-fps');
+    if (el) el.textContent = Math.round(__tdDevFrames * 1000 / (ts - __tdDevFpsTs)) + 'fps';
+    __tdDevFrames = 0;
+    __tdDevFpsTs = ts;
+  }
+}
 
 function tdRenderAuthorOverlay(ctx, cs, W, H) {
   if (!TD_AUTHOR_MODE || !td.bgSize) return;

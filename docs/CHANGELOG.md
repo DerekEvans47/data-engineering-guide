@@ -26,6 +26,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Ambient animation layer on the region map
 
+- Author mode v2 - in-app battle-map editor (?author=1)
+
 - Disable quiz gate for testing, compact quiz card, letterbox backdrop, smaller goblins
 
 - Fantasy-themed battle-screen HUD chrome (wave/quiz/radial/back buttons)

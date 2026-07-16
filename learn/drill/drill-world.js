@@ -12,90 +12,37 @@
 // they call into later ones.
 
 // ╔══════════════════════════════════════════════════════════════
-//  TD GAME CONFIG — edit here to tune tower/enemy/shop/power-up stats
+//  TD GAME CONFIG — now data-driven: edit learn/drill/config.json
 // ╚══════════════════════════════════════════════════════════════
+// The tower/enemy/power-up/relic/event tuning tables and the Frontier Town
+// knobs moved to config.json (2026-07-14) so balance changes are a JSON
+// edit, not a code change — same pattern as the map JSONs. loadWorldData()
+// fetches it at boot and tdApplyConfig() assigns these globals. Design
+// rationale that used to live in inline comments (the L4-ranger
+// second-projectile rule, the 2026-07-05 heavy-shot rate rebalance, the
+// G-2 special enemy semantics, the TEMP frontier startGold) is summarized
+// in config.json's _notes.
+let TD_CONFIG = null;
+let TD_TOWER_DEFS = null;          // towers: cost/range/dmg/rate + upgrades
+let TD_ENEMY_DEFS = null;          // enemies: maxHp/spd/reward (+flags)
+let TD_POWER_UPS = null;           // power-ups: cost/scope/effect
+let TD_RELICS = null;              // relics: category/rarity/upkeep/effect
+let TD_RELIC_CATEGORIES = null;    // category id -> label
+let TD_RELIC_RARITY_COST = null;   // shop pricing by rarity
+let TD_RELIC_RARITY_WEIGHT = null; // shop odds by rarity
+let TD_EVENTS = null;              // inter-node event card deck
 
-// ── Tower definitions (cost, range, dmg, rate, upgrades) ──────
-const TD_TOWER_DEFS = [
-  { id:'bastion', name:'Bastion', icon:'🏰', cost:60,  color:'#3B82F6', range:3.0, dmg:22,  rate:1.5,  splash:0,  pattern:'diagonal',
-    upgrades:[
-      {cost:80,  icon:'🏰', dmg:38,  rate:1.8, range:3.2, splash:0,   glow:'#60A5FA'},
-      {cost:150, icon:'🏯', dmg:70,  rate:2.1, range:3.6, splash:0,   glow:'#C084FC'},
-    ]},
-  // L1-L3 each fire a single projectile, scaling damage/rate/range per tier.
-  // L4 (the diamond ultimate) deliberately keeps the SAME per-projectile
-  // damage as L3 — its upgrade payoff is a 2nd projectile (see
-  // tdFireTowers), which spreads across two different enemies when more
-  // than one is in range, instead of just being a disguised damage
-  // multiplier on a single target.
-  // Rates rebalanced 2026-07-05 (playtest): the old 2.5–4.6/s spray put 4+
-  // slow arrows on screen from one tower. Arrows are now deliberate heavy
-  // shots — roughly 1/s at L1 — with damage raised to keep each tier's DPS
-  // where it was (14×2.5≈32×1.1, 24×3.2≈55×1.4, 44×4.0≈98×1.8).
-  { id:'ranger',  name:'Ranger',  icon:'🏹', cost:90,  color:'#10B981', range:4.5, dmg:32,  rate:1.1,  splash:0,  pattern:'dots', projectiles:1,
-    upgrades:[
-      {cost:100, icon:'🏹', dmg:55,  rate:1.4, range:5.0, splash:0,   glow:'#34D399', projectiles:1},
-      {cost:180, icon:'🎯', dmg:98,  rate:1.8, range:5.6, splash:0,   glow:'#C084FC', projectiles:1},
-      {cost:280, icon:'💎', dmg:98,  rate:2.1, range:6.0, splash:0,   glow:'#A5F3FC', projectiles:2},
-    ]},
-  { id:'mortar',  name:'Mortar',  icon:'💣', cost:130, color:'#EF4444', range:2.8, dmg:60,  rate:0.55, splash:1.5, pattern:'cross',
-    upgrades:[
-      {cost:120, icon:'💣', dmg:100, rate:0.65, range:3.0, splash:1.8, glow:'#F87171'},
-      {cost:200, icon:'💥', dmg:180, rate:0.80, range:3.3, splash:2.3, glow:'#C084FC'},
-    ]},
-];
-
-// ── Enemy definitions (maxHp, spd, reward) ────────────────────
-const TD_ENEMY_DEFS = {
-  // Frontier Town (world 1) roster — bandits raiding the village. Each world
-  // map gets its own themed enemy set rather than reusing this generic
-  // fantasy roster below; Frontier Town is the first to have one. Stats
-  // only for now (see frontierTownWaves) — sprites/animations are a
-  // separate follow-up, so these render as plain colored circles + HP bars
-  // until then (tdRenderEnemies already falls back gracefully when
-  // TD_SPRITES has no entry for a type).
-  bandit:      { maxHp:75,  spd:1.5, reward:5,  color:'#B45309', r:0.28 },
-  bandit_rider:{ maxHp:55,  spd:2.1, reward:8,  color:'#92400E', r:0.30, fast:true },
-  bandit_boss: { maxHp:350, spd:0.7, reward:60, color:'#7C2D12', r:0.50, isBoss:true, lifeLoss:2 },
-
-  goblin: { maxHp:80,  spd:1.6, reward:5,  color:'#4ADE80', r:0.28 },
-  orc:    { maxHp:220, spd:1.0, reward:12, color:'#FBBF24', r:0.36 },
-  scout:  { maxHp:55,  spd:2.6, reward:8,  color:'#F472B6', r:0.22 },
-  troll:  { maxHp:480, spd:0.7, reward:28, color:'#C084FC', r:0.42 },
-  boss:   { maxHp:2000, spd:0.5, reward:100, color:'#EF4444', r:0.55, isBoss:true, lifeLoss:3 },
-  // G-2: special types — armored halves splash dmg, flying ignores mortar targeting,
-  // healer restores nearby HP on a timer
-  raider: { maxHp:50,  spd:3.2, reward:9,  color:'#38BDF8', r:0.24, fast:true },
-  brute:  { maxHp:260, spd:0.9, reward:15, color:'#78716C', r:0.34, armored:true },
-  wisp:   { maxHp:70,  spd:1.8, reward:14, color:'#A5F3FC', r:0.26, flying:true },
-  shaman: { maxHp:130, spd:1.1, reward:18, color:'#34D399', r:0.30, healer:true, healAmount:25, healInterval:2.0, healRadius:2.2 },
-};
-
-
-// ── Power-up definitions (cost, scope, effect) ────────────────
-const TD_POWER_UPS = {
-  gold_rush:  { id:'gold_rush',  name:'Gold Rush',  icon:'💰', cost:40, scope:'wave', effect:{ type:'gold-now',    value:50    } },
-  rapid_fire: { id:'rapid_fire', name:'Rapid Fire', icon:'🏹', cost:50, scope:'wave', effect:{ type:'tower-rate',  value:0.30  } },
-  pathsalt:   { id:'pathsalt',   name:'Pathsalt',   icon:'🧂', cost:80, scope:'wave', effect:{ type:'enemy-speed', value:-0.25 } },
-  fortify:    { id:'fortify',    name:'Fortify',    icon:'🛡️', cost:80, scope:'node', effect:{ type:'lives',       value:3     } },
-  scavenger:  { id:'scavenger',  name:'Scavenger',  icon:'🪝', cost:70, scope:'node', effect:{ type:'kill-gold',   value:1.5   } },
-};
-
-// ── Relic definitions (category, rarity, upkeep, effect) — EQ-4 ──
-// Starter set covering 4 distinct categories to prove out the exclusivity/
-// upkeep/effect-injection mechanism; EQ-5 expands this to the full 16-relic,
-// 8-category content list.
-const TD_RELICS = [
-  { id:'midas_touch',       name:'Midas Touch',       icon:'💰', category:'gold',       rarity:'uncommon', upkeep:10, desc:'+25% kill gold',        effect:{ type:'kill-gold-mult', value:1.25 } },
-  { id:'runed_blade',       name:'Runed Blade',       icon:'⚔️', category:'damage',     rarity:'uncommon', upkeep:12, desc:'Towers +15% damage',    effect:{ type:'tower-dmg-mult', value:1.15 } },
-  { id:'merchants_purse',   name:"Merchant's Purse",  icon:'👛', category:'start-gold', rarity:'common',   upkeep:0,  desc:'+60 node start gold',   effect:{ type:'start-gold-add', value:60   } },
-  { id:'iron_constitution', name:'Iron Constitution', icon:'❤️', category:'lives',      rarity:'rare',     upkeep:15, desc:'+5 max lives per node', effect:{ type:'max-lives-add',  value:5    } },
-];
-const TD_RELIC_CATEGORIES = { gold:'Gold', damage:'Damage', 'start-gold':'Start Gold', lives:'Lives' };
-
-// ── Store node (EQ-6) — relic pricing/odds by rarity ──────────
-const TD_RELIC_RARITY_COST   = { common:120, uncommon:180, rare:250, legendary:400 };
-const TD_RELIC_RARITY_WEIGHT = { common:0.40, uncommon:0.35, rare:0.20, legendary:0.05 };
+function tdApplyConfig(cfg) {
+  TD_CONFIG              = cfg;
+  TD_TOWER_DEFS          = cfg.towers;
+  TD_ENEMY_DEFS          = cfg.enemies;
+  TD_POWER_UPS           = cfg.powerUps;
+  TD_RELICS              = cfg.relics;
+  TD_RELIC_CATEGORIES    = cfg.relicCategories;
+  TD_RELIC_RARITY_COST   = cfg.relicRarityCost;
+  TD_RELIC_RARITY_WEIGHT = cfg.relicRarityWeight;
+  TD_EVENTS              = cfg.events;
+}
 
 // Weighted-random pick from a relic pool, honoring TD_RELIC_RARITY_WEIGHT.
 // Falls back to a plain uniform pick if the pool's rarities happen to sum
@@ -311,17 +258,6 @@ const TD_INTER_META = {
   event: { icon:'🎲', color:'#A78BFA', label:'Event' },
 };
 
-const TD_EVENTS = [
-  { icon:'💰', title:'Grant Funding',  desc:'A research grant comes through.',          effect:'gold+60' },
-  { icon:'☕', title:'Coffee Break',   desc:'The team recharges for your next battle.',  effect:'lives+2' },
-  { icon:'📉', title:'Data Breach',    desc:'A security incident drains resources.',     effect:'gold-30' },
-  { icon:'🎓', title:'Hackathon Win',  desc:'You place first. Bonus XP awarded.',        effect:'xp+100'  },
-  { icon:'⚙️', title:'System Outage', desc:'Infrastructure issues disrupt your forces.',effect:'lives-1' },
-  { icon:'🔮', title:'Mystery Cache', desc:'Hidden data cache uncovered.',              effect:'gold+40' },
-  { icon:'🪙', title:'Tax Refund',     desc:'Unexpected reimbursement arrives.',         effect:'gold+80' },
-  { icon:'📡', title:'Signal Boost',   desc:'Your team gets extra starting funds.',      effect:'gold+50' },
-];
-
 // ── World data — loaded at boot from assets/worlds/ (V-40) ──────
 // The authoring JSONs under assets/worlds/ are the SINGLE source of truth
 // for painted-map data: region-preset.json (spine node placement, verified
@@ -351,13 +287,15 @@ let TD_PAINTED_BG_IMAGES = {};
 
 async function loadWorldData() {
   const base = 'assets/worlds/verdant/';
-  const [regionRes, ftRes] = await Promise.all([
+  const [regionRes, ftRes, cfgRes] = await Promise.all([
     fetch(base + 'region-preset.json'),
     fetch(base + 'battlemaps/frontier-town.json'),
+    fetch('config.json'),
   ]);
-  if (!regionRes.ok || !ftRes.ok) {
-    throw new Error(`world data HTTP ${regionRes.status}/${ftRes.status}`);
+  if (!regionRes.ok || !ftRes.ok || !cfgRes.ok) {
+    throw new Error(`world data HTTP ${regionRes.status}/${ftRes.status}/${cfgRes.status}`);
   }
+  tdApplyConfig(await cfgRes.json());
   tdInitWorldData(await regionRes.json(), await ftRes.json());
 }
 
@@ -574,24 +512,17 @@ function frontierTownLevelDef() {
   const mapDef = TD_MAPS[0];
   const rng = makeSeedRng((Date.now() ^ 0x51a7c0de) >>> 0);
   const waveDefs = frontierTownWaves(rng);
+  // Map-scoped tuning knobs come from config.json's frontierTown section
+  // (enemySpeedMult keeps the rev6 road's ~23s crossing; enemyScaleMult is
+  // the unit-vs-building readability retune; startGold 99999 is a TEMP
+  // testing value — see config.json _notes).
+  const knobs = TD_CONFIG.frontierTown;
   return {
     name: 'Frontier Town', act: mapDef.name, icon: '🏘️', color: mapDef.color,
     enemyMult: 1.0,
-    // rev 6 map's road is a ~31-cell winding run (vs the old art's ~20), so
-    // the 0.6 crossing-time compensation would now overshoot to ~32s. 0.85
-    // puts the tutorial crossing back at ~23s.
-    enemySpeedMult: 0.85,
-    // rev 6 grid is 30×13 (68px cells) instead of 19×9 (80px): units sized in
-    // cells shrank ~15% on screen. Scale this map's enemies back up — also
-    // deliberately compresses the size ladder (goblin ≈ 0.7 cell ≈ ⅓ house
-    // instead of ¼), the unit-vs-building readability retune. Map-scoped so
-    // the procedural 9×10 maps (huge cells) keep their proportions.
-    enemyScaleMult: 1.25,
-    // TEMP (testing, intentionally kept high): bumped from 160 so every tower,
-    // enemy, animation, and other first-map item can be freely placed/tested
-    // without a gold grind. Revert to 160 once the first map's content is
-    // actually complete, not before.
-    startGold: 99999, startLives: 25,
+    enemySpeedMult: knobs.enemySpeedMult,
+    enemyScaleMult: knobs.enemyScaleMult,
+    startGold: knobs.startGold, startLives: knobs.startLives,
     wps: FRONTIER_TOWN_WPS,
     wpsExact: FRONTIER_TOWN_WPS_EXACT,
     diffWeights: { easy: 0.8, medium: 0.2, hard: 0 },
