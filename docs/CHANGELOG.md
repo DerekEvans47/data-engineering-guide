@@ -50,6 +50,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Regen ranger tier 1 as grounded timber watchtower (#140)
 
+- Region-map node editor in author mode (?author=1)
+
 - Reshape Verdant spine - node re-placement, Fishing Camp added (#130)
 
 - Tower facing — orient toward the road, front/back art (#98)
