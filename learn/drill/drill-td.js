@@ -61,7 +61,7 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
   const carryGold = (run && run.stats && run.stats.carryGold) || 0;
   const startLives = levelDef.startLives + (restBonus && restBonus.type === 'lives' ? Math.max(0, restBonus.value) : 0);
   // ?dev=1 / ?author=1 get the bottomless testing purse; real balance otherwise.
-  const startGold  = (TD_DEV_MODE || TD_AUTHOR_MODE) ? 99999
+  const startGold  = TD_CREATOR_MODE ? 99999
     : levelDef.startGold + carryGold + (restBonus && restBonus.type === 'gold' ? Math.max(0, restBonus.value) : 0);
   tdClearRestBonus();
   if (run && run.stats) { run.stats.carryGold = 0; tdSaveRun(run); }
@@ -239,18 +239,12 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   canvas.style.width  = cellCss * TD_COLS + 'px';
   canvas.style.height = cellCss * TD_ROWS + 'px';
 
-  // Authoring tools (?author=1): the v1 hover/copy probes plus, on maps
-  // whose authoring JSON is loaded (Frontier Town), the in-app editor —
-  // drag slots / lane points / occluder corners, add/delete via the
-  // toolbar, ghost-walk a test enemy, export the updated JSON. Registered
-  // BEFORE the gameplay click handler below so the editor can intercept
-  // taps it consumed (see the capture-phase click router in
-  // tdAuthorInitEditor); untouched gameplay taps still reach the radial.
-  if (TD_AUTHOR_MODE) tdAuthorInitEditor(canvas);
-
-  // Dev panel (?dev=1): cheats + live tuning sliders + FPS. Independent of
-  // author mode — tuning sessions don't need the editor overlay.
-  if (TD_DEV_MODE) tdDevBuildPanel();
+  // Creator mode: wire the canvas author listeners up front (they no-op
+  // until the 🗺️ Map chip is on) and show the creator toolbar. The author
+  // listeners MUST register BEFORE the gameplay click handler below so the
+  // editor's capture-phase router can intercept the taps it consumes;
+  // untouched gameplay taps still reach the radial menu.
+  if (TD_CREATOR_MODE) { tdAuthorInitEditor(canvas); tdCreatorBuildToolbar(); }
 
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
@@ -463,7 +457,7 @@ function tdLoop(ts) {
     tdUpdate(dt);
   }
   tdRender();
-  if (TD_DEV_MODE) tdDevTickFps(ts);
+  if (tdTuningOn) tdDevTickFps(ts);
   td.animFrame = requestAnimationFrame(tdLoop);
 }
 
@@ -2245,17 +2239,71 @@ function tdRender() {
 // Every edit mutates FRONTIER_TOWN_JSON and re-runs tdInitWorldData, so
 // path, slot cells, and facing re-derive live — what you see is exactly
 // what the exported JSON will play like.
-const TD_AUTHOR_MODE = typeof location !== 'undefined' &&
-  new URLSearchParams(location.search).has('author');
+// ── Creator mode (one switch, two on-page toggles) ─────────────────
+// The old two-flag split (?author for map geometry, ?dev for balance
+// tuning) collapsed into one entry on 2026-07-17. Any of ?dev / ?author
+// / ?edit turns Creator Mode on; on the battle screen a small toolbar
+// then offers two independent chips:
+//   🗺️ Map  — the map-authoring overlay + editors (drag slots / lanes /
+//             occluders, ghost-walk, export frontier-town.json)
+//   ⚙️ Tune — the tuning panel: gold cheat, wave clear, FPS, live
+//             enemy-speed / tower-damage sliders, 📋 multipliers, and the
+//             🏺 relic editor (export config.json)
+// Neither is on until tapped, so entering Creator Mode no longer commits
+// you to one toolset. Both can be on at once. The 99999 testing purse
+// applies whenever Creator Mode is on (see startGold in
+// showTowerDefenseScreen), independent of which chips are active.
+const TD_CREATOR_MODE = typeof location !== 'undefined' &&
+  ['dev', 'author', 'edit'].some(k => new URLSearchParams(location.search).has(k));
+// Runtime toggles, driven by the creator toolbar; reset per battle.
+let tdMapToolsOn = false;  // map-authoring overlay + editors (was ?author=1)
+let tdTuningOn   = false;  // tuning panel: cheats/sliders/relics (was ?dev=1)
 
-// ── Dev panel (?dev=1) ────────────────────────────────────────────
-// Battle-screen tuning aid, independent of author mode: gold cheat, wave
-// clear, FPS meter, and LIVE multipliers for enemy speed / tower damage
-// (applied in tdMoveEnemy / tdMoveProjectiles, so they take effect
-// mid-wave). "📋 multipliers" copies the current values as JSON — settle
-// on numbers while playing, then fold them into config.json's tables.
-const TD_DEV_MODE = typeof location !== 'undefined' &&
-  new URLSearchParams(location.search).has('dev');
+// The single Creator-Mode toolbar: ⬅ back plus two chips that toggle the
+// map-authoring tools and the tuning panel independently. Built once per
+// battle in initTDGame; the chips lazily build/tear down the two existing
+// sub-panels (td-author-bar, td-dev-panel) so nothing is on until tapped.
+function tdCreatorBuildToolbar() {
+  const wrap = document.getElementById('td-canvas-wrap');
+  if (!wrap) return;
+  // Fresh battle → nothing enabled yet; drop any panels left in the DOM.
+  tdMapToolsOn = false;
+  tdTuningOn   = false;
+  document.getElementById('td-author-bar')?.remove();
+  document.getElementById('td-dev-panel')?.remove();
+  document.getElementById('td-creator-bar')?.remove();
+
+  const bar = document.createElement('div');
+  bar.id = 'td-creator-bar';
+  bar.className = 'td-creator-bar';
+  bar.innerHTML =
+    `<button class="td-author-btn" data-act="back" title="Back to the region map">⬅</button>` +
+    `<button class="td-author-btn" data-tog="map"  title="Map tools — drag slots / lanes / occluders, ghost-walk, export frontier-town.json">🗺️</button>` +
+    `<button class="td-author-btn" data-tog="tune" title="Tuning — gold / wave cheats, live sliders, relic editor, export config.json">⚙️</button>`;
+  wrap.appendChild(bar);
+
+  const sync = () => {
+    bar.querySelector('[data-tog="map"]').classList.toggle('active', tdMapToolsOn);
+    bar.querySelector('[data-tog="tune"]').classList.toggle('active', tdTuningOn);
+  };
+  bar.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    e.stopPropagation();
+    if (b.dataset.act === 'back') { showTDWorldMap(); return; }
+    if (b.dataset.tog === 'map') {
+      tdMapToolsOn = !tdMapToolsOn;
+      if (tdMapToolsOn) tdAuthorBuildToolbar();
+      else document.getElementById('td-author-bar')?.remove();
+    } else if (b.dataset.tog === 'tune') {
+      tdTuningOn = !tdTuningOn;
+      if (tdTuningOn) tdDevBuildPanel();
+      else document.getElementById('td-dev-panel')?.remove();
+    }
+    sync();
+  });
+  sync();
+}
 
 function tdDevBuildPanel() {
   const wrap = document.getElementById('td-canvas-wrap');
@@ -2267,7 +2315,6 @@ function tdDevBuildPanel() {
   panel.className = 'td-dev-panel';
   panel.innerHTML =
     `<div class="td-dev-row">
-       <button data-act="back" title="Back to the region map">⬅</button>
        <button data-act="gold" title="+500 gold">+500🪙</button>
        <button data-act="wave" title="Clear the wave: kills every enemy, empties the spawn queue">☠️ wave</button>
        <span class="td-dev-val" id="td-dev-fps">–</span>
@@ -2452,7 +2499,7 @@ function tdDevTickFps(ts) {
 }
 
 function tdRenderAuthorOverlay(ctx, cs, W, H) {
-  if (!TD_AUTHOR_MODE || !td.bgSize) return;
+  if (!tdMapToolsOn || !td.bgSize) return;
   const kx = W / td.bgSize[0], ky = H / td.bgSize[1];
   const fs = Math.max(10, Math.round(cs * 0.24));
   ctx.save();
@@ -2546,7 +2593,7 @@ function tdRenderAuthorOverlay(ctx, cs, W, H) {
 // in-app editor can round-trip it (only Frontier Town has painted-map
 // JSON today; procedural maps have nothing to edit).
 function tdAuthorEditable() {
-  return TD_AUTHOR_MODE && td && td.usesPaintedBg === 'frontier-town' && !!FRONTIER_TOWN_JSON;
+  return tdMapToolsOn && td && td.usesPaintedBg === 'frontier-town' && !!FRONTIER_TOWN_JSON;
 }
 
 // Clipboard write with the legacy hidden-textarea fallback (the Clipboard
@@ -2732,7 +2779,6 @@ function tdAuthorBuildToolbar() {
     ['del',  '✕',  'Delete slot / lane point / occluder (or one polygon vertex) at tap'],
   ];
   bar.innerHTML =
-    `<button class="td-author-btn" data-act="back" title="Back to the region map">⬅</button>` +
     (editable ? tools.map(([id, icon, title]) =>
       `<button class="td-author-btn" data-tool="${id}" title="${title}">${icon}</button>`).join('') : '') +
     `<button class="td-author-btn" data-act="ghost" title="Ghost-walk a test goblin down the lane">👻</button>` +
@@ -2754,8 +2800,9 @@ function tdAuthorBuildToolbar() {
 
 // Wires the author tools onto a freshly-built battle canvas. Called from
 // initTDGame (before the gameplay click handler is registered) whenever
-// TD_AUTHOR_MODE is on — for non-editable maps it degrades to the v1
-// probes: hover readout + tap-to-copy.
+// Creator Mode is on; every handler additionally gates on tdMapToolsOn so
+// nothing fires until the 🗺️ Map chip is tapped. For non-editable maps it
+// degrades to the v1 probes: hover readout + tap-to-copy.
 function tdAuthorInitEditor(canvas) {
   const toImg = e => {
     const rect = canvas.getBoundingClientRect();
@@ -2847,8 +2894,10 @@ function tdAuthorInitEditor(canvas) {
   }, true);
 
   // ── v1 coordinate probe: tap-to-copy (bubble phase — anything the
-  // editor consumed never reaches here) ──
+  // editor consumed never reaches here). Only while Map tools are on, so
+  // ordinary gameplay taps don't copy coordinates. ──
   canvas.addEventListener('click', e => {
+    if (!tdMapToolsOn) return;
     const p = toImg(e);
     if (!p) return;
     td.__authorClicks = [[p.ix, p.iy], ...(td.__authorClicks || [])].slice(0, 5);
@@ -2856,8 +2905,8 @@ function tdAuthorInitEditor(canvas) {
     const txt = `[${p.ix},${p.iy}]`;
     tdAuthorCopy(txt, ok => { td.__authorCopied = { txt, ok, until: Date.now() + 1400 }; });
   });
-
-  tdAuthorBuildToolbar();
+  // The author sub-toolbar is shown on demand by the 🗺️ Map chip
+  // (tdCreatorBuildToolbar), not auto-opened here.
 }
 
 function tdRRect(ctx, x, y, w, h, r) {

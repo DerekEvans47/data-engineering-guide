@@ -110,21 +110,29 @@ leave changes sitting on an unmerged branch waiting for review. After merging,
 verify the `pages build and deployment` workflow actually succeeded (it fails
 transiently sometimes — re-run the FULL workflow if so, not just failed jobs).
 
-## learn/drill — Dev Tooling (2026-07-14)
+## learn/drill — Dev Tooling (Creator Mode, 2026-07-17)
 
-- **`?author=1`** — in-app map editor. On the painted battle map: drag build
-  slots / lane points / occluder corners; toolbar tools add/delete them;
-  👻 ghost-walks a test goblin (real renderer, no gameplay effects);
-  📋 exports the updated `frontier-town.json` to the clipboard. On the
-  region map: drag spine nodes; 📋 exports `region-preset.json`. Paste
-  exports over the files in `learn/drill/assets/worlds/` — the JSONs are
-  the runtime source of truth (loaded at boot by `loadWorldData`).
-- **`?dev=1`** — battle tuning panel: +500 gold, wave clear, FPS meter,
-  LIVE enemy-speed / tower-damage sliders, a copy-multipliers button, and
-  🏺 **relic editor** — add/remove/rename/tune relics (category, rarity,
-  upkeep, effect type + value, starter flag); 📋 exports the FULL updated
-  `config.json` to the clipboard — paste it over `learn/drill/config.json`
-  and push. Relic ids are immutable (saves reference them).
+- **Creator Mode** — one switch, `?dev=1` (or the aliases `?author=1` /
+  `?edit=1`; all three are equivalent and old bookmarks keep working). On
+  the battle screen it shows a small toolbar with ⬅ back plus two toggle
+  chips; neither toolset is active until you tap its chip, and both can be
+  on at once. Entering Creator Mode also grants the 99999 testing purse
+  (real start gold is 160 for normal play). The old two-flag split
+  (`?author` = map, `?dev` = tuning) is gone — the chips replace it.
+  - **🗺️ Map** — in-app map editor. On the painted battle map: drag build
+    slots / lane points / occluder corners; toolbar tools add/delete them;
+    👻 ghost-walks a test goblin (real renderer, no gameplay effects);
+    📋 exports the updated `frontier-town.json` to the clipboard. On the
+    region map (which has no toolbar) spine-node dragging + `region-preset.json`
+    export are simply on whenever Creator Mode is. Paste exports over the
+    files in `learn/drill/assets/worlds/` — the JSONs are the runtime
+    source of truth (loaded at boot by `loadWorldData`).
+  - **⚙️ Tune** — battle tuning panel: +500 gold, wave clear, FPS meter,
+    LIVE enemy-speed / tower-damage sliders, a copy-multipliers button, and
+    🏺 **relic editor** — add/remove/rename/tune relics (category, rarity,
+    upkeep, effect type + value, starter flag); 📋 exports the FULL updated
+    `config.json` to the clipboard — paste it over `learn/drill/config.json`
+    and push. Relic ids are immutable (saves reference them).
 - **`learn/drill/config.json`** — ALL tower/enemy/power-up/relic/event
   tuning plus the Frontier Town knobs. Balance changes are JSON edits, not
   JS edits.
