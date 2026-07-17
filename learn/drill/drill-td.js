@@ -1739,8 +1739,10 @@ function tdWithMirror(ctx, px, mirror, draw) {
   ctx.restore();
 }
 
-function tdRenderTowers(ctx, cs, bgT) {
-  for (const t of td.towers) {
+// One tower (shadow, art, upgrade ring, muzzle flash, level tag). Called
+// from the depth-sorted world pass in tdRender; its ground-contact baseline
+// there is tdCellCenter y + cs/2 — the same groundY computed below.
+function tdDrawTower(ctx, cs, bgT, t) {
     const def   = TD_TOWER_DEFS.find(d => d.id === t.type);
     const stats = tdGetTowerStats(t);
     const lvl   = t.level || 0;
@@ -1801,7 +1803,7 @@ function tdRenderTowers(ctx, cs, bgT) {
         ctx.fillText('L' + (lvl+1), px + renderW/2 - 2, groundY - 2);
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       }
-      continue;
+      return;
     }
 
     ctx.fillStyle = 'rgba(0,0,0,.5)';
@@ -1832,7 +1834,6 @@ function tdRenderTowers(ctx, cs, bgT) {
       ctx.fillText('L' + (lvl+1), px + cs/2 - 2, py + cs/2 - 2);
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     }
-  }
 }
 
 // Structures that straddle the road (gate towers, overhanging rooflines):
@@ -1893,12 +1894,10 @@ function tdRenderCorpses(ctx, cs) {
   }
 }
 
-function tdRenderEnemies(ctx, cs, bgT) {
-  // Ghost walkers (author mode) render through the exact same path as real
-  // enemies — that's the point: they test sprite scale and occluder rects
-  // with the true renderer, not an approximation.
-  const sorted = [...td.enemies, ...(td.__ghosts || [])].sort((a,b) => b.dist - a.dist);
-  for (const e of sorted) {
+// One enemy (shadow, sprite/fallback, badges, HP bar). Called from the
+// depth-sorted world pass in tdRender; its foot baseline there is
+// e.y + e.r*cs*0.78 — matching the painted sheets' footY below.
+function tdDrawEnemy(ctx, cs, bgT, e) {
     const r = e.r * cs;
     // Boss pulsing outer ring
     if (e.isBoss) {
@@ -1986,7 +1985,6 @@ function tdRenderEnemies(ctx, cs, bgT) {
       ctx.strokeStyle = '#FBBF2488'; ctx.lineWidth = 1;
       ctx.strokeRect(bx, by, bw, bh);
     }
-  }
 }
 
 // ── Projectiles, particles & floating text ───────────────────────
@@ -2123,8 +2121,8 @@ function tdRender() {
     tdRenderLandmarks(ctx, cs, W, bgT, wps, entryRow, exitRow);
   }
   tdRenderPlacementUI(ctx, cs, bgT);
-  tdRenderTowers(ctx, cs, bgT);
-  // Armed-build range preview ring (two-tap placement flow)
+  // Armed-build range preview ring (two-tap placement flow) — a ground
+  // decal, so it draws under the depth-sorted units/towers below.
   if (td.rangePreview) {
     const rp = td.rangePreview;
     ctx.save();
@@ -2135,7 +2133,24 @@ function tdRender() {
     ctx.restore();
   }
   tdRenderCorpses(ctx, cs);
-  tdRenderEnemies(ctx, cs, bgT);
+  // Depth-sorted world pass: towers and living units (ghosts included —
+  // they must depth-test like real enemies) interleave by ground-contact Y,
+  // Kingdom-Rush style. An enemy on the road NORTH of a tower's base now
+  // passes BEHIND it instead of stamping feet/shadow over the tower art;
+  // one walking SOUTH correctly crosses in front. Baseline ties keep
+  // path-progress order so side-by-side enemies don't flicker. Corpses lie
+  // flat and stay under everything; painted-building occlusion is still
+  // the occluder blit after this pass.
+  const worldItems = [];
+  for (const t of td.towers) {
+    const [, py] = tdCellCenter(t.col, t.row, cs);
+    worldItems.push({ y: py + cs / 2, d: 0, draw: () => tdDrawTower(ctx, cs, bgT, t) });
+  }
+  for (const e of [...td.enemies, ...(td.__ghosts || [])]) {
+    worldItems.push({ y: e.y + e.r * cs * 0.78, d: e.dist || 0, draw: () => tdDrawEnemy(ctx, cs, bgT, e) });
+  }
+  worldItems.sort((a, b) => (a.y - b.y) || (b.d - a.d));
+  for (const item of worldItems) item.draw();
   tdRenderOccluders(ctx);
   tdRenderProjectiles(ctx, cs);
   tdRenderParticles(ctx);
@@ -2489,7 +2504,7 @@ function tdAuthorAct(tool, ix, iy) {
 // Walks a test goblin down the lane. Reuses the real spawner so the ghost
 // matches live tuning (speed/scale mults) exactly, then reroutes it to the
 // ghost list — rendered and moved like a real enemy, ignored by everything
-// else (see tdUpdate / tdRenderEnemies).
+// else (see tdUpdate / the depth-sorted world pass in tdRender).
 function tdAuthorSpawnGhost() {
   if (!td || !td.levelDef) return;
   tdSpawnEnemy('goblin');

@@ -12,6 +12,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Frontier Town bandit roster + Ranger L4 multi-projectile (#102)
 
+- Frontier Town rev 7 - new painterly art direction + first-pass authoring
+
 - Frontier Town wide battle map (30x13, rev 6) + map art pipeline updates (#133)
 
 - New Run option on the home screen
@@ -117,6 +119,8 @@ A record of every feature, fix, and improvement shipped to the app.
 - Add files via upload
 
 - Add files via upload
+
+- Adjust object placement and occlusion
 
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
