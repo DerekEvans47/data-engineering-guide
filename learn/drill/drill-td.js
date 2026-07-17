@@ -1696,13 +1696,37 @@ function tdDrawTowerPattern(ctx, x, y, size, pattern) {
   ctx.restore();
 }
 
-// Silhouette shadow: redraws the tower's OWN sprite through the canvas
-// `brightness(0)` filter, which blackens every RGB pixel while leaving alpha
-// untouched — so the shadow is a solid-black cutout of the tower's exact
-// shape (roof, walls, ladder rungs, whatever it actually is) instead of a
-// generic ellipse. A ladder tower gets a ladder-shaped shadow, a stone tower
-// gets a wider, blockier one, and every future asset gets a correct shadow
-// for free with no per-tier tuning. Sheared toward lower-left (matching the
+// Blackened copy of a tower sprite, rendered once per source image into an
+// offscreen canvas and cached. `ctx.filter = 'brightness(0)'` would be the
+// one-line way to get this, but iOS Safari (pre-18) silently ignores canvas
+// filters — the sprite drew in full colour and the "shadow" appeared as a
+// pale sheared duplicate of the tower instead of a dark shape on the
+// ground. source-in compositing (draw sprite, then fill black through its
+// alpha) is supported everywhere and produces the identical cutout.
+const TD_TOWER_SILHOUETTES = new Map();
+function tdTowerSilhouette(tierImg) {
+  let sil = TD_TOWER_SILHOUETTES.get(tierImg);
+  if (!sil) {
+    sil = document.createElement('canvas');
+    sil.width  = tierImg.naturalWidth;
+    sil.height = tierImg.naturalHeight;
+    const sctx = sil.getContext('2d');
+    sctx.drawImage(tierImg, 0, 0);
+    sctx.globalCompositeOperation = 'source-in';
+    sctx.fillStyle = '#000';
+    sctx.fillRect(0, 0, sil.width, sil.height);
+    TD_TOWER_SILHOUETTES.set(tierImg, sil);
+  }
+  return sil;
+}
+
+// Silhouette shadow: redraws the tower's OWN sprite blackened (see
+// tdTowerSilhouette), so the shadow is a solid-black cutout of the tower's
+// exact shape (roof, walls, ladder rungs, whatever it actually is) instead
+// of a generic ellipse. A ladder tower gets a ladder-shaped shadow, a stone
+// tower gets a wider, blockier one, and every future asset gets a correct
+// shadow for free with no per-tier tuning. Sheared toward lower-left
+// (matching the
 // map's implied sun — see the shadow-direction note in
 // docs/TOWER_GENERATION_PROMPTS.md) so it reads as fallen on the ground rather
 // than a second copy of the tower. The squash factor here (0.50) is
@@ -1718,10 +1742,9 @@ function tdDrawTowerPattern(ctx, x, y, size, pattern) {
 function tdRenderTowerShadow(ctx, tierImg, px, groundY, renderW, renderH) {
   ctx.save();
   ctx.globalAlpha = 0.42;
-  ctx.filter = 'brightness(0)';
   ctx.translate(px, groundY);
   ctx.transform(1, 0, 0.20, 0.50, 0, 0);
-  ctx.drawImage(tierImg, -renderW / 2, -renderH, renderW, renderH);
+  ctx.drawImage(tdTowerSilhouette(tierImg), -renderW / 2, -renderH, renderW, renderH);
   ctx.restore();
 }
 
