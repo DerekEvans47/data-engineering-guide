@@ -116,6 +116,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add files via upload
 
+- Add files via upload
+
 - Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
 
 - Mark EQ-7 done (inventory panel + relic-acquired prompt)
@@ -127,5 +129,7 @@ A record of every feature, fix, and improvement shipped to the app.
 - Remove dead multi-world code and retired deco/music systems from drill.js (#139)
 
 - Reorganize docs into docs/, README leads with the game (#99)
+
+- Resolution-independent map rendering + pixelArt flag - hi-res regen prep (#145)
 
 
