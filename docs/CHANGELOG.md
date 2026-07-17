@@ -114,4 +114,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Resolution-independent map rendering + pixelArt flag - hi-res regen prep (#145)
 
+- Unify ?dev and ?author into one Creator Mode with on-page toggles (#149)
+
 

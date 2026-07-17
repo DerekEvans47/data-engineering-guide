@@ -60,7 +60,7 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
   const restBonus = tdLoadRestBonus();
   const carryGold = (run && run.stats && run.stats.carryGold) || 0;
   const startLives = levelDef.startLives + (restBonus && restBonus.type === 'lives' ? Math.max(0, restBonus.value) : 0);
-  // ?dev=1 / ?author=1 get the bottomless testing purse; real balance otherwise.
+  // ?dev=1 (Creator Mode) gets the bottomless testing purse; real balance otherwise.
   const startGold  = TD_CREATOR_MODE ? 99999
     : levelDef.startGold + carryGold + (restBonus && restBonus.type === 'gold' ? Math.max(0, restBonus.value) : 0);
   tdClearRestBonus();
@@ -2218,7 +2218,7 @@ function tdRender() {
   tdRenderAuthorOverlay(ctx, cs, W, H);
 }
 
-// ── Map authoring tools (?author=1) — v2, in-app editor ──────────
+// ── Map authoring tools (Creator Mode → 🗺️ Map) — v2, in-app editor ──
 // Dev-only. On painted battle maps the overlay shows every occluder rect
 // (red, with its [x0,y0,x1,y1]), every build slot (blue ring + [x,y]), and
 // the enemy lane (yellow); hovering shows a live crosshair + IMAGE-SPACE
@@ -2240,10 +2240,10 @@ function tdRender() {
 // path, slot cells, and facing re-derive live — what you see is exactly
 // what the exported JSON will play like.
 // ── Creator mode (one switch, two on-page toggles) ─────────────────
-// The old two-flag split (?author for map geometry, ?dev for balance
-// tuning) collapsed into one entry on 2026-07-17. Any of ?dev / ?author
-// / ?edit turns Creator Mode on; on the battle screen a small toolbar
-// then offers two independent chips:
+// Enter with ?dev=1 — the single editor entry point (the old ?author /
+// ?dev split, then the transitional ?author / ?edit aliases, were retired
+// 2026-07-17). On the battle screen a small toolbar then offers two
+// independent chips:
 //   🗺️ Map  — the map-authoring overlay + editors (drag slots / lanes /
 //             occluders, ghost-walk, export frontier-town.json)
 //   ⚙️ Tune — the tuning panel: gold cheat, wave clear, FPS, live
@@ -2254,7 +2254,7 @@ function tdRender() {
 // applies whenever Creator Mode is on (see startGold in
 // showTowerDefenseScreen), independent of which chips are active.
 const TD_CREATOR_MODE = typeof location !== 'undefined' &&
-  ['dev', 'author', 'edit'].some(k => new URLSearchParams(location.search).has(k));
+  new URLSearchParams(location.search).has('dev');
 // Runtime toggles, driven by the creator toolbar; reset per battle.
 let tdMapToolsOn = false;  // map-authoring overlay + editors (was ?author=1)
 let tdTuningOn   = false;  // tuning panel: cheats/sliders/relics (was ?dev=1)
