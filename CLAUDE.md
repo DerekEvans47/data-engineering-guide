@@ -112,8 +112,8 @@ transiently sometimes — re-run the FULL workflow if so, not just failed jobs).
 
 ## learn/drill — Dev Tooling (Creator Mode, 2026-07-17)
 
-- **Creator Mode** — one switch, `?dev=1` (or the aliases `?author=1` /
-  `?edit=1`; all three are equivalent and old bookmarks keep working). On
+- **Creator Mode** — one switch, `?dev=1` (the single editor entry point;
+  the earlier `?author` / `?edit` aliases were retired 2026-07-17). On
   the battle screen it shows a small toolbar with ⬅ back plus two toggle
   chips; neither toolset is active until you tap its chip, and both can be
   on at once. Entering Creator Mode also grants the 99999 testing purse

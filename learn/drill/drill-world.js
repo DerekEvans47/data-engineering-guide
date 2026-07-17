@@ -273,7 +273,7 @@ const TD_INTER_META = {
 // zero new lines here.
 let VERDANT_REGION = null;
 // Raw authoring JSONs, kept as fetched (and mutated by author mode's
-// in-app editors) so ?author=1 can re-derive runtime state after an edit
+// in-app editors) so Creator Mode can re-derive runtime state after an edit
 // and export a file-ready replacement for the JSON on disk.
 let VERDANT_REGION_JSON = null;
 let FRONTIER_TOWN_JSON = null;
@@ -523,8 +523,9 @@ function frontierTownLevelDef() {
   const waveDefs = frontierTownWaves(rng);
   // Map-scoped tuning knobs come from config.json's frontierTown section
   // (enemySpeedMult keeps the rev6 road's ~23s crossing; enemyScaleMult is
-  // the unit-vs-building readability retune; ?dev=1 / ?author=1 override
-  // startGold with a 99999 testing purse in showTowerDefenseScreen).
+  // the unit-vs-building readability retune; ?dev=1 (Creator Mode)
+  // overrides startGold with a 99999 testing purse in
+  // showTowerDefenseScreen).
   const knobs = TD_CONFIG.frontierTown;
   return {
     name: 'Frontier Town', act: mapDef.name, icon: '🏘️', color: mapDef.color,
@@ -1008,14 +1009,14 @@ function renderVerdantWorldMap(run) {
     });
   });
 
-  // Creator mode (?dev / ?author / ?edit): every spine node becomes
-  // draggable and the updated region-preset.json is exportable — see
-  // rvmAuthorInitEditor. The region map has no per-screen toolbar, so
-  // spine editing is simply on whenever Creator Mode is.
+  // Creator mode (?dev=1): every spine node becomes draggable and the
+  // updated region-preset.json is exportable — see rvmAuthorInitEditor.
+  // The region map has no per-screen toolbar, so spine editing is simply
+  // on whenever Creator Mode is.
   if (TD_CREATOR_MODE) rvmAuthorInitEditor(run);
 }
 
-// ── Region-map node editor (?author=1) ─────────────────────────
+// ── Region-map node editor (Creator Mode) ──────────────────────
 // The world-map counterpart of the battle-map editor in drill-td.js: drag
 // any spine node (pointer events, touch included) to reposition it on the
 // painted road; roads connected to it follow live, the coordinates write
