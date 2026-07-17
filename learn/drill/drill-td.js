@@ -60,7 +60,9 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
   const restBonus = tdLoadRestBonus();
   const carryGold = (run && run.stats && run.stats.carryGold) || 0;
   const startLives = levelDef.startLives + (restBonus && restBonus.type === 'lives' ? Math.max(0, restBonus.value) : 0);
-  const startGold  = levelDef.startGold + carryGold + (restBonus && restBonus.type === 'gold' ? Math.max(0, restBonus.value) : 0);
+  // ?dev=1 / ?author=1 get the bottomless testing purse; real balance otherwise.
+  const startGold  = (TD_DEV_MODE || TD_AUTHOR_MODE) ? 99999
+    : levelDef.startGold + carryGold + (restBonus && restBonus.type === 'gold' ? Math.max(0, restBonus.value) : 0);
   tdClearRestBonus();
   if (run && run.stats) { run.stats.carryGold = 0; tdSaveRun(run); }
 
@@ -303,15 +305,15 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   });
 
   EL.tdWaveBtn.addEventListener('click', tdOnWaveBtn);
-  if (TD_QUIZ_DISABLED) EL.tdQuizBtn.style.display = 'none';
   EL.tdQuizBtn.addEventListener('click', () => {
-    if (!td || td.quizOpen || td.over || td.won || TD_QUIZ_DISABLED) return;
+    if (!td || td.quizOpen || td.over || td.won) return;
     if (td.optQuizUsed >= 3) {
       const btn = EL.tdQuizBtn;
       if (btn) { btn.textContent = '📝 Max 3/wave'; setTimeout(() => tdUpdateHUD(), 1500); }
       return;
     }
-    tdOpenQuiz(25, true, () => { td.optQuizUsed++; tdUpdateHUD(); });
+    td.optQuizUsed++;
+    tdOpenQuiz(25, true, () => tdUpdateHUD());
   });
 
   td.autoSaveInterval = setInterval(() => {
@@ -972,9 +974,9 @@ function tdShowTutorial() {
     { icon: '🏗️', title: 'Place a tower',
       body: 'Tap a glowing clearing on the map to open your build options, then tap a tower to place it. Towers fire automatically at enemies.' },
     { icon: '⚔️', title: 'Start a wave',
-      body: 'Once your towers are placed, tap <strong>Start Wave</strong>. Each wave begins with a quiz question — answer correctly for bonus gold!' },
+      body: 'Once your towers are placed, tap <strong>Start Wave</strong>. Need extra gold? Tap 📝 any time for an optional bonus question — correct answers pay out instantly.' },
     { icon: '📝', title: 'Earn gold, upgrade, survive',
-      body: 'Tap a placed tower for Upgrade &amp; Sell options. Kill rewards and quiz gold fund it all — hold the line through every wave to win. Good luck!' },
+      body: 'Tap a placed tower for Upgrade &amp; Sell options. Kill rewards and bonus-question gold fund it all — hold the line through every wave to win. Good luck!' },
   ];
   var step = 0;
   function showStep() {
@@ -1119,8 +1121,7 @@ function tdOnWaveBtn() {
     tdUpdateWaveBtn();
     tdUpdateHUD();
   };
-  if (TD_QUIZ_DISABLED) { begin(); return; }
-  tdOpenQuiz(30, false, begin);
+  begin();
 }
 
 function tdStartWave(idx) {
@@ -1233,12 +1234,11 @@ function tdEnterEndless() {
   EL.tdWaveBtn     = document.getElementById('td-wave-btn');
   EL.tdQuizBtn     = document.getElementById('td-quiz-btn');
   EL.tdWaveBtn.addEventListener('click', tdOnWaveBtn);
-  if (TD_QUIZ_DISABLED) EL.tdQuizBtn.style.display = 'none';
   EL.tdQuizBtn.addEventListener('click', function() {
-    if (!td || td.quizOpen || td.waveActive || td.over || td.won || TD_QUIZ_DISABLED) return;
+    if (!td || td.quizOpen || td.over || td.won) return;
     if (td.optQuizUsed >= 3) { const b = EL.tdQuizBtn; if (b) { b.textContent = '📝 Max 3/wave'; setTimeout(tdUpdateHUD, 1500); } return; }
     td.optQuizUsed++;
-    tdOpenQuiz(25, true, function() { earnGold(25); tdUpdateHUD(); });
+    tdOpenQuiz(25, true, function() { tdUpdateHUD(); });
   });
   tdUpdateHUD(); tdUpdateWaveBtn(); tdUpdatePowerUpTray();
 }

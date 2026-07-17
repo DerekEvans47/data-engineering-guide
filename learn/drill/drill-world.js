@@ -523,8 +523,8 @@ function frontierTownLevelDef() {
   const waveDefs = frontierTownWaves(rng);
   // Map-scoped tuning knobs come from config.json's frontierTown section
   // (enemySpeedMult keeps the rev6 road's ~23s crossing; enemyScaleMult is
-  // the unit-vs-building readability retune; startGold 99999 is a TEMP
-  // testing value — see config.json _notes).
+  // the unit-vs-building readability retune; ?dev=1 / ?author=1 override
+  // startGold with a 99999 testing purse in showTowerDefenseScreen).
   const knobs = TD_CONFIG.frontierTown;
   return {
     name: 'Frontier Town', act: mapDef.name, icon: '🏘️', color: mapDef.color,
@@ -1609,8 +1609,8 @@ function showTutorial(onClose) {
         <div class="tutorial-step">
           <div class="tutorial-step-num">3</div>
           <div class="tutorial-step-body">
-            <div class="tutorial-step-title">Answer Questions to Earn Gold</div>
-            <div class="tutorial-step-desc">A quiz question appears during each wave. Correct answers earn gold to buy and upgrade towers. Wrong answers cost you gold — study up!</div>
+            <div class="tutorial-step-title">Bonus Questions, Bonus Gold</div>
+            <div class="tutorial-step-desc">Questions are optional: tap the 📝 button (up to 3 per wave) for a bonus question. Answer correctly and the gold is yours — harder questions pay more.</div>
           </div>
         </div>
         <div class="tutorial-step">
