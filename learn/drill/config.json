@@ -278,6 +278,20 @@
       "effect": {
         "type": "kill-gold-mult",
         "value": 1.25
+      },
+      "starter": true
+    },
+    {
+      "id": "golden_fang",
+      "name": "Golden Fang",
+      "icon": "🦷",
+      "category": "gold",
+      "rarity": "rare",
+      "upkeep": 18,
+      "desc": "+45% kill gold",
+      "effect": {
+        "type": "kill-gold-mult",
+        "value": 1.45
       }
     },
     {
@@ -291,6 +305,20 @@
       "effect": {
         "type": "tower-dmg-mult",
         "value": 1.15
+      },
+      "starter": true
+    },
+    {
+      "id": "giantsbane",
+      "name": "Giantsbane",
+      "icon": "🗡️",
+      "category": "damage",
+      "rarity": "uncommon",
+      "upkeep": 10,
+      "desc": "+50% damage to bosses",
+      "effect": {
+        "type": "boss-dmg-mult",
+        "value": 1.5
       }
     },
     {
@@ -304,6 +332,20 @@
       "effect": {
         "type": "start-gold-add",
         "value": 60
+      },
+      "starter": true
+    },
+    {
+      "id": "royal_charter",
+      "name": "Royal Charter",
+      "icon": "📜",
+      "category": "start-gold",
+      "rarity": "rare",
+      "upkeep": 8,
+      "desc": "+130 node start gold",
+      "effect": {
+        "type": "start-gold-add",
+        "value": 130
       }
     },
     {
@@ -317,14 +359,192 @@
       "effect": {
         "type": "max-lives-add",
         "value": 5
+      },
+      "starter": true
+    },
+    {
+      "id": "quickdraw_gloves",
+      "name": "Quickdraw Gloves",
+      "icon": "🧤",
+      "category": "rate",
+      "rarity": "uncommon",
+      "upkeep": 12,
+      "desc": "Towers fire 15% faster",
+      "effect": {
+        "type": "tower-rate-mult",
+        "value": 1.15
+      }
+    },
+    {
+      "id": "storm_drum",
+      "name": "Storm Drum",
+      "icon": "🥁",
+      "category": "rate",
+      "rarity": "rare",
+      "upkeep": 20,
+      "desc": "Towers fire 25% faster",
+      "effect": {
+        "type": "tower-rate-mult",
+        "value": 1.25
+      }
+    },
+    {
+      "id": "eagle_eye_lens",
+      "name": "Eagle Eye Lens",
+      "icon": "🔭",
+      "category": "range",
+      "rarity": "uncommon",
+      "upkeep": 10,
+      "desc": "Towers +15% range",
+      "effect": {
+        "type": "tower-range-mult",
+        "value": 1.15
+      }
+    },
+    {
+      "id": "frost_sigil",
+      "name": "Frost Sigil",
+      "icon": "❄️",
+      "category": "slow",
+      "rarity": "rare",
+      "upkeep": 18,
+      "desc": "Enemies move 12% slower",
+      "effect": {
+        "type": "enemy-speed-mult",
+        "value": 0.88
+      }
+    },
+    {
+      "id": "masons_ledger",
+      "name": "Mason's Ledger",
+      "icon": "🧱",
+      "category": "build",
+      "rarity": "common",
+      "upkeep": 5,
+      "desc": "Towers cost 10% less to build",
+      "effect": {
+        "type": "build-cost-mult",
+        "value": 0.9
+      }
+    },
+    {
+      "id": "architects_compass",
+      "name": "Architect's Compass",
+      "icon": "📐",
+      "category": "build",
+      "rarity": "uncommon",
+      "upkeep": 8,
+      "desc": "Upgrades cost 15% less",
+      "effect": {
+        "type": "upgrade-cost-mult",
+        "value": 0.85
+      }
+    },
+    {
+      "id": "tax_ledger",
+      "name": "Tax Ledger",
+      "icon": "🧾",
+      "category": "income",
+      "rarity": "common",
+      "upkeep": 0,
+      "desc": "+12 gold on every wave clear",
+      "effect": {
+        "type": "wave-gold-add",
+        "value": 12
+      }
+    },
+    {
+      "id": "golden_goose",
+      "name": "Golden Goose",
+      "icon": "🥚",
+      "category": "income",
+      "rarity": "legendary",
+      "upkeep": 25,
+      "desc": "Wave clear: +10% of your current gold",
+      "effect": {
+        "type": "interest-rate",
+        "value": 0.1
+      }
+    },
+    {
+      "id": "field_hospital",
+      "name": "Field Hospital",
+      "icon": "⛺",
+      "category": "mending",
+      "rarity": "rare",
+      "upkeep": 15,
+      "desc": "Recover 1 life on every wave clear",
+      "effect": {
+        "type": "wave-life-add",
+        "value": 1
+      }
+    },
+    {
+      "id": "scholars_quill",
+      "name": "Scholar's Quill",
+      "icon": "🪶",
+      "category": "quiz",
+      "rarity": "uncommon",
+      "upkeep": 8,
+      "desc": "Bonus questions pay +50% gold",
+      "effect": {
+        "type": "quiz-gold-mult",
+        "value": 1.5
+      }
+    },
+    {
+      "id": "tome_of_study",
+      "name": "Tome of Study",
+      "icon": "📖",
+      "category": "quiz",
+      "rarity": "uncommon",
+      "upkeep": 5,
+      "desc": "+2 bonus questions per wave",
+      "effect": {
+        "type": "quiz-uses-add",
+        "value": 2
+      }
+    },
+    {
+      "id": "powder_keg",
+      "name": "Powder Keg",
+      "icon": "🛢️",
+      "category": "splash",
+      "rarity": "uncommon",
+      "upkeep": 10,
+      "desc": "+30% splash radius",
+      "effect": {
+        "type": "splash-mult",
+        "value": 1.3
+      }
+    },
+    {
+      "id": "siegebreaker",
+      "name": "Siegebreaker",
+      "icon": "🔨",
+      "category": "splash",
+      "rarity": "rare",
+      "upkeep": 15,
+      "desc": "Splash damage ignores armor",
+      "effect": {
+        "type": "armor-pierce",
+        "value": 1
       }
     }
   ],
   "relicCategories": {
-    "gold": "Gold",
+    "gold": "Kill Gold",
     "damage": "Damage",
     "start-gold": "Start Gold",
-    "lives": "Lives"
+    "lives": "Lives",
+    "rate": "Fire Rate",
+    "range": "Range",
+    "slow": "Slow",
+    "build": "Construction",
+    "income": "Income",
+    "mending": "Mending",
+    "quiz": "Questions",
+    "splash": "Siege"
   },
   "relicRarityCost": {
     "common": 120,

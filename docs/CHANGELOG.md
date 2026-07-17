@@ -36,6 +36,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - New regenerated region map (nodes re-placed) + road-structure occlusion
 
+- Optional quiz, real starting gold, remove dead dungeon mode (#147)
+
 - Painted goblin renderer (A-3), all-goblin wave 1, battle music, compact wave button
 
 - Playtest round 3 - sprite size/quality, single battle song, HUD cleanup, two-tap build with stat card, arrow SFX

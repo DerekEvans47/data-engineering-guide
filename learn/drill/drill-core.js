@@ -244,11 +244,11 @@ function loadGameState() {
   achievements  = new Set(JSON.parse(StorageManager.get(ACHIEVEMENTS_KEY) || '[]'));
   partAccuracy  = JSON.parse(StorageManager.get(ACCURACY_KEY)  || '{}');
 
-  // TD relic collection (EQ-4). Until EQ-6/EQ-8 ship real acquisition (store
-  // purchase, post-map earn), grant the starter set on first load so the
-  // equip menu is usable now; owned collection persists and grows from there.
+  // TD relic collection (EQ-4). Fresh installs get only the relics flagged
+  // "starter" in config.json — the rest are found in run shops, so the
+  // collection grows from play. Existing saves keep whatever they own.
   const savedOwned = StorageManager.get(TD_RELICS_OWNED_KEY);
-  tdOwnedRelics = savedOwned != null ? new Set(JSON.parse(savedOwned)) : new Set(TD_RELICS.map(r => r.id));
+  tdOwnedRelics = savedOwned != null ? new Set(JSON.parse(savedOwned)) : new Set(TD_RELICS.filter(r => r.starter).map(r => r.id));
   tdEquippedRelics = new Set(JSON.parse(StorageManager.get(TD_RELICS_EQUIPPED_KEY) || '[]'));
 }
 

@@ -2819,3 +2819,51 @@ html, body {
   color: #4ade80;
   padding: 0 4px;
 }
+
+/* ── Relic editor (?dev=1) ─────────────────────────────────── */
+.tre-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: var(--bg-base);
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: env(safe-area-inset-top) .8rem calc(1.5rem + env(safe-area-inset-bottom));
+  font-size: .85rem; color: var(--text);
+}
+.tre-head {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: .5rem;
+  padding: .7rem 0 .55rem; background: var(--bg-base);
+  border-bottom: 1px solid var(--border);
+}
+.tre-title { font-weight: 700; flex: 1; }
+.tre-head button {
+  background: var(--bg-elevated); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: .45rem .7rem; font-size: .8rem; cursor: pointer;
+}
+.tre-head #tre-export { border-color: var(--accent); }
+.tre-note { font-size: .72rem; color: var(--text-muted); padding: .55rem 0 .7rem; line-height: 1.45; }
+.tre-list { display: flex; flex-direction: column; gap: .7rem; }
+.tre-card {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 12px; padding: .7rem .75rem;
+}
+.tre-card-head { display: flex; gap: .5rem; align-items: center; margin-bottom: .55rem; }
+.tre-icon { width: 3rem; text-align: center; font-size: 1.15rem; }
+.tre-name { flex: 1; font-weight: 600; }
+.tre-del {
+  background: none; border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text-muted); padding: .35rem .5rem; cursor: pointer;
+}
+.tre-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem .6rem; }
+.tre-grid label {
+  display: flex; flex-direction: column; gap: .2rem;
+  font-size: .68rem; color: var(--text-muted);
+}
+.tre-grid .tre-wide { grid-column: 1 / -1; }
+.tre-card input, .tre-card select {
+  background: var(--bg-base); color: var(--text);
+  border: 1px solid var(--border); border-radius: 7px;
+  padding: .4rem .5rem; font-size: .82rem; min-width: 0;
+}
+.tre-grid input[type="checkbox"] { width: 1.15rem; height: 1.15rem; accent-color: var(--accent); }
+.tre-id { margin-top: .5rem; font-family: monospace; font-size: .66rem; color: var(--text-muted); }
