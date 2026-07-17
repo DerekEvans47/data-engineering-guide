@@ -307,9 +307,9 @@ function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
   EL.tdWaveBtn.addEventListener('click', tdOnWaveBtn);
   EL.tdQuizBtn.addEventListener('click', () => {
     if (!td || td.quizOpen || td.over || td.won) return;
-    if (td.optQuizUsed >= 3) {
+    if (td.optQuizUsed >= tdQuizMax()) {
       const btn = EL.tdQuizBtn;
-      if (btn) { btn.textContent = '📝 Max 3/wave'; setTimeout(() => tdUpdateHUD(), 1500); }
+      if (btn) { btn.textContent = `📝 Max ${tdQuizMax()}/wave`; setTimeout(() => tdUpdateHUD(), 1500); }
       return;
     }
     td.optQuizUsed++;
@@ -366,19 +366,41 @@ function tdComputePathSet(wps) {
 // is enforced at equip time (tdEquipRelic), so at most one relic per category
 // can ever be in tdEquippedRelics — no additional dedup needed here.
 function tdComputeRelicMods() {
-  const m = { killGoldMult: 1, towerDmgMult: 1, startGoldAdd: 0, maxLivesAdd: 0, upkeepTotal: 0 };
+  const m = {
+    killGoldMult: 1, towerDmgMult: 1, bossDmgMult: 1, startGoldAdd: 0, maxLivesAdd: 0,
+    towerRateMult: 1, towerRangeMult: 1, splashMult: 1, enemySpeedMult: 1,
+    buildCostMult: 1, upgradeCostMult: 1, waveGoldAdd: 0, interestRate: 0,
+    waveLifeAdd: 0, quizGoldMult: 1, quizUsesAdd: 0, armorPierce: false,
+    upkeepTotal: 0,
+  };
   for (const id of tdEquippedRelics) {
     const r = TD_RELICS.find(x => x.id === id);
     if (!r) continue;
     m.upkeepTotal += r.upkeep;
     const { type, value } = r.effect;
-    if (type === 'kill-gold-mult') m.killGoldMult *= value;
-    if (type === 'tower-dmg-mult') m.towerDmgMult *= value;
-    if (type === 'start-gold-add') m.startGoldAdd += value;
-    if (type === 'max-lives-add')  m.maxLivesAdd  += value;
+    if      (type === 'kill-gold-mult')    m.killGoldMult    *= value;
+    else if (type === 'tower-dmg-mult')    m.towerDmgMult    *= value;
+    else if (type === 'boss-dmg-mult')     m.bossDmgMult     *= value;
+    else if (type === 'start-gold-add')    m.startGoldAdd    += value;
+    else if (type === 'max-lives-add')     m.maxLivesAdd     += value;
+    else if (type === 'tower-rate-mult')   m.towerRateMult   *= value;
+    else if (type === 'tower-range-mult')  m.towerRangeMult  *= value;
+    else if (type === 'splash-mult')       m.splashMult      *= value;
+    else if (type === 'enemy-speed-mult')  m.enemySpeedMult  *= value;
+    else if (type === 'build-cost-mult')   m.buildCostMult   *= value;
+    else if (type === 'upgrade-cost-mult') m.upgradeCostMult *= value;
+    else if (type === 'wave-gold-add')     m.waveGoldAdd     += value;
+    else if (type === 'interest-rate')     m.interestRate    += value;
+    else if (type === 'wave-life-add')     m.waveLifeAdd     += value;
+    else if (type === 'quiz-gold-mult')    m.quizGoldMult    *= value;
+    else if (type === 'quiz-uses-add')     m.quizUsesAdd     += value;
+    else if (type === 'armor-pierce')      m.armorPierce      = true;
   }
   return m;
 }
+
+// Bonus questions allowed per wave (relics can raise the base 3).
+function tdQuizMax() { return 3 + (td?.relicMods?.quizUsesAdd || 0); }
 
 function tdEquipRelic(id) {
   const r = TD_RELICS.find(x => x.id === id);
@@ -587,8 +609,11 @@ function tdUpdate(dt) {
 
   if (td.waveActive && td.spawnQueue.length === 0 && td.enemies.length === 0) {
     td.waveActive = false;
-    td.gold += 15;
-    td.damageNumbers.push({ x: td.canvas ? td.canvas.width / 2 : 160, y: td.canvas ? td.canvas.height * 0.18 : 80, label: '+15🪙 Wave Clear!', life: 1.6, maxLife: 1.6, color: '#FBBF24' });
+    const rm = td.relicMods || {};
+    const waveGold = 15 + (rm.waveGoldAdd || 0) + Math.round(td.gold * (rm.interestRate || 0));
+    td.gold += waveGold;
+    if (rm.waveLifeAdd) td.lives = Math.min(td.maxLives, td.lives + rm.waveLifeAdd);
+    td.damageNumbers.push({ x: td.canvas ? td.canvas.width / 2 : 160, y: td.canvas ? td.canvas.height * 0.18 : 80, label: `+${waveGold}🪙 Wave Clear!`, life: 1.6, maxLife: 1.6, color: '#FBBF24' });
     if (td.waveIdx >= td.levelDef.waveDefs.length - 1) {
       if (td.endless) {
         td.endlessWave++;
@@ -609,7 +634,7 @@ function tdSpawnEnemy(type) {
   td.enemies.push({
     id: td.eid++, type,
     hp: def.maxHp * mult, maxHp: def.maxHp * mult,
-    spd: def.spd * (td.levelDef.enemySpeedMult || 1) * (td.powerUpMods?.enemySpeedMult || 1), color: def.color,
+    spd: def.spd * (td.levelDef.enemySpeedMult || 1) * (td.powerUpMods?.enemySpeedMult || 1) * (td.relicMods?.enemySpeedMult || 1), color: def.color,
     r: def.r * (td.levelDef.enemyScaleMult || 1), reward: def.reward,
     isBoss: def.isBoss || false, lifeLoss: (def.lifeLoss || 1) * (td.modifiers?.ironman ? 2 : 1),
     armored: def.armored || false, flying: def.flying || false, healer: def.healer || false,
@@ -648,10 +673,16 @@ function tdMoveEnemy(e, dt) {
 // ── Towers ─────────────────────────────────────────────────────
 
 function tdGetTowerStats(tower) {
-  const def = TD_TOWER_DEFS.find(d => d.id === tower.type);
-  if (!tower.level || tower.level === 0) return def;
-  const up = def.upgrades[tower.level - 1];
-  return { ...def, ...up };
+  const def  = TD_TOWER_DEFS.find(d => d.id === tower.type);
+  const base = (!tower.level || tower.level === 0) ? def : { ...def, ...def.upgrades[tower.level - 1] };
+  const rm = td && td.relicMods;
+  if (!rm) return base;
+  return {
+    ...base,
+    rate:   base.rate  * (rm.towerRateMult  || 1),
+    range:  base.range * (rm.towerRangeMult || 1),
+    splash: base.splash ? base.splash * (rm.splashMult || 1) : base.splash,
+  };
 }
 
 // Render/targeting center for a grid cell. Procedural maps have no exact
@@ -728,12 +759,17 @@ function tdMoveProjectiles(dt) {
       // ?dev=1 live tower-damage multiplier (1 otherwise) — applied at hit
       // time so slider changes affect projectiles already in flight too.
       const dmg = p.dmg * (td.__devMods?.towerDmg || 1);
+      const bossMult    = td.relicMods?.bossDmgMult || 1;
+      const armorPierce = !!td.relicMods?.armorPierce;
       if (p.splash > 0) {
         for (const e of td.enemies) {
-          if (Math.hypot(e.x - hx, e.y - hy) <= p.splash) e.hp -= e.armored ? dmg * 0.5 : dmg;
+          if (Math.hypot(e.x - hx, e.y - hy) <= p.splash) {
+            const hitDmg = dmg * (e.isBoss ? bossMult : 1);
+            e.hp -= (e.armored && !armorPierce) ? hitDmg * 0.5 : hitDmg;
+          }
         }
       } else {
-        target.hp -= dmg;
+        target.hp -= dmg * (target.isBoss ? bossMult : 1);
       }
       td.damageNumbers.push({ x: hx, y: hy - 8, val: Math.round(dmg), life: 0.65, maxLife: 0.65, color: p.color });
       if (target) target.hitFlash = 0.14;
@@ -802,7 +838,7 @@ function tdOpenRadialMenu(col, row, tower) {
     label = `${def.icon || ''} ${def.name} · L${lvl + 1}`;
     items = [];
     if (lvl < def.upgrades.length) {
-      const upgCost = def.upgrades[lvl].cost;
+      const upgCost = Math.round(def.upgrades[lvl].cost * (td.relicMods?.upgradeCostMult || 1));
       items.push({
         id: 'upgrade', icon: '⬆️', sub: `${upgCost}🪙`, accent: '#FBBF24', cost: upgCost,
         disabled: td.gold < upgCost,
@@ -824,17 +860,20 @@ function tdOpenRadialMenu(col, row, tower) {
       },
     });
   } else {
-    items = TD_TOWER_DEFS.map(def => ({
-      id: def.id, icon: def.icon, sub: `${def.cost}🪙`, accent: def.color, cost: def.cost,
-      isBuild: true,
-      disabled: td.gold < def.cost,
-      onSelect: () => {
-        td.gold -= def.cost;
-        td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true, idlePhase: Math.random() * Math.PI * 2 });
-        tdUpdateHUD();
-        tdAudio.place(col / (TD_COLS - 1));
-      },
-    }));
+    items = TD_TOWER_DEFS.map(def => {
+      const buildCost = Math.round(def.cost * (td.relicMods?.buildCostMult || 1));
+      return {
+        id: def.id, icon: def.icon, sub: `${buildCost}🪙`, accent: def.color, cost: buildCost,
+        isBuild: true,
+        disabled: td.gold < buildCost,
+        onSelect: () => {
+          td.gold -= buildCost;
+          td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true, idlePhase: Math.random() * Math.PI * 2 });
+          tdUpdateHUD();
+          tdAudio.place(col / (TD_COLS - 1));
+        },
+      };
+    });
   }
 
   td.radialMenu = { col, row, items };
@@ -1021,7 +1060,7 @@ function tdOpenQuiz(goldReward, isOptional, onDone) {
   const diff = tdQDifficulty(q);
   const bossMult = td.levelDef.isBoss ? 1.5 : 1.0;
   const baseReward = isOptional ? (diff === 'hard' ? 45 : diff === 'medium' ? 30 : 18) : goldReward;
-  const reward = Math.round(baseReward * bossMult);
+  const reward = Math.round(baseReward * bossMult * (td.relicMods?.quizGoldMult || 1));
   td.quizQ = q;
 
   let opts = '';
@@ -1236,7 +1275,7 @@ function tdEnterEndless() {
   EL.tdWaveBtn.addEventListener('click', tdOnWaveBtn);
   EL.tdQuizBtn.addEventListener('click', function() {
     if (!td || td.quizOpen || td.over || td.won) return;
-    if (td.optQuizUsed >= 3) { const b = EL.tdQuizBtn; if (b) { b.textContent = '📝 Max 3/wave'; setTimeout(tdUpdateHUD, 1500); } return; }
+    if (td.optQuizUsed >= tdQuizMax()) { const b = EL.tdQuizBtn; if (b) { b.textContent = `📝 Max ${tdQuizMax()}/wave`; setTimeout(tdUpdateHUD, 1500); } return; }
     td.optQuizUsed++;
     tdOpenQuiz(25, true, function() { tdUpdateHUD(); });
   });
@@ -1283,7 +1322,7 @@ function tdUpdateHUD() {
 
   const quizBtn = EL.tdQuizBtn;
   if (quizBtn) {
-    const rem = 3 - td.optQuizUsed;
+    const rem = tdQuizMax() - td.optQuizUsed;
     quizBtn.textContent = rem > 0 ? `📝 +25🪙 (${rem})` : '📝 Max/wave';
     quizBtn.style.opacity = rem > 0 ? '1' : '0.4';
   }
@@ -2243,6 +2282,7 @@ function tdDevBuildPanel() {
      </div>
      <div class="td-dev-row">
        <button data-act="copy" title="Copy current multipliers as JSON — fold the keepers into config.json">📋 multipliers</button>
+       <button data-act="relics" title="Relic editor: add/remove/tune relics, then export config.json">🏺 relics</button>
      </div>`;
   wrap.appendChild(panel);
   panel.addEventListener('input', e => {
@@ -2266,7 +2306,138 @@ function tdDevBuildPanel() {
       console.log(txt);
       tdAuthorCopy(txt, ok => { btn.textContent = ok ? '✓ copied' : '⚠ see console'; setTimeout(() => { btn.textContent = '📋 multipliers'; }, 1400); });
     }
+    else if (btn.dataset.act === 'relics') { tdOpenRelicEditor(); }
   });
+}
+
+// ── Relic editor (?dev=1) ──────────────────────────────────────
+// Same edit-then-export loop as the map editors: tweak relics in-app
+// (changes apply live to TD_RELICS, so the next battle uses them), then 📋
+// exports the FULL updated config.json for pasting over
+// learn/drill/config.json. Relic ids are immutable — saved owned/equipped
+// sets reference them; rename via the Name field instead.
+const TD_RELIC_EFFECT_TYPES = [
+  ['kill-gold-mult',    'Kill gold ×'],
+  ['tower-dmg-mult',    'Tower damage ×'],
+  ['boss-dmg-mult',     'Boss damage ×'],
+  ['start-gold-add',    'Start gold +'],
+  ['max-lives-add',     'Max lives +'],
+  ['tower-rate-mult',   'Fire rate ×'],
+  ['tower-range-mult',  'Range ×'],
+  ['splash-mult',       'Splash radius ×'],
+  ['enemy-speed-mult',  'Enemy speed ×'],
+  ['build-cost-mult',   'Build cost ×'],
+  ['upgrade-cost-mult', 'Upgrade cost ×'],
+  ['wave-gold-add',     'Wave-clear gold +'],
+  ['interest-rate',     'Wave-clear interest (0–1)'],
+  ['wave-life-add',     'Wave-clear lives +'],
+  ['quiz-gold-mult',    'Question gold ×'],
+  ['quiz-uses-add',     'Questions/wave +'],
+  ['armor-pierce',      'Armor pierce (1 = on)'],
+];
+const TD_RELIC_RARITIES = ['common', 'uncommon', 'rare', 'legendary'];
+
+function tdRelicEditorExportConfig() {
+  // Make sure every category used by a relic has a display label.
+  for (const r of TD_RELICS) {
+    if (!TD_RELIC_CATEGORIES[r.category]) {
+      TD_RELIC_CATEGORIES[r.category] =
+        r.category.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+  }
+  return JSON.stringify(TD_CONFIG, null, 2) + '\n';
+}
+
+function tdOpenRelicEditor() {
+  document.getElementById('td-relic-editor')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'td-relic-editor';
+  ov.className = 'tre-overlay';
+
+  function relicCard(r, i) {
+    const effOpts = TD_RELIC_EFFECT_TYPES.map(([t, label]) =>
+      `<option value="${t}" ${r.effect.type === t ? 'selected' : ''}>${label}</option>`).join('');
+    const rarOpts = TD_RELIC_RARITIES.map(x =>
+      `<option value="${x}" ${r.rarity === x ? 'selected' : ''}>${x}</option>`).join('');
+    return `
+    <div class="tre-card" data-idx="${i}">
+      <div class="tre-card-head">
+        <input class="tre-icon" data-field="icon" value="${r.icon}" maxlength="4" aria-label="Icon">
+        <input class="tre-name" data-field="name" value="${r.name.replace(/"/g, '&quot;')}" aria-label="Name">
+        <button class="tre-del" data-del="${i}" title="Delete relic">🗑</button>
+      </div>
+      <div class="tre-grid">
+        <label>Category <input data-field="category" value="${r.category}" list="tre-cats"></label>
+        <label>Rarity <select data-field="rarity">${rarOpts}</select></label>
+        <label>Upkeep 🪙/node <input data-field="upkeep" type="number" min="0" step="1" value="${r.upkeep}"></label>
+        <label>Starter <input data-field="starter" type="checkbox" ${r.starter ? 'checked' : ''}></label>
+        <label>Effect <select data-field="effect.type">${effOpts}</select></label>
+        <label>Value <input data-field="effect.value" type="number" step="0.01" value="${r.effect.value}"></label>
+        <label class="tre-wide">Description <input data-field="desc" value="${r.desc.replace(/"/g, '&quot;')}"></label>
+      </div>
+      <div class="tre-id">id: ${r.id}</div>
+    </div>`;
+  }
+
+  function render() {
+    const cats = [...new Set([...Object.keys(TD_RELIC_CATEGORIES), ...TD_RELICS.map(r => r.category)])];
+    ov.innerHTML = `
+      <div class="tre-head">
+        <span class="tre-title">🏺 Relic Editor · ${TD_RELICS.length}</span>
+        <button id="tre-add">＋ Add</button>
+        <button id="tre-export">📋 config.json</button>
+        <button id="tre-close">✕</button>
+      </div>
+      <div class="tre-note">Edits apply from the next battle. 📋 copies the full config.json — paste it over learn/drill/config.json and push.</div>
+      <datalist id="tre-cats">${cats.map(c => `<option value="${c}">`).join('')}</datalist>
+      <div class="tre-list">${TD_RELICS.map(relicCard).join('')}</div>`;
+
+    ov.querySelector('#tre-close').addEventListener('click', () => ov.remove());
+    ov.querySelector('#tre-add').addEventListener('click', () => {
+      let n = TD_RELICS.length + 1, id = `new_relic_${n}`;
+      while (TD_RELICS.some(r => r.id === id)) id = `new_relic_${++n}`;
+      TD_RELICS.push({ id, name: 'New Relic', icon: '🏺', category: 'gold', rarity: 'common',
+        upkeep: 0, desc: 'Describe the effect', effect: { type: 'kill-gold-mult', value: 1.1 } });
+      render();
+      ov.querySelector('.tre-list').lastElementChild?.scrollIntoView({ block: 'center' });
+    });
+    ov.querySelector('#tre-export').addEventListener('click', e => {
+      const btn = e.currentTarget;
+      tdAuthorCopy(tdRelicEditorExportConfig(), ok => {
+        btn.textContent = ok ? '✓ copied' : '⚠ see console';
+        if (!ok) console.log(tdRelicEditorExportConfig());
+        setTimeout(() => { btn.textContent = '📋 config.json'; }, 1600);
+      });
+    });
+    ov.querySelectorAll('.tre-del').forEach(b => b.addEventListener('click', () => {
+      const r = TD_RELICS[parseInt(b.dataset.del, 10)];
+      if (!r || !confirm(`Delete relic "${r.name}"?`)) return;
+      TD_RELICS.splice(parseInt(b.dataset.del, 10), 1);
+      tdOwnedRelics.delete(r.id); tdEquippedRelics.delete(r.id);
+      saveGameState();
+      render();
+    }));
+  }
+
+  // One delegated listener writes edits straight into the relic objects
+  // (TD_RELICS === TD_CONFIG.relics, so the export sees them immediately).
+  ov.addEventListener('input', e => {
+    const el = e.target;
+    const card = el.closest('.tre-card');
+    const field = el.dataset && el.dataset.field;
+    if (!card || !field) return;
+    const r = TD_RELICS[parseInt(card.dataset.idx, 10)];
+    if (!r) return;
+    if (field === 'starter')            { if (el.checked) r.starter = true; else delete r.starter; }
+    else if (field === 'upkeep')        r.upkeep = Math.max(0, parseInt(el.value, 10) || 0);
+    else if (field === 'effect.value')  r.effect.value = parseFloat(el.value) || 0;
+    else if (field === 'effect.type')   r.effect.type = el.value;
+    else if (field === 'category')      r.category = el.value.trim() || r.category;
+    else                                r[field] = el.value;
+  });
+
+  render();
+  document.body.appendChild(ov);
 }
 
 let __tdDevFrames = 0, __tdDevFpsTs = 0;

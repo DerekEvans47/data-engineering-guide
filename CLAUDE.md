@@ -120,7 +120,11 @@ transiently sometimes — re-run the FULL workflow if so, not just failed jobs).
   exports over the files in `learn/drill/assets/worlds/` — the JSONs are
   the runtime source of truth (loaded at boot by `loadWorldData`).
 - **`?dev=1`** — battle tuning panel: +500 gold, wave clear, FPS meter,
-  LIVE enemy-speed / tower-damage sliders, and a copy-multipliers button.
+  LIVE enemy-speed / tower-damage sliders, a copy-multipliers button, and
+  🏺 **relic editor** — add/remove/rename/tune relics (category, rarity,
+  upkeep, effect type + value, starter flag); 📋 exports the FULL updated
+  `config.json` to the clipboard — paste it over `learn/drill/config.json`
+  and push. Relic ids are immutable (saves reference them).
 - **`learn/drill/config.json`** — ALL tower/enemy/power-up/relic/event
   tuning plus the Frontier Town knobs. Balance changes are JSON edits, not
   JS edits.
