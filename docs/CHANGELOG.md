@@ -10,8 +10,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - EQ-7 inventory panel + relic-acquired equip prompt
 
-- Frontier Town bandit roster + Ranger L4 multi-projectile (#102)
-
 - Frontier Town rev 7 - new painterly art direction + first-pass authoring
 
 - Frontier Town wide battle map (30x13, rev 6) + map art pipeline updates (#133)
@@ -83,7 +81,7 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Stop map music on entering battle, trim loop tail
 
-- Swap map theme to MP3 (world-map-temp.mp3), drop broken M4A
+- Tower shadows render as dark silhouettes on iOS Safari (#146)
 
 - Tune Frontier Town enemy pathing, tower slots and occluders (#138)
 

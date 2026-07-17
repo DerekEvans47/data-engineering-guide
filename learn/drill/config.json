@@ -1,5 +1,5 @@
 {
-  "_notes": "Runtime tuning config, loaded at boot alongside the world/map JSONs (loadWorldData -> tdApplyConfig in drill-world.js). Edit numbers HERE - no JS required; the drill-verify CI job auto-bumps the SW cache on PRs. Sections: towers (cost/range/dmg/rate + upgrade tiers - L4 ranger keeps L3 per-shot dmg on purpose, its payoff is the 2nd projectile; rates are the 2026-07-05 heavy-shot rebalance), enemies (per-type hp/speed/reward; frontier bandit roster + generic fantasy set + G-2 specials: armored halves splash, flying skips mortar, healer heals nearby on a timer), powerUps, relics (+category labels, shop pricing/odds by rarity), events (inter-node card deck), frontierTown (map-scoped knobs: enemySpeedMult 0.85 keeps the ~23s crossing on the rev6 road, enemyScaleMult 1.25 is the unit-vs-building readability retune, startGold 99999 is a TEMP testing value - revert to 160 once first-map content is complete).",
+  "_notes": "Runtime tuning config, loaded at boot alongside the world/map JSONs (loadWorldData -> tdApplyConfig in drill-world.js). Edit numbers HERE - no JS required; the drill-verify CI job auto-bumps the SW cache on PRs. Sections: towers (cost/range/dmg/rate + upgrade tiers - L4 ranger keeps L3 per-shot dmg on purpose, its payoff is the 2nd projectile; rates are the 2026-07-05 heavy-shot rebalance), enemies (per-type hp/speed/reward; frontier bandit roster + generic fantasy set + G-2 specials: armored halves splash, flying skips mortar, healer heals nearby on a timer), powerUps, relics (+category labels, shop pricing/odds by rarity), events (inter-node card deck), frontierTown (map-scoped knobs: enemySpeedMult 0.85 keeps the ~23s crossing on the rev6 road, enemyScaleMult 1.25 is the unit-vs-building readability retune, startGold 160 is the real economy - dev/author mode (?dev=1 / ?author=1) overrides it to a 99999 testing purse in code).",
   "towers": [
     {
       "id": "bastion",
@@ -391,7 +391,7 @@
   "frontierTown": {
     "enemySpeedMult": 0.85,
     "enemyScaleMult": 1.25,
-    "startGold": 99999,
+    "startGold": 160,
     "startLives": 25
   }
 }

@@ -190,31 +190,32 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
   await page.mouse.click(cell.x, cell.y); // tap again to close before starting the wave
   await page.waitForTimeout(200);
 
-  // ── 7. Wave start gate: quiz opens (or, with TD_QUIZ_DISABLED, the wave
-  // starts immediately and the quiz button is hidden) ─────────────────────
-  const quizDisabled = await page.evaluate(() => typeof TD_QUIZ_DISABLED !== 'undefined' && TD_QUIZ_DISABLED);
+  // ── 7. Waves are ungated; the 📝 button offers the optional bonus quiz ──
   await page.click('#td-wave-btn');
   await page.waitForTimeout(600);
-  if (quizDisabled) {
-    const waveActive = await page.evaluate(() => td.waveActive);
-    if (!waveActive) throw new Error('TD_QUIZ_DISABLED but wave did not start on button press');
-    const quizBtnHidden = await page.$eval('#td-quiz-btn', el => el.style.display === 'none').catch(() => false);
-    if (!quizBtnHidden) throw new Error('TD_QUIZ_DISABLED but bonus quiz button still visible');
-    console.log('✅ Quiz disabled: wave starts immediately, quiz button hidden');
-  } else {
-    const quizOpen = await page.$eval('.td-q-overlay', el => el.classList.contains('open')).catch(() => false);
-    if (!quizOpen) throw new Error('Quiz overlay did not open on wave start');
-    console.log('✅ Quiz overlay opens on wave start');
+  const waveActive = await page.evaluate(() => td.waveActive);
+  if (!waveActive) throw new Error('Wave did not start on button press');
+  console.log('✅ Wave starts immediately (no question gate)');
 
-    const firstOpt = await page.$('.td-opt');
-    if (firstOpt) {
-      await firstOpt.click({ force: true });
-      await page.waitForTimeout(800);
-      const contBtn = await page.$('#td-q-cont');
-      if (contBtn) await contBtn.click({ force: true });
-      await page.waitForTimeout(800);
-    }
+  const quizBtnVisible = await page.$eval('#td-quiz-btn', el => el.style.display !== 'none').catch(() => false);
+  if (!quizBtnVisible) throw new Error('Optional bonus quiz button is hidden');
+  await page.click('#td-quiz-btn');
+  await page.waitForTimeout(600);
+  const quizOpen = await page.$eval('.td-q-overlay', el => el.classList.contains('open')).catch(() => false);
+  if (!quizOpen) throw new Error('Optional quiz overlay did not open from the 📝 button');
+  console.log('✅ Optional bonus quiz opens from the 📝 button');
+
+  const firstOpt = await page.$('.td-opt');
+  if (firstOpt) {
+    await firstOpt.click({ force: true });
+    await page.waitForTimeout(800);
+    const contBtn = await page.$('#td-q-cont');
+    if (contBtn) await contBtn.click({ force: true });
+    await page.waitForTimeout(800);
   }
+  const quizClosed = await page.$eval('.td-q-overlay', el => !el.classList.contains('open')).catch(() => true);
+  if (!quizClosed) throw new Error('Quiz overlay did not close after answering');
+  console.log('✅ Bonus quiz answers and closes cleanly');
   const previewAfter = await page.$eval('#td-wave-preview', el => el.style.display).catch(() => 'gone');
   if (previewAfter !== 'none') throw new Error(`Preview should be none during wave, got: ${previewAfter}`);
   console.log('✅ Wave preview hides once wave starts');
