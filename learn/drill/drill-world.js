@@ -1008,9 +1008,11 @@ function renderVerdantWorldMap(run) {
     });
   });
 
-  // Author mode (?author=1): every spine node becomes draggable and the
-  // updated region-preset.json is exportable — see rvmAuthorInitEditor.
-  if (TD_AUTHOR_MODE) rvmAuthorInitEditor(run);
+  // Creator mode (?dev / ?author / ?edit): every spine node becomes
+  // draggable and the updated region-preset.json is exportable — see
+  // rvmAuthorInitEditor. The region map has no per-screen toolbar, so
+  // spine editing is simply on whenever Creator Mode is.
+  if (TD_CREATOR_MODE) rvmAuthorInitEditor(run);
 }
 
 // ── Region-map node editor (?author=1) ─────────────────────────

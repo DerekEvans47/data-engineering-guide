@@ -2737,9 +2737,26 @@ html, body {
 }
 
 /* ── Author mode v2 toolbar (?author=1) — see drill-td.js author section ── */
-.td-author-bar {
+.td-creator-bar {
   position: absolute;
   top: 8px;
+  left: 8px;
+  z-index: 41;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  line-height: 1;
+  background: rgba(8, 12, 20, 0.78);
+  border: 1px solid #2b3a55;
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+}
+
+/* The map-tools sub-toolbar sits directly under the creator bar so the
+   two don't overlap in the top-left corner. */
+.td-author-bar {
+  position: absolute;
+  top: 52px;
   left: 8px;
   z-index: 40;
   display: flex;

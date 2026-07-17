@@ -6,6 +6,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### ✨ Features
 
+- 20-relic system with real effects + in-app relic editor (?dev=1) (#148)
+
 - EQ-6 store node — power-ups + rarity-weighted relic
 
 - EQ-7 inventory panel + relic-acquired equip prompt
