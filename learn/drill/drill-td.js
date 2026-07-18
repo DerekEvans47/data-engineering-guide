@@ -2284,15 +2284,18 @@ function tdDrawEnemy(ctx, cs, bgT, e) {
       e._px = e.x;
       // Engaged with a barracks blocker → play the attack sheet, frame
       // driven by the melee timer (meleeCd counts 1 → 0, damage lands at
-      // 0): long windup, then thrust / follow-through / recover packed
-      // near the end so the visible strike lines up with the hit.
+      // 0). Only frames 3→1→2 are used (ready-hold, thrust, low lunge):
+      // frame 0's overhead windup implies a downward slash that no strike
+      // frame delivers, so chaining it into the horizontal stab read as
+      // two unrelated attacks (owner feedback, 2026-07-18). It stays on
+      // the sheet, reserved for a future heavy/downstab pairing.
       const attacking = e.engagedBy && tdEnemySheetReady(eSheet, 'attack');
       let anim = eSheet.walk, animScale = eSheet.scale, fr;
       if (attacking) {
         anim = eSheet.attack;
         animScale = eSheet.attackScale || eSheet.scale;
         const cd = Math.max(0, Math.min(1, e.meleeCd ?? 0));
-        fr = cd > 0.35 ? 0 : cd > 0.2 ? 1 : cd > 0.08 ? 2 : 3;
+        fr = cd > 0.3 ? 3 : cd > 0.12 ? 1 : 2;
       } else {
         // A-B-A-B playback, cadence scaled by the enemy's speed stat
         fr = Math.floor(bgT * 3.2 * (e.spd || 1.5) + (e.animOffset || 0)) % eSheet.walk.frames;

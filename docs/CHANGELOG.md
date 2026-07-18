@@ -24,6 +24,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Disable quiz gate for testing, compact quiz card, letterbox backdrop, smaller goblins
 
+- Goblin attack animation + canonical art reference pipeline (#160)
+
 - Goblin pilot sprite assets (A-1 done) - walk keyframes + death sequence
 
 - Make run gold/lives truly persistent, add shop consumables
