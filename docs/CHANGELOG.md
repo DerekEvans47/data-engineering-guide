@@ -50,6 +50,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Slice relic icon sheet into 36 transparent PNGs (20 wired ids + 16 placeholders)
 
+- Split build radial menu into towers-top / barracks-bottom hexagon (#157)
+
 - Wire new Frontier Town painted map (path + slots) and add unit-art backlog
 
 

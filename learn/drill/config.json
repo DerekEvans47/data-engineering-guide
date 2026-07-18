@@ -122,7 +122,9 @@
       "rate": 1.6,
       "splash": 0,
       "pattern": "dots",
-      "upgrades": []
+      "upgrades": [],
+      "squadSize": 3,
+      "troopHp": 60
     }
   ],
   "enemies": {
@@ -131,7 +133,8 @@
       "spd": 1.5,
       "reward": 5,
       "color": "#B45309",
-      "r": 0.28
+      "r": 0.28,
+      "atk": 8
     },
     "bandit_rider": {
       "maxHp": 55,
@@ -139,7 +142,8 @@
       "reward": 8,
       "color": "#92400E",
       "r": 0.3,
-      "fast": true
+      "fast": true,
+      "atk": 6
     },
     "bandit_boss": {
       "maxHp": 350,
@@ -148,35 +152,40 @@
       "color": "#7C2D12",
       "r": 0.5,
       "isBoss": true,
-      "lifeLoss": 2
+      "lifeLoss": 2,
+      "atk": 18
     },
     "goblin": {
       "maxHp": 80,
       "spd": 1.6,
       "reward": 5,
       "color": "#4ADE80",
-      "r": 0.28
+      "r": 0.28,
+      "atk": 8
     },
     "orc": {
       "maxHp": 220,
       "spd": 1,
       "reward": 12,
       "color": "#FBBF24",
-      "r": 0.36
+      "r": 0.36,
+      "atk": 22
     },
     "scout": {
       "maxHp": 55,
       "spd": 2.6,
       "reward": 8,
       "color": "#F472B6",
-      "r": 0.22
+      "r": 0.22,
+      "atk": 6
     },
     "troll": {
       "maxHp": 480,
       "spd": 0.7,
       "reward": 28,
       "color": "#C084FC",
-      "r": 0.42
+      "r": 0.42,
+      "atk": 48
     },
     "boss": {
       "maxHp": 2000,
@@ -185,7 +194,8 @@
       "color": "#EF4444",
       "r": 0.55,
       "isBoss": true,
-      "lifeLoss": 3
+      "lifeLoss": 3,
+      "atk": 100
     },
     "raider": {
       "maxHp": 50,
@@ -193,7 +203,8 @@
       "reward": 9,
       "color": "#38BDF8",
       "r": 0.24,
-      "fast": true
+      "fast": true,
+      "atk": 5
     },
     "brute": {
       "maxHp": 260,
@@ -201,7 +212,8 @@
       "reward": 15,
       "color": "#78716C",
       "r": 0.34,
-      "armored": true
+      "armored": true,
+      "atk": 26
     },
     "wisp": {
       "maxHp": 70,
@@ -209,7 +221,8 @@
       "reward": 14,
       "color": "#A5F3FC",
       "r": 0.26,
-      "flying": true
+      "flying": true,
+      "atk": 7
     },
     "shaman": {
       "maxHp": 130,
@@ -220,7 +233,8 @@
       "healer": true,
       "healAmount": 25,
       "healInterval": 2,
-      "healRadius": 2.2
+      "healRadius": 2.2,
+      "atk": 13
     }
   },
   "powerUps": {
