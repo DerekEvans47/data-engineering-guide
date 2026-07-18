@@ -640,6 +640,10 @@ html, body {
   box-shadow: 0 4px 0 rgba(0,0,0,.4), 0 8px 18px rgba(0,0,0,.35);
 }
 .home-card-secondary:active { box-shadow: 0 2px 0 rgba(0,0,0,.4), 0 4px 10px rgba(0,0,0,.3); transform: translateY(2px) scale(.99); }
+/* Creator Mode only — a violet border instead of the standard amber one
+   so it reads as a builder tool, not another player action. */
+.home-card-dev { border-color: rgba(167,139,250,.5); }
+.home-card-dev .home-card-title { color: var(--accent2); }
 .home-card-icon {
   font-size: 1.8rem;
   line-height: 1;
@@ -2927,7 +2931,17 @@ html, body {
   padding: 0 4px;
 }
 
-/* ── Relic editor (?dev=1) ─────────────────────────────────── */
+/* ── Relic editor (?dev=1) ─────────────────────────────────────────
+   Cards render in a responsive grid (repeat(auto-fit,...) capped by
+   max-width on the list) instead of one full-viewport-wide column — on
+   a desktop-width Creator Mode session that used to stretch a single
+   card to ~2000px with the actual form fields stranded on the left
+   third and two-thirds of dead space to the right. Root cause was two
+   things: (1) .tre-list was a column flex stack, so every card
+   stretched to 100% of the overlay's width with nothing capping it;
+   (2) .tre-card input/select never had width:100% set, so even within
+   an oversized card the fields didn't reliably fill their grid cell.
+   Fixed both — see .tre-list and .tre-card input/select below. */
 .tre-overlay {
   position: fixed; inset: 0; z-index: 300;
   background: var(--bg-base);
@@ -2940,6 +2954,7 @@ html, body {
   display: flex; align-items: center; gap: .5rem;
   padding: .7rem 0 .55rem; background: var(--bg-base);
   border-bottom: 1px solid var(--border);
+  max-width: 1080px; margin: 0 auto;
 }
 .tre-title { font-weight: 700; flex: 1; }
 .tre-head button {
@@ -2948,30 +2963,63 @@ html, body {
   padding: .45rem .7rem; font-size: .8rem; cursor: pointer;
 }
 .tre-head #tre-export { border-color: var(--accent); }
-.tre-note { font-size: .72rem; color: var(--text-muted); padding: .55rem 0 .7rem; line-height: 1.45; }
-.tre-list { display: flex; flex-direction: column; gap: .7rem; }
-.tre-card {
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: 12px; padding: .7rem .75rem;
+.tre-note {
+  font-size: .72rem; color: var(--text-muted); padding: .55rem 0 .7rem; line-height: 1.45;
+  max-width: 1080px; margin: 0 auto;
 }
-.tre-card-head { display: flex; gap: .5rem; align-items: center; margin-bottom: .55rem; }
-.tre-icon { width: 3rem; text-align: center; font-size: 1.15rem; }
+/* auto-fit + a 1080px cap lands on 3 columns at desktop widths (3 x
+   ~340px + gaps) and collapses to 1 on a phone, without hardcoding a
+   column count that would break either end of that range. */
+.tre-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: .7rem;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.tre-card {
+  position: relative;
+  background: var(--bg-elevated); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: .8rem .75rem .65rem;
+  overflow: hidden;
+}
+.tre-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--tile-accent, var(--text-muted));
+}
+.tre-card.group-economy { --tile-accent: var(--xp-gold); }
+.tre-card.group-combat  { --tile-accent: var(--wrong); }
+.tre-card.group-defense { --tile-accent: var(--correct); }
+.tre-card.group-control { --tile-accent: var(--accent2); }
+.tre-card.group-misc    { --tile-accent: var(--text-subtle); }
+.tre-card-head { display: flex; gap: .5rem; align-items: center; margin-bottom: .6rem; }
+.tre-icon { width: 2.6rem; flex-shrink: 0; text-align: center; font-size: 1.1rem; }
 .tre-art-preview { width: 2rem; height: 2rem; flex-shrink: 0; border-radius: 6px; background: var(--bg-base); }
-.tre-name { flex: 1; font-weight: 600; }
+.tre-name { flex: 1; min-width: 0; font-weight: 600; }
 .tre-del {
   background: none; border: 1px solid var(--border); border-radius: 8px;
   color: var(--text-muted); padding: .35rem .5rem; cursor: pointer;
+  flex-shrink: 0;
 }
-.tre-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem .6rem; }
+.tre-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .6rem; }
 .tre-grid label {
-  display: flex; flex-direction: column; gap: .2rem;
-  font-size: .68rem; color: var(--text-muted);
+  display: flex; flex-direction: column; gap: .22rem;
+  font-size: .66rem; font-weight: 600; color: var(--text-subtle);
+  text-transform: uppercase; letter-spacing: .02em;
 }
 .tre-grid .tre-wide { grid-column: 1 / -1; }
 .tre-card input, .tre-card select {
   background: var(--bg-base); color: var(--text);
   border: 1px solid var(--border); border-radius: 7px;
-  padding: .4rem .5rem; font-size: .82rem; min-width: 0;
+  padding: .4rem .5rem; font-size: .82rem; font-weight: 400;
+  text-transform: none; letter-spacing: normal;
+  min-width: 0; box-sizing: border-box;
 }
+/* Scoped to the .tre-grid fields specifically — NOT the header's .tre-icon
+   (fixed 2.6rem) or .tre-name (flex:1), which already had correct explicit
+   sizing that a card-wide width:100% rule would otherwise clobber (higher
+   specificity than a single class selector regardless of source order). */
+.tre-grid input, .tre-grid select { width: 100%; }
 .tre-grid input[type="checkbox"] { width: 1.15rem; height: 1.15rem; accent-color: var(--accent); }
-.tre-id { margin-top: .5rem; font-family: monospace; font-size: .66rem; color: var(--text-muted); }
+.tre-id { margin-top: .55rem; font-family: monospace; font-size: .64rem; color: var(--text-subtle); }

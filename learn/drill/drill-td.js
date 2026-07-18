@@ -2406,8 +2406,13 @@ function tdOpenRelicEditor() {
       `<option value="${t}" ${r.effect.type === t ? 'selected' : ''}>${label}</option>`).join('');
     const rarOpts = TD_RELIC_RARITIES.map(x =>
       `<option value="${x}" ${r.rarity === x ? 'selected' : ''}>${x}</option>`).join('');
+    // Accent color, same grammar as the player vault grid. Computed once
+    // at render time — editing the Category field live doesn't re-color
+    // the stripe until the next add/delete-triggered render(); acceptable
+    // for a cosmetic accent on a rarely-renamed field.
+    const group = tdRelicCategoryGroup(r.category);
     return `
-    <div class="tre-card" data-idx="${i}">
+    <div class="tre-card group-${group}" data-idx="${i}">
       <div class="tre-card-head">
         ${r.img ? `<img src="${r.img}" alt="" class="relic-icon-img tre-art-preview" title="Sprite art on file — the Icon field below is only the emoji fallback">` : ''}
         <input class="tre-icon" data-field="icon" value="${r.icon}" maxlength="4" aria-label="Icon">

@@ -683,7 +683,6 @@ function showHome() {
     <div class="home-screen">
       <button class="home-theme-btn" id="home-theme-btn">${document.documentElement.dataset.theme !== 'light' ? '☀️' : '🌙'}</button>
       <button class="home-theme-btn" id="music-lab-btn" style="right:calc(2.9rem + env(safe-area-inset-right))" title="Music Lab (temp)">🎵</button>
-      ${TD_CREATOR_MODE ? `<button class="home-theme-btn" id="home-relic-editor-btn" style="right:calc(5.2rem + env(safe-area-inset-right))" title="Relic Editor (Creator Mode) — add, rename, tune relics">🏺</button>` : ''}
       <div class="home-hero">
         <h1 class="home-title">Quiz Defense</h1>
         <span class="home-subtitle">Data Engineering · Tower Defense</span>
@@ -731,6 +730,15 @@ function showHome() {
             </div>
             <span class="home-card-arrow">›</span>
           </button>
+          ${TD_CREATOR_MODE ? `
+          <button class="home-card home-card-secondary home-card-dev" id="btn-config">
+            <span class="home-card-icon">⚙️</span>
+            <div class="home-card-text">
+              <span class="home-card-title">Configuration</span>
+              <span class="home-card-desc">Edit relics — values, effects, rarity (Creator Mode)</span>
+            </div>
+            <span class="home-card-arrow">›</span>
+          </button>` : ''}
         </div>
         <div class="install-banner" id="install-banner" style="display:none">
           <span class="install-banner-text" id="install-banner-text"></span>
@@ -778,7 +786,7 @@ function showHome() {
   });
   document.getElementById('home-theme-btn').addEventListener('click', toggleTheme);
   document.getElementById('music-lab-btn').addEventListener('click', showMusicLab);
-  document.getElementById('home-relic-editor-btn')?.addEventListener('click', tdOpenRelicEditor);
+  document.getElementById('btn-config')?.addEventListener('click', tdOpenRelicEditor);
   menuMusic.start();
   setupInstallBanner();
 

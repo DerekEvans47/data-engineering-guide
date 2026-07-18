@@ -91,6 +91,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Stop map music on entering battle, trim loop tail
 
+- Swap relic menu placement - player select on world map, dev editor on Home (#154)
+
 - Tower shadows render as dark silhouettes on iOS Safari (#146)
 
 - Tune Frontier Town enemy pathing, tower slots and occluders (#138)
