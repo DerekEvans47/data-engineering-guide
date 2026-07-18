@@ -2401,6 +2401,26 @@ function tdOpenRelicEditor() {
   ov.id = 'td-relic-editor';
   ov.className = 'tre-overlay';
 
+  // Toolbar state lives in this closure so it survives renderList() calls
+  // (search/filter/sort/view-toggle) without needing to touch TD_RELICS or
+  // rebuild the header — that split is what keeps the search box focused
+  // while typing (see renderList vs renderHeader below).
+  let treSearch = '';
+  let treCategoryFilter = 'all';
+  let treSort = 'name';
+  let treView = 'grid';
+
+  // One unified swatch for both layouts: real sprite art if config.json
+  // set one, else the emoji fallback — same logic as every other relic
+  // render site (tdRelicIconHtml), just wrapped for consistent sizing.
+  // No longer an editable field in the header; icon editing (rarely
+  // needed now that 18/20 relics have real art) moved into the Icon
+  // field down in the details.
+  function artSwatch(r) {
+    const tip = r.img ? 'Sprite art on file' : 'No art yet — emoji fallback shown in-game';
+    return `<span class="tre-art-swatch" title="${tip}">${tdRelicIconHtml(r)}</span>`;
+  }
+
   function relicCard(r, i) {
     const effOpts = TD_RELIC_EFFECT_TYPES.map(([t, label]) =>
       `<option value="${t}" ${r.effect.type === t ? 'selected' : ''}>${label}</option>`).join('');
@@ -2408,14 +2428,13 @@ function tdOpenRelicEditor() {
       `<option value="${x}" ${r.rarity === x ? 'selected' : ''}>${x}</option>`).join('');
     // Accent color, same grammar as the player vault grid. Computed once
     // at render time — editing the Category field live doesn't re-color
-    // the stripe until the next add/delete-triggered render(); acceptable
-    // for a cosmetic accent on a rarely-renamed field.
+    // the stripe until the next full render; acceptable for a cosmetic
+    // accent on a rarely-renamed field.
     const group = tdRelicCategoryGroup(r.category);
     return `
     <div class="tre-card group-${group}" data-idx="${i}">
       <div class="tre-card-head">
-        ${r.img ? `<img src="${r.img}" alt="" class="relic-icon-img tre-art-preview" title="Sprite art on file — the Icon field below is only the emoji fallback">` : ''}
-        <input class="tre-icon" data-field="icon" value="${r.icon}" maxlength="4" aria-label="Icon">
+        ${artSwatch(r)}
         <input class="tre-name" data-field="name" value="${r.name.replace(/"/g, '&quot;')}" aria-label="Name">
         <button class="tre-del" data-del="${i}" title="Delete relic">🗑</button>
       </div>
@@ -2427,23 +2446,116 @@ function tdOpenRelicEditor() {
         <label>Effect <select data-field="effect.type">${effOpts}</select></label>
         <label>Value <input data-field="effect.value" type="number" step="0.01" value="${r.effect.value}"></label>
         <label class="tre-wide">Description <input data-field="desc" value="${r.desc.replace(/"/g, '&quot;')}"></label>
+        <label class="tre-wide tre-icon-field">Icon (emoji fallback, used only without art above) <input data-field="icon" value="${r.icon}" maxlength="4"></label>
       </div>
       <div class="tre-id">id: ${r.id}</div>
     </div>`;
   }
 
-  function render() {
-    const cats = [...new Set([...Object.keys(TD_RELIC_CATEGORIES), ...TD_RELICS.map(r => r.category)])];
+  // Compact single-row-per-relic power view — same data-field contract as
+  // relicCard so the one delegated input/delete listeners below work for
+  // both layouts unchanged. Icon editing is grid-view-only (list rows are
+  // already tight); description loses its label in favor of a placeholder.
+  function relicRow(r, i) {
+    const effOpts = TD_RELIC_EFFECT_TYPES.map(([t, label]) =>
+      `<option value="${t}" ${r.effect.type === t ? 'selected' : ''}>${label}</option>`).join('');
+    const rarOpts = TD_RELIC_RARITIES.map(x =>
+      `<option value="${x}" ${r.rarity === x ? 'selected' : ''}>${x}</option>`).join('');
+    const group = tdRelicCategoryGroup(r.category);
+    return `
+    <div class="tre-card tre-row group-${group}" data-idx="${i}" title="id: ${r.id}">
+      ${artSwatch(r)}
+      <input class="tre-row-field tre-row-name" data-field="name" value="${r.name.replace(/"/g, '&quot;')}" aria-label="Name">
+      <input class="tre-row-field tre-row-cat" data-field="category" value="${r.category}" list="tre-cats" aria-label="Category">
+      <select class="tre-row-field tre-row-rarity" data-field="rarity" aria-label="Rarity">${rarOpts}</select>
+      <input class="tre-row-field tre-row-num" data-field="upkeep" type="number" min="0" step="1" value="${r.upkeep}" aria-label="Upkeep" title="Upkeep 🪙/node">
+      <label class="tre-row-starter" title="Starter relic"><input type="checkbox" data-field="starter" ${r.starter ? 'checked' : ''}> ⭐</label>
+      <select class="tre-row-field tre-row-effect" data-field="effect.type" aria-label="Effect">${effOpts}</select>
+      <input class="tre-row-field tre-row-num" data-field="effect.value" type="number" step="0.01" value="${r.effect.value}" aria-label="Value">
+      <input class="tre-row-field tre-row-desc" data-field="desc" value="${r.desc.replace(/"/g, '&quot;')}" aria-label="Description" placeholder="Description">
+      <button class="tre-del" data-del="${i}" title="Delete relic">🗑</button>
+    </div>`;
+  }
+
+  const SORTERS = {
+    name:         (a, b) => a.r.name.localeCompare(b.r.name),
+    category:     (a, b) => a.r.category.localeCompare(b.r.category) || a.r.name.localeCompare(b.r.name),
+    rarity:       (a, b) => (TD_RARITY_ORDER[a.r.rarity] ?? 0) - (TD_RARITY_ORDER[b.r.rarity] ?? 0) || a.r.name.localeCompare(b.r.name),
+    'upkeep-asc': (a, b) => a.r.upkeep - b.r.upkeep || a.r.name.localeCompare(b.r.name),
+    'upkeep-desc':(a, b) => b.r.upkeep - a.r.upkeep || a.r.name.localeCompare(b.r.name),
+  };
+
+  // Filters/sorts a DISPLAY view without touching TD_RELICS order — each
+  // entry keeps its original index (i) so data-idx still resolves to the
+  // right TD_RELICS entry for the shared edit/delete handlers regardless
+  // of how the list is currently sorted or filtered.
+  function visibleEntries() {
+    const q = treSearch.trim().toLowerCase();
+    let entries = TD_RELICS.map((r, i) => ({ r, i }));
+    if (treCategoryFilter !== 'all') entries = entries.filter(e => e.r.category === treCategoryFilter);
+    if (q) entries = entries.filter(e => e.r.name.toLowerCase().includes(q) || e.r.id.toLowerCase().includes(q));
+    entries.sort(SORTERS[treSort] || SORTERS.name);
+    return entries;
+  }
+
+  // Rebuilds ONLY the card/row list — called on every search keystroke and
+  // filter/sort/view change, so it must never touch the header DOM (that
+  // would destroy and recreate the search input, killing focus mid-type).
+  function renderList() {
+    const listEl = ov.querySelector('#tre-list');
+    if (!listEl) return;
+    const entries = visibleEntries();
+    listEl.className = `tre-list view-${treView}`;
+    listEl.innerHTML = entries.length
+      ? entries.map(({ r, i }) => (treView === 'list' ? relicRow(r, i) : relicCard(r, i))).join('')
+      : `<div class="tre-empty">No relics match${treSearch ? ` "${treSearch}"` : ''}${treCategoryFilter !== 'all' ? ` in ${TD_RELIC_CATEGORIES[treCategoryFilter] || treCategoryFilter}` : ''}.</div>`;
+    listEl.querySelectorAll('.tre-del').forEach(b => b.addEventListener('click', () => {
+      const idx = parseInt(b.dataset.del, 10);
+      const r = TD_RELICS[idx];
+      if (!r || !confirm(`Delete relic "${r.name}"?`)) return;
+      TD_RELICS.splice(idx, 1);
+      tdOwnedRelics.delete(r.id); tdEquippedRelics.delete(r.id);
+      saveGameState();
+      renderHeader(); // count + category options may have changed
+    }));
+  }
+
+  // Full rebuild: title count, category filter/datalist options, toolbar
+  // state, then the list. Only called on open/add/delete — anything that
+  // fires per-keystroke (search) or per-selection (filter/sort/view) calls
+  // renderList() alone so the toolbar controls never lose focus/state.
+  function renderHeader() {
+    const cats = [...new Set([...Object.keys(TD_RELIC_CATEGORIES), ...TD_RELICS.map(r => r.category)])].sort();
     ov.innerHTML = `
       <div class="tre-head">
         <span class="tre-title">🏺 Relic Editor · ${TD_RELICS.length}</span>
-        <button id="tre-add">＋ Add</button>
-        <button id="tre-export">📋 config.json</button>
-        <button id="tre-close">✕</button>
+        <div class="tre-toolbar">
+          <input id="tre-search" class="tre-toolbar-search" type="search" placeholder="Search relics…" value="${treSearch.replace(/"/g, '&quot;')}" aria-label="Search relics">
+          <select id="tre-filter-cat" class="tre-toolbar-select" title="Filter by category" aria-label="Filter by category">
+            <option value="all">All categories</option>
+            ${cats.map(c => `<option value="${c}" ${treCategoryFilter === c ? 'selected' : ''}>${TD_RELIC_CATEGORIES[c] || c}</option>`).join('')}
+          </select>
+          <select id="tre-sort" class="tre-toolbar-select" title="Sort by" aria-label="Sort by">
+            <option value="name" ${treSort === 'name' ? 'selected' : ''}>Name (A–Z)</option>
+            <option value="category" ${treSort === 'category' ? 'selected' : ''}>Item type</option>
+            <option value="rarity" ${treSort === 'rarity' ? 'selected' : ''}>Rarity</option>
+            <option value="upkeep-asc" ${treSort === 'upkeep-asc' ? 'selected' : ''}>Cost (low → high)</option>
+            <option value="upkeep-desc" ${treSort === 'upkeep-desc' ? 'selected' : ''}>Cost (high → low)</option>
+          </select>
+          <div class="tre-view-toggle" role="group" aria-label="Layout">
+            <button class="tre-view-btn ${treView === 'grid' ? 'active' : ''}" data-view="grid" title="Grid — 3 columns">▦</button>
+            <button class="tre-view-btn ${treView === 'list' ? 'active' : ''}" data-view="list" title="List — one row per relic">☰</button>
+          </div>
+        </div>
+        <div class="tre-head-actions">
+          <button id="tre-add">＋ Add</button>
+          <button id="tre-export">📋 config.json</button>
+          <button id="tre-close">✕</button>
+        </div>
       </div>
       <div class="tre-note">Edits apply from the next battle. 📋 copies the full config.json — paste it over learn/drill/config.json and push.</div>
       <datalist id="tre-cats">${cats.map(c => `<option value="${c}">`).join('')}</datalist>
-      <div class="tre-list">${TD_RELICS.map(relicCard).join('')}</div>`;
+      <div class="tre-list view-${treView}" id="tre-list"></div>`;
 
     ov.querySelector('#tre-close').addEventListener('click', () => ov.remove());
     ov.querySelector('#tre-add').addEventListener('click', () => {
@@ -2451,7 +2563,7 @@ function tdOpenRelicEditor() {
       while (TD_RELICS.some(r => r.id === id)) id = `new_relic_${++n}`;
       TD_RELICS.push({ id, name: 'New Relic', icon: '🏺', category: 'gold', rarity: 'common',
         upkeep: 0, desc: 'Describe the effect', effect: { type: 'kill-gold-mult', value: 1.1 } });
-      render();
+      renderHeader();
       ov.querySelector('.tre-list').lastElementChild?.scrollIntoView({ block: 'center' });
     });
     ov.querySelector('#tre-export').addEventListener('click', e => {
@@ -2462,18 +2574,22 @@ function tdOpenRelicEditor() {
         setTimeout(() => { btn.textContent = '📋 config.json'; }, 1600);
       });
     });
-    ov.querySelectorAll('.tre-del').forEach(b => b.addEventListener('click', () => {
-      const r = TD_RELICS[parseInt(b.dataset.del, 10)];
-      if (!r || !confirm(`Delete relic "${r.name}"?`)) return;
-      TD_RELICS.splice(parseInt(b.dataset.del, 10), 1);
-      tdOwnedRelics.delete(r.id); tdEquippedRelics.delete(r.id);
-      saveGameState();
-      render();
+    ov.querySelector('#tre-search').addEventListener('input', e => { treSearch = e.target.value; renderList(); });
+    ov.querySelector('#tre-filter-cat').addEventListener('change', e => { treCategoryFilter = e.target.value; renderList(); });
+    ov.querySelector('#tre-sort').addEventListener('change', e => { treSort = e.target.value; renderList(); });
+    ov.querySelectorAll('.tre-view-btn').forEach(b => b.addEventListener('click', () => {
+      treView = b.dataset.view;
+      ov.querySelectorAll('.tre-view-btn').forEach(x => x.classList.toggle('active', x.dataset.view === treView));
+      renderList();
     }));
+
+    renderList();
   }
 
   // One delegated listener writes edits straight into the relic objects
   // (TD_RELICS === TD_CONFIG.relics, so the export sees them immediately).
+  // Works unchanged for both relicCard and relicRow markup since both use
+  // the same .tre-card[data-idx] + [data-field] contract.
   ov.addEventListener('input', e => {
     const el = e.target;
     const card = el.closest('.tre-card');
@@ -2489,7 +2605,7 @@ function tdOpenRelicEditor() {
     else                                r[field] = el.value;
   });
 
-  render();
+  renderHeader();
   document.body.appendChild(ov);
 }
 
