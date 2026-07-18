@@ -273,3 +273,63 @@ source detail, fixable only by repainting denser. Owner decision
   silhouette-stable. If building outlines move, re-fit them in minutes
   with the ?author=1 editor (section 6) — drag the vertices onto the new
   pixels, ghost-walk, export.
+
+## 6. Relic icon sheets — chroma-key slicing (2026-07-18)
+
+Relic icons are generated as an N×N grid (see the relic sheet prompt in
+`learn/drill/assets/reference/relic-icons-6x6-source.png`'s companion prompt,
+kept in chat history) — one hero object per cell on a solid magenta
+(#FF00FF) background, sliced into individual transparent PNGs by
+`scripts/slice_relic_sheet.py`.
+
+### Don't key on distance to one magenta sample
+
+The object/background boundary is antialiased, so edge pixels are a blended
+ramp, not a hard cut. A plain "distance to pure magenta" threshold either
+leaves a visible pink fringe (too loose) or eats real detail (too tight) —
+and the right threshold differs per cell depending on what color happens to
+sit next to the background there. Key on **magenta bias** instead:
+`m = min(R,B) - G`. Pure magenta and any antialiased blend toward it keeps a
+high bias regardless of brightness; real object colors (steel, gold, wood,
+even blue-violet glows) don't share that R&B-high/G-low signature. Ramp
+alpha off `m` (`low_m`≈25 fully opaque, `high_m`≈110 fully transparent),
+despill the partial-alpha pixels (pull the magenta excess back out
+proportional to `1 - alpha`), then run a 1px `MinFilter` erosion on the
+alpha channel to shave off whatever thin uncertain ring is left regardless
+of its hue. Validated on the 36-icon relic sheet: zero visible fringe.
+
+### Known Gemini defect: gold glows render pink
+
+On this sheet, two cells asked for a **golden** glow/halo (Golden Fang,
+Golden Goose) and both rendered a **pink-tinted** glow instead — confirmed
+by sampling raw pixels: a wide (~15px), smoothly painted gradient, not a
+thin AA fringe, so it's baked into the source, not a keying bug. Every
+other requested glow color (blue-violet, red, orange-ember) rendered
+correctly on the same sheet. Best guess: the model blends a warm-hued glow
+toward the magenta backdrop's own hue during generation. No chroma-key
+threshold can separate "intended pink" from "background pollution" when
+they're the same color over a wide gradient — the fix is a manual
+hue-touch-up or a single-cell regenerate ("redraw cell N exactly as
+specified"), not a keying tweak.
+
+### Diagnostic false positives: violet/purple objects
+
+`--report` flags cells with a high fraction of opaque-but-magenta-biased
+pixels as candidates to re-check. Cells with **legitimate blue-violet
+content** (arcane glows, gems, an amethyst eye) score high on this metric
+too — violet shares magenta's R&B-high/G-low signature. Always confirm
+flagged cells visually before treating a high score as a real defect; on
+this sheet every top-ranked "flag" except the two gold-glow cells above
+turned out to be intentional violet/purple object color, not fringe.
+
+### Workflow
+
+```bash
+python3 scripts/slice_relic_sheet.py sheet.png \
+  --names id1,id2,...,id36 \
+  --out-dir learn/drill/assets/relics --report
+# move any placeholder (not-yet-wired) icons into assets/relics/placeholders/
+# eyeball a full contact sheet before committing — composite every sliced
+# PNG onto the game's actual dark background, not white, since fringes only
+# show up against a dark backdrop
+```
