@@ -2621,6 +2621,19 @@ html, body {
   border-color: var(--accent);
   background: var(--accent-dim);
 }
+/* Shared by every relic-icon render site (shop, equip sheet, profile grid,
+   editor preview) — sized to 1em so it inherits whatever font-size the
+   containing wrapper already sets, no per-site sizing needed. Falls back
+   to the emoji icon text wherever config.json has no img (tdRelicIconHtml
+   in drill-world.js decides which one renders). */
+.relic-icon-img {
+  width: 1em;
+  height: 1em;
+  object-fit: contain;
+  vertical-align: middle;
+  image-rendering: pixelated;
+}
+
 .relic-equip-icon {
   font-size: 1.5rem;
   line-height: 1;
@@ -2866,6 +2879,7 @@ html, body {
 }
 .tre-card-head { display: flex; gap: .5rem; align-items: center; margin-bottom: .55rem; }
 .tre-icon { width: 3rem; text-align: center; font-size: 1.15rem; }
+.tre-art-preview { width: 2rem; height: 2rem; flex-shrink: 0; border-radius: 6px; background: var(--bg-base); }
 .tre-name { flex: 1; font-weight: 600; }
 .tre-del {
   background: none; border: 1px solid var(--border); border-radius: 8px;

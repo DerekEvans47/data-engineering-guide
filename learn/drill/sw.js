@@ -1,4 +1,4 @@
-const CACHE = 'de-drill-v158';
+const CACHE = 'de-drill-v159';
 const ASSETS = [
   './index.html',
   './config.json',
@@ -26,6 +26,27 @@ const ASSETS = [
   './assets/towers/ranger-tier2-back.png',
   './assets/towers/ranger-tier3-back.png',
   './assets/towers/ranger-tier4-back.png',
+  // Relic sprite icons — only the ones config.json actually references
+  // (relic.img). Unused/placeholder art in assets/relics/placeholders/
+  // deliberately stays out of the SW cache until a relic wires it up.
+  './assets/relics/midas_touch.png',
+  './assets/relics/runed_blade.png',
+  './assets/relics/giantsbane.png',
+  './assets/relics/merchants_purse.png',
+  './assets/relics/royal_charter.png',
+  './assets/relics/iron_constitution.png',
+  './assets/relics/quickdraw_gloves.png',
+  './assets/relics/storm_drum.png',
+  './assets/relics/eagle_eye_lens.png',
+  './assets/relics/frost_sigil.png',
+  './assets/relics/masons_ledger.png',
+  './assets/relics/architects_compass.png',
+  './assets/relics/tax_ledger.png',
+  './assets/relics/field_hospital.png',
+  './assets/relics/scholars_quill.png',
+  './assets/relics/tome_of_study.png',
+  './assets/relics/powder_keg.png',
+  './assets/relics/siegebreaker.png',
   '../../content/question-bank.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
 ];

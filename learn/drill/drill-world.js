@@ -44,6 +44,16 @@ function tdApplyConfig(cfg) {
   TD_EVENTS              = cfg.events;
 }
 
+// Every relic-icon render site (shop, equip sheet, profile grid, editor)
+// calls through here: real sprite art if config.json set r.img, else the
+// emoji r.icon falls back unchanged. width/height are set to 1em so the
+// image inherits whatever font-size the caller's wrapper element already
+// has — no per-site sizing needed. image-rendering:pixelated lives on the
+// shared .relic-icon-img class in drill.css.
+function tdRelicIconHtml(relic) {
+  return relic.img ? `<img src="${relic.img}" alt="" class="relic-icon-img">` : relic.icon;
+}
+
 // Weighted-random pick from a relic pool, honoring TD_RELIC_RARITY_WEIGHT.
 // Falls back to a plain uniform pick if the pool's rarities happen to sum
 // to zero weight (shouldn't happen with the four known rarity tiers).
@@ -1190,7 +1200,7 @@ function showInventoryPanel() {
         ${owned.length ? owned.map(r => {
           const isEq = tdEquippedRelics.has(r.id);
           return `<div class="relic-equip-card${isEq ? ' equipped' : ''}" data-relic-id="${r.id}">
-            <div class="relic-equip-icon">${r.icon}</div>
+            <div class="relic-equip-icon">${tdRelicIconHtml(r)}</div>
             <div class="relic-equip-body">
               <div class="relic-equip-name">${r.name} <span class="relic-equip-rarity rarity-${r.rarity}">${r.rarity}</span></div>
               <div class="relic-equip-desc">${r.desc}</div>
@@ -1238,7 +1248,7 @@ function showRelicAcquiredPrompt(relic) {
         <span class="relic-equip-title">New Relic!</span>
       </div>
       <div class="relic-equip-card equipped" style="cursor:default">
-        <div class="relic-equip-icon">${relic.icon}</div>
+        <div class="relic-equip-icon">${tdRelicIconHtml(relic)}</div>
         <div class="relic-equip-body">
           <div class="relic-equip-name">${relic.name} <span class="relic-equip-rarity rarity-${relic.rarity}">${relic.rarity}</span></div>
           <div class="relic-equip-desc">${relic.desc}</div>
@@ -1426,7 +1436,7 @@ function showInterNodePanel(node, run) {
           </div>
         </div>` : `
         <div class="tdcp-shop-item tdcp-shop-relic${(relicSold || carryGold < relicCost) ? ' cannot-afford' : ''}" data-kind="relic">
-          <span class="tdcp-shop-icon">${relicOffer.icon}</span>
+          <span class="tdcp-shop-icon">${tdRelicIconHtml(relicOffer)}</span>
           <div class="tdcp-shop-text">
             <span class="tdcp-shop-label">${relicOffer.name}</span>
             <span class="tdcp-shop-sub">${relicSold ? 'Sold' : `${relicOffer.rarity} · ${TD_RELIC_CATEGORIES[relicOffer.category] || relicOffer.category}`}</span>

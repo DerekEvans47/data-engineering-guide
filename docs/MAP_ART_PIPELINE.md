@@ -312,6 +312,15 @@ they're the same color over a wide gradient — the fix is a manual
 hue-touch-up or a single-cell regenerate ("redraw cell N exactly as
 specified"), not a keying tweak.
 
+**Status (2026-07-18): both deleted, not shipped.** `golden_fang.png` and
+`golden_goose.png` were removed from `learn/drill/assets/relics/` rather than
+committing the defect — those two relics fall back to their emoji `icon` in
+`config.json` (no `img` field set) until fresh art lands. To finish them:
+regenerate just those two cells against the same prompt (cell 2 and cell 15
+of the original 6×6 spec), re-run `slice_relic_sheet.py` on the new crop, and
+add `"img": "assets/relics/golden_fang.png"` / `golden_goose.png` back to
+their `config.json` entries.
+
 ### Diagnostic false positives: violet/purple objects
 
 `--report` flags cells with a high fraction of opaque-but-magenta-biased

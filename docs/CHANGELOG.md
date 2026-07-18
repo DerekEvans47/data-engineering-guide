@@ -50,6 +50,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Reshape Verdant spine - node re-placement, Fishing Camp added (#130)
 
+- Slice relic icon sheet into 36 transparent PNGs (20 wired ids + 16 placeholders)
+
 - Wire new Frontier Town painted map (path + slots) and add unit-art backlog
 
 

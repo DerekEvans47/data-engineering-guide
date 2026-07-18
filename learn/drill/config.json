@@ -279,7 +279,8 @@
         "type": "kill-gold-mult",
         "value": 1.25
       },
-      "starter": true
+      "starter": true,
+      "img": "assets/relics/midas_touch.png"
     },
     {
       "id": "golden_fang",
@@ -306,7 +307,8 @@
         "type": "tower-dmg-mult",
         "value": 1.15
       },
-      "starter": true
+      "starter": true,
+      "img": "assets/relics/runed_blade.png"
     },
     {
       "id": "giantsbane",
@@ -319,7 +321,8 @@
       "effect": {
         "type": "boss-dmg-mult",
         "value": 1.5
-      }
+      },
+      "img": "assets/relics/giantsbane.png"
     },
     {
       "id": "merchants_purse",
@@ -333,7 +336,8 @@
         "type": "start-gold-add",
         "value": 60
       },
-      "starter": true
+      "starter": true,
+      "img": "assets/relics/merchants_purse.png"
     },
     {
       "id": "royal_charter",
@@ -346,7 +350,8 @@
       "effect": {
         "type": "start-gold-add",
         "value": 130
-      }
+      },
+      "img": "assets/relics/royal_charter.png"
     },
     {
       "id": "iron_constitution",
@@ -360,7 +365,8 @@
         "type": "max-lives-add",
         "value": 5
       },
-      "starter": true
+      "starter": true,
+      "img": "assets/relics/iron_constitution.png"
     },
     {
       "id": "quickdraw_gloves",
@@ -373,7 +379,8 @@
       "effect": {
         "type": "tower-rate-mult",
         "value": 1.15
-      }
+      },
+      "img": "assets/relics/quickdraw_gloves.png"
     },
     {
       "id": "storm_drum",
@@ -386,7 +393,8 @@
       "effect": {
         "type": "tower-rate-mult",
         "value": 1.25
-      }
+      },
+      "img": "assets/relics/storm_drum.png"
     },
     {
       "id": "eagle_eye_lens",
@@ -399,7 +407,8 @@
       "effect": {
         "type": "tower-range-mult",
         "value": 1.15
-      }
+      },
+      "img": "assets/relics/eagle_eye_lens.png"
     },
     {
       "id": "frost_sigil",
@@ -412,7 +421,8 @@
       "effect": {
         "type": "enemy-speed-mult",
         "value": 0.88
-      }
+      },
+      "img": "assets/relics/frost_sigil.png"
     },
     {
       "id": "masons_ledger",
@@ -425,7 +435,8 @@
       "effect": {
         "type": "build-cost-mult",
         "value": 0.9
-      }
+      },
+      "img": "assets/relics/masons_ledger.png"
     },
     {
       "id": "architects_compass",
@@ -438,7 +449,8 @@
       "effect": {
         "type": "upgrade-cost-mult",
         "value": 0.85
-      }
+      },
+      "img": "assets/relics/architects_compass.png"
     },
     {
       "id": "tax_ledger",
@@ -451,7 +463,8 @@
       "effect": {
         "type": "wave-gold-add",
         "value": 12
-      }
+      },
+      "img": "assets/relics/tax_ledger.png"
     },
     {
       "id": "golden_goose",
@@ -477,7 +490,8 @@
       "effect": {
         "type": "wave-life-add",
         "value": 1
-      }
+      },
+      "img": "assets/relics/field_hospital.png"
     },
     {
       "id": "scholars_quill",
@@ -490,7 +504,8 @@
       "effect": {
         "type": "quiz-gold-mult",
         "value": 1.5
-      }
+      },
+      "img": "assets/relics/scholars_quill.png"
     },
     {
       "id": "tome_of_study",
@@ -503,7 +518,8 @@
       "effect": {
         "type": "quiz-uses-add",
         "value": 2
-      }
+      },
+      "img": "assets/relics/tome_of_study.png"
     },
     {
       "id": "powder_keg",
@@ -516,7 +532,8 @@
       "effect": {
         "type": "splash-mult",
         "value": 1.3
-      }
+      },
+      "img": "assets/relics/powder_keg.png"
     },
     {
       "id": "siegebreaker",
@@ -529,7 +546,8 @@
       "effect": {
         "type": "armor-pierce",
         "value": 1
-      }
+      },
+      "img": "assets/relics/siegebreaker.png"
     }
   ],
   "relicCategories": {
