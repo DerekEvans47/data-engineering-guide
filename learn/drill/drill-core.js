@@ -552,7 +552,7 @@ function openProfile() {
 
   const relicHTML = TD_RELICS.map(r => `
     <div class="ach-cell ${tdOwnedRelics.has(r.id) ? 'unlocked' : 'locked'}" title="${r.desc}">
-      <span class="ach-cell-icon">${r.icon}</span>
+      <span class="ach-cell-icon">${tdRelicIconHtml(r)}</span>
       <span class="ach-cell-name">${r.name}</span>
     </div>`).join('');
 

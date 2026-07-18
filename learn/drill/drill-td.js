@@ -2409,6 +2409,7 @@ function tdOpenRelicEditor() {
     return `
     <div class="tre-card" data-idx="${i}">
       <div class="tre-card-head">
+        ${r.img ? `<img src="${r.img}" alt="" class="relic-icon-img tre-art-preview" title="Sprite art on file — the Icon field below is only the emoji fallback">` : ''}
         <input class="tre-icon" data-field="icon" value="${r.icon}" maxlength="4" aria-label="Icon">
         <input class="tre-name" data-field="name" value="${r.name.replace(/"/g, '&quot;')}" aria-label="Name">
         <button class="tre-del" data-del="${i}" title="Delete relic">🗑</button>
