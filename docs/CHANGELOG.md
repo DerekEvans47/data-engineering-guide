@@ -18,6 +18,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Ambient animation layer on the region map
 
+- Barracks units block the lane and fight enemies in melee (#158)
+
 - Dev tooling - in-app map editors, CI verify gate, config.json, dev panel (#142)
 
 - Disable quiz gate for testing, compact quiz card, letterbox backdrop, smaller goblins
