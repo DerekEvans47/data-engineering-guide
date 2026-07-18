@@ -2282,11 +2282,24 @@ function tdDrawEnemy(ctx, cs, bgT, e) {
         else if (dx > 0.5) e._faceLeft = false;
       }
       e._px = e.x;
-      const wImg = eSheet.walk.img;
-      const fw = wImg.naturalWidth / eSheet.walk.frames, fh = wImg.naturalHeight;
-      const eh = e.r * cs * (eSheet.scale || 3.2), ew = eh * fw / fh;
-      // A-B-A-B playback, cadence scaled by the enemy's speed stat
-      const fr = Math.floor(bgT * 3.2 * (e.spd || 1.5) + (e.animOffset || 0)) % eSheet.walk.frames;
+      // Engaged with a barracks blocker → play the attack sheet, frame
+      // driven by the melee timer (meleeCd counts 1 → 0, damage lands at
+      // 0): long windup, then thrust / follow-through / recover packed
+      // near the end so the visible strike lines up with the hit.
+      const attacking = e.engagedBy && tdEnemySheetReady(eSheet, 'attack');
+      let anim = eSheet.walk, animScale = eSheet.scale, fr;
+      if (attacking) {
+        anim = eSheet.attack;
+        animScale = eSheet.attackScale || eSheet.scale;
+        const cd = Math.max(0, Math.min(1, e.meleeCd ?? 0));
+        fr = cd > 0.35 ? 0 : cd > 0.2 ? 1 : cd > 0.08 ? 2 : 3;
+      } else {
+        // A-B-A-B playback, cadence scaled by the enemy's speed stat
+        fr = Math.floor(bgT * 3.2 * (e.spd || 1.5) + (e.animOffset || 0)) % eSheet.walk.frames;
+      }
+      const wImg = anim.img;
+      const fw = wImg.naturalWidth / anim.frames, fh = wImg.naturalHeight;
+      const eh = e.r * cs * (animScale || 3.2), ew = eh * fw / fh;
       const footY = e.y + r * 0.78;
       paintedTopY = footY - eh;
       ctx.save();

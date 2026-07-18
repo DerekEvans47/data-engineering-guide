@@ -1,4 +1,4 @@
-const CACHE = 'de-drill-v166';
+const CACHE = 'de-drill-v167';
 const ASSETS = [
   './index.html',
   './config.json',
@@ -18,6 +18,7 @@ const ASSETS = [
   './assets/fonts/Cinzel-Bold.woff2',
   './assets/enemies/goblin-walk.png',
   './assets/enemies/goblin-death.png',
+  './assets/enemies/goblin-attack.png',
   './assets/towers/ranger-tier1.png',
   './assets/towers/ranger-tier2.png',
   './assets/towers/ranger-tier3.png',

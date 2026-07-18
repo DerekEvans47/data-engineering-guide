@@ -518,8 +518,15 @@ function tdLoadEnemySheet(src, frames) {
 const TD_ENEMY_SHEET_IMAGES = {
   goblin: {
     scale: 2.0,
-    walk:  tdLoadEnemySheet('assets/enemies/goblin-walk.png', 2),
-    death: tdLoadEnemySheet('assets/enemies/goblin-death.png', 4),
+    // Attack frames are 118px tall (vs 110 for walk/death) because the
+    // raised-dagger windup pose needs the extra headroom; attackScale
+    // keeps pixels-per-source-pixel identical across the two sheets
+    // (2.0 * 118/110) so the character doesn't change size when the
+    // renderer swaps animation states mid-engagement.
+    attackScale: 2.145,
+    walk:   tdLoadEnemySheet('assets/enemies/goblin-walk.png', 2),
+    death:  tdLoadEnemySheet('assets/enemies/goblin-death.png', 4),
+    attack: tdLoadEnemySheet('assets/enemies/goblin-attack.png', 4),
   },
 };
 function tdEnemySheetReady(sheet, anim) {

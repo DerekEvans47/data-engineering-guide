@@ -100,9 +100,13 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add files via upload
 
+- Add files via upload
+
 - Delete Gemini_Generated_Image_ngutc5ngutc5ngut.png
 
 - Adjust object placement and occlusion
+
+- Keep repo links out of copy-paste image-gen prompts (#159)
 
 - Make ?dev=1 the single Creator Mode link (#150)
 
