@@ -8,10 +8,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - 20-relic system with real effects + in-app relic editor (?dev=1) (#148)
 
-- EQ-6 store node — power-ups + rarity-weighted relic
-
-- EQ-7 inventory panel + relic-acquired equip prompt
-
 - Frontier Town rev 7 - new painterly art direction + first-pass authoring
 
 - Frontier Town wide battle map (30x13, rev 6) + map art pipeline updates (#133)
@@ -20,19 +16,15 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Unit Readability Standard - outline+pop pass for battlefield sprites
 
-- Add battle-music contenders (horn & strings) to Music Lab
-
 - Ambient animation layer on the region map
 
 - Dev tooling - in-app map editors, CI verify gate, config.json, dev panel (#142)
 
 - Disable quiz gate for testing, compact quiz card, letterbox backdrop, smaller goblins
 
-- Fantasy-themed battle-screen HUD chrome (wave/quiz/radial/back buttons)
-
-- Gemini sparkle watermark removal script + map art pipeline docs
-
 - Goblin pilot sprite assets (A-1 done) - walk keyframes + death sequence
+
+- Make run gold/lives truly persistent, add shop consumables
 
 - Map authoring overlay (?author=1) (#136)
 
@@ -73,13 +65,7 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Draw the painted map nearest-neighbor - map was blurry vs crisp units (#144)
 
-- Enemy pathing follows the painted road, re-center build slots
-
-- Home screen width cap, region map crop-fill, header opacity
-
 - IPhone landscape home fit + sheep tint; docs: K-section backlog review + STATUS handoff (#132)
-
-- Landscape maps were wasting ~20-40% of screen width/height
 
 - Playtest round 4 - landscape home fit, arrow physics, full-bleed map, ambient polish (#131)
 
@@ -92,8 +78,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Rev6 follow-ups - one-run flow, Eldervale title, battle-map polish (#134)
 
 - Round-2 polish - Cinzel title, visible mist drift, precise occluders (#135)
-
-- Stop map music on entering battle, trim loop tail
 
 - Swap relic menu placement - player select on world map, dev editor on Home (#154)
 
@@ -112,19 +96,11 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Add files via upload
 
-- Add files via upload
-
 - Delete Gemini_Generated_Image_ngutc5ngutc5ngut.png
 
 - Adjust object placement and occlusion
 
 - Make ?dev=1 the single Creator Mode link (#150)
-
-- Mark EQ-6 done, note tdMoveEnemy no longer axis-aligned-only
-
-- Mark EQ-7 done (inventory panel + relic-acquired prompt)
-
-- Master battle-map prompt + unique prompts for all 14 Verdant levels
 
 - Modularize Quiz Defense - map data from JSON, drill.js split in four (#141)
 

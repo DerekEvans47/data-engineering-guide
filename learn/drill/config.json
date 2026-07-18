@@ -109,6 +109,20 @@
           "glow": "#C084FC"
         }
       ]
+    },
+    {
+      "id": "man_at_arms",
+      "name": "Man-at-Arms",
+      "role": "barracks",
+      "icon": "⚔️",
+      "cost": 50,
+      "color": "#B45309",
+      "range": 1.2,
+      "dmg": 16,
+      "rate": 1.6,
+      "splash": 0,
+      "pattern": "dots",
+      "upgrades": []
     }
   ],
   "enemies": {
