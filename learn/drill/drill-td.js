@@ -517,8 +517,12 @@ function tdUpdate(dt) {
   // leaking costs nothing, and wave-clear logic never sees them.
   if (td.__ghosts?.length) td.__ghosts = td.__ghosts.filter(g => !tdMoveEnemy(g, dt));
 
+  tdResolveBlockers(dt);
+
   const leaked = [];
   for (const e of td.enemies) {
+    if (e.engagedBy) continue; // standing and fighting a barracks blocker
+    if (tdIsQueuedBehindBlock(e)) continue; // held back by a stopped enemy just ahead
     if (tdMoveEnemy(e, dt)) leaked.push(e);
   }
   for (const e of leaked) {
@@ -545,6 +549,7 @@ function tdUpdate(dt) {
     }
   }
 
+  tdResolveMelee(dt);
   tdFireTowers(dt);
   tdMoveProjectiles(dt);
 
@@ -741,8 +746,133 @@ function tdCellCenter(col, row, cs) {
   return [col * cs + cs / 2, row * cs + cs / 2];
 }
 
+// Pixel distance from a build slot to the nearest point on the lane —
+// computed once at placement time and cached on the tower (see
+// tdBuildTowerItem). A barracks unit can only block the lane if this is
+// within its own range (same rangePx convention tdFireTowers already uses),
+// which is what makes some build slots frontline and others rear without
+// any new map-authoring concept: it's just geometry against the existing
+// path + build-slot data every level already has.
+function tdTowerPathDistPx(col, row, cs) {
+  const wps = td.levelDef.wpsExact || td.levelDef.wps;
+  if (!wps || wps.length < 2) return Infinity;
+  const [px, py] = tdCellCenter(col, row, cs);
+  const toPx = ([c, r]) => td.levelDef.wpsExact ? [c * cs, r * cs] : [c * cs + cs / 2, r * cs + cs / 2];
+  let best = Infinity;
+  for (let i = 0; i < wps.length - 1; i++) {
+    const [x1, y1] = toPx(wps[i]);
+    const [x2, y2] = toPx(wps[i + 1]);
+    const dx = x2 - x1, dy = y2 - y1;
+    let dist;
+    if (dx === 0 && dy === 0) {
+      dist = Math.hypot(px - x1, py - y1);
+    } else {
+      const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+      dist = Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+    }
+    if (dist < best) best = dist;
+  }
+  return best;
+}
+
+// ── Barracks blocking (melee units stand IN the lane, unlike towers which
+// never touch the enemy) ────────────────────────────────────────────────
+
+// Picks, for each active barracks tower, the front-most (furthest-along-
+// path) non-flying enemy within its reach and marks it engaged. Engaged
+// enemies skip movement in tdUpdate — they're standing and fighting, not
+// walking. Cleared and recomputed every frame; since engaged enemies don't
+// move, the same enemy naturally keeps being picked frame to frame until
+// it (or the blocker) dies.
+function tdResolveBlockers(dt) {
+  if (!td.towers.length) return;
+  const cs = td.cellSize;
+  for (const e of td.enemies) e.engagedBy = null;
+  for (const t of td.towers) {
+    t.engagedEid = null;
+    const def = TD_TOWER_DEFS.find(d => d.id === t.type);
+    if (!def || def.role !== 'barracks') continue;
+    if ((t.aliveTroops || 0) <= 0) continue;
+    const stats = tdGetTowerStats(t);
+    const rangePx = stats.range * cs;
+    if ((t.pathDistPx ?? Infinity) > rangePx) continue; // slot too far from the lane to block it
+    const [tx, ty] = tdCellCenter(t.col, t.row, cs);
+    let best = null;
+    for (const e of td.enemies) {
+      if (e.flying || e.engagedBy || e.hp <= 0) continue; // flying skips blockers, same as mortar splash
+      if (Math.hypot(e.x - tx, e.y - ty) > rangePx) continue;
+      if (!best || e.dist > best.dist) best = e;
+    }
+    if (best) { best.engagedBy = t; t.engagedEid = best.id; }
+  }
+}
+
+// Single-file queueing: an enemy holds its ground if the nearest engaged
+// (stopped) enemy ahead of it on the lane is closer than the follow gap —
+// no collision system needed since the lane is a single ordered polyline
+// and `dist` already tracks how far along it each enemy has traveled.
+const TD_QUEUE_GAP_CELLS = 0.55;
+function tdIsQueuedBehindBlock(e) {
+  const gapPx = TD_QUEUE_GAP_CELLS * td.cellSize;
+  for (const o of td.enemies) {
+    if (!o.engagedBy || o === e) continue;
+    if (o.dist > e.dist && o.dist - e.dist < gapPx) return true;
+  }
+  return false;
+}
+
+// Melee damage exchange for every currently-engaged blocker/enemy pair.
+// Reuses the same cooldown-tick pattern as tdFireTowers (t.cd counts down
+// to 0, then fires) but applies damage instantly instead of spawning a
+// projectile — there's no travel time when you're standing next to what
+// you're hitting. The enemy's own atk stat (added to config.json enemies)
+// hits back on its own timer; when the active troop's HP runs out the
+// squad loses a member and the next troop (if any) steps up next frame.
+function tdResolveMelee(dt) {
+  for (const t of td.towers) {
+    if (t.engagedEid == null || (t.aliveTroops || 0) <= 0) continue;
+    const enemy = td.enemies.find(e => e.id === t.engagedEid);
+    if (!enemy || enemy.hp <= 0) continue;
+    const def   = TD_TOWER_DEFS.find(d => d.id === t.type);
+    const stats = tdGetTowerStats(t);
+    const cs    = td.cellSize;
+    const [tx, ty] = tdCellCenter(t.col, t.row, cs);
+
+    t.cd = (t.cd || 0) - dt * (td.powerUpMods?.towerRateMult || 1);
+    if (t.cd <= 0) {
+      const dmg = stats.dmg * (td.relicMods?.towerDmgMult || 1) * (enemy.isBoss ? (td.relicMods?.bossDmgMult || 1) : 1);
+      enemy.hp -= dmg;
+      enemy.hitFlash = 0.14;
+      td.damageNumbers.push({ x: enemy.x, y: enemy.y - 8, val: Math.round(dmg), life: 0.65, maxLife: 0.65, color: stats.glow || stats.color });
+      t.flashAngle = Math.atan2(enemy.y - ty, enemy.x - tx);
+      t.flashLife  = 0.06;
+      t.firePulse  = 0.22;
+      tdAudio.hit(td.canvas ? tx / td.canvas.width : 0.5);
+      t.cd = 1 / stats.rate;
+    }
+
+    const edef = TD_ENEMY_DEFS[enemy.type];
+    const atk  = edef?.atk || 0;
+    if (atk > 0) {
+      enemy.meleeCd = (enemy.meleeCd ?? 0) - dt;
+      if (enemy.meleeCd <= 0) {
+        t.curHp -= atk;
+        td.damageNumbers.push({ x: tx, y: ty - cs * 0.7, val: Math.round(atk), life: 0.65, maxLife: 0.65, color: '#EF4444' });
+        enemy.meleeCd = 1; // 1 hit/sec — see config.json enemies._notes for the atk formula
+        if (t.curHp <= 0) {
+          t.aliveTroops -= 1;
+          t.curHp = t.aliveTroops > 0 ? (def.troopHp || 1) : 0;
+          t.engagedEid = null;
+        }
+      }
+    }
+  }
+}
+
 function tdFireTowers(dt) {
   for (const t of td.towers) {
+    const __def = TD_TOWER_DEFS.find(d => d.id === t.type);
+    if (__def && __def.role === 'barracks') continue; // barracks units melee via tdResolveMelee, never fire projectiles
     t.cd = (t.cd || 0) - dt * (td.powerUpMods?.towerRateMult || 1);
     if (t.cd > 0) continue;
     const stats   = tdGetTowerStats(t);
@@ -868,9 +998,10 @@ function tdHandleTap(col, row) {
 }
 
 // Shared by the tower group (top arc) and the barracks group (bottom arc)
-// of the build menu — same placement pipeline for both today (allied
-// soldiers have no HP/respawn/heal mechanic yet, so a barracks unit is
-// mechanically just a tower with melee-range stats).
+// of the build menu. Barracks units (role: "barracks") get squad state
+// (aliveTroops/curHp) and a cached path-distance so tdResolveBlockers can
+// tell instantly whether this slot can reach the lane at all — see
+// tdTowerPathDistPx.
 function tdBuildTowerItem(def, col, row, arc) {
   const buildCost = Math.round(def.cost * (td.relicMods?.buildCostMult || 1));
   return {
@@ -879,7 +1010,13 @@ function tdBuildTowerItem(def, col, row, arc) {
     disabled: td.gold < buildCost,
     onSelect: () => {
       td.gold -= buildCost;
-      td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true, idlePhase: Math.random() * Math.PI * 2 });
+      const tower = { col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true, idlePhase: Math.random() * Math.PI * 2 };
+      if (def.role === 'barracks') {
+        tower.aliveTroops = def.squadSize || 1;
+        tower.curHp       = def.troopHp || 1;
+        tower.pathDistPx  = tdTowerPathDistPx(col, row, td.cellSize);
+      }
+      td.towers.push(tower);
       tdUpdateHUD();
       tdAudio.place(col / (TD_COLS - 1));
     },
@@ -1264,6 +1401,19 @@ function tdStartWave(idx) {
   td.spawnTimer = 0.5;
   // Pre-wave build phase ends — clear placedThisBuild flags and close any open menu
   for (const t of td.towers) t.placedThisBuild = false;
+  // Barracks squads reinforce by exactly 1 troop at the start of each wave
+  // (capped at squadSize) — the only healing they get; a wiped squad comes
+  // back empty-handed for the rest of that wave and needs another wave-start
+  // tick (or two) to rebuild before it can block anything again.
+  for (const t of td.towers) {
+    const def = TD_TOWER_DEFS.find(d => d.id === t.type);
+    if (!def || def.role !== 'barracks') continue;
+    const squadSize = def.squadSize || 1;
+    if ((t.aliveTroops || 0) >= squadSize) continue;
+    const wasEmpty = (t.aliveTroops || 0) <= 0;
+    t.aliveTroops = (t.aliveTroops || 0) + 1;
+    if (wasEmpty) t.curHp = def.troopHp || 1;
+  }
   tdCloseRadialMenu();
   tdUpdateWavePreview();
   tdAudio.waveStart();
@@ -1997,6 +2147,48 @@ function tdDrawTower(ctx, cs, bgT, t) {
       ctx.fillText('L' + (lvl+1), px + cs/2 - 2, py + cs/2 - 2);
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     }
+
+    if (def.role === 'barracks') tdDrawSquadStatus(ctx, cs, px, py, def, t);
+}
+
+// Troop-count pips (filled = alive) + an HP bar for whichever troop is
+// currently active, floating above the tower. The only readout a player
+// has into squad health — without it, a wipe is invisible until enemies
+// start walking straight through. NOTE: only reached via the non-painted-
+// sprite fallback path above (man_at_arms has no tier art yet); a future
+// barracks unit with painted art would need this called from the useImage
+// branch too.
+function tdDrawSquadStatus(ctx, cs, px, py, def, t) {
+  const squadSize = def.squadSize || 1;
+  const alive     = t.aliveTroops != null ? t.aliveTroops : squadSize;
+  const pipR   = Math.max(2, cs * 0.055);
+  const pipGap = pipR * 2.4;
+  const pipY   = py - cs / 2 - 10;
+  const startX = px - ((squadSize - 1) * pipGap) / 2;
+  for (let i = 0; i < squadSize; i++) {
+    ctx.beginPath();
+    ctx.arc(startX + i * pipGap, pipY, pipR, 0, Math.PI * 2);
+    if (i < alive) {
+      ctx.fillStyle = '#F59E0B';
+      ctx.fill();
+    } else {
+      // Outline-only (not a translucent fill) so an empty slot still reads
+      // against light terrain (dirt roads, sand) and not just dark ground.
+      ctx.fillStyle = 'rgba(0,0,0,.35)';
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(255,255,255,.6)';
+      ctx.stroke();
+    }
+  }
+  if (alive > 0) {
+    const hpFrac = Math.max(0, Math.min(1, (t.curHp || 0) / (def.troopHp || 1)));
+    const barW = cs * 0.56, barH = 3, barY = pipY + pipR + 4;
+    ctx.fillStyle = 'rgba(0,0,0,.5)';
+    ctx.fillRect(px - barW / 2, barY, barW, barH);
+    ctx.fillStyle = hpFrac > 0.3 ? '#34D399' : '#EF4444';
+    ctx.fillRect(px - barW / 2, barY, barW * hpFrac, barH);
+  }
 }
 
 // Structures that straddle the road (gate towers, overhanging rooflines):
