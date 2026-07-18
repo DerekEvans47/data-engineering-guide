@@ -847,10 +847,10 @@ function tdSpawnParticles(cx, cy, color, n) {
 
 // Tapping a build slot or an existing tower opens a radial arc of actions
 // anchored right at that cell instead of a persistent tool bar — build
-// options (Bastion/Ranger/Mortar) on an empty slot, Upgrade/Sell only when
-// a tower already occupies it. Selecting an option commits immediately;
-// there's no separate select-then-confirm step since the tap that opens
-// the menu already picked the location.
+// options on an empty slot (towers fanned above it, barracks units below),
+// Upgrade/Sell only when a tower already occupies it. Selecting an option
+// commits immediately; there's no separate select-then-confirm step since
+// the tap that opens the menu already picked the location.
 function tdHandleTap(col, row) {
   if (!td || td.over || td.won || td.quizOpen) return;
   if (col < 0 || col >= TD_COLS || row < 0 || row >= TD_ROWS) return;
@@ -865,6 +865,25 @@ function tdHandleTap(col, row) {
   if (td.pathSet.has(`${col},${row}`)) return;
   if (td.buildSlotSet && !td.buildSlotSet.has(`${col},${row}`)) return;
   tdOpenRadialMenu(col, row, null);
+}
+
+// Shared by the tower group (top arc) and the barracks group (bottom arc)
+// of the build menu — same placement pipeline for both today (allied
+// soldiers have no HP/respawn/heal mechanic yet, so a barracks unit is
+// mechanically just a tower with melee-range stats).
+function tdBuildTowerItem(def, col, row, arc) {
+  const buildCost = Math.round(def.cost * (td.relicMods?.buildCostMult || 1));
+  return {
+    id: def.id, icon: def.icon, sub: `${buildCost}🪙`, accent: def.color, cost: buildCost,
+    isBuild: true, arc,
+    disabled: td.gold < buildCost,
+    onSelect: () => {
+      td.gold -= buildCost;
+      td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true, idlePhase: Math.random() * Math.PI * 2 });
+      tdUpdateHUD();
+      tdAudio.place(col / (TD_COLS - 1));
+    },
+  };
 }
 
 function tdOpenRadialMenu(col, row, tower) {
@@ -905,20 +924,19 @@ function tdOpenRadialMenu(col, row, tower) {
       },
     });
   } else {
-    items = TD_TOWER_DEFS.map(def => {
-      const buildCost = Math.round(def.cost * (td.relicMods?.buildCostMult || 1));
-      return {
-        id: def.id, icon: def.icon, sub: `${buildCost}🪙`, accent: def.color, cost: buildCost,
-        isBuild: true,
-        disabled: td.gold < buildCost,
-        onSelect: () => {
-          td.gold -= buildCost;
-          td.towers.push({ col, row, type: def.id, cd: 0, level: 0, placedThisBuild: true, idlePhase: Math.random() * Math.PI * 2 });
-          tdUpdateHUD();
-          tdAudio.place(col / (TD_COLS - 1));
-        },
-      };
-    });
+    // Towers always fan out above the tapped slot, barracks (allied
+    // soldier) units below — a fixed hexagon, not the edge-aware rotating
+    // arc used for the upgrade/sell menu. See tdRenderRadialMenu.
+    const towerItems = TD_TOWER_DEFS.filter(def => def.role !== 'barracks').map(def => tdBuildTowerItem(def, col, row, 'top'));
+    const barracksItems = TD_TOWER_DEFS.filter(def => def.role === 'barracks').map(def => tdBuildTowerItem(def, col, row, 'bottom'));
+    const lockedCount = Math.max(0, 3 - barracksItems.length);
+    for (let i = 0; i < lockedCount; i++) {
+      barracksItems.push({
+        id: `barracks_locked_${i}`, icon: '🔒', sub: 'Soon', accent: 'rgba(255,255,255,.3)',
+        cost: null, locked: true, disabled: true, arc: 'bottom', onSelect: () => {},
+      });
+    }
+    items = [...towerItems, ...barracksItems];
   }
 
   td.radialMenu = { col, row, items };
@@ -939,37 +957,66 @@ function tdRenderRadialMenu(items, label) {
   const anchorX  = cx * scaleX + (rect.left - wrapRect.left);
   const anchorY  = cy * scaleY + (rect.top  - wrapRect.top);
 
-  // Arc opens toward the center of the map from wherever it's tapped, so
-  // it never spills off whichever edge (top, bottom, left, or right) is
-  // closest to the tapped cell — a slot near the map's left edge fans
-  // rightward, one near the top fans downward, etc.
   const n      = items.length;
   const radius = 60;
-  const spread = n <= 1 ? 0 : Math.min(150, 50 + (n - 1) * 45);
-  const center = Math.atan2(wrapRect.height/2 - anchorY, wrapRect.width/2 - anchorX) * 180 / Math.PI;
-  const start  = center - spread / 2;
-  const step   = n > 1 ? spread / (n - 1) : 0;
   const btnPad = 28; // half the 52px button, keeps the whole circle on-screen
 
+  // The build menu (towers + barracks) uses a fixed hexagon anchored on the
+  // tapped slot: towers always fan out above it, barracks always below —
+  // same shape no matter where on the map you tap. Everything else (the
+  // upgrade/sell menu on an existing tower) keeps the old single arc that
+  // rotates to open toward the map's center, since a lone tap point still
+  // needs to dodge screen edges on its own.
+  const isHexLayout = n > 0 && items.every(it => it.arc === 'top' || it.arc === 'bottom');
+  let degForIdx, center;
+  if (isHexLayout) {
+    const topIdxs = [], botIdxs = [];
+    items.forEach((it, i) => (it.arc === 'top' ? topIdxs : botIdxs).push(i));
+    const degMap = {};
+    const layoutGroup = (idxs, centerDeg) => {
+      const gn = idxs.length;
+      const spread = gn <= 1 ? 0 : 120;
+      const start  = centerDeg - spread / 2;
+      const step   = gn > 1 ? spread / (gn - 1) : 0;
+      idxs.forEach((idx, k) => { degMap[idx] = gn === 1 ? centerDeg : start + step * k; });
+    };
+    layoutGroup(topIdxs, -90);
+    layoutGroup(botIdxs, 90);
+    degForIdx = i => degMap[i];
+  } else {
+    // Arc opens toward the center of the map from wherever it's tapped, so
+    // it never spills off whichever edge (top, bottom, left, or right) is
+    // closest to the tapped cell — a slot near the map's left edge fans
+    // rightward, one near the top fans downward, etc.
+    const spread = n <= 1 ? 0 : Math.min(150, 50 + (n - 1) * 45);
+    center = Math.atan2(wrapRect.height/2 - anchorY, wrapRect.width/2 - anchorX) * 180 / Math.PI;
+    const start = center - spread / 2;
+    const step  = n > 1 ? spread / (n - 1) : 0;
+    degForIdx = i => (n === 1 ? center : start + step * i);
+  }
+
   const btnsHtml = items.map((item, i) => {
-    const deg = n === 1 ? center : start + step * i;
+    const deg = degForIdx(i);
     const rad = deg * Math.PI / 180;
     const x = Math.max(btnPad, Math.min(wrapRect.width  - btnPad, anchorX + Math.cos(rad) * radius));
     const y = Math.max(btnPad, Math.min(wrapRect.height - btnPad, anchorY + Math.sin(rad) * radius));
-    return `<button class="td-radial-btn${item.disabled ? ' disabled' : ''}" data-idx="${i}"
+    const cls = 'td-radial-btn' + (item.disabled ? ' disabled' : '') + (item.locked ? ' locked' : '');
+    return `<button class="${cls}" data-idx="${i}"
         style="left:${x}px; top:${y}px; border-color:${item.accent || 'rgba(255,255,255,.5)'}">
       <span class="td-radial-icon">${item.icon}</span>
       <span class="td-radial-sub">${item.sub}</span>
     </button>`;
   }).join('');
 
-  // Label sits on the opposite side of the arc so it never overlaps the buttons.
-  const labelRad = (center + 180) * Math.PI / 180;
-  const labelX = Math.max(64, Math.min(wrapRect.width  - 64, anchorX + Math.cos(labelRad) * (radius + 40)));
-  const labelY = Math.max(16, Math.min(wrapRect.height - 16, anchorY + Math.sin(labelRad) * (radius + 40)));
-  const labelHtml = label
-    ? `<div class="td-radial-label" style="left:${labelX}px; top:${labelY}px">${label}</div>`
-    : '';
+  // Label sits on the opposite side of the arc so it never overlaps the
+  // buttons. Only the upgrade/sell menu passes a label — the hex build menu
+  // never does, so `center` (undefined in that branch) is never touched.
+  const labelHtml = label ? (() => {
+    const labelRad = (center + 180) * Math.PI / 180;
+    const labelX = Math.max(64, Math.min(wrapRect.width  - 64, anchorX + Math.cos(labelRad) * (radius + 40)));
+    const labelY = Math.max(16, Math.min(wrapRect.height - 16, anchorY + Math.sin(labelRad) * (radius + 40)));
+    return `<div class="td-radial-label" style="left:${labelX}px; top:${labelY}px">${label}</div>`;
+  })() : '';
 
   menuEl.innerHTML = btnsHtml + labelHtml;
   menuEl.style.display = 'block';
