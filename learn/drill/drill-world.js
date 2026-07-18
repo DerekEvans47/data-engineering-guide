@@ -54,6 +54,20 @@ function tdRelicIconHtml(relic) {
   return relic.img ? `<img src="${relic.img}" alt="" class="relic-icon-img">` : relic.icon;
 }
 
+// UI color grouping for the relic vault grid — the same 4-family grammar
+// used when the relic art itself was commissioned (gold/brass trim =
+// economy, red/copper = combat, green = defense/sustain, blue-violet =
+// utility/control), so a tile's accent stripe matches its own icon's
+// palette. Falls back to a neutral "misc" group for any category an author
+// invents later through the relic editor that isn't in this list yet.
+const TD_RELIC_CATEGORY_GROUP = {
+  gold: 'economy', 'start-gold': 'economy', income: 'economy', build: 'economy',
+  damage: 'combat', rate: 'combat', range: 'combat', splash: 'combat',
+  lives: 'defense', mending: 'defense',
+  slow: 'control', quiz: 'control',
+};
+function tdRelicCategoryGroup(category) { return TD_RELIC_CATEGORY_GROUP[category] || 'misc'; }
+
 // Weighted-random pick from a relic pool, honoring TD_RELIC_RARITY_WEIGHT.
 // Falls back to a plain uniform pick if the pool's rarities happen to sum
 // to zero weight (shouldn't happen with the four known rarity tiers).
@@ -510,20 +524,24 @@ function tdEnemySheetReady(sheet, anim) {
   return sheet && sheet[anim] && sheet[anim].img.complete && sheet[anim].img.naturalWidth > 0;
 }
 
-// Bespoke 3-wave composition for Frontier Town: bandits on foot, escalating
-// to faster bandit riders, closing with a single bandit boss. Kept separate
-// from the generic generateWaves (goblins/orcs/trolls/etc.) since that
-// generator stacks up to 8 different enemy types into wave 3 alone — far
-// more variety than a clean first-level escalation needs. Every world map
-// gets its own themed roster + wave shape (see TD_ENEMY_DEFS) rather than
-// reusing one generic enemy pool everywhere.
+// Bespoke 3-wave composition for Frontier Town (currently goblins-only,
+// see the TEMP note inside). Kept separate from the generic generateWaves
+// (goblins/orcs/trolls/etc.) since that generator stacks up to 8 different
+// enemy types into wave 3 alone — far more variety than a clean first-level
+// escalation needs. Every world map gets its own themed roster + wave shape
+// (see TD_ENEMY_DEFS) rather than reusing one generic enemy pool everywhere.
 function frontierTownWaves(rng) {
+  // TEMP (owner decision, 2026-07-18): every wave is goblins-only — goblin
+  // is still the only enemy with painted sprite art (assets/enemies/
+  // goblin-*.png), so the bandit roster stays benched here until it gets
+  // the same treatment. Counts/gap keep the original 3-wave escalation
+  // shape (more enemies, tighter spawn gap each wave); only the enemy type
+  // changed. Revert to the bandit roster (see git history) once bandit
+  // art exists.
   return [
-    // Wave 1 is all goblins (the one enemy with painted A-3 art) so the
-    // sprite work can be play-tested in isolation; waves 2-3 stay bandits.
     [['goblin', 6 + Math.floor(rng() * 3), 0.9]],
-    [['bandit', 5 + Math.floor(rng() * 3), 0.8], ['bandit_rider', 3 + Math.floor(rng() * 2), 1.1]],
-    [['bandit', 4 + Math.floor(rng() * 3), 0.8], ['bandit_rider', 3 + Math.floor(rng() * 2), 1.0], ['bandit_boss', 1, 2.0]],
+    [['goblin', 9 + Math.floor(rng() * 4), 0.75]],
+    [['goblin', 12 + Math.floor(rng() * 5), 0.6]],
   ];
 }
 
@@ -1156,20 +1174,24 @@ function showTDWorldMap() {
   showRunMap(run);
 }
 
-// ── Relic equip menu (EQ-4) ──────────────────────────────────────
-// Reachable from the run map / map select top bar. Category exclusivity is
-// enforced silently on equip (old relic in that category auto-drops) — the
-// richer "Replace or skip?" conflict UI is EQ-7's job, not this item's.
-// EQ-7 surface (2): consolidated inventory — the run's held power-ups (read-
-// only; they're spent from the pre-wave tray during battle, not managed
-// here) plus the existing relic collection/equip list. One 🎒 button now
-// covers both, replacing the relic-only 🏺 menu.
+// ── Relic vault + inventory (EQ-4 / EQ-7) ─────────────────────────
+// Reachable from the home screen (manage your loadout any time) and from
+// the run map / battle header (🎒, for checking held power-ups mid-run).
+// Category exclusivity is enforced silently on equip (old relic in that
+// category auto-drops) — the richer "Replace or skip?" conflict UI is
+// EQ-7's job, not this item's. Relics render as a compact art-forward grid
+// (tdRelicCategoryGroup color-codes each tile the same way the icon art
+// itself was commissioned) instead of full-width text rows — the roster
+// is heading to 20+ and a wall of description paragraphs doesn't scale.
+const TD_RARITY_ORDER = { common: 0, uncommon: 1, rare: 2, legendary: 3 };
+
 function showInventoryPanel() {
   const existing = document.querySelector('.relic-equip-overlay');
   if (existing) existing.remove();
 
   const upkeep = tdComputeRelicMods().upkeepTotal;
-  const owned  = TD_RELICS.filter(r => tdOwnedRelics.has(r.id));
+  const owned  = TD_RELICS.filter(r => tdOwnedRelics.has(r.id))
+    .sort((a, b) => a.category.localeCompare(b.category) || TD_RARITY_ORDER[a.rarity] - TD_RARITY_ORDER[b.rarity]);
   const run    = tdLoadRun();
   const heldPowerUps = (run && run.powerUps) || [];
 
@@ -1182,42 +1204,38 @@ function showInventoryPanel() {
         <button class="relic-equip-close" id="relic-equip-close">✕</button>
       </div>
       <div class="inv-section-label">Power-ups (${heldPowerUps.length}/3) — spent from the pre-wave tray in battle</div>
-      <div class="relic-equip-list inv-powerup-list">
+      <div class="inv-powerup-strip">
         ${heldPowerUps.length ? heldPowerUps.map(pid => {
           const pu = TD_POWER_UPS[pid];
           if (!pu) return '';
-          return `<div class="relic-equip-card inv-powerup-card">
-            <div class="relic-equip-icon">${pu.icon}</div>
-            <div class="relic-equip-body">
-              <div class="relic-equip-name">${pu.name}</div>
-              <div class="relic-equip-meta">${pu.scope === 'wave' ? 'Lasts one wave' : 'Lasts this node'}</div>
-            </div>
+          return `<div class="inv-powerup-tile" title="${pu.name}: ${pu.scope === 'wave' ? 'lasts one wave' : 'lasts this node'}">
+            <span class="inv-powerup-tile-icon">${pu.icon}</span>
+            <span class="inv-powerup-tile-name">${pu.name}</span>
           </div>`;
-        }).join('') : '<div class="relic-equip-empty">No power-ups held right now.</div>'}
+        }).join('') : '<div class="relic-vault-empty">No power-ups held right now.</div>'}
       </div>
-      <div class="inv-section-label">Relics — upkeep: ${upkeep}🪙 / node start</div>
-      <div class="relic-equip-list">
+      <div class="inv-section-label">Relics <span class="inv-upkeep-pill">🪙 ${upkeep}/node upkeep</span></div>
+      <div class="relic-vault-grid">
         ${owned.length ? owned.map(r => {
-          const isEq = tdEquippedRelics.has(r.id);
-          return `<div class="relic-equip-card${isEq ? ' equipped' : ''}" data-relic-id="${r.id}">
-            <div class="relic-equip-icon">${tdRelicIconHtml(r)}</div>
-            <div class="relic-equip-body">
-              <div class="relic-equip-name">${r.name} <span class="relic-equip-rarity rarity-${r.rarity}">${r.rarity}</span></div>
-              <div class="relic-equip-desc">${r.desc}</div>
-              <div class="relic-equip-meta">${TD_RELIC_CATEGORIES[r.category] || r.category}${r.upkeep ? ` · ${r.upkeep}🪙/node upkeep` : ''}</div>
-            </div>
-            <div class="relic-equip-status">${isEq ? '✓ Equipped' : 'Tap to equip'}</div>
-          </div>`;
-        }).join('') : '<div class="relic-equip-empty">No relics collected yet.</div>'}
+          const isEq  = tdEquippedRelics.has(r.id);
+          const group = tdRelicCategoryGroup(r.category);
+          const tip   = `${r.name} — ${r.desc} (${r.rarity}${r.upkeep ? `, ${r.upkeep}🪙 upkeep` : ''})`;
+          return `<button class="relic-tile group-${group}${isEq ? ' equipped' : ''}" data-relic-id="${r.id}" title="${tip.replace(/"/g, '&quot;')}">
+            ${isEq ? '<span class="relic-tile-check">✓</span>' : ''}
+            <span class="relic-tile-art">${tdRelicIconHtml(r)}</span>
+            <span class="relic-tile-name">${r.name}</span>
+            <span class="relic-tile-desc">${r.desc}</span>
+          </button>`;
+        }).join('') : '<div class="relic-vault-empty">No relics collected yet — find them in run shops.</div>'}
       </div>
     </div>`;
   document.body.appendChild(overlay);
 
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
   document.getElementById('relic-equip-close').addEventListener('click', () => overlay.remove());
-  overlay.querySelectorAll('.relic-equip-card[data-relic-id]').forEach(card => {
-    card.addEventListener('click', () => {
-      const id = card.dataset.relicId;
+  overlay.querySelectorAll('.relic-tile[data-relic-id]').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const id = tile.dataset.relicId;
       if (tdEquippedRelics.has(id)) tdUnequipRelic(id); else tdEquipRelic(id);
       showInventoryPanel();
     });

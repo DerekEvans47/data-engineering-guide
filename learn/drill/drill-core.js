@@ -722,6 +722,14 @@ function showHome() {
             </div>
             <span class="home-card-arrow">›</span>
           </button>` : ''}
+          <button class="home-card home-card-secondary" id="btn-relics">
+            <span class="home-card-icon">🏺</span>
+            <div class="home-card-text">
+              <span class="home-card-title">Relics</span>
+              <span class="home-card-desc">${tdOwnedRelics.size}/${TD_RELICS.length} collected · manage your loadout</span>
+            </div>
+            <span class="home-card-arrow">›</span>
+          </button>
           <button class="home-card home-card-secondary" id="btn-how-to-play">
             <span class="home-card-icon">📖</span>
             <div class="home-card-text">
@@ -753,6 +761,7 @@ function showHome() {
     EL.app.dataset.mode = 'tower';
     showTDWorldMap();
   });
+  document.getElementById('btn-relics').addEventListener('click', showInventoryPanel);
   document.getElementById('btn-how-to-play').addEventListener('click', () => {
     showTutorial(() => {});
   });

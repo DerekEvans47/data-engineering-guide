@@ -48,6 +48,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Regen ranger tier 1 as grounded timber watchtower (#140)
 
+- Render relic sprite art in-game, drop the two defective icons (#152)
+
 - Reshape Verdant spine - node re-placement, Fishing Camp added (#130)
 
 - Slice relic icon sheet into 36 transparent PNGs (20 wired ids + 16 placeholders)
