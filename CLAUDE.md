@@ -228,3 +228,15 @@ After any `replace_all` edit touching `document.getElementById` or `EL.*`,
 grep -n "EL\.\w* = EL\." learn/drill/drill-*.js
 # must return empty — any match is a bug
 ```
+
+---
+
+## Image-Generation Prompts — Copy-Paste Clean (2026-07-18)
+
+Standing instruction: when writing a prompt meant for the user to copy/paste
+directly into an image-generation tool (e.g. Nano Banana, Midjourney), the
+prompt block itself must contain **only** the generation instructions —
+no repo URLs, file paths, or other meta-commentary mixed in. Reference
+material (links to existing base art, asset directories the user should
+also upload) goes in the surrounding chat text, never inside the copy
+block itself.
