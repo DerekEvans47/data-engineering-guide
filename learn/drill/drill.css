@@ -2951,26 +2951,58 @@ html, body {
 }
 .tre-head {
   position: sticky; top: 0; z-index: 2;
-  display: flex; align-items: center; gap: .5rem;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+  row-gap: .5rem;
   padding: .7rem 0 .55rem; background: var(--bg-base);
   border-bottom: 1px solid var(--border);
   max-width: 1080px; margin: 0 auto;
 }
-.tre-title { font-weight: 700; flex: 1; }
+.tre-title { font-weight: 700; flex-shrink: 0; }
+.tre-head-actions { display: flex; gap: .5rem; flex-shrink: 0; margin-left: auto; }
 .tre-head button {
   background: var(--bg-elevated); color: var(--text);
   border: 1px solid var(--border); border-radius: 8px;
   padding: .45rem .7rem; font-size: .8rem; cursor: pointer;
 }
 .tre-head #tre-export { border-color: var(--accent); }
+/* Fills the gap between the title and the action buttons — search, a
+   category filter, a sort mode, and the grid/list view toggle. Wraps
+   below the title on narrow viewports rather than cramping. */
+.tre-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .4rem;
+  flex: 1 1 320px; min-width: 260px;
+}
+.tre-toolbar-search, .tre-toolbar-select {
+  background: var(--bg-elevated); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: .4rem .55rem; font-size: .78rem;
+}
+.tre-toolbar-search { flex: 1 1 140px; min-width: 110px; }
+.tre-toolbar-select { flex: 0 1 auto; }
+.tre-view-toggle { display: flex; gap: 2px; flex-shrink: 0; }
+.tre-view-btn {
+  background: var(--bg-elevated); color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: .4rem .55rem; font-size: .85rem; cursor: pointer; line-height: 1;
+}
+.tre-view-btn:first-child { border-radius: 8px 0 0 8px; }
+.tre-view-btn:last-child { border-radius: 0 8px 8px 0; border-left: none; }
+.tre-view-btn.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
 .tre-note {
   font-size: .72rem; color: var(--text-muted); padding: .55rem 0 .7rem; line-height: 1.45;
   max-width: 1080px; margin: 0 auto;
 }
-/* auto-fit + a 1080px cap lands on 3 columns at desktop widths (3 x
-   ~340px + gaps) and collapses to 1 on a phone, without hardcoding a
-   column count that would break either end of that range. */
-.tre-list {
+.tre-empty {
+  grid-column: 1 / -1;
+  text-align: center; color: var(--text-subtle); font-size: .82rem;
+  padding: 2rem 0;
+}
+
+/* ── Grid view (default): auto-fit + a 1080px cap lands on 3 columns at
+   desktop widths (3 x ~340px + gaps) and collapses to 1 on a phone,
+   without hardcoding a column count that would break either end of
+   that range. ───────────────────────────────────────────────────── */
+.tre-list.view-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: .7rem;
@@ -2994,8 +3026,16 @@ html, body {
 .tre-card.group-control { --tile-accent: var(--accent2); }
 .tre-card.group-misc    { --tile-accent: var(--text-subtle); }
 .tre-card-head { display: flex; gap: .5rem; align-items: center; margin-bottom: .6rem; }
-.tre-icon { width: 2.6rem; flex-shrink: 0; text-align: center; font-size: 1.1rem; }
-.tre-art-preview { width: 2rem; height: 2rem; flex-shrink: 0; border-radius: 6px; background: var(--bg-base); }
+/* Unified art-or-emoji swatch, replacing the old separate art-preview
+   image + editable emoji textbox — art is now the primary visual for
+   18/20 relics, so the header no longer needs a manual icon field.
+   Sized via font-size, same 1em trick .relic-icon-img already uses. */
+.tre-art-swatch {
+  width: 2.3rem; height: 2.3rem; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; border-radius: 7px;
+  background: var(--bg-base); border: 1px solid var(--border-muted);
+}
 .tre-name { flex: 1; min-width: 0; font-weight: 600; }
 .tre-del {
   background: none; border: 1px solid var(--border); border-radius: 8px;
@@ -3009,6 +3049,10 @@ html, body {
   text-transform: uppercase; letter-spacing: .02em;
 }
 .tre-grid .tre-wide { grid-column: 1 / -1; }
+/* De-emphasized on purpose — this is the emoji fallback field, now a
+   last-priority detail rather than a prominent header element. */
+.tre-icon-field { opacity: .68; }
+.tre-icon-field input { max-width: 5rem; }
 .tre-card input, .tre-card select {
   background: var(--bg-base); color: var(--text);
   border: 1px solid var(--border); border-radius: 7px;
@@ -3016,10 +3060,41 @@ html, body {
   text-transform: none; letter-spacing: normal;
   min-width: 0; box-sizing: border-box;
 }
-/* Scoped to the .tre-grid fields specifically — NOT the header's .tre-icon
-   (fixed 2.6rem) or .tre-name (flex:1), which already had correct explicit
-   sizing that a card-wide width:100% rule would otherwise clobber (higher
-   specificity than a single class selector regardless of source order). */
+/* Scoped to the .tre-grid fields specifically — NOT the header's
+   .tre-name (flex:1), which already had correct explicit sizing that a
+   card-wide width:100% rule would otherwise clobber (higher specificity
+   than a single class selector regardless of source order). */
 .tre-grid input, .tre-grid select { width: 100%; }
 .tre-grid input[type="checkbox"] { width: 1.15rem; height: 1.15rem; accent-color: var(--accent); }
 .tre-id { margin-top: .55rem; font-family: monospace; font-size: .64rem; color: var(--text-subtle); }
+
+/* ── List view: one compact row per relic. Denser than the grid can
+   reasonably go, so rows get a min-width and the list scrolls
+   horizontally on narrow viewports rather than crushing fields
+   illegibly — a standard trade-off for a table-like power view. ──── */
+.tre-list.view-list {
+  display: flex; flex-direction: column; gap: .4rem;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  max-width: 1080px; margin: 0 auto;
+}
+.tre-row {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem .6rem; min-width: 940px;
+}
+.tre-row .tre-art-swatch { width: 2rem; height: 2rem; font-size: 1.3rem; }
+.tre-row-field {
+  background: var(--bg-base); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: .35rem .45rem; font-size: .78rem; box-sizing: border-box;
+}
+.tre-row-name { width: 150px; flex-shrink: 0; font-weight: 600; }
+.tre-row-cat { width: 100px; flex-shrink: 0; }
+.tre-row-rarity { width: 96px; flex-shrink: 0; }
+.tre-row-num { width: 64px; flex-shrink: 0; }
+.tre-row-effect { width: 140px; flex-shrink: 0; }
+.tre-row-desc { flex: 1; min-width: 150px; }
+.tre-row-starter {
+  display: flex; align-items: center; gap: .2rem; flex-shrink: 0;
+  font-size: .9rem; color: var(--text-subtle);
+}
+.tre-row-starter input { accent-color: var(--accent); }

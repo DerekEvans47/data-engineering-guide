@@ -85,6 +85,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Region map node placement redone with road-mask snapping
 
+- Relic editor 3-column grid + fix dead-space bug, larger Home config button (#155)
+
 - Rev6 follow-ups - one-run flow, Eldervale title, battle-map polish (#134)
 
 - Round-2 polish - Cinzel title, visible mist drift, precise occluders (#135)
