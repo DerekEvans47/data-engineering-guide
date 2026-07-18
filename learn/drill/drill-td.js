@@ -56,15 +56,31 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
   mapMusic.stop();
   battleMusicHorn.start(); // battle theme — battle screens only, loops
 
-  // Apply and clear any pending rest bonus
-  const restBonus = tdLoadRestBonus();
-  const carryGold = (run && run.stats && run.stats.carryGold) || 0;
-  const startLives = levelDef.startLives + (restBonus && restBonus.type === 'lives' ? Math.max(0, restBonus.value) : 0);
+  // Resources persist across the whole run — no fresh per-map baseline.
+  // A battle starts with exactly what the run currently holds
+  // (run.gold/run.lives/run.maxLives), plus whatever a rest site or relic
+  // adds on top (both resolved inside tdMakeState, which also owns the
+  // "No Gold" modifier's wallet-banking so that challenge can't wipe your
+  // persisted gold — see there). Falls back to the level's configured
+  // defaults only when there's no run at all (e.g. a standalone dev test).
+  const persistedLives    = run ? run.lives    : levelDef.startLives;
+  const persistedMaxLives = run ? run.maxLives : levelDef.startLives;
   // ?dev=1 (Creator Mode) gets the bottomless testing purse; real balance otherwise.
-  const startGold  = TD_CREATOR_MODE ? 99999
-    : levelDef.startGold + carryGold + (restBonus && restBonus.type === 'gold' ? Math.max(0, restBonus.value) : 0);
-  tdClearRestBonus();
-  if (run && run.stats) { run.stats.carryGold = 0; tdSaveRun(run); }
+  const persistedGold = TD_CREATOR_MODE ? 99999 : (run ? run.gold : levelDef.startGold);
+
+  // Vanguard's Calling (shop consumable): consume one charge by
+  // permanently trimming this node's wave list, so a Retry after defeat
+  // keeps the shortened waves too instead of re-consuming the charge.
+  // node.levelDef is a stable object for the run's lifetime (see
+  // tdFreshLevelDefFor), so __firstWaveSkipped correctly guards against
+  // double-applying on repeat visits/retries of the same node.
+  if (run && run.pendingSkipFirstWave > 0 && !levelDef.__firstWaveSkipped
+      && levelDef.waveDefs && levelDef.waveDefs.length > 1) {
+    levelDef.waveDefs.shift();
+    levelDef.__firstWaveSkipped = true;
+    run.pendingSkipFirstWave -= 1;
+    tdSaveRun(run);
+  }
 
   EL.cardArea.style.display    = 'none';
   EL.bottomBar.style.display   = 'none';
@@ -82,14 +98,14 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
       <div id="td-hud">
         <button id="td-hud-back" class="td-hud-back" title="Back to map">←</button>
         <div class="td-stat td-stat-lives">
-          <div class="td-stat-top"><span>❤️</span><span id="td-lives">${startLives}</span></div>
+          <div class="td-stat-top"><span>❤️</span><span id="td-lives">${persistedLives}</span></div>
           <div class="td-lives-bar"><div id="td-lives-fill"></div></div>
         </div>
         <div class="td-mid">
           <div id="td-wave-lbl">${levelDef.name} · Place towers, then start!</div>
           <div id="td-wave-dots" class="td-wave-dots"></div>
         </div>
-        <div class="td-stat">🪙 <span id="td-gold-val">${startGold}</span></div>
+        <div class="td-stat">🪙 <span id="td-gold-val">${persistedGold}</span></div>
         <button id="td-mute-btn" class="td-mute-btn" title="Toggle sound">🔊</button>
         <button id="td-pause-btn" class="td-mute-btn" title="Pause/Resume">⏸</button>
       </div>
@@ -112,7 +128,7 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
 
   document.getElementById('td-hud-back').addEventListener('click', showTDWorldMap);
 
-  initTDGame(levelDef, levelIdx, startLives, startGold);
+  initTDGame(levelDef, levelIdx, persistedLives, persistedMaxLives, persistedGold);
   td.__run    = run || null;
   td.__nodeId = nodeId;
   td.mapId    = run ? run.mapId : 0;
@@ -157,14 +173,14 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
   }
 }
 
-function initTDGame(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
+function initTDGame(levelDef, levelIdx, persistedLives, persistedMaxLives, persistedGold) {
   // Landscape painted maps (frontierTownLevelDef) declare their own grid;
   // everything else keeps the default portrait grid. Reset unconditionally
   // so a previous painted level's dimensions never leak into the next one.
   TD_COLS = levelDef.gridCols || TD_DEFAULT_COLS;
   TD_ROWS = levelDef.gridRows || TD_DEFAULT_ROWS;
 
-  td = tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride);
+  td = tdMakeState(levelDef, levelIdx, persistedLives, persistedMaxLives, persistedGold);
   const canvas = document.getElementById('td-canvas');
   const wrap   = document.getElementById('td-canvas-wrap');
   td.canvas = canvas;
@@ -412,18 +428,43 @@ function tdUnequipRelic(id) {
   saveGameState();
 }
 
-function tdMakeState(levelDef, levelIdx, startLivesOverride, startGoldOverride) {
+// persistedLives/persistedMaxLives/persistedGold are the run's actual
+// current wallet/health (or levelDef's configured defaults with no run —
+// see showTowerDefenseScreen). Everything else here is a bonus layered on
+// top for THIS battle: a rest-site choice (consumed once, read directly
+// here rather than threaded through more params), and relic effects
+// (ongoing — apply fresh every battle, same as any other relic bonus).
+function tdMakeState(levelDef, levelIdx, persistedLives, persistedMaxLives, persistedGold) {
   const mods = levelDef.modifiers || {};
   const relicMods = tdComputeRelicMods();
-  const baseLives = startLivesOverride != null ? startLivesOverride : levelDef.startLives;
-  const baseGold  = mods.noGold ? 0 : (startGoldOverride != null ? startGoldOverride : levelDef.startGold);
-  const initialLives = baseLives + relicMods.maxLivesAdd;
-  const initialGold  = mods.noGold ? 0 : Math.max(0, baseGold + relicMods.startGoldAdd - relicMods.upkeepTotal);
-  // (noGold modifier zeroes gold outright, so relic gold effects don't apply that node)
+  const restBonus = tdLoadRestBonus();
+  tdClearRestBonus();
+
+  const baseLives = persistedLives != null ? persistedLives : levelDef.startLives;
+  const baseMax   = persistedMaxLives != null ? persistedMaxLives : levelDef.startLives;
+  const restLivesBonus = restBonus && restBonus.type === 'lives' ? Math.max(0, restBonus.value) : 0;
+  // Rest heals current lives (capped at max); relics can raise the max
+  // itself, growing every battle they're equipped — that compounding is
+  // an intentional relic power, not a bug (see Iron Constitution).
+  const initialMaxLives = baseMax + relicMods.maxLivesAdd;
+  const initialLives = Math.min(initialMaxLives, baseLives + relicMods.maxLivesAdd + restLivesBonus);
+
+  // "No Gold" challenge modifier: you fight this battle on kill-income
+  // alone (0 starting gold), but your persisted wallet is banked aside
+  // and restored at victory (see tdVictory) instead of being overwritten
+  // by whatever you scraped together — the challenge should cost you a
+  // harder fight, not silently wipe gold you'd already earned in prior
+  // battles.
+  const noGoldBankedGold = mods.noGold ? (persistedGold != null ? persistedGold : levelDef.startGold) : 0;
+  const restGoldBonus = restBonus && restBonus.type === 'gold' ? Math.max(0, restBonus.value) : 0;
+  const baseGold = mods.noGold ? 0 : (persistedGold != null ? persistedGold : levelDef.startGold);
+  const initialGold = mods.noGold ? 0 : Math.max(0, baseGold + relicMods.startGoldAdd - relicMods.upkeepTotal + restGoldBonus);
+
   return {
     running:false, paused:false, animFrame:null, lastTs:0,
     canvas:null, ctx:null, cellSize:40,
-    lives: initialLives, gold: initialGold, maxLives: initialLives,
+    lives: initialLives, gold: initialGold, maxLives: initialMaxLives,
+    noGoldBankedGold,
     waveIdx:-1, spawnQueue:[], spawnTimer:0, waveActive:false,
     enemies:[], towers:[], projectiles:[], particles:[], corpses:[], damageNumbers:[],
     radialMenu:null, eid:0,
@@ -625,9 +666,19 @@ function tdSpawnEnemy(type) {
   const mult = td.levelDef.enemyMult;
   const cs   = td.cellSize;
   const [c0, r0] = td.levelDef.wps[0];
+  let hp = def.maxHp * mult;
+  // Executioner's Draught (shop consumable): halves the next boss's HP the
+  // moment it spawns, then the charge is spent — a boss node's "boss"
+  // enemy or Frontier Town's "bandit_boss" both carry isBoss, so this
+  // fires on whichever boss-flagged enemy is next, run-wide.
+  if (def.isBoss && td.__run && td.__run.pendingBossHalfHp > 0) {
+    hp *= 0.5;
+    td.__run.pendingBossHalfHp -= 1;
+    tdSaveRun(td.__run);
+  }
   td.enemies.push({
     id: td.eid++, type,
-    hp: def.maxHp * mult, maxHp: def.maxHp * mult,
+    hp, maxHp: hp,
     spd: def.spd * (td.levelDef.enemySpeedMult || 1) * (td.powerUpMods?.enemySpeedMult || 1) * (td.relicMods?.enemySpeedMult || 1), color: def.color,
     r: def.r * (td.levelDef.enemyScaleMult || 1), reward: def.reward,
     isBoss: def.isBoss || false, lifeLoss: (def.lifeLoss || 1) * (td.modifiers?.ironman ? 2 : 1),
@@ -1406,7 +1457,16 @@ function tdVictory() {
     markNodeCompleted(run, nodeId);
     run.stats.battlesWon++;
     run.stats.goldEarned += goldReward;
-    run.stats.carryGold = td.gold;
+    // Persist the run's actual wallet/health forward to the next battle.
+    // "No Gold" fought this battle on kill-income alone (td.gold started
+    // at 0) — its real banked total (noGoldBankedGold) was stashed aside
+    // in tdMakeState and gets added back here, on top of whatever was
+    // earned, rather than being overwritten by it. The flat victory bonus
+    // (goldReward) also banks into the run wallet here, not just the
+    // separate meta `gold` stat earnGold() already credited above.
+    run.gold = td.gold + (td.noGoldBankedGold || 0) + goldReward;
+    run.lives = td.lives;
+    run.maxLives = td.maxLives;
     tdSaveRun(run);
     if (isRunComplete(run)) {
       tdMarkMapBeaten(run.mapId);
@@ -2251,7 +2311,7 @@ function tdRender() {
 //             🏺 relic editor (export config.json)
 // Neither is on until tapped, so entering Creator Mode no longer commits
 // you to one toolset. Both can be on at once. The 99999 testing purse
-// applies whenever Creator Mode is on (see startGold in
+// applies whenever Creator Mode is on (see persistedGold in
 // showTowerDefenseScreen), independent of which chips are active.
 const TD_CREATOR_MODE = typeof location !== 'undefined' &&
   new URLSearchParams(location.search).has('dev');

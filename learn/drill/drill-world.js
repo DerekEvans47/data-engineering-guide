@@ -31,6 +31,7 @@ let TD_RELIC_CATEGORIES = null;    // category id -> label
 let TD_RELIC_RARITY_COST = null;   // shop pricing by rarity
 let TD_RELIC_RARITY_WEIGHT = null; // shop odds by rarity
 let TD_EVENTS = null;              // inter-node event card deck
+let TD_RUN_ITEMS = null;           // always-available shop consumables: cost/effect
 
 function tdApplyConfig(cfg) {
   TD_CONFIG              = cfg;
@@ -42,6 +43,7 @@ function tdApplyConfig(cfg) {
   TD_RELIC_RARITY_COST   = cfg.relicRarityCost;
   TD_RELIC_RARITY_WEIGHT = cfg.relicRarityWeight;
   TD_EVENTS              = cfg.events;
+  TD_RUN_ITEMS            = cfg.runItems || [];
 }
 
 // Every relic-icon render site (shop, equip sheet, profile grid, editor)
@@ -763,9 +765,22 @@ function generateVerdantRun() {
   });
   nodes[0].state = 'available';
 
+  // Persistent run-wide resource pools (owner decision 2026-07-18): no
+  // fresh gold/lives baseline per node or per map — a battle starts with
+  // exactly what the run currently holds, changed only by battle outcomes
+  // (kills, wave clears, leaks), shop purchases, rest sites, and events.
+  // Set once here from Frontier Town's config numbers (the run's fixed
+  // first node) and never topped up again just for walking into a node —
+  // see showTowerDefenseScreen/tdVictory for how they flow in and out of
+  // a battle, and the shop branch of showInterNodePanel for how they get
+  // spent.
+  const startGold  = TD_CONFIG.frontierTown.startGold;
+  const startLives = TD_CONFIG.frontierTown.startLives;
+
   const run = {
     mapId: 0, seed, nodes, currentId: null, visitedIds: [], activeId: null,
-    powerUps: ['gold_rush'], stats: { battlesWon:0, goldEarned:0, xpEarned:0, carryGold:0 },
+    powerUps: ['gold_rush'], stats: { battlesWon:0, goldEarned:0, xpEarned:0 },
+    gold: startGold, lives: startLives, maxLives: startLives,
     usesRegionMap: true,
   };
   tdSaveRun(run);
@@ -1145,7 +1160,12 @@ function rvmAuthorInitEditor(run) {
 // superseded 25-node procedural graph and can't be continued on the new
 // spine, so they're treated as stale and replaced with a fresh run.
 function isRunCompatible(run, mapId) {
-  return !!run && run.mapId === mapId && (mapId !== 0 || run.usesRegionMap === true);
+  // run.gold presence also gates out pre-2026-07-18 saves that predate the
+  // persistent run-wide gold/lives pools — those have no meaningful value
+  // to migrate (the old model reset lives every node and only partially
+  // carried gold), so they're discarded and replaced the same way a
+  // pre-region-map save already was.
+  return !!run && run.mapId === mapId && (mapId !== 0 || run.usesRegionMap === true) && run.gold !== undefined;
 }
 
 function showRunMap(run) {
@@ -1301,7 +1321,12 @@ function tdFreshLevelDefFor(node) {
 
 function showLevelConfirmPanel(levelDef, nodeId, run) {
   const restBonus = tdLoadRestBonus();
-  const carryGold = (run && run.stats && run.stats.carryGold) || 0;
+  // What you actually walk in with — the run's persisted wallet/health,
+  // not levelDef's numbers (those only matter as a fallback when there's
+  // no run at all; see showTowerDefenseScreen).
+  const runGold  = run ? (run.gold  ?? levelDef.startGold)  : levelDef.startGold;
+  const runLives = run ? (run.lives ?? levelDef.startLives) : levelDef.startLives;
+  const runMax   = run ? (run.maxLives ?? levelDef.startLives) : levelDef.startLives;
   const dw = levelDef.diffWeights;
   const diffStars = dw.hard >= 0.4 ? '⭐⭐⭐' : dw.hard >= 0.2 || dw.medium >= 0.5 ? '⭐⭐' : '⭐';
   const diffLabel = dw.hard >= 0.4 ? 'Hard' : dw.hard >= 0.2 || dw.medium >= 0.5 ? 'Medium' : 'Easy';
@@ -1335,8 +1360,8 @@ function showLevelConfirmPanel(levelDef, nodeId, run) {
         </div>
       </div>
       <div class="tdcp-stats">
-        <div class="tdcp-stat"><span>❤️</span><span>${levelDef.startLives}${restBonus&&restBonus.type==='lives'?`+${restBonus.value}`:''}</span><span class="tdcp-stat-label">Lives</span></div>
-        <div class="tdcp-stat"><span>🪙</span><span>${levelDef.startGold}${carryGold>0?`+${carryGold}🔁`:''}${restBonus&&restBonus.type==='gold'?`+${restBonus.value}`:''}</span><span class="tdcp-stat-label">Gold</span></div>
+        <div class="tdcp-stat"><span>❤️</span><span>${runLives}/${runMax}${restBonus&&restBonus.type==='lives'?`+${restBonus.value}`:''}</span><span class="tdcp-stat-label">Lives</span></div>
+        <div class="tdcp-stat"><span>🪙</span><span>${runGold}${restBonus&&restBonus.type==='gold'?`+${restBonus.value}`:''}</span><span class="tdcp-stat-label">Gold</span></div>
         <div class="tdcp-stat"><span>${diffStars}</span><span>${diffLabel}</span><span class="tdcp-stat-label">Difficulty</span></div>
       </div>
       ${restBannerHtml}
@@ -1417,9 +1442,12 @@ function showInterNodePanel(node, run) {
 
   } else if (node.type === 'shop') {
     // EQ-6: 3 random power-up offers + 1 rarity-weighted relic offer, spent
-    // against the run's carry-over gold (not the permanent meta `gold`).
-    // Offers are rolled once per visit and held in closure — re-render()
-    // only rebuilds the DOM/listeners after a purchase, it never re-rolls.
+    // against the run's persistent gold pool (run.gold — not the permanent
+    // meta `gold`). Offers are rolled once per visit and held in closure —
+    // re-render() only rebuilds the DOM/listeners after a purchase, it
+    // never re-rolls. runItems are a separate, always-available third
+    // category (owner idea: some shop items shouldn't be down to luck the
+    // way relics/power-ups are) — no rolling, no "sold out", just gold.
     const puOffers = Array.from({ length: 3 }, () => {
       const pool = Object.values(TD_POWER_UPS);
       return pool[Math.floor(Math.random() * pool.length)];
@@ -1430,10 +1458,10 @@ function showInterNodePanel(node, run) {
     let relicSold = false;
 
     function render() {
-      const carryGold = (run.stats && run.stats.carryGold) || 0;
+      const runGold = run.gold || 0;
       const puFull = run.powerUps.length >= 3;
       const puHtml = puOffers.map((pu, i) => {
-        const disabled = puFull || carryGold < pu.cost;
+        const disabled = puFull || runGold < pu.cost;
         return `
         <div class="tdcp-shop-item${disabled ? ' cannot-afford' : ''}" data-kind="powerup" data-idx="${i}">
           <span class="tdcp-shop-icon">${pu.icon}</span>
@@ -1453,7 +1481,7 @@ function showInterNodePanel(node, run) {
             <span class="tdcp-shop-sub">Nothing left to offer right now</span>
           </div>
         </div>` : `
-        <div class="tdcp-shop-item tdcp-shop-relic${(relicSold || carryGold < relicCost) ? ' cannot-afford' : ''}" data-kind="relic">
+        <div class="tdcp-shop-item tdcp-shop-relic${(relicSold || runGold < relicCost) ? ' cannot-afford' : ''}" data-kind="relic">
           <span class="tdcp-shop-icon">${tdRelicIconHtml(relicOffer)}</span>
           <div class="tdcp-shop-text">
             <span class="tdcp-shop-label">${relicOffer.name}</span>
@@ -1461,6 +1489,21 @@ function showInterNodePanel(node, run) {
           </div>
           <span class="tdcp-shop-cost">🪙${relicCost}</span>
         </div>`;
+      const itemHtml = TD_RUN_ITEMS.map(item => {
+        const disabled = runGold < item.cost;
+        const pendingField = item.effect.type === 'skip-first-wave' ? 'pendingSkipFirstWave'
+          : item.effect.type === 'boss-half-hp' ? 'pendingBossHalfHp' : null;
+        const pending = pendingField ? (run[pendingField] || 0) : 0;
+        return `
+        <div class="tdcp-shop-item${disabled ? ' cannot-afford' : ''}" data-kind="runitem" data-id="${item.id}">
+          <span class="tdcp-shop-icon">${item.icon}</span>
+          <div class="tdcp-shop-text">
+            <span class="tdcp-shop-label">${item.name}${pending > 0 ? ` ×${pending} ready` : ''}</span>
+            <span class="tdcp-shop-sub">${item.desc}</span>
+          </div>
+          <span class="tdcp-shop-cost">🪙${item.cost}</span>
+        </div>`;
+      }).join('');
 
       panel.innerHTML = `
         <div class="tdcp-panel">
@@ -1468,10 +1511,13 @@ function showInterNodePanel(node, run) {
             <div class="tdcp-icon">${meta.icon}</div>
             <div class="tdcp-title-wrap">
               <div class="tdcp-name">Shop</div>
-              <div class="tdcp-act">Carry-over gold: 🪙${carryGold}</div>
+              <div class="tdcp-act">Your gold: 🪙${runGold}</div>
             </div>
           </div>
           <div class="tdcp-shop-grid">${puHtml}${relicHtml}</div>
+          ${TD_RUN_ITEMS.length ? `
+          <div class="inv-section-label" style="margin:.8rem 0 .4rem">Consumables</div>
+          <div class="tdcp-shop-grid">${itemHtml}</div>` : ''}
           <div class="tdcp-actions">
             <button class="tdcp-btn-back">← Back</button>
             <button class="tdcp-btn-play tdcp-btn-leave">Leave Shop</button>
@@ -1483,8 +1529,8 @@ function showInterNodePanel(node, run) {
       panel.querySelectorAll('.tdcp-shop-item[data-kind="powerup"]:not(.cannot-afford)').forEach(el => {
         el.addEventListener('click', () => {
           const pu = puOffers[parseInt(el.dataset.idx)];
-          if (!pu || run.powerUps.length >= 3 || (run.stats.carryGold || 0) < pu.cost) return;
-          run.stats.carryGold -= pu.cost;
+          if (!pu || run.powerUps.length >= 3 || (run.gold || 0) < pu.cost) return;
+          run.gold -= pu.cost;
           run.powerUps.push(pu.id);
           tdSaveRun(run);
           render();
@@ -1493,8 +1539,8 @@ function showInterNodePanel(node, run) {
       const relicEl = panel.querySelector('.tdcp-shop-item[data-kind="relic"]:not(.cannot-afford)');
       if (relicEl) {
         relicEl.addEventListener('click', () => {
-          if (!relicOffer || relicSold || (run.stats.carryGold || 0) < relicCost) return;
-          run.stats.carryGold -= relicCost;
+          if (!relicOffer || relicSold || (run.gold || 0) < relicCost) return;
+          run.gold -= relicCost;
           tdSaveRun(run);
           tdOwnedRelics.add(relicOffer.id);
           saveGameState();
@@ -1503,6 +1549,25 @@ function showInterNodePanel(node, run) {
           showRelicAcquiredPrompt(relicOffer);
         });
       }
+      panel.querySelectorAll('.tdcp-shop-item[data-kind="runitem"]:not(.cannot-afford)').forEach(el => {
+        el.addEventListener('click', () => {
+          const item = TD_RUN_ITEMS.find(x => x.id === el.dataset.id);
+          if (!item || (run.gold || 0) < item.cost) return;
+          run.gold -= item.cost;
+          const t = item.effect.type, v = item.effect.value;
+          if (t === 'extra-life') {
+            run.maxLives = (run.maxLives || 0) + v;
+            run.lives    = (run.lives || 0) + v;
+          } else if (t === 'skip-first-wave') {
+            run.pendingSkipFirstWave = (run.pendingSkipFirstWave || 0) + 1;
+          } else if (t === 'boss-half-hp') {
+            run.pendingBossHalfHp = (run.pendingBossHalfHp || 0) + 1;
+          }
+          tdSaveRun(run);
+          showAchievementToast({ icon: item.icon, name: 'Purchased!', desc: item.name });
+          render();
+        });
+      });
     }
     render();
 
@@ -1524,28 +1589,40 @@ function showInterNodePanel(node, run) {
         </div>
         <div class="tdcp-actions"><button class="tdcp-btn-play tdcp-btn-accept">Accept</button></div>
       </div>`;
-    panel.querySelector('.tdcp-btn-accept').addEventListener('click', () => { applyTDEvent(ev); finishNode(); });
+    panel.querySelector('.tdcp-btn-accept').addEventListener('click', () => { applyTDEvent(ev, run); finishNode(); });
 
   } else if (node.type === 'elite') {
-    renderEliteQuestion(node, panel, finishNode);
+    renderEliteQuestion(node, panel, run, finishNode);
   }
 
   if (node.type !== 'elite') panel.addEventListener('click', e => { if (e.target === panel) panel.remove(); });
   document.body.appendChild(panel);
 }
 
-function applyTDEvent(ev) {
+// Applies immediately and permanently to the run's persistent pools —
+// events are "earned on the map" per the same rule battles/shops follow,
+// so a gold/lives event touches run.gold/run.lives directly rather than
+// the separate meta `gold` stat (fixed 2026-07-18: this previously wrote
+// to the wrong currency entirely) or the temporary next-battle-only rest
+// bonus slot (a permanent map event shouldn't behave like a rest choice).
+function applyTDEvent(ev, run) {
   const minus  = ev.effect.includes('-');
   const absVal = parseInt(ev.effect.replace(/[^0-9]/g,''));
-  if      (ev.effect.startsWith('gold'))  { if (minus) spendGold(Math.min(gold,absVal)); else earnGold(absVal); }
-  else if (ev.effect.startsWith('xp'))    { awardXP(true, 'drill'); }
-  else if (ev.effect.startsWith('lives')) {
-    const c = tdLoadRestBonus(), cv = (c&&c.type==='lives')?c.value:0;
-    tdSaveRestBonus({type:'lives', value: cv + (minus ? -absVal : absVal)});
+  if (ev.effect.startsWith('gold')) {
+    if (!run) return;
+    run.gold = Math.max(0, (run.gold || 0) + (minus ? -absVal : absVal));
+    tdSaveRun(run);
+  } else if (ev.effect.startsWith('xp')) {
+    awardXP(true, 'drill');
+  } else if (ev.effect.startsWith('lives')) {
+    if (!run) return;
+    const max = run.maxLives || run.lives || 0;
+    run.lives = Math.max(0, Math.min(max, (run.lives || 0) + (minus ? -absVal : absVal)));
+    tdSaveRun(run);
   }
 }
 
-function renderEliteQuestion(node, panel, onComplete) {
+function renderEliteQuestion(node, panel, run, onComplete) {
   const hardQ  = allQuestions.filter(q => tdQDifficulty(q) === 'hard');
   const q      = hardQ.length ? hardQ[Math.floor(Math.random()*hardQ.length)] : allQuestions[Math.floor(Math.random()*allQuestions.length)];
   const meta   = TD_INTER_META[node.type] || {icon:'⚔️',color:'#EF4444'};
@@ -1569,7 +1646,13 @@ function renderEliteQuestion(node, panel, onComplete) {
     </div>`;
   function resolve(correct) {
     const fb = panel.querySelector('#elite-feedback');
-    if (correct) { fb.textContent = '✅ Correct! +🪙'+reward; fb.style.color='#10B981'; earnGold(reward); }
+    if (correct) {
+      fb.textContent = '✅ Correct! +🪙'+reward; fb.style.color='#10B981';
+      // Earned on the map, so it goes to the run's spendable wallet — not
+      // the separate meta `gold` stat (fixed 2026-07-18, matching the
+      // applyTDEvent fix: this previously credited the wrong currency).
+      if (run) { run.gold = (run.gold || 0) + reward; tdSaveRun(run); }
+    }
     else         { fb.textContent = '❌ Incorrect. '+(q.explanation||''); fb.style.color='#EF4444'; }
     setTimeout(() => { panel.remove(); if (onComplete) onComplete(); }, 2200);
   }

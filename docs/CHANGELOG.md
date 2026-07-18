@@ -48,6 +48,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Regen ranger tier 1 as grounded timber watchtower (#140)
 
+- Relic editor - remove emoji from header, add search/filter/sort/view toggle (#156)
+
 - Relic vault on Home + compact grid redesign, goblin-only Frontier Town waves (#153)
 
 - Render relic sprite art in-game, drop the two defective icons (#152)
