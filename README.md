@@ -186,3 +186,12 @@ CLAUDE.md                              ← Project rules for Claude Code (stays 
 Pure HTML, CSS, and vanilla JavaScript — no build step, no dependencies, no framework.
 Hosted on GitHub Pages. The game and drill app are a single PWA with a service worker
 for offline support; progress is tracked client-side via `localStorage`.
+
+## License
+
+The guide content and shared question bank are licensed [CC BY-NC 4.0](LICENSE) —
+share and adapt freely with attribution, non-commercial use only.
+
+`learn/drill/` (the Quiz Defense game itself — code, config, and assets) is **not**
+covered by that license and remains all rights reserved. See
+[`learn/drill/LICENSE`](learn/drill/LICENSE).

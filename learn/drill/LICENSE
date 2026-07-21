@@ -1,0 +1,19 @@
+Quiz Defense — Proprietary, All Rights Reserved
+
+Copyright (c) 2026 DerekEvans47. All rights reserved.
+
+Everything in this directory (`learn/drill/`) — including but not limited
+to the game's source code (`drill-*.js`, `index.html`, `drill.css`,
+`sw.js`), configuration (`config.json`), and all art, audio, and other
+assets under `assets/` — is proprietary and is NOT covered by the CC BY-NC
+license that applies to the rest of this repository (see the root
+`LICENSE` file).
+
+No permission is granted to copy, modify, distribute, sublicense, publish,
+or otherwise use any part of this directory, in whole or in part, for any
+purpose — commercial or non-commercial — without explicit prior written
+permission from the copyright holder.
+
+This directory is planned to move to a separate private repository; until
+that migration happens it remains visible here for development purposes
+only and is not released under any open license.

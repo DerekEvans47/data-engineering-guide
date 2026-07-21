@@ -96,7 +96,11 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Delete Gemini_Generated_Image_ngutc5ngutc5ngut.png
 
+- Add split-license structure (CC BY-NC guide, proprietary game)
+
 - Adjust object placement and occlusion
+
+- Backlog Confidence level + Population resource as P1 decide items
 
 - Keep repo links out of copy-paste image-gen prompts (#159)
 
