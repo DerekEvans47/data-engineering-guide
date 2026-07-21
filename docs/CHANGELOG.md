@@ -26,8 +26,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Goblin attack animation + canonical art reference pipeline (#160)
 
-- Goblin pilot sprite assets (A-1 done) - walk keyframes + death sequence
-
 - Make run gold/lives truly persistent, add shop consumables
 
 - Map authoring overlay (?author=1) (#136)
@@ -35,8 +33,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - New regenerated region map (nodes re-placed) + road-structure occlusion
 
 - Optional quiz, real starting gold, remove dead dungeon mode (#147)
-
-- Painted goblin renderer (A-3), all-goblin wave 1, battle music, compact wave button
 
 - Playtest round 3 - sprite size/quality, single battle song, HUD cleanup, two-tap build with stat card, arrow SFX
 
@@ -56,8 +52,6 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Split build radial menu into towers-top / barracks-bottom hexagon (#157)
 
-- Wire new Frontier Town painted map (path + slots) and add unit-art backlog
-
 
 ### 🐛 Bug Fixes
 
@@ -65,17 +59,15 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Author-mode copy confirmation flash + clipboard fallback (#137)
 
-- Clamp Frontier Town waypoints to the road's grid row
-
 - Depth-sort towers vs units + NN sampling for rev 7 map
 
 - Draw the painted map nearest-neighbor - map was blurry vs crisp units (#144)
 
+- Goblin attack loop skips the overhead windup frame (#161)
+
 - IPhone landscape home fit + sheep tint; docs: K-section backlog review + STATUS handoff (#132)
 
 - Playtest round 4 - landscape home fit, arrow physics, full-bleed map, ambient polish (#131)
-
-- Re-fit battle canvas on rotation + force-update via version badge
 
 - Region map node placement redone with road-mask snapping
 
@@ -90,8 +82,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Tower shadows render as dark silhouettes on iOS Safari (#146)
 
 - Tune Frontier Town enemy pathing, tower slots and occluders (#138)
-
-- Tutorial enemy speed on the straight road + bigger painted sprites
 
 
 ### 🔧 Infrastructure
