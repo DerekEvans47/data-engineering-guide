@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#080c14">
+  <title>Data Engineering — Learn</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#080c14; --surface:#111725; --surface-2:#182234; --border:#24304a;
+      --text:#e6edf3; --text-mut:#8ea0bd; --accent:#6366f1; --accent-2:#818cf8;
+      --shadow:0 10px 30px rgba(0,0,0,.45);
+    }
+    :root[data-theme="light"] {
+      --bg:#eef2f8; --surface:#fff; --surface-2:#f3f6fb; --border:#d7deea;
+      --text:#16202e; --text-mut:#5a6b83; --accent:#4f46e5; --accent-2:#6366f1;
+      --shadow:0 10px 30px rgba(30,50,90,.14);
+    }
+    * { box-sizing:border-box; }
+    html,body { margin:0; min-height:100%; }
+    body {
+      background:var(--bg); color:var(--text);
+      font-family:'Inter',system-ui,-apple-system,sans-serif;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .wrap {
+      max-width:760px; margin:0 auto;
+      padding:max(env(safe-area-inset-top),1.5rem) 1.1rem 2.5rem;
+      min-height:100vh; display:flex; flex-direction:column;
+    }
+    .top { display:flex; align-items:center; justify-content:flex-end; }
+    .theme-btn {
+      width:40px; height:40px; border:1px solid var(--border); border-radius:10px;
+      background:var(--surface); color:var(--text); font-size:1.1rem; cursor:pointer;
+    }
+    .hero { text-align:center; padding:1.4rem 0 1.8rem; }
+    .hero h1 {
+      margin:0; font-size:clamp(1.8rem,7vw,2.6rem); font-weight:800; letter-spacing:-.02em;
+    }
+    .hero p { margin:.5rem 0 0; color:var(--text-mut); font-size:1rem; }
+    .cards { display:grid; gap:.9rem; }
+    @media (min-width:560px){ .cards { grid-template-columns:1fr 1fr; } .card-wide { grid-column:1 / -1; } }
+    .card {
+      display:flex; align-items:center; gap:1rem;
+      padding:1.2rem 1.3rem; border:1px solid var(--border); border-radius:16px;
+      background:var(--surface); box-shadow:var(--shadow); text-decoration:none; color:inherit;
+      transition:transform .12s, border-color .12s;
+    }
+    .card:hover { transform:translateY(-2px); border-color:var(--accent); }
+    .card:active { transform:translateY(0); }
+    .card-primary { background:linear-gradient(135deg, color-mix(in srgb,var(--accent) 22%, var(--surface)), var(--surface)); }
+    .card-icon { font-size:2rem; line-height:1; flex-shrink:0; }
+    .card-text { flex:1; min-width:0; }
+    .card-title { font-size:1.15rem; font-weight:700; }
+    .card-desc { font-size:.85rem; color:var(--text-mut); margin-top:.2rem; line-height:1.4; }
+    .card-arrow { color:var(--text-mut); font-size:1.4rem; }
+    .foot { margin-top:auto; padding-top:2rem; text-align:center; color:var(--text-mut); font-size:.78rem; }
+    .foot a { color:var(--accent-2); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <button class="theme-btn" id="theme-btn" aria-label="Toggle theme">🌙</button>
+  </div>
+
+  <div class="hero">
+    <h1>Data Engineering</h1>
+    <p>Read it, quiz yourself, and drill the terms — the modern data &amp; AI stack.</p>
+  </div>
+
+  <div class="cards">
+    <a class="card card-primary card-wide" href="guide/index.html">
+      <span class="card-icon">📖</span>
+      <span class="card-text">
+        <span class="card-title">The Guide</span>
+        <span class="card-desc">Full self-directed reference — Parts 1–9 plus an appendix, with interactive quizzes, glossary tooltips, and diagrams.</span>
+      </span>
+      <span class="card-arrow">›</span>
+    </a>
+
+    <a class="card" href="learn/drill/index.html">
+      <span class="card-icon">⚡</span>
+      <span class="card-text">
+        <span class="card-title">Study &amp; Drill</span>
+        <span class="card-desc" id="desc-questions">Practice questions — Study Mode, Drill, and a Daily Challenge.</span>
+      </span>
+      <span class="card-arrow">›</span>
+    </a>
+
+    <a class="card" href="learn/flashcards/index.html">
+      <span class="card-icon">🃏</span>
+      <span class="card-text">
+        <span class="card-title">Flashcards</span>
+        <span class="card-desc" id="desc-terms">Flip-card the glossary — term on the front, definition on the back.</span>
+      </span>
+      <span class="card-arrow">›</span>
+    </a>
+  </div>
+
+  <div class="foot">
+    A tower-defense game built on the same material lives in
+    <a href="game/index.html">/game</a>.
+  </div>
+</div>
+
+<script>
+  // Theme
+  const THEME_KEY = 'de_learn_theme';
+  function applyTheme(t) {
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem(THEME_KEY, t); } catch (_) {}
+    document.getElementById('theme-btn').textContent = t === 'light' ? '☀️' : '🌙';
+  }
+  applyTheme((() => { try { return localStorage.getItem(THEME_KEY); } catch (_) { return null; } })() || 'dark');
+  document.getElementById('theme-btn').addEventListener('click', () =>
+    applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
+
+  // Live counts (best-effort — never block the page)
+  fetch('content/question-bank.json').then(r => r.ok ? r.json() : null).then(raw => {
+    if (!raw) return;
+    const qs = Array.isArray(raw) ? raw : (raw.questions || []);
+    if (qs.length) document.getElementById('desc-questions').textContent =
+      `${qs.length} practice questions — Study Mode, Drill, and a Daily Challenge.`;
+  }).catch(() => {});
+  fetch('content/glossary.json').then(r => r.ok ? r.json() : null).then(raw => {
+    if (!raw) return;
+    const n = (raw.terms || raw).length;
+    if (n) document.getElementById('desc-terms').textContent =
+      `${n} glossary terms — term on the front, definition on the back.`;
+  }).catch(() => {});
+</script>
+</body>
+</html>

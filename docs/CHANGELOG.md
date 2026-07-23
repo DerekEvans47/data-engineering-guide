@@ -96,6 +96,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 - Delete Gemini_Generated_Image_ngutc5ngutc5ngut.png
 
+- Separate the tower-defense game from the learning material (#162)
+
 - Adjust object placement and occlusion
 
 - Keep repo links out of copy-paste image-gen prompts (#159)
@@ -107,8 +109,6 @@ A record of every feature, fix, and improvement shipped to the app.
 - Remove dead multi-world code and retired deco/music systems from drill.js (#139)
 
 - Resolution-independent map rendering + pixelArt flag - hi-res regen prep (#145)
-
-- Separate tower-defense game from quiz/learning material
 
 - Unify ?dev and ?author into one Creator Mode with on-page toggles (#149)
 

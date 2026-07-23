@@ -1,0 +1,207 @@
+/* Term Flashcards — self-contained styles. Dark by default, light via
+   [data-theme="light"]. Inter for UI. */
+:root {
+  --bg:        #080c14;
+  --surface:   #111725;
+  --surface-2: #182234;
+  --border:    #24304a;
+  --text:      #e6edf3;
+  --text-mut:  #8ea0bd;
+  --accent:    #6366f1;
+  --accent-2:  #818cf8;
+  --known:     #10b981;
+  --review:    #f59e0b;
+  --shadow:    0 10px 30px rgba(0,0,0,.45);
+}
+:root[data-theme="light"] {
+  --bg:        #eef2f8;
+  --surface:   #ffffff;
+  --surface-2: #f3f6fb;
+  --border:    #d7deea;
+  --text:      #16202e;
+  --text-mut:  #5a6b83;
+  --accent:    #4f46e5;
+  --accent-2:  #6366f1;
+  --shadow:    0 10px 30px rgba(30,50,90,.14);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+#app {
+  max-width: 640px;
+  margin: 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: max(env(safe-area-inset-top), 0px) 1rem env(safe-area-inset-bottom);
+}
+
+/* ── Header ── */
+.fc-top {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: 1rem .2rem .4rem;
+}
+.fc-back, .fc-theme {
+  width: 40px; height: 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.1rem;
+  text-decoration: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.fc-title { flex: 1; font-weight: 700; font-size: 1.05rem; }
+
+#fc-main { flex: 1; display: flex; flex-direction: column; }
+
+/* ── Mode bar + progress ── */
+.fc-bar { display: flex; align-items: center; gap: .5rem; margin-top: .4rem; }
+.fc-modes { display: flex; gap: .4rem; flex: 1; }
+.fc-mode {
+  padding: .45rem .7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-mut);
+  font: inherit; font-size: .78rem; font-weight: 600;
+  cursor: pointer;
+}
+.fc-mode.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.fc-icon-btn {
+  width: 38px; height: 38px; flex-shrink: 0;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); color: var(--text);
+  font-size: 1rem; cursor: pointer;
+}
+
+.fc-progress { margin: .8rem 0 .3rem; }
+.fc-progress-bar {
+  height: 8px; border-radius: 999px;
+  background: var(--surface-2); overflow: hidden;
+  border: 1px solid var(--border);
+}
+.fc-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width .3s ease;
+}
+.fc-progress-label {
+  margin-top: .35rem; font-size: .72rem; color: var(--text-mut); font-weight: 500;
+}
+
+/* ── Card (3D flip) ── */
+.fc-card-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 0;
+  min-height: 260px;
+  perspective: 1400px;
+}
+.fc-card {
+  width: 100%;
+  min-height: 260px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform .5s cubic-bezier(.2,.8,.3,1);
+  cursor: pointer;
+}
+.fc-card.flipped { transform: rotateY(180deg); }
+.fc-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 1.6rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow-y: auto;
+}
+.fc-front { align-items: center; text-align: center; gap: .8rem; }
+.fc-back  { transform: rotateY(180deg); gap: .6rem; }
+
+.fc-term {
+  font-size: clamp(1.5rem, 6vw, 2.1rem);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -.01em;
+}
+.fc-hint { font-size: .72rem; color: var(--text-mut); text-transform: uppercase; letter-spacing: .08em; }
+.fc-known-tag {
+  position: absolute; top: 1rem; right: 1.1rem;
+  font-size: .68rem; font-weight: 700; color: var(--known);
+}
+.fc-term-sm { font-size: .8rem; font-weight: 700; color: var(--accent-2); text-transform: uppercase; letter-spacing: .05em; }
+.fc-short { font-size: 1.05rem; font-weight: 600; line-height: 1.45; }
+.fc-full  { font-size: .86rem; color: var(--text-mut); line-height: 1.55; }
+
+/* ── Actions ── */
+.fc-actions {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr auto;
+  gap: .5rem;
+  padding: .4rem 0 .2rem;
+}
+.fc-nav {
+  padding: .7rem .5rem;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); color: var(--text-mut);
+  font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer;
+}
+.fc-nav:disabled { opacity: .4; cursor: default; }
+.fc-btn {
+  padding: .8rem 1rem;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); color: var(--text);
+  font: inherit; font-size: .9rem; font-weight: 700; cursor: pointer;
+  transition: transform .08s, filter .12s;
+}
+.fc-btn:active { transform: scale(.97); }
+.fc-btn-known  { background: color-mix(in srgb, var(--known) 18%, transparent); border-color: var(--known); color: var(--known); }
+.fc-btn-review { background: color-mix(in srgb, var(--review) 16%, transparent); border-color: var(--review); color: var(--review); }
+.fc-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── Footer ── */
+.fc-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .8rem .1rem 1rem; margin-top: auto;
+}
+.fc-version { font-size: .7rem; color: var(--text-mut); }
+.fc-reset {
+  background: none; border: none; color: var(--text-mut);
+  font: inherit; font-size: .74rem; text-decoration: underline; cursor: pointer;
+}
+
+/* ── Done / empty / error ── */
+.fc-done, .fc-error {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  gap: .6rem; padding: 2rem 1rem;
+}
+.fc-done-icon, .fc-error-icon { font-size: 3rem; }
+.fc-done h2, .fc-error-title { margin: 0; font-size: 1.4rem; font-weight: 800; }
+.fc-done-score { font-size: 2rem; font-weight: 800; color: var(--accent-2); }
+.fc-done-score span { font-size: 1rem; color: var(--text-mut); font-weight: 600; }
+.fc-done p, .fc-error-sub { color: var(--text-mut); margin: 0; }
+.fc-done-btns { display: flex; gap: .6rem; flex-wrap: wrap; justify-content: center; margin-top: .6rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fc-card { transition: none; }
+}
