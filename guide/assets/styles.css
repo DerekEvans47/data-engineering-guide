@@ -286,6 +286,10 @@ body {
 .kt { background: var(--highlight); border-bottom: 2px solid var(--hl-bdr); font-style: italic; color: var(--navy-dark); }
 .df { background: var(--blue-light); border-bottom: 2px solid var(--blue); color: var(--navy); }
 .kt:hover, .df:hover { filter: brightness(0.92); }
+/* Auto-linked glossary terms — subtler than authored .kt/.df: no fill, just a
+   dotted underline that hints the term is clickable for its definition. */
+.gloss-link { border-bottom: 1px dotted var(--blue); cursor: help; }
+.gloss-link:hover { background: var(--blue-light); }
 
 /* ============================================================
    TOOLTIP

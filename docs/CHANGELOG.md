@@ -104,6 +104,8 @@ A record of every feature, fix, and improvement shipped to the project.
 
 - Separate the tower-defense game from the learning material (#162)
 
+- Strengthen the repo's PII git hooks (#167)
+
 - Unify the glossary and connect every learning app to the hub (#164)
 
 - Adjust object placement and occlusion
