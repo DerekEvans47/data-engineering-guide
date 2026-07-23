@@ -12,7 +12,7 @@
 // they call into later ones.
 
 // ╔══════════════════════════════════════════════════════════════
-//  TD GAME CONFIG — now data-driven: edit learn/drill/config.json
+//  TD GAME CONFIG — now data-driven: edit config.json
 // ╚══════════════════════════════════════════════════════════════
 // The tower/enemy/power-up/relic tuning tables and the Frontier Town
 // knobs moved to config.json (2026-07-14) so balance changes are a JSON

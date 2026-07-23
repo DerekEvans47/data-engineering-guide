@@ -1,6 +1,6 @@
-# Quiz Defense — Changelog
+# Data Engineering Guide — Changelog
 
-A record of every feature, fix, and improvement shipped to the app.
+A record of every feature, fix, and improvement shipped to the project.
 
 ## Unreleased
 
@@ -99,6 +99,8 @@ A record of every feature, fix, and improvement shipped to the app.
 - Delete Gemini_Generated_Image_ngutc5ngutc5ngut.png
 
 - Separate the tower-defense game from the learning material (#162)
+
+- Unify the glossary and connect every learning app to the hub (#164)
 
 - Adjust object placement and occlusion
 
