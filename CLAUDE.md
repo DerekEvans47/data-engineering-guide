@@ -13,11 +13,12 @@ This repo was split into fully independent pieces that share **no runtime code**
 - **`learn/flashcards/`** — the **Flashcards app** (glossary term drill). Files:
   `index.html`, `flashcards.js`, `flashcards.css`, `sw.js` (cache prefix
   **`de-flashcards-v*`**), `manifest.json`. Loads `content/glossary.json`.
-- **`guide/`** — the written reference guide (Parts 1–9 + appendix). Owns its own inline
-  `GLOSSARY` object in `guide/assets/guide.js`; `content/glossary.json` is a snapshot
-  extracted from it for the flashcards. (Keep them in sync if you edit terms.)
+- **`guide/`** — the written reference guide (Parts 1–9 + appendix). Loads glossary terms
+  at runtime from `content/glossary.json` (via `GLOSSARY_READY` in `guide/assets/guide.js`)
+  — the same file the flashcards use. **`content/glossary.json` is the single source of
+  truth for terms; there is no inline glossary copy.**
 - **`content/question-bank.json`** — shared question bank; **`content/glossary.json`** —
-  shared glossary terms.
+  shared glossary terms (guide tooltips, guide glossary page, and the flashcards app).
 - **`game/`** — the **standalone tower-defense game** (`drill-core.js`, `drill-audio.js`,
   `drill-world.js`, `drill-td.js`, `config.json`, `drill.css`, `sw.js` with cache prefix
   **`quiz-defense-game-v*`**, `assets/`). Has its own `game/verify.sh`. It is bound for

@@ -40,7 +40,8 @@ Flip-card drilling of the glossary — the term on the front, its definition on 
   haven't marked known yet. Progress persists in `localStorage`.
 - **Shuffle** the deck at any time; keyboard shortcuts (<kbd>K</kbd> know, <kbd>R</kbd>
   review, <kbd>←</kbd>/<kbd>→</kbd> navigate).
-- Built on `content/glossary.json`, extracted from the guide's glossary (115 terms).
+- Built on `content/glossary.json` (115 terms) — the same single source of truth the
+  guide's tooltips and glossary page load at runtime.
 
 ## The guide
 

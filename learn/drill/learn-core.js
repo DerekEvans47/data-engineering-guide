@@ -585,6 +585,7 @@ function showHome() {
   setTopBar('home');
   EL.contentArea.innerHTML = `
     <div class="home-screen">
+      <a class="home-hub-btn" href="../../index.html" title="All learning">🏠</a>
       <button class="home-theme-btn" id="home-theme-btn">${document.documentElement.dataset.theme !== 'light' ? '☀️' : '🌙'}</button>
       <div class="home-hero">
         <h1 class="home-title">Study &amp; Drill</h1>

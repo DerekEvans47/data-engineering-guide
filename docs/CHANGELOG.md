@@ -86,6 +86,8 @@ A record of every feature, fix, and improvement shipped to the app.
 
 ### 🔧 Infrastructure
 
+- Add a learning landing page and a term-flashcards app (#163)
+
 - Add files via upload
 
 - Add files via upload
