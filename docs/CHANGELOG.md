@@ -86,6 +86,8 @@ A record of every feature, fix, and improvement shipped to the project.
 
 ### 🔧 Infrastructure
 
+- Add Glossary card to the hub; flag stale docs and fix stale comments (#165)
+
 - Add a learning landing page and a term-flashcards app (#163)
 
 - Add files via upload

@@ -21,11 +21,12 @@ This repo was split into fully independent pieces that share **no runtime code**
   shared glossary terms (guide tooltips, guide glossary page, and the flashcards app).
 - **`game/`** — the **standalone tower-defense game** (`drill-core.js`, `drill-audio.js`,
   `drill-world.js`, `drill-td.js`, `config.json`, `drill.css`, `sw.js` with cache prefix
-  **`quiz-defense-game-v*`**, `assets/`). Has its own `game/verify.sh`. It is bound for
-  its own repository and shares nothing with the learning app. **All the game-specific
-  rules below (Creator Mode, relic/config tuning, the SW checklist) now apply to
-  `game/`, not `learn/drill/`.** The old `learn/drill` game-tooling notes are retained
-  below only until the game moves out.
+  **`quiz-defense-game-v*`**, `assets/`). Self-contained and ready to become its own repo:
+  it carries its own `game/CLAUDE.md`, `game/.claude/` (PII hooks + settings), `game/docs/`
+  (design & art docs), and `game/verify.sh`. It shares nothing with the learning app.
+  **All the game-specific rules below (Creator Mode, relic/config tuning, the SW checklist)
+  now apply to `game/`, not `learn/drill/`.** The old `learn/drill` game-tooling notes are
+  retained below only until the game moves out.
 
 ## Commit & PR Hygiene — No Personal Identifiers
 

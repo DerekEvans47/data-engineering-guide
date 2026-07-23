@@ -50,3 +50,20 @@ and asserts the game runs standalone with no quiz gating. Exit 0 = pass.
 When you change any file under this folder, bump the cache version in `sw.js`
 (`const CACHE = 'quiz-defense-game-vN'`) so browsers pick up the new assets. The
 home-screen version badge derives from that cache name automatically.
+
+## Standalone-repo setup (git hooks / PII protection)
+
+This folder carries everything needed to run as its own repository, including
+git hooks that keep Claude session IDs and other personal identifiers out of
+commits. The hook scripts are tracked in `.claude/skills/`, and `.claude/settings.json`
+re-installs them into `.git/hooks/` at the start of every Claude Code session — so
+after moving this folder to a new repo, just open it once in Claude Code.
+
+To install the hooks manually (or without Claude Code):
+
+```bash
+cp .claude/skills/pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+cp .claude/skills/pre-push-hook.sh  .git/hooks/pre-push   && chmod +x .git/hooks/pre-push
+```
+
+See `CLAUDE.md` for the full commit-hygiene rules the hooks enforce.
