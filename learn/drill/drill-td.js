@@ -1,6 +1,6 @@
 'use strict';
-// Quiz Defense — battle engine: canvas setup, game state, update loop,
-// towers/enemies/projectiles, radial menu, quiz gate, HUD, renderer.
+// Tower Defense — battle engine: canvas setup, game state, update loop,
+// towers/enemies/projectiles, radial menu, HUD, renderer.
 //
 // Split from the old single-file drill.js (2026-07-14). The four files are
 // classic scripts sharing the global scope, loaded in order by index.html:
@@ -113,7 +113,6 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
         <div id="td-actions">
           <div class="td-actions-row">
             <div id="td-powerup-tray" class="td-powerup-tray" style="display:none"></div>
-            <button class="td-quiz-btn" id="td-quiz-btn">📝 +25🪙 (3)</button>
             <button class="td-wave-btn" id="td-wave-btn">
               <span class="td-wave-btn-main">⚔️ Start Wave 1</span>
               <span id="td-wave-preview" class="td-wave-preview" style="display:none"></span>
@@ -121,6 +120,7 @@ function showTowerDefenseScreen(levelDef, nodeId, run) {
           </div>
         </div>
       </div>
+      <!-- Sliding modal sheet, reused by the first-run tutorial -->
       <div class="td-q-overlay" id="td-q-overlay">
         <div class="td-q-sheet" id="td-q-sheet"></div>
       </div>
@@ -222,7 +222,6 @@ function initTDGame(levelDef, levelIdx, persistedLives, persistedMaxLives, persi
   EL.tdLivesFill = document.getElementById('td-lives-fill');
   EL.tdWaveLbl   = document.getElementById('td-wave-lbl');
   EL.tdWaveDots  = document.getElementById('td-wave-dots');
-  EL.tdQuizBtn   = document.getElementById('td-quiz-btn');
   EL.tdWaveBtn   = document.getElementById('td-wave-btn');
   EL.tdPauseBtn  = document.getElementById('td-pause-btn');
   EL.tdMuteBtn   = document.getElementById('td-mute-btn');
@@ -315,16 +314,6 @@ function initTDGame(levelDef, levelIdx, persistedLives, persistedMaxLives, persi
   });
 
   EL.tdWaveBtn.addEventListener('click', tdOnWaveBtn);
-  EL.tdQuizBtn.addEventListener('click', () => {
-    if (!td || td.quizOpen || td.over || td.won) return;
-    if (td.optQuizUsed >= tdQuizMax()) {
-      const btn = EL.tdQuizBtn;
-      if (btn) { btn.textContent = `📝 Max ${tdQuizMax()}/wave`; setTimeout(() => tdUpdateHUD(), 1500); }
-      return;
-    }
-    td.optQuizUsed++;
-    tdOpenQuiz(25, true, () => tdUpdateHUD());
-  });
 
   td.autoSaveInterval = setInterval(() => {
     if (!td || td.over || td.won) return;
@@ -380,7 +369,7 @@ function tdComputeRelicMods() {
     killGoldMult: 1, towerDmgMult: 1, bossDmgMult: 1, startGoldAdd: 0, maxLivesAdd: 0,
     towerRateMult: 1, towerRangeMult: 1, splashMult: 1, enemySpeedMult: 1,
     buildCostMult: 1, upgradeCostMult: 1, waveGoldAdd: 0, interestRate: 0,
-    waveLifeAdd: 0, quizGoldMult: 1, quizUsesAdd: 0, armorPierce: false,
+    waveLifeAdd: 0, armorPierce: false,
     upkeepTotal: 0,
   };
   for (const id of tdEquippedRelics) {
@@ -402,15 +391,10 @@ function tdComputeRelicMods() {
     else if (type === 'wave-gold-add')     m.waveGoldAdd     += value;
     else if (type === 'interest-rate')     m.interestRate    += value;
     else if (type === 'wave-life-add')     m.waveLifeAdd     += value;
-    else if (type === 'quiz-gold-mult')    m.quizGoldMult    *= value;
-    else if (type === 'quiz-uses-add')     m.quizUsesAdd     += value;
     else if (type === 'armor-pierce')      m.armorPierce      = true;
   }
   return m;
 }
-
-// Bonus questions allowed per wave (relics can raise the base 3).
-function tdQuizMax() { return 3 + (td?.relicMods?.quizUsesAdd || 0); }
 
 function tdEquipRelic(id) {
   const r = TD_RELICS.find(x => x.id === id);
@@ -468,13 +452,11 @@ function tdMakeState(levelDef, levelIdx, persistedLives, persistedMaxLives, pers
     waveIdx:-1, spawnQueue:[], spawnTimer:0, waveActive:false,
     enemies:[], towers:[], projectiles:[], particles:[], corpses:[], damageNumbers:[],
     radialMenu:null, eid:0,
-    quizOpen:false, quizQ:null, quizAnswered:false, quizDone:null, quizOptional:false,
     tapCol:-1, tapRow:-1,
     over:false, won:false, shake:0, bossFlash:0, lastShootSnd:0,
     bgTime: 0, mapId: -1,
     levelDef, levelIdx,
     pathSet: tdComputePathSet(levelDef.wps),
-    optQuizUsed: 0,
     activePowerUps: [],
     powerUpMods: { towerRateMult:1, enemySpeedMult: mods.speedPlus ? 1.25 : 1, killGoldMult:1 },
     relicMods,
@@ -982,7 +964,7 @@ function tdSpawnParticles(cx, cy, color, n) {
 // commits immediately; there's no separate select-then-confirm step since
 // the tap that opens the menu already picked the location.
 function tdHandleTap(col, row) {
-  if (!td || td.over || td.won || td.quizOpen) return;
+  if (!td || td.over || td.won) return;
   if (col < 0 || col >= TD_COLS || row < 0 || row >= TD_ROWS) return;
 
   const reopenBlocked = td.radialMenu && td.radialMenu.col === col && td.radialMenu.row === row;
@@ -1210,7 +1192,7 @@ function tdShowTowerInfoCard(item, btnEl) {
   card.style.left = (bx + 44 + 128 > wrapRect.width ? bx - 44 - 128 : bx + 44) + 'px';
 }
 
-// Keeps affordability current if gold changes (e.g. a quiz reward) while
+// Keeps affordability current if gold changes (e.g. a kill reward) while
 // the menu is still open, without repositioning or rebuilding it.
 function tdRefreshRadialMenuAfford() {
   if (!td.radialMenu) return;
@@ -1242,9 +1224,9 @@ function tdShowTutorial() {
     { icon: '🏗️', title: 'Place a tower',
       body: 'Tap a glowing clearing on the map to open your build options, then tap a tower to place it. Towers fire automatically at enemies.' },
     { icon: '⚔️', title: 'Start a wave',
-      body: 'Once your towers are placed, tap <strong>Start Wave</strong>. Need extra gold? Tap 📝 any time for an optional bonus question — correct answers pay out instantly.' },
-    { icon: '📝', title: 'Earn gold, upgrade, survive',
-      body: 'Tap a placed tower for Upgrade &amp; Sell options. Kill rewards and bonus-question gold fund it all — hold the line through every wave to win. Good luck!' },
+      body: 'Once your towers are placed, tap <strong>Start Wave</strong> to send enemies down the path. Don\'t let them reach the exit — each one costs a life.' },
+    { icon: '🪙', title: 'Earn gold, upgrade, survive',
+      body: 'Tap a placed tower for Upgrade &amp; Sell options. Kill rewards fund it all — hold the line through every wave to win. Good luck!' },
   ];
   var step = 0;
   function showStep() {
@@ -1275,116 +1257,14 @@ function tdShowTutorial() {
 }
 
 
-// ── Quiz system ────────────────────────────────────────────────
-
-function tdOpenQuiz(goldReward, isOptional, onDone) {
-  if (td.quizOpen) return;
-  td.paused     = true;
-  td.quizOpen   = true;
-  td.quizAnswered = false;
-  td.quizDone   = onDone;
-  td.quizOptional = isOptional;
-
-  const q    = tdPickQuestion(td.levelDef);
-  const diff = tdQDifficulty(q);
-  const bossMult = td.levelDef.isBoss ? 1.5 : 1.0;
-  const baseReward = isOptional ? (diff === 'hard' ? 45 : diff === 'medium' ? 30 : 18) : goldReward;
-  const reward = Math.round(baseReward * bossMult * (td.relicMods?.quizGoldMult || 1));
-  td.quizQ = q;
-
-  let opts = '';
-  if (q.type === 'mc') {
-    q.options.forEach((o, i) => {
-      opts += `<button class="td-opt" data-idx="${i}" data-correct="${i === q.correct}">${LETTERS[i]}. ${o}</button>`;
-    });
-  } else {
-    opts = `<button class="td-opt td-tf-opt" data-idx="0" data-correct="${q.correct === true}">True</button>
-            <button class="td-opt td-tf-opt" data-idx="1" data-correct="${q.correct === false}">False</button>`;
-  }
-
-  const diffColors = { easy:'#4ADE80', medium:'#FBBF24', hard:'#EF4444' };
-  const mastered   = isMastered(q.id);
-
-  const overlay = EL.tdQOverlay;
-  const sheet   = EL.tdQSheet;
-  sheet.innerHTML = `
-    <div class="td-q-head">
-      <div style="display:flex;gap:.5rem;align-items:center">
-        <span class="td-q-reward">📝 Correct = +${reward}🪙</span>
-        <span class="td-diff-badge" style="background:${diffColors[diff]}20;color:${diffColors[diff]};border:1px solid ${diffColors[diff]}55">${diff}</span>
-        ${mastered ? '<span class="td-mastery-badge">⭐ Mastered</span>' : ''}
-      </div>
-      ${isOptional ? `<button id="td-skip" class="td-q-skip">✕</button>` : ''}
-    </div>
-    <div class="td-q-meta">Part ${q.part} — ${PART_NAMES[q.part] || ''}${q.topic ? ` · ${q.topic}` : ''}</div>
-    <div class="td-q-text">${q.stem}</div>
-    <div class="td-q-opts">${opts}</div>
-    <div id="td-q-fb" style="display:none" class="td-q-fb"></div>
-    <button id="td-q-cont" style="display:none" class="td-q-cont">Continue →</button>`;
-
-  overlay.classList.add('open');
-
-  sheet.querySelectorAll('.td-opt').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (td.quizAnswered) return;
-      td.quizAnswered = true;
-      const correct = btn.dataset.correct === 'true';
-
-      sheet.querySelectorAll('.td-opt').forEach(b => {
-        b.classList.add(b.dataset.correct === 'true' ? 'correct' : 'wrong');
-        b.disabled = true;
-      });
-
-      recordQuizResult(q.id, correct);
-
-      const fb = sheet.querySelector('#td-q-fb');
-      fb.style.display = 'block';
-      if (correct) {
-        td.gold += reward; tdUpdateHUD();
-        const earned = awardXP(true, 'drill');
-        const streakTag = streak >= 3 ? ` · 🔥${streak} streak` : '';
-        fb.innerHTML = `<span class="td-fb-ok">✓ Correct! +${reward}🪙 · +${earned} XP${streakTag}</span>`;
-        if (!mastered && isMastered(q.id)) {
-          fb.innerHTML += '<div class="td-mastery-toast">⭐ Question mastered!</div>';
-        }
-        unlockIfNew('first_blood');
-        tdAudio.correct();
-      } else {
-        fb.innerHTML = `<span class="td-fb-no">✗ Incorrect</span>`;
-        awardXP(false, 'drill');
-        tdAudio.wrong();
-      }
-      if (q.explanation) {
-        fb.innerHTML += `<div class="td-q-exp">${q.explanation}</div>`;
-      }
-      const cont = sheet.querySelector('#td-q-cont');
-      cont.style.display = 'block';
-      cont.addEventListener('click', () => tdCloseQuiz(correct));
-      requestAnimationFrame(() => cont.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
-    });
-  });
-
-  sheet.querySelector('#td-skip')?.addEventListener('click', () => {
-    if (!td.quizAnswered) tdCloseQuiz(false);
-  });
-}
-
-function tdCloseQuiz(correct) {
-  EL.tdQOverlay.classList.remove('open');
-  td.quizOpen = false;
-  td.paused   = false;
-  if (td.quizDone) { td.quizDone(correct); td.quizDone = null; }
-}
-
 // ── Wave management ────────────────────────────────────────────
 
 function tdOnWaveBtn() {
-  if (!td || td.quizOpen || td.waveActive || td.over || td.won) return;
+  if (!td || td.waveActive || td.over || td.won) return;
   const nextIdx = td.waveIdx + 1;
   if (nextIdx >= td.levelDef.waveDefs.length) return;
   const begin = () => {
     td.waveIdx     = nextIdx;
-    td.optQuizUsed = 0;
     tdStartWave(nextIdx);
     tdUpdateWaveBtn();
     tdUpdateHUD();
@@ -1497,14 +1377,13 @@ function tdEndlessNextBatch() {
 }
 
 function tdEnterEndless() {
-  td.won = false; td.endless = true; td.optQuizUsed = 0;
+  td.won = false; td.endless = true;
   tdEndlessNextBatch();
   const actDiv = EL.tdActions;
   if (!actDiv) return;
   actDiv.innerHTML = `
     <div id="td-powerup-tray" class="td-powerup-tray" style="display:none"></div>
     <div class="td-actions-row">
-      <button class="td-quiz-btn" id="td-quiz-btn">📝 +25🪙 (3)</button>
       <button class="td-wave-btn" id="td-wave-btn">
         <span class="td-wave-btn-main">⚔️ Start Wave 1</span>
         <span id="td-wave-preview" class="td-wave-preview" style="display:none"></span>
@@ -1513,14 +1392,7 @@ function tdEnterEndless() {
   EL.tdPowerUpTray = document.getElementById('td-powerup-tray');
   EL.tdWavePreview = document.getElementById('td-wave-preview');
   EL.tdWaveBtn     = document.getElementById('td-wave-btn');
-  EL.tdQuizBtn     = document.getElementById('td-quiz-btn');
   EL.tdWaveBtn.addEventListener('click', tdOnWaveBtn);
-  EL.tdQuizBtn.addEventListener('click', function() {
-    if (!td || td.quizOpen || td.over || td.won) return;
-    if (td.optQuizUsed >= tdQuizMax()) { const b = EL.tdQuizBtn; if (b) { b.textContent = `📝 Max ${tdQuizMax()}/wave`; setTimeout(tdUpdateHUD, 1500); } return; }
-    td.optQuizUsed++;
-    tdOpenQuiz(25, true, function() { tdUpdateHUD(); });
-  });
   tdUpdateHUD(); tdUpdateWaveBtn(); tdUpdatePowerUpTray();
 }
 
@@ -1562,12 +1434,6 @@ function tdUpdateHUD() {
     }
   }
 
-  const quizBtn = EL.tdQuizBtn;
-  if (quizBtn) {
-    const rem = tdQuizMax() - td.optQuizUsed;
-    quizBtn.textContent = rem > 0 ? `📝 +25🪙 (${rem})` : '📝 Max/wave';
-    quizBtn.style.opacity = rem > 0 ? '1' : '0.4';
-  }
   tdRefreshRadialMenuAfford();
   tdUpdateWavePreview();
 }
@@ -2418,7 +2284,7 @@ function tdRenderOverlays(ctx, cs, W, H) {
     td.bossFlash = Math.max(0, td.bossFlash - 0.016);
   }
 
-  if (td.paused && !td.quizOpen && !td.over && !td.won) {
+  if (td.paused && !td.over && !td.won) {
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0,0,W,H);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `bold ${Math.round(cs*.9)}px sans-serif`;
@@ -2693,8 +2559,6 @@ const TD_RELIC_EFFECT_TYPES = [
   ['wave-gold-add',     'Wave-clear gold +'],
   ['interest-rate',     'Wave-clear interest (0–1)'],
   ['wave-life-add',     'Wave-clear lives +'],
-  ['quiz-gold-mult',    'Question gold ×'],
-  ['quiz-uses-add',     'Questions/wave +'],
   ['armor-pierce',      'Armor pierce (1 = on)'],
 ];
 const TD_RELIC_RARITIES = ['common', 'uncommon', 'rare', 'legendary'];

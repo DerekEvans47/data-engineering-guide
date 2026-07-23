@@ -190,40 +190,25 @@ const SCRATCHPAD = process.env.SCRATCHPAD || '/tmp/drill-verify';
   await page.mouse.click(cell.x, cell.y); // tap again to close before starting the wave
   await page.waitForTimeout(200);
 
-  // ── 7. Waves are ungated; the 📝 button offers the optional bonus quiz ──
+  // ── 7. Waves are ungated and the game is fully quiz-free ──
   await page.click('#td-wave-btn');
   await page.waitForTimeout(600);
   const waveActive = await page.evaluate(() => td.waveActive);
   if (!waveActive) throw new Error('Wave did not start on button press');
   console.log('✅ Wave starts immediately (no question gate)');
 
-  const quizBtnVisible = await page.$eval('#td-quiz-btn', el => el.style.display !== 'none').catch(() => false);
-  if (!quizBtnVisible) throw new Error('Optional bonus quiz button is hidden');
-  await page.click('#td-quiz-btn');
-  await page.waitForTimeout(600);
-  const quizOpen = await page.$eval('.td-q-overlay', el => el.classList.contains('open')).catch(() => false);
-  if (!quizOpen) throw new Error('Optional quiz overlay did not open from the 📝 button');
-  console.log('✅ Optional bonus quiz opens from the 📝 button');
+  const quizBtnGone = (await page.$('#td-quiz-btn')) === null;
+  if (!quizBtnGone) throw new Error('In-battle quiz button still present — game should be quiz-free');
+  console.log('✅ No in-battle quiz button (game is standalone)');
 
-  const firstOpt = await page.$('.td-opt');
-  if (firstOpt) {
-    await firstOpt.click({ force: true });
-    await page.waitForTimeout(800);
-    const contBtn = await page.$('#td-q-cont');
-    if (contBtn) await contBtn.click({ force: true });
-    await page.waitForTimeout(800);
-  }
-  const quizClosed = await page.$eval('.td-q-overlay', el => !el.classList.contains('open')).catch(() => true);
-  if (!quizClosed) throw new Error('Quiz overlay did not close after answering');
-  console.log('✅ Bonus quiz answers and closes cleanly');
   const previewAfter = await page.$eval('#td-wave-preview', el => el.style.display).catch(() => 'gone');
   if (previewAfter !== 'none') throw new Error(`Preview should be none during wave, got: ${previewAfter}`);
   console.log('✅ Wave preview hides once wave starts');
 
   const oscTotal = await page.evaluate(() => window.__oscCount);
-  // place(1) + waveStart(3) [+ quiz notes when enabled] = at least 4
+  // place(1) + waveStart(3) = at least 4
   if (oscTotal < 4) throw new Error(`Too few oscillator notes fired (${oscTotal}) — audio engine broken`);
-  console.log(`✅ Audio engine: ${oscTotal} total oscillator note(s) across placement + quiz + wave start`);
+  console.log(`✅ Audio engine: ${oscTotal} total oscillator note(s) across placement + wave start`);
 
   // ── 9. SW registered ───────────────────────────────────────────────────
   const swState = await page.evaluate(async () => {

@@ -1,6 +1,6 @@
 'use strict';
-// Quiz Defense — core: storage, XP/streaks/achievements, quiz flow, boot,
-// home/profile/filter UI.
+// Quiz Defense — core: storage, XP/streaks/achievements, boot, home/profile/
+// filter UI, and the standalone Study/Drill/Daily learning modes.
 //
 // Split from the old single-file drill.js (2026-07-14). The four files are
 // classic scripts sharing the global scope, loaded in order by index.html:
@@ -199,10 +199,23 @@ function resetDrillSeen() { StorageManager.remove(SEEN_KEY); }
 
 // ── Boot ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  // World/map data is required for the game and is the only fatal dependency.
   try {
-    // World/map data loads in parallel with the question bank; both are
-    // required, so either failing lands on the same retry screen below.
-    const worldReady = loadWorldData();
+    await loadWorldData();
+  } catch (_) {
+    document.getElementById('app').innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:1rem;padding:2rem;text-align:center;font-family:system-ui">' +
+      '<div style="font-size:2rem">📡</div>' +
+      '<div style="color:#E6EDF3;font-size:1rem;font-weight:600">Could not load game data</div>' +
+      '<div style="color:#8899bb;font-size:.85rem">Check your connection and try again.</div>' +
+      '<button onclick="location.reload()" style="margin-top:.5rem;padding:.7rem 1.5rem;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer">&#x27F3; Retry</button>' +
+      '</div>';
+    return;
+  }
+
+  // Question bank powers only the separate Study/Drill learning modes, so its
+  // failure is non-fatal — the tower-defense game runs without it, and the
+  // "Study & Drill" home card simply hides when the bank is unavailable.
+  try {
     const res = await fetch('../../content/question-bank.json');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const raw = await res.json();
@@ -213,15 +226,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const prevVer = StorageManager.get(QB_VER_KEY);
       if (prevVer !== raw.version) StorageManager.set(QB_VER_KEY, raw.version);
     }
-    await worldReady;
   } catch (_) {
-    document.getElementById('app').innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:1rem;padding:2rem;text-align:center;font-family:system-ui">' +
-      '<div style="font-size:2rem">📡</div>' +
-      '<div style="color:#E6EDF3;font-size:1rem;font-weight:600">Could not load game data</div>' +
-      '<div style="color:#8899bb;font-size:.85rem">Check your connection and try again.</div>' +
-      '<button onclick="location.reload()" style="margin-top:.5rem;padding:.7rem 1.5rem;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer">&#x27F3; Retry</button>' +
-      '</div>';
-    return;
+    allQuestions = [];
   }
 
   const saved = JSON.parse(StorageManager.get(FILTER_KEY) || 'null');
@@ -730,6 +736,15 @@ function showHome() {
             </div>
             <span class="home-card-arrow">›</span>
           </button>
+          ${allQuestions.length ? `
+          <button class="home-card home-card-secondary" id="btn-learn">
+            <span class="home-card-icon">📚</span>
+            <div class="home-card-text">
+              <span class="home-card-title">Study &amp; Drill</span>
+              <span class="home-card-desc">Learning mode · ${allQuestions.length} questions</span>
+            </div>
+            <span class="home-card-arrow">›</span>
+          </button>` : ''}
           ${TD_CREATOR_MODE ? `
           <button class="home-card home-card-secondary home-card-dev" id="btn-config">
             <span class="home-card-icon">⚙️</span>
@@ -764,6 +779,12 @@ function showHome() {
   });
   document.getElementById('btn-how-to-play').addEventListener('click', () => {
     showTutorial(() => {});
+  });
+  document.getElementById('btn-learn')?.addEventListener('click', () => {
+    mode = 'study';
+    EL.app.dataset.mode = 'study';
+    setTopBar('study-list');
+    showPartList();
   });
   document.getElementById('home-stat-xp').addEventListener('click', openProfile);
   // Force-update escape hatch: tapping the version badge nukes the service

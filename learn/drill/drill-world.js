@@ -1,5 +1,5 @@
 'use strict';
-// Quiz Defense — world: TD tuning config (towers/enemies/power-ups/relics),
+// Tower Defense — world: TD tuning config (towers/enemies/power-ups/relics),
 // sprites, painted-map loading (loadWorldData/tdInitWorldData), level/run
 // generation, region world-map UI, inter-node panels, tutorial.
 //
@@ -14,7 +14,7 @@
 // ╔══════════════════════════════════════════════════════════════
 //  TD GAME CONFIG — now data-driven: edit learn/drill/config.json
 // ╚══════════════════════════════════════════════════════════════
-// The tower/enemy/power-up/relic/event tuning tables and the Frontier Town
+// The tower/enemy/power-up/relic tuning tables and the Frontier Town
 // knobs moved to config.json (2026-07-14) so balance changes are a JSON
 // edit, not a code change — same pattern as the map JSONs. loadWorldData()
 // fetches it at boot and tdApplyConfig() assigns these globals. Design
@@ -30,7 +30,6 @@ let TD_RELICS = null;              // relics: category/rarity/upkeep/effect
 let TD_RELIC_CATEGORIES = null;    // category id -> label
 let TD_RELIC_RARITY_COST = null;   // shop pricing by rarity
 let TD_RELIC_RARITY_WEIGHT = null; // shop odds by rarity
-let TD_EVENTS = null;              // inter-node event card deck
 let TD_RUN_ITEMS = null;           // always-available shop consumables: cost/effect
 
 function tdApplyConfig(cfg) {
@@ -42,7 +41,6 @@ function tdApplyConfig(cfg) {
   TD_RELIC_CATEGORIES    = cfg.relicCategories;
   TD_RELIC_RARITY_COST   = cfg.relicRarityCost;
   TD_RELIC_RARITY_WEIGHT = cfg.relicRarityWeight;
-  TD_EVENTS              = cfg.events;
   TD_RUN_ITEMS            = cfg.runItems || [];
 }
 
@@ -66,7 +64,7 @@ const TD_RELIC_CATEGORY_GROUP = {
   gold: 'economy', 'start-gold': 'economy', income: 'economy', build: 'economy',
   damage: 'combat', rate: 'combat', range: 'combat', splash: 'combat',
   lives: 'defense', mending: 'defense',
-  slow: 'control', quiz: 'control',
+  slow: 'control',
 };
 function tdRelicCategoryGroup(category) { return TD_RELIC_CATEGORY_GROUP[category] || 'misc'; }
 
@@ -85,7 +83,7 @@ function tdPickWeightedRelic(pool) {
 }
 
 // ╔══════════════════════════════════════════════════════════════
-//  TD CONTENT DATA — maps, sprites, events (not tuning targets)
+//  TD CONTENT DATA — maps, sprites (not tuning targets)
 // ╚══════════════════════════════════════════════════════════════
 
 // ── Pixel-art sprite definitions ──────────────────────────────────────────
@@ -279,9 +277,7 @@ const TD_MAPS = [
 
 const TD_INTER_META = {
   shop:  { icon:'🛒', color:'#FBBF24', label:'Shop' },
-  elite: { icon:'⚔️', color:'#EF4444', label:'Elite' },
   rest:  { icon:'🔥', color:'#10B981', label:'Rest' },
-  event: { icon:'🎲', color:'#A78BFA', label:'Event' },
 };
 
 // ── World data — loaded at boot from assets/worlds/ (V-40) ──────
@@ -587,49 +583,6 @@ function frontierTownLevelDef() {
 
 // ── Helpers ────────────────────────────────────────────────────
 
-function tdQDifficulty(q) {
-  if (typeof q.difficulty === 'number') {
-    if (q.difficulty <= 33) return 'easy';
-    if (q.difficulty <= 66) return 'medium';
-    return 'hard';
-  }
-  // fallback heuristic for questions without a difficulty score
-  if (q.type !== 'mc') return 'easy';
-  const qLen   = (q.stem || '').length;
-  const avgOpt = q.options ? q.options.reduce((s,o) => s + o.length, 0) / q.options.length : 30;
-  if (qLen < 90 && avgOpt < 35) return 'medium';
-  return 'hard';
-}
-
-function tdPickQuestion(levelDef) {
-  const weights = levelDef.diffWeights;
-  const pool    = (levelDef.parts && levelDef.parts.length)
-    ? allQuestions.filter(q => levelDef.parts.includes(q.part))
-    : allQuestions;
-  const src = pool.length >= 10 ? pool : allQuestions;
-
-  function bucketize(qs) {
-    const b = { easy:[], medium:[], hard:[] };
-    for (const q of qs) b[tdQDifficulty(q)].push(q);
-    return b;
-  }
-
-  // Prefer questions the player hasn't mastered yet; fall back to all if buckets empty
-  const fresh   = src.filter(q => !isMastered(q.id));
-  const primary = bucketize(fresh.length >= 5 ? fresh : src);
-  const fallback = bucketize(src);
-
-  const r = Math.random();
-  let pick;
-  if (r < weights.easy && (primary.easy.length || fallback.easy.length))                                 pick = 'easy';
-  else if (r < weights.easy + weights.medium && (primary.medium.length || fallback.medium.length))       pick = 'medium';
-  else if (primary.hard.length || fallback.hard.length)                                                  pick = 'hard';
-  else                                                                                                    pick = 'medium';
-
-  const bucket = primary[pick].length ? primary[pick] : (fallback[pick].length ? fallback[pick] : src);
-  return bucket[Math.floor(Math.random() * bucket.length)];
-}
-
 function tdLoadStars() {
   try {
     const raw = JSON.parse(StorageManager.get(TD_STARS_KEY));
@@ -758,7 +711,7 @@ function generateVerdantRun() {
   const nodes = spine.map((s, i) => {
     const isStart = s.id === 'start', isBoss = s.id === 'boss';
     const type = isStart ? 'start' : isBoss ? 'battle' : typePool[i - 1];
-    const needsDef = isStart || isBoss || type === 'battle' || type === 'elite';
+    const needsDef = isStart || isBoss || type === 'battle';
     const levelDef = isStart ? frontierTownLevelDef()
                     : needsDef ? generateBattleLevel(mapDef, i, rng, isBoss)
                     : null;
@@ -775,7 +728,7 @@ function generateVerdantRun() {
   // Persistent run-wide resource pools (owner decision 2026-07-18): no
   // fresh gold/lives baseline per node or per map — a battle starts with
   // exactly what the run currently holds, changed only by battle outcomes
-  // (kills, wave clears, leaks), shop purchases, rest sites, and events.
+  // (kills, wave clears, leaks), shop purchases, and rest sites.
   // Set once here from Frontier Town's config numbers (the run's fixed
   // first node) and never topped up again just for walking into a node —
   // see showTowerDefenseScreen/tdVictory for how they flow in and out of
@@ -946,11 +899,11 @@ function renderVerdantWorldMap(run) {
   const [, , VW, VH] = VERDANT_REGION.viewBox;
   const spine = VERDANT_REGION.spine;
 
-  const TI = { start:'🏘', battle:'⚔', shop:'🛒', rest:'🔥', elite:'💀' };
+  const TI = { start:'🏘', battle:'⚔', shop:'🛒', rest:'🔥' };
   function nodeColor(node) {
     if (node.id === 'boss') return '#EF4444';
     if (node.type === 'start') return mapDef.color;
-    if (node.type === 'battle' || node.type === 'elite') {
+    if (node.type === 'battle') {
       const dw = node.levelDef && node.levelDef.diffWeights;
       if (!dw) return '#9CA3AF';
       return dw.hard >= 0.5 ? '#EF4444' : dw.hard >= 0.2 ? '#FBBF24' : '#4ADE80';
@@ -1338,18 +1291,6 @@ function showLevelConfirmPanel(levelDef, nodeId, run) {
   const diffStars = dw.hard >= 0.4 ? '⭐⭐⭐' : dw.hard >= 0.2 || dw.medium >= 0.5 ? '⭐⭐' : '⭐';
   const diffLabel = dw.hard >= 0.4 ? 'Hard' : dw.hard >= 0.2 || dw.medium >= 0.5 ? 'Medium' : 'Easy';
 
-  function bar(pct, col) {
-    return `<div style="flex:${Math.round(pct*100)};background:${col};height:8px;border-radius:4px;min-width:${pct>0?'8px':'0'}"></div>`;
-  }
-  const qBar = `<div style="display:flex;gap:3px;border-radius:4px;overflow:hidden">
-    ${bar(dw.easy,'#10B981')}${bar(dw.medium,'#FBBF24')}${bar(dw.hard,'#EF4444')}
-  </div>
-  <div style="display:flex;gap:8px;font-size:.65rem;color:#8899bb;margin-top:4px">
-    ${dw.easy>0 ? `<span style="color:#10B981">●</span> Easy ${Math.round(dw.easy*100)}%` : ''}
-    ${dw.medium>0 ? `<span style="color:#FBBF24">●</span> Med ${Math.round(dw.medium*100)}%` : ''}
-    ${dw.hard>0 ? `<span style="color:#EF4444">●</span> Hard ${Math.round(dw.hard*100)}%` : ''}
-  </div>`;
-
   const restBannerHtml = restBonus ? `
     <div class="tdcp-rest-bonus">
       ${restBonus.type==='lives' ? `❤️ +${restBonus.value} bonus lives` : `🪙 +${restBonus.value} bonus gold`} from rest
@@ -1372,7 +1313,6 @@ function showLevelConfirmPanel(levelDef, nodeId, run) {
         <div class="tdcp-stat"><span>${diffStars}</span><span>${diffLabel}</span><span class="tdcp-stat-label">Difficulty</span></div>
       </div>
       ${restBannerHtml}
-      <div class="tdcp-q-section"><div class="tdcp-q-label">Question Mix</div>${qBar}</div>
       <div class="tdcp-modifiers">
         <div class="tdcp-mod-label">Challenge Modifiers <span class="tdcp-mod-hint">+15🪙 each</span></div>
         <div class="tdcp-mod-row">
@@ -1577,97 +1517,10 @@ function showInterNodePanel(node, run) {
       });
     }
     render();
-
-  } else if (node.type === 'event') {
-    const ev = TD_EVENTS[Math.floor(Math.random() * TD_EVENTS.length)];
-    panel.innerHTML = `
-      <div class="tdcp-panel">
-        <div class="tdcp-header">
-          <div class="tdcp-icon">${meta.icon}</div>
-          <div class="tdcp-title-wrap">
-            <div class="tdcp-name">Random Event</div>
-            <div class="tdcp-act">Something unexpected happens</div>
-          </div>
-        </div>
-        <div class="tdcp-event-card">
-          <div class="tdcp-event-icon">${ev.icon}</div>
-          <div class="tdcp-event-title">${ev.title}</div>
-          <div class="tdcp-event-desc">${ev.desc}</div>
-        </div>
-        <div class="tdcp-actions"><button class="tdcp-btn-play tdcp-btn-accept">Accept</button></div>
-      </div>`;
-    panel.querySelector('.tdcp-btn-accept').addEventListener('click', () => { applyTDEvent(ev, run); finishNode(); });
-
-  } else if (node.type === 'elite') {
-    renderEliteQuestion(node, panel, run, finishNode);
   }
 
-  if (node.type !== 'elite') panel.addEventListener('click', e => { if (e.target === panel) panel.remove(); });
+  panel.addEventListener('click', e => { if (e.target === panel) panel.remove(); });
   document.body.appendChild(panel);
-}
-
-// Applies immediately and permanently to the run's persistent pools —
-// events are "earned on the map" per the same rule battles/shops follow,
-// so a gold/lives event touches run.gold/run.lives directly rather than
-// the separate meta `gold` stat (fixed 2026-07-18: this previously wrote
-// to the wrong currency entirely) or the temporary next-battle-only rest
-// bonus slot (a permanent map event shouldn't behave like a rest choice).
-function applyTDEvent(ev, run) {
-  const minus  = ev.effect.includes('-');
-  const absVal = parseInt(ev.effect.replace(/[^0-9]/g,''));
-  if (ev.effect.startsWith('gold')) {
-    if (!run) return;
-    run.gold = Math.max(0, (run.gold || 0) + (minus ? -absVal : absVal));
-    tdSaveRun(run);
-  } else if (ev.effect.startsWith('xp')) {
-    awardXP(true, 'drill');
-  } else if (ev.effect.startsWith('lives')) {
-    if (!run) return;
-    const max = run.maxLives || run.lives || 0;
-    run.lives = Math.max(0, Math.min(max, (run.lives || 0) + (minus ? -absVal : absVal)));
-    tdSaveRun(run);
-  }
-}
-
-function renderEliteQuestion(node, panel, run, onComplete) {
-  const hardQ  = allQuestions.filter(q => tdQDifficulty(q) === 'hard');
-  const q      = hardQ.length ? hardQ[Math.floor(Math.random()*hardQ.length)] : allQuestions[Math.floor(Math.random()*allQuestions.length)];
-  const meta   = TD_INTER_META[node.type] || {icon:'⚔️',color:'#EF4444'};
-  const reward = 60;
-  const optsHtml = q.type === 'mc'
-    ? q.options.map((o,i) => `<button class="tdcp-elite-opt" data-idx="${i}">${LETTERS[i]}. ${o}</button>`).join('')
-    : `<button class="tdcp-elite-opt" data-idx="0" data-correct="${q.correct===true}">True</button>
-       <button class="tdcp-elite-opt" data-idx="1" data-correct="${q.correct===false}">False</button>`;
-  panel.innerHTML = `
-    <div class="tdcp-panel">
-      <div class="tdcp-header">
-        <div class="tdcp-icon">${meta.icon}</div>
-        <div class="tdcp-title-wrap">
-          <div class="tdcp-name">Elite Encounter</div>
-          <div class="tdcp-act">Correct answer earns 🪙${reward}</div>
-        </div>
-      </div>
-      <div class="tdcp-elite-stem">${q.stem}</div>
-      <div class="tdcp-elite-opts">${optsHtml}</div>
-      <div class="tdcp-elite-feedback" id="elite-feedback"></div>
-    </div>`;
-  function resolve(correct) {
-    const fb = panel.querySelector('#elite-feedback');
-    if (correct) {
-      fb.textContent = '✅ Correct! +🪙'+reward; fb.style.color='#10B981';
-      // Earned on the map, so it goes to the run's spendable wallet — not
-      // the separate meta `gold` stat (fixed 2026-07-18, matching the
-      // applyTDEvent fix: this previously credited the wrong currency).
-      if (run) { run.gold = (run.gold || 0) + reward; tdSaveRun(run); }
-    }
-    else         { fb.textContent = '❌ Incorrect. '+(q.explanation||''); fb.style.color='#EF4444'; }
-    setTimeout(() => { panel.remove(); if (onComplete) onComplete(); }, 2200);
-  }
-  if (q.type === 'mc') {
-    panel.querySelectorAll('.tdcp-elite-opt').forEach(btn => btn.addEventListener('click', () => resolve(parseInt(btn.dataset.idx) === q.answer)));
-  } else {
-    panel.querySelectorAll('.tdcp-elite-opt').forEach(btn => btn.addEventListener('click', () => resolve(btn.dataset.correct === 'true')));
-  }
 }
 
 // ── Run Complete Screen ───────────────────────────────────────
@@ -1730,8 +1583,8 @@ function showTutorial(onClose) {
         <div class="tutorial-step">
           <div class="tutorial-step-num">3</div>
           <div class="tutorial-step-body">
-            <div class="tutorial-step-title">Bonus Questions, Bonus Gold</div>
-            <div class="tutorial-step-desc">Questions are optional: tap the 📝 button (up to 3 per wave) for a bonus question. Answer correctly and the gold is yours — harder questions pay more.</div>
+            <div class="tutorial-step-title">Earn Gold from Kills</div>
+            <div class="tutorial-step-desc">Every enemy your towers defeat pays out gold. Spend it between waves to build and upgrade more towers before the next wave hits.</div>
           </div>
         </div>
         <div class="tutorial-step">

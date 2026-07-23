@@ -1,7 +1,7 @@
 {
   "name": "Quiz Defense",
   "short_name": "Quiz Defense",
-  "description": "Data Engineering tower defense quiz game",
+  "description": "Data Engineering tower defense game with Study & Drill learning modes",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#080c14",

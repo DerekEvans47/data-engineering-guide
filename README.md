@@ -1,9 +1,12 @@
 # Quiz Defense
 
-A tower-defense game that teaches the modern data engineering & AI stack. Place towers,
-defend against waves of enemies, and answer real practitioner-level questions mid-battle
-to earn gold and rewards — progressing across a node-based run map through three acts
-tied to a full written guide underneath it.
+Two things in one PWA, kept separate: a standalone tower-defense **game** that themes the
+modern data engineering & AI stack, and a self-directed **learning suite** (Study/Drill
+modes plus a full written guide) built on a shared question bank. Place towers, defend
+against waves of enemies, and earn gold from kills — progressing across a node-based run
+map through three acts. When you want to study instead of play, the same app's **Study &
+Drill** modes work the question bank directly. The game no longer gates play behind
+questions; the two experiences are decoupled and each stands on its own.
 
 Play it at `learn/drill/index.html` (installable as a PWA — see below), or read the
 reference guide directly if you'd rather skip the game.
@@ -18,10 +21,9 @@ reference guide directly if you'd rather skip the game.
   whichever direction the road actually runs past their clearing — front or back art,
   picked automatically from the map geometry, with code-side mirroring covering the
   other two facings.
-- **Quiz-gated progression.** Waves start with a quiz drawn from the question bank;
-  answering correctly (or paying gold to skip) is how you fund and time your defense.
-  Getting questions right is the resource loop, not a side quiz bolted onto a normal TD
-  game.
+- **Kill-driven economy.** Defeated enemies pay out gold; wave clears and shops let you
+  reinvest between waves. Fund and time your defense purely through play — no questions
+  involved.
 - **A run, not just a level.** The world map is split into three acts — **The Verdant
   Frontier**, **The Cursed Graveyard**, and **The Void** — each mapped to three parts of
   the guide (1–3, 4–6, 7–9 respectively). Between battles, a node-based run map offers
@@ -32,10 +34,10 @@ reference guide directly if you'd rather skip the game.
 
 ## The guide
 
-Underneath the game is a full self-directed reference guide — Parts 1–9 plus an
-appendix — covering the same material the towers, enemies, and quiz content are pulled
-from. It's there if you want to read deeply on a topic instead of (or alongside)
-playing; the game doesn't require it.
+Alongside the game is a full self-directed reference guide — Parts 1–9 plus an
+appendix — covering the same material the Study/Drill question bank is drawn from. It's
+there if you want to read deeply on a topic instead of (or alongside) playing; the game
+doesn't require it.
 
 <details>
 <summary><strong>Guide contents (Parts 1–9 + Appendix)</strong></summary>
@@ -134,9 +136,12 @@ diagrams, prev/next section navigation, full sidebar table of contents.
 
 </details>
 
-The app also has two non-battle study modes built on the same question bank:
+The learning material lives in its own **Study & Drill** section, reached from the home
+screen (separate from the game's Play flow). It's built on the shared question bank and
+never touches the tower-defense engine:
 
-- **Study Mode** — all 9 parts with per-part progress bars, worked through in order.
+- **Study Mode** — all 9 parts with per-part progress bars, worked through in order, plus
+  a Daily Challenge.
 - **Drill Mode** — a randomised queue across all parts (or a filtered subset) that
   tracks which questions you've seen so it doesn't repeat until you've exhausted the
   pool.

@@ -1,4 +1,4 @@
-const CACHE = 'de-drill-v168';
+const CACHE = 'de-drill-v169';
 const ASSETS = [
   './index.html',
   './config.json',
@@ -44,8 +44,6 @@ const ASSETS = [
   './assets/relics/architects_compass.png',
   './assets/relics/tax_ledger.png',
   './assets/relics/field_hospital.png',
-  './assets/relics/scholars_quill.png',
-  './assets/relics/tome_of_study.png',
   './assets/relics/powder_keg.png',
   './assets/relics/siegebreaker.png',
   '../../content/question-bank.json',
