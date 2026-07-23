@@ -175,15 +175,93 @@ function renderSidebar(activeSectionId) {
 /* ============================================================
    GLOSSARY — TOOLTIP & DEFINITION CARD
 ============================================================ */
+// Auto-link glossary terms: wrap the FIRST occurrence of each glossary term in
+// the article body so every section gets click-enabled definitions without hand-
+// marking each term. Case-sensitive (matches the term's canonical casing, so it
+// won't light up common lowercase words); first occurrence per page only; skips
+// code, headings, links, and anything already hand-marked. No lookbehind — older
+// iOS Safari lacks it.
+function autoLinkGlossary() {
+  const root = document.querySelector('article.content');
+  if (!root || !GLOSSARY || !Object.keys(GLOSSARY).length) return;
+
+  // Longest terms first so multi-word terms win over their substrings.
+  const terms = Object.keys(GLOSSARY).sort((a, b) => b.length - a.length);
+
+  // Never add a second link for a term already hand-marked on the page.
+  const linked = new Set();
+  document.querySelectorAll('[data-term]').forEach(el => linked.add(el.dataset.term));
+
+  const SKIP_TAGS = new Set(['CODE','PRE','A','H1','H2','H3','H4','H5','H6','SCRIPT','STYLE','BUTTON','TEXTAREA','SVG']);
+  const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // (leading non-word | start)(term)(optional plural s)(non-word ahead)
+  const reCache = new Map();
+  const reFor = t => {
+    if (!reCache.has(t)) reCache.set(t, new RegExp('(^|[^A-Za-z0-9])(' + escapeRe(t) + ')(s?)(?![A-Za-z0-9])'));
+    return reCache.get(t);
+  };
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+      for (let p = node.parentElement; p && p !== root.parentElement; p = p.parentElement) {
+        // Never wrap inside SVG (diagram labels) — HTML spans are invalid there.
+        // SVG element tagNames are lowercase, so match by namespace, not name.
+        if (p.namespaceURI === 'http://www.w3.org/2000/svg') return NodeFilter.FILTER_REJECT;
+        if (SKIP_TAGS.has(p.tagName)) return NodeFilter.FILTER_REJECT;
+        if (p.hasAttribute && p.hasAttribute('data-term')) return NodeFilter.FILTER_REJECT;
+        if (p.className && typeof p.className === 'string') {
+          // Keep links in always-visible prose only: skip collapsible deep-dives
+          // and never double-wrap an existing .kt/.df/.gloss-link term.
+          if (/\bdeep-dive/.test(p.className)) return NodeFilter.FILTER_REJECT;
+          if (/\b(kt|df|gloss-link)\b/.test(p.className)) return NodeFilter.FILTER_REJECT;
+        }
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  const nodes = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n);
+
+  for (const node of nodes) {
+    let remaining = node;
+    while (remaining && remaining.nodeValue) {
+      const text = remaining.nodeValue;
+      let best = null; // { term, index, length }
+      for (const t of terms) {
+        if (linked.has(t)) continue;
+        const m = reFor(t).exec(text);
+        if (!m) continue;
+        const idx = m.index + m[1].length;       // where the term itself starts
+        const len = m[2].length;                 // term length (excludes plural s)
+        if (best === null || idx < best.index || (idx === best.index && len > best.length)) {
+          best = { term: t, index: idx, length: len };
+        }
+      }
+      if (!best) break;
+      const matched = remaining.splitText(best.index);
+      matched.splitText(best.length);            // trim to just the term
+      const span = document.createElement('span');
+      span.className = 'gloss-link';
+      span.setAttribute('data-term', best.term);
+      matched.parentNode.insertBefore(span, matched);
+      span.appendChild(matched);
+      linked.add(best.term);
+      remaining = span.nextSibling;              // continue scanning the remainder
+    }
+  }
+}
+
 function initGlossary() {
   const tooltip = document.getElementById('tooltip');
   const defCard = document.getElementById('def-card');
   const defTerm = document.getElementById('def-term');
   const defBody = document.getElementById('def-body');
 
-  // Term definitions arrive asynchronously from content/glossary.json — bind
-  // the tooltip/definition-card handlers once the data is ready.
+  // Term definitions arrive asynchronously from content/glossary.json — auto-link
+  // terms in the body, then bind the tooltip/definition-card handlers, once ready.
   GLOSSARY_READY.then(() => {
+    autoLinkGlossary();
     document.querySelectorAll('[data-term]').forEach(el => {
       const term = el.dataset.term;
       const entry = GLOSSARY[term];

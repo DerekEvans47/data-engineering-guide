@@ -1,12 +1,17 @@
 {
   "version": 1,
   "generatedFrom": "guide/assets/guide.js GLOSSARY",
-  "count": 115,
+  "count": 165,
   "terms": [
     {
       "term": "A/B Testing",
       "short": "Splitting users randomly between two versions to measure whether a change causes a real difference in outcomes.",
       "full": "A/B testing randomly assigns users or visitors to one of two (or more) versions of a product experience, then compares a target metric between groups. Random assignment is what allows any resulting difference to be attributed to the change itself rather than to pre-existing differences between the groups. Requires a pre-determined sample size and a single primary metric to be statistically valid."
+    },
+    {
+      "term": "Acceptance Criteria",
+      "short": "The specific, testable conditions a user story must meet to be considered complete.",
+      "full": "Acceptance criteria are the pass/fail conditions attached to a user story that define exactly what 'done' means for that story from the user's perspective. Written before development starts, they remove ambiguity, drive test cases, and let the team and stakeholders agree on scope. They describe behaviour and outcomes, not implementation."
     },
     {
       "term": "Activation Function",
@@ -27,6 +32,16 @@
       "term": "Agent",
       "short": "An LLM that can take autonomous actions via tools, iterate based on results, and pursue a goal.",
       "full": "In AI systems, an agent is an LLM combined with a set of tools and a loop that allows it to take actions, observe results, and continue reasoning until a goal is achieved. Unlike a single LLM call that generates one response, an agent can use tools (run SQL, call APIs, read files, search the web), observe the output, and decide what to do next — repeating this loop until the task is complete or it determines it cannot proceed."
+    },
+    {
+      "term": "Agile",
+      "short": "An iterative, feedback-driven approach to delivery that favours working software over plans.",
+      "full": "Agile is a family of iterative delivery approaches (Scrum, Kanban, etc.) grounded in the Agile Manifesto's values: individuals and interactions, working software, customer collaboration, and responding to change. Teams work in small increments, gather feedback early, and adapt — as opposed to big up-front planning and phased 'waterfall' delivery."
+    },
+    {
+      "term": "Apache Spark",
+      "short": "A distributed engine for large-scale data processing across a cluster of machines.",
+      "full": "Apache Spark is an open-source, in-memory distributed compute engine that processes large datasets in parallel across a cluster. It exposes SQL, DataFrame, and streaming APIs, uses lazy evaluation to optimise a job before running it, and underpins platforms like Databricks. It's the workhorse for big-data transformation and ML feature pipelines."
     },
     {
       "term": "ARIMA",
@@ -84,6 +99,11 @@
       "full": "Chunking is the process of splitting source documents into smaller segments before generating embeddings. Chunk size is a key RAG design decision: chunks too large carry too much irrelevant context per retrieval; chunks too small may lack sufficient context for the LLM to answer. Common strategies: fixed-size (512 tokens), sliding window (overlapping chunks for continuity), semantic (split on paragraph/section boundaries), and recursive (intelligent boundary detection)."
     },
     {
+      "term": "CI/CD",
+      "short": "Continuous Integration / Continuous Delivery — automate testing and deployment of changes.",
+      "full": "CI/CD is the practice of automatically building, testing, and deploying changes. Continuous Integration merges and validates every change (tests, linting, data checks) frequently to catch problems early; Continuous Delivery/Deployment automates releasing those validated changes to environments. In data work it means pipelines, dbt models, and infrastructure are tested and shipped through automated, repeatable processes."
+    },
+    {
       "term": "Classification",
       "short": "A supervised learning task that predicts which category something belongs to.",
       "full": "Classification is the supervised learning task where the target variable is a category rather than a number — binary (two classes, e.g. churn/no churn) or multiclass (three or more, e.g. which support queue a ticket routes to). Logistic regression, decision trees, and random forests are all commonly used for classification."
@@ -97,6 +117,11 @@
       "term": "CNN",
       "short": "Convolutional Neural Network — the standard deep learning architecture for image data.",
       "full": "A Convolutional Neural Network (CNN) slides small learned filters across an image rather than connecting every pixel to every neuron, allowing it to detect local visual patterns (edges, textures) that combine in deeper layers into increasingly complex visual concepts. The standard architecture for image classification, object detection, and visual defect inspection tasks."
+    },
+    {
+      "term": "Cognitive Load",
+      "short": "The mental effort a user must spend to understand and act on an interface or report.",
+      "full": "Cognitive load is the amount of working-memory effort a person expends to process what's in front of them. In data products, high cognitive load — too many metrics, unclear labels, dense dashboards — causes misreads and abandonment. Reducing it (progressive disclosure, clear hierarchy, sensible defaults) is a core UX goal, especially for self-serve analytics."
     },
     {
       "term": "Confusion Matrix",
@@ -119,6 +144,11 @@
       "full": "CRM (Customer Relationship Management) systems track customer relationships, sales pipelines, support tickets, and marketing. Salesforce is the dominant enterprise CRM. CRMs are common Layer 1 data sources — you extract from them, not transform inside them."
     },
     {
+      "term": "CTE",
+      "short": "Common Table Expression — a named, temporary result set defined with WITH that makes SQL readable.",
+      "full": "A Common Table Expression (CTE) is a named subquery defined in a WITH clause that exists only for the duration of a single statement. CTEs break complex queries into readable, sequential steps and can reference each other; a recursive CTE can reference itself to walk hierarchies. Unlike a view they aren't stored, and unlike a temp table they aren't materialised unless the engine chooses to."
+    },
+    {
       "term": "Data Catalog",
       "short": "A searchable inventory of data assets — tables, columns, owners, definitions, and lineage.",
       "full": "A data catalog is the system of record for what data exists in an organisation. It documents every table, view, and data product: what it contains, who owns it, how fresh it is, and who can access it. Tools include Microsoft Purview and Databricks Unity Catalog."
@@ -129,9 +159,19 @@
       "full": "A data contract is a machine-readable specification that defines what a data producer promises to deliver: the schema, quality guarantees, versioning policy, and ownership. Contracts are typically stored in Git alongside pipeline code and validated automatically on each pipeline run."
     },
     {
+      "term": "Data Lake",
+      "short": "A central store that holds raw data of any structure at scale on cheap object storage.",
+      "full": "A data lake stores large volumes of raw data — structured, semi-structured, and unstructured — in open formats on cheap object storage, without requiring an up-front schema (schema-on-read). It's flexible and inexpensive but can become a 'data swamp' without governance, cataloguing, and lineage. The lakehouse pattern adds warehouse-style reliability and performance on top of a lake."
+    },
+    {
       "term": "Data Lineage",
       "short": "The documented trail of where data came from, how it was transformed, and where it went.",
       "full": "Data lineage tracks the journey of data from its origin through every transformation to its final consumption point. Column-level lineage tracks individual fields. Lineage is essential for impact analysis and regulatory compliance."
+    },
+    {
+      "term": "Data Mesh",
+      "short": "A decentralised approach where domain teams own their data as products on a shared platform.",
+      "full": "Data mesh is an organisational and architectural approach (coined by Zhamak Dehghani) that decentralises data ownership to the business domains that know the data best. Its four principles are domain ownership, data-as-a-product, a self-serve data platform, and federated computational governance — a response to central data teams becoming bottlenecks at scale."
     },
     {
       "term": "Data Observability",
@@ -139,14 +179,34 @@
       "full": "Data observability applies the principles of software observability to data pipelines. It monitors five pillars automatically: freshness, volume, schema, distribution, and lineage. Tools like Monte Carlo, Soda, and Databricks Lakehouse Monitoring implement observability."
     },
     {
+      "term": "Data Warehouse",
+      "short": "A central repository of cleaned, modelled data optimised for analytics and BI.",
+      "full": "A data warehouse stores integrated, historical, structured data modelled for fast analytical queries and reporting (schema-on-write). Unlike a data lake it enforces schema and curation up front, trading flexibility for reliability and query performance. Modern cloud warehouses (Snowflake, BigQuery, Synapse) separate storage from compute and increasingly blur into the lakehouse."
+    },
+    {
       "term": "Databricks",
       "short": "A cloud analytics platform built on Apache Spark — the primary compute/transform layer.",
       "full": "Databricks is a cloud-based data engineering and analytics platform built on Apache Spark. It provides notebooks, jobs, clusters, and workflows for data engineers, scientists, and analysts. Databricks introduced the Medallion Architecture (Bronze/Silver/Gold) and Delta Lake. It is the primary compute layer in modern Azure data stacks."
     },
     {
+      "term": "DataOps",
+      "short": "Applying DevOps and lean practices to data pipelines: automation, testing, monitoring.",
+      "full": "DataOps brings DevOps and lean-manufacturing discipline to data: version control, automated testing and CI/CD for pipelines and transformations, environment parity, monitoring/observability, and fast feedback loops. The goal is to deliver reliable, high-quality data faster and reduce the errors and firefighting common in hand-run data workflows."
+    },
+    {
+      "term": "DAX",
+      "short": "Data Analysis Expressions — Power BI's formula language for measures and calculations.",
+      "full": "DAX (Data Analysis Expressions) is the formula and query language used in Power BI (and Analysis Services / Power Pivot) to define calculated columns and, crucially, measures. Its power and difficulty come from evaluation context — row context and filter context — and functions like CALCULATE that manipulate that context to produce time-intelligence and ratio calculations."
+    },
+    {
       "term": "DBSCAN",
       "short": "Density-Based Spatial Clustering of Applications with Noise — groups points by density rather than distance to a center.",
       "full": "DBSCAN defines clusters as regions of densely packed points, using two parameters: epsilon (a neighborhood distance) and minPts (the minimum neighbors required to count as a dense 'core' point). Points not reachable from any dense region are labeled noise rather than forced into a cluster. Unlike K-means, DBSCAN requires no upfront cluster count and can detect arbitrarily shaped clusters, making it well-suited to anomaly and fraud detection."
+    },
+    {
+      "term": "dbt",
+      "short": "A tool for building, testing, and documenting SQL transformations in the warehouse (the 'T' in ELT).",
+      "full": "dbt (data build tool) lets analysts and engineers define transformations as version-controlled SQL SELECT statements (models) that dbt compiles and runs in the warehouse, handling dependencies as a DAG. It adds tests, documentation, lineage, and reusable macros — bringing software-engineering practice to analytics and owning the 'T' in ELT."
     },
     {
       "term": "Dead Letter Queue",
@@ -164,9 +224,39 @@
       "full": "Deep learning trains neural networks with many stacked layers ('depth') to learn useful internal representations directly from raw, often unstructured input — images, audio, text — rather than requiring a human to hand-engineer tabular features first. This is its core advantage over classical ML. On structured, tabular business data where good features already exist, classical ML (especially gradient-boosted trees and random forests) frequently matches or beats deep learning at a fraction of the training cost and with far better interpretability."
     },
     {
+      "term": "Definition of Done",
+      "short": "A shared checklist of what must be true for any work item to count as truly finished.",
+      "full": "The Definition of Done (DoD) is a team-wide, item-agnostic checklist that every backlog item must satisfy before it's called done — e.g. code reviewed, tests passing, documentation updated, deployed to staging. It applies to all work (unlike acceptance criteria, which are per-story) and exists to prevent hidden, unfinished work from accumulating."
+    },
+    {
+      "term": "Definition of Ready",
+      "short": "The criteria a backlog item must meet before the team will pull it into a sprint.",
+      "full": "The Definition of Ready (DoR) is the entry gate for work: a shared checklist a backlog item must satisfy before it can be committed to a sprint — typically clear acceptance criteria, no blocking dependencies, an agreed estimate, and enough detail to start. It protects the team from starting vague or under-specified work."
+    },
+    {
+      "term": "Delta Lake",
+      "short": "An open storage layer that adds ACID transactions and versioning to data-lake files.",
+      "full": "Delta Lake is an open table format that brings warehouse-grade reliability to a data lake: ACID transactions, schema enforcement/evolution, and time travel, via a transaction log (_delta_log) over Parquet files. It enables reliable upserts (MERGE), streaming + batch on the same table, and is the foundation of the lakehouse on Databricks."
+    },
+    {
       "term": "Dendrogram",
       "short": "The tree diagram produced by hierarchical clustering, showing nested groupings at every level.",
       "full": "A dendrogram visualizes the merge history of hierarchical clustering as a tree, with the height of each merge representing how dissimilar the two merged clusters were. Cutting the tree at a given height yields a specific number of clusters — cutting near the top yields few, broad clusters; cutting lower yields many, finer-grained ones."
+    },
+    {
+      "term": "Design Thinking",
+      "short": "A human-centred problem-solving approach: empathise, define, ideate, prototype, test.",
+      "full": "Design thinking is an iterative, human-centred methodology for tackling ambiguous problems through five modes — empathise with users, define the real problem, ideate broadly, prototype cheaply, and test with users. In data products it keeps teams solving genuine user needs rather than building dashboards nobody asked for."
+    },
+    {
+      "term": "Dimension Table",
+      "short": "A table of descriptive attributes used to filter, group, and label facts.",
+      "full": "A dimension table holds the descriptive context for analysis — the who, what, where, when — such as customer, product, or date, with a surrogate key joined to the fact table. Dimensions are typically wide (many attributes) and shorter than facts, and their history is managed with slowly-changing-dimension techniques."
+    },
+    {
+      "term": "Dimensional Modeling",
+      "short": "Designing analytics schemas as fact and dimension tables for fast, intuitive querying.",
+      "full": "Dimensional modeling (Kimball) structures a warehouse around fact tables (measurable events, e.g. sales) surrounded by dimension tables (descriptive context, e.g. product, date, customer). This star-shaped design is optimised for slice-and-dice analytics and BI: it's easy to understand, performant to join, and resilient to changing reporting needs."
     },
     {
       "term": "DIU",
@@ -189,6 +279,11 @@
       "full": "EOQ (Economic Order Quantity) calculates the order quantity that minimizes the combined total of ordering cost (roughly fixed per order, regardless of size) and holding cost (rises with order size). It assumes constant, known demand and fixed lead times — it does not address demand uncertainty at all, which is what safety stock separately handles."
     },
     {
+      "term": "Epic",
+      "short": "A large body of work that groups many related user stories toward a common goal.",
+      "full": "An epic is a big, coarse-grained unit of work — too large for one sprint — that is broken down into multiple user stories delivered incrementally. Epics sit above stories and below themes/initiatives in the backlog hierarchy, giving stakeholders a way to track a sizeable capability without losing the detail underneath."
+    },
+    {
       "term": "ERP",
       "short": "Enterprise Resource Planning — software managing core business processes.",
       "full": "ERP (Enterprise Resource Planning) systems integrate and manage core business processes: finance, manufacturing, supply chain, HR, procurement. SAP S/4HANA, Oracle ERP, and Microsoft Dynamics are common examples. ERPs are often the primary source of transactional data in manufacturing and logistics environments."
@@ -207,6 +302,11 @@
       "term": "F1 Score",
       "short": "The harmonic mean of precision and recall, summarizing both into a single number.",
       "full": "F1 = 2 × (Precision × Recall) / (Precision + Recall). Because it's a harmonic mean rather than a simple average, F1 penalizes a large imbalance between precision and recall much more heavily, preventing a model that's lopsided in either direction from scoring artificially well. It assumes precision and recall matter equally, which isn't always true of the real business cost structure."
+    },
+    {
+      "term": "Fact Table",
+      "short": "The central table of measurable business events, with foreign keys to dimensions.",
+      "full": "A fact table records the measurable events of a business process — one row per event (a sale, a click) — holding numeric measures (amount, quantity) plus foreign keys to the dimensions that give context. Its grain (the exact meaning of one row) is the single most important design decision; fact tables are typically long and narrow."
     },
     {
       "term": "Feature Store",
@@ -232,6 +332,11 @@
       "term": "Function Calling",
       "short": "A structured way for LLMs to signal they want to call a tool, returning structured JSON instead of prose.",
       "full": "Function calling (also called tool use) is an API feature that allows an LLM to return a structured JSON object specifying which function to call and with what arguments, instead of generating prose. The calling application executes the function and returns the result back to the model. This enables reliable integration with external tools because the output is machine-parseable rather than requiring the model to embed calls in natural language that must be parsed."
+    },
+    {
+      "term": "Git",
+      "short": "A distributed version-control system that tracks changes and enables collaboration on code.",
+      "full": "Git is the standard distributed version-control system: every clone is a full copy of the history, and work happens on branches that are later merged. It records changes as commits, supports parallel development, and underpins collaboration platforms (GitHub, GitLab) via pull/merge requests, code review, and CI. It's foundational to DataOps and reproducible pipelines."
     },
     {
       "term": "Gradient Descent",
@@ -269,6 +374,26 @@
       "full": "An Integration Runtime (IR) in ADF is the engine that physically performs data movement. Azure IR handles cloud-to-cloud transfers. Self-Hosted IR enables ADF to reach systems inside your network. SSIS IR runs legacy SSIS packages in the cloud."
     },
     {
+      "term": "INVEST",
+      "short": "A checklist for good user stories: Independent, Negotiable, Valuable, Estimable, Small, Testable.",
+      "full": "INVEST is a mnemonic for the qualities of a well-formed user story: Independent (deliverable on its own), Negotiable (a conversation, not a contract), Valuable (delivers user/business value), Estimable (sized with confidence), Small (fits in a sprint), and Testable (has clear acceptance criteria). It's a quick quality gate when writing or splitting stories."
+    },
+    {
+      "term": "Job Story",
+      "short": "A requirement framed as When [situation], I want to [motivation], so I can [outcome].",
+      "full": "A job story reframes a requirement around context and motivation rather than a persona: 'When [situation], I want to [motivation], so I can [expected outcome].' Coming from Jobs-to-be-Done thinking, it focuses on the circumstances that trigger a need, which often surfaces better solutions than persona-based user stories."
+    },
+    {
+      "term": "Jobs-to-be-Done",
+      "short": "A framework that models what users 'hire' a product to accomplish, not who they are.",
+      "full": "Jobs-to-be-Done (JTBD) is a lens that defines demand by the functional, emotional, and social 'job' a customer is trying to get done, rather than by demographics or features. It anchors product decisions on the underlying goal ('I need to know if revenue is on track'), which tends to be more stable than any particular feature request."
+    },
+    {
+      "term": "JQL",
+      "short": "Jira Query Language — a SQL-like syntax for searching and filtering Jira issues.",
+      "full": "JQL (Jira Query Language) is the structured query language used to find and filter issues in Jira, e.g. `project = DATA AND status = 'In Progress' AND assignee = currentUser()`. It powers saved filters, dashboards, and board configurations, letting teams slice work by sprint, label, epic, or any field."
+    },
+    {
       "term": "Just-in-Time",
       "short": "An inventory strategy that minimizes held stock by timing deliveries to arrive as close as possible to the moment of need.",
       "full": "Just-in-Time (JIT) inventory strategy minimizes holding cost by keeping little to no buffer stock, relying instead on highly reliable, tightly coordinated suppliers to deliver close to the moment of actual need. Its cost efficiency and its disruption fragility are the same property — the buffer it removes for cost savings is the same buffer that would otherwise absorb a supply delay or demand spike — which is why it fits best for stable demand with reliable, diversified supply, and poorly for single-source, hard-to-substitute, long-lead-time components."
@@ -279,6 +404,11 @@
       "full": "K-means clustering requires choosing the number of clusters, K, in advance. It then repeats two steps until convergence: assign each point to its nearest centroid (cluster center), then recompute each centroid as the mean of its newly assigned points. Fast and scalable, but assumes roughly round, similarly sized clusters, is sensitive to initialization, and requires standardized features since it relies entirely on distance calculations."
     },
     {
+      "term": "Kanban",
+      "short": "A flow-based method that visualises work and limits work-in-progress to improve throughput.",
+      "full": "Kanban is an agile method focused on continuous flow rather than fixed iterations: work items move across a board, explicit work-in-progress (WIP) limits prevent overloading, and the team optimises cycle time and throughput. It's well suited to operational and support work where priorities change continuously."
+    },
+    {
       "term": "Lakehouse",
       "short": "An architecture combining the flexibility of a data lake with the reliability and query performance of a data warehouse.",
       "full": "A Lakehouse stores data in open file formats on cheap object storage while adding data warehouse features: ACID transactions, schema enforcement, query optimisation, and BI tool connectivity. Databricks coined the term; Delta Lake's transaction log brings database-grade reliability to object storage."
@@ -287,6 +417,11 @@
       "term": "Late-Arriving Data",
       "short": "Events that appear in the pipeline after the processing window for their time period has already closed.",
       "full": "Late-arriving data is a record whose event timestamp belongs to a past processing window that has already been closed. Handling strategies include keeping processing windows open longer, using Delta Lake MERGE, or accepting the late record in the next window."
+    },
+    {
+      "term": "Lean UX",
+      "short": "Applying lean/agile principles to design: build-measure-learn over heavy up-front specs.",
+      "full": "Lean UX brings lean-startup thinking to product design: instead of large up-front design documents, teams frame assumptions as hypotheses, build the smallest thing that tests them, measure real user behaviour, and iterate. It emphasises collaboration, outcomes over deliverables, and continuous learning."
     },
     {
       "term": "Linear Regression",
@@ -349,9 +484,19 @@
       "full": "Microservices is an architectural pattern where a large application is decomposed into small, independently deployable services each owned by a specific team. Dehghani used this as an analogy for how data ownership could be decentralized."
     },
     {
+      "term": "Modern Data Stack",
+      "short": "A cloud-native, modular set of tools for ingesting, storing, transforming, and analysing data.",
+      "full": "The 'modern data stack' is a loosely-coupled set of managed, cloud-native tools — ingestion (e.g. Fivetran/ADF), a cloud warehouse or lakehouse, transformation (dbt), orchestration, and BI — connected through the warehouse as the hub. It favours ELT over ETL, SQL-centric transformation, and pay-as-you-go compute over monolithic on-prem platforms."
+    },
+    {
       "term": "Moving Average",
       "short": "A baseline forecast that averages the most recent N periods of actual demand.",
       "full": "The moving average forecast averages the last N periods of actual demand to predict the next period, smoothing out short-term noise compared to a naive (last-value) forecast. Its main weakness is lag: because it weights all N periods equally and drops older periods to zero weight beyond the window, it responds slowly to genuine recent shifts in demand — the gap exponential smoothing is designed to close."
+    },
+    {
+      "term": "MVP",
+      "short": "Minimum Viable Product — the smallest release that delivers value and tests key assumptions.",
+      "full": "An MVP (Minimum Viable Product) is the smallest version of a product that delivers real value to users and validates the riskiest assumptions with the least effort. It's a learning tool: ship something usable, measure how people actually use it, and iterate — rather than building the full vision before getting any feedback."
     },
     {
       "term": "Named Entity Recognition",
@@ -367,6 +512,11 @@
       "term": "Neural Network",
       "short": "A model built from layers of simple computational units (neurons), each computing a weighted sum plus a non-linear activation.",
       "full": "A neural network consists of an input layer, one or more hidden layers, and an output layer, each made of neurons that compute a weighted sum of inputs plus a bias, passed through a non-linear activation function. Hidden layers are where the network builds its own learned feature representations. Trained via backpropagation, an extension of gradient descent across every layer."
+    },
+    {
+      "term": "Now-Next-Later Roadmap",
+      "short": "A roadmap organised by time-horizon confidence buckets instead of fixed dates.",
+      "full": "A Now-Next-Later roadmap groups initiatives into three horizons — Now (in progress, high confidence), Next (coming up, moderate confidence), and Later (directional, low confidence) — rather than committing to specific delivery dates. It communicates direction and priorities while honestly reflecting the decreasing certainty of longer-term plans."
     },
     {
       "term": "Null Hypothesis",
@@ -389,6 +539,16 @@
       "full": "A p-value is the probability of seeing a difference at least as large as the one measured, assuming the null hypothesis (no real effect) is true. A small p-value is evidence against the null hypothesis. Critically, a p-value is NOT the probability that the null (or alternative) hypothesis is true given the data — it is a probability calculated under the assumption that the null is true, a distinction that is the single most common statistical misinterpretation in business reporting."
     },
     {
+      "term": "Parquet",
+      "short": "A columnar, compressed file format optimised for analytical queries.",
+      "full": "Apache Parquet is an open columnar storage format: it stores values column-by-column, enabling strong compression and letting engines read only the columns a query needs (column pruning) plus skip row groups via statistics. It's the de-facto format for analytics on lakes and the physical layer under table formats like Delta Lake and Iceberg."
+    },
+    {
+      "term": "Partition",
+      "short": "A physical split of a table's data (e.g. by date) so queries scan only what they need.",
+      "full": "Partitioning divides a large table's data into separate segments based on a column's value — most often a date — so the engine can prune irrelevant partitions and read far less data (partition pruning). Good partitioning dramatically cuts query cost and time; over-partitioning creates many tiny files and hurts performance."
+    },
+    {
       "term": "PII",
       "short": "Personally Identifiable Information — any data that can identify an individual person.",
       "full": "PII includes names, email addresses, phone numbers, national ID numbers, and any combination of attributes that can uniquely identify a person. Regulatory frameworks like GDPR and CCPA impose obligations on how PII is collected, stored, processed, and deleted."
@@ -399,9 +559,19 @@
       "full": "Power BI is Microsoft's business intelligence platform. It connects to data sources including Azure services, enables data modeling using DAX (Data Analysis Expressions), and renders interactive dashboards and reports. Integrates tightly with the Microsoft 365 ecosystem."
     },
     {
+      "term": "PRD",
+      "short": "Product Requirements Document — the spec of what a product/feature should do and why.",
+      "full": "A PRD (Product Requirements Document) captures the problem, goals, target users, requirements, success metrics, and scope for a product or feature. It aligns engineering, design, and stakeholders on what's being built and why. Modern PRDs are lightweight and living documents rather than exhaustive up-front contracts."
+    },
+    {
       "term": "Precision",
       "short": "Of everything a model flagged as positive, the proportion that was actually positive.",
       "full": "Precision = TP / (TP + FP). High precision means few false alarms — when the model flags something positive, it's usually right. Precision matters most when a false positive is the costly mistake, such as a spam filter wrongly burying a legitimate email."
+    },
+    {
+      "term": "Product Backlog",
+      "short": "The single, prioritised list of everything that might be done to the product.",
+      "full": "The product backlog is the ordered, ever-evolving list of features, fixes, and work items for a product, owned and prioritised by the product owner. Higher items are refined and ready; lower items are coarser. It is the single source of truth for what the team could work on next, continuously reordered as value and information change."
     },
     {
       "term": "Prompt Engineering",
@@ -409,9 +579,19 @@
       "full": "Prompt engineering structures a model's instructions — task description, constraints, output format, relevant context — to reliably elicit the desired behavior, entirely without modifying the model. It is the cheapest, fastest-iterating point on the customization spectrum: changes take effect immediately, with no training step and no risk to the model's other capabilities."
     },
     {
+      "term": "Pull Request",
+      "short": "A proposal to merge a branch, reviewed and discussed before it lands in the main codebase.",
+      "full": "A pull request (PR) — or merge request — proposes merging changes from one branch into another and is the unit of code review and collaboration on platforms like GitHub. It bundles a diff, discussion, and automated checks (CI, tests, linting) so changes are reviewed and validated before merging, which is central to shift-left quality and DataOps."
+    },
+    {
       "term": "Pushdown Predicate",
       "short": "A query filter applied at the storage layer before data is read into memory, reducing data transfer.",
       "full": "A pushdown predicate moves WHERE clause filters as close to the data source as possible. Instead of reading 1TB of data into Spark and then filtering, the storage engine applies the filter first. Partition pruning is the most extreme form — skipping entire files."
+    },
+    {
+      "term": "PySpark",
+      "short": "The Python API for Apache Spark — write distributed data jobs in Python.",
+      "full": "PySpark is Spark's Python interface, letting you express distributed transformations with DataFrame and SQL APIs in Python. Operations are lazy (built into a plan and executed on an action), run in parallel across executors, and should favour built-in Spark functions over Python UDFs for performance. It's the most common way data engineers use Spark."
     },
     {
       "term": "RAG",
@@ -474,6 +654,16 @@
       "full": "Schema-on-write requires data to conform to a defined schema at the time of writing. Used in traditional databases and data warehouses — faster query performance but brittle when sources change."
     },
     {
+      "term": "Scrum",
+      "short": "An agile framework built on fixed sprints, defined roles, and regular ceremonies.",
+      "full": "Scrum is a widely used agile framework that organises work into fixed-length sprints with three roles (product owner, scrum master, developers) and events (sprint planning, daily standup, review, retrospective). It delivers a potentially shippable increment each sprint and inspects-and-adapts through its ceremonies and artifacts (product backlog, sprint backlog, increment)."
+    },
+    {
+      "term": "SDLC",
+      "short": "Software Development Lifecycle — the stages software moves through from idea to retirement.",
+      "full": "The SDLC (Software Development Lifecycle) is the sequence of phases software passes through: requirements, design, implementation, testing, deployment, and maintenance. Different models (waterfall, iterative, agile) arrange these phases differently, but the stages themselves frame how quality, cost, and risk are managed across a product's life."
+    },
+    {
       "term": "Semantic Layer",
       "short": "A business-friendly abstraction layer that translates physical data models into business terminology.",
       "full": "A semantic layer sits between physical data tables and business users, translating technical column names into business concepts. Tools like dbt Semantic Layer, Microsoft Analysis Services, and Looker's LookML implement semantic layers."
@@ -484,14 +674,39 @@
       "full": "Sentiment analysis is text classification applied specifically to opinion or emotion, commonly used on customer reviews, support transcripts, and social media content. Like other classification tasks, it has a fixed, enumerable output space, which is what makes precision/recall-style evaluation (section 8.3) a natural fit."
     },
     {
+      "term": "Shift-Left Testing",
+      "short": "Moving testing and quality checks earlier in the development lifecycle.",
+      "full": "Shift-left testing means performing quality activities — unit tests, data validation, security scans, reviews — as early as possible rather than only before release. Catching defects near the point they're introduced is far cheaper than finding them in production. In data engineering it shows up as data contract checks and tests in CI on every pull request."
+    },
+    {
       "term": "SLA",
       "short": "Service Level Agreement — a commitment to end users about data availability and quality.",
       "full": "In a data context, an SLA is a formal commitment to data consumers: the dashboard will be refreshed by 8am, the pipeline will complete within 4 hours of source data availability. Breaking an SLA has business consequences."
     },
     {
+      "term": "Slowly Changing Dimension",
+      "short": "Techniques (Types 0–6) for handling attribute changes in dimension tables over time.",
+      "full": "A Slowly Changing Dimension (SCD) is a dimension whose attribute values change occasionally, and the SCD 'types' define how to handle those changes: Type 1 overwrites (no history), Type 2 adds a new versioned row (full history), Type 3 keeps a previous-value column, and hybrids combine them. Choosing the type is a trade-off between history fidelity and storage/complexity."
+    },
+    {
       "term": "Snapshot",
       "short": "A complete point-in-time copy of data state, preserved for later comparison or audit.",
       "full": "A snapshot captures the full state of a dataset at a specific moment. Used for regulatory audit trails, historical comparisons, and SCD Type 2 implementations. Delta Lake's time travel feature provides snapshot access to any past version of a table."
+    },
+    {
+      "term": "Snowflake Schema",
+      "short": "A star schema whose dimensions are normalised into related sub-tables.",
+      "full": "A snowflake schema is a star schema in which dimension tables are normalised into multiple related tables (e.g. product → category → department), reducing redundancy at the cost of more joins and complexity. It saves storage and eases dimension maintenance but is generally slower and less intuitive for analysts than a flat star."
+    },
+    {
+      "term": "Sprint",
+      "short": "A fixed, short time-box (often 1–2 weeks) in which a Scrum team delivers a slice of work.",
+      "full": "A sprint is a time-boxed iteration — commonly one to two weeks — during which a Scrum team commits to and completes a set of backlog items, ending with a potentially shippable increment. Its fixed length creates a predictable cadence for planning, review, and retrospective, and forces work to be sliced small enough to finish."
+    },
+    {
+      "term": "Sprint Board",
+      "short": "The board that visualises a sprint's work moving across columns like To Do / Doing / Done.",
+      "full": "A sprint board (or Scrum board) is the visual workspace — physical or in a tool like Jira — that shows the current sprint's items flowing through workflow columns (e.g. To Do, In Progress, In Review, Done). It makes work-in-progress, blockers, and remaining scope visible at a glance during daily standups."
     },
     {
       "term": "SQL Server",
@@ -502,6 +717,11 @@
       "term": "SSIS",
       "short": "SQL Server Integration Services — Microsoft's legacy ETL pipeline tool.",
       "full": "SQL Server Integration Services is Microsoft's legacy data integration tool. It handles extraction, transformation, and loading using a visual package-based workflow. Still running in many enterprises — often the system being replaced when organizations migrate to Azure Data Factory."
+    },
+    {
+      "term": "Star Schema",
+      "short": "A central fact table joined directly to denormalised dimension tables.",
+      "full": "A star schema places a fact table at the centre, joined to a ring of denormalised dimension tables — forming a star. Denormalising the dimensions keeps joins shallow and queries fast and simple, at the cost of some redundancy. It's the default pattern for BI/reporting layers."
     },
     {
       "term": "Statistical Power",
@@ -534,6 +754,11 @@
       "full": "Temperature scales the probability distribution over possible next tokens before sampling. At temperature 0, the model always picks the highest-probability token (fully deterministic). At temperature 1.0, it samples proportionally from the full distribution (more varied). At temperature >1.5, it becomes incoherent. For data engineering tasks — SQL generation, data extraction, classification — set temperature to 0 or 0.1. For creative tasks, 0.7–1.0 is appropriate."
     },
     {
+      "term": "Theme",
+      "short": "A high-level grouping of epics/initiatives around a strategic objective.",
+      "full": "In agile portfolio hierarchies a theme is the broadest grouping — a strategic objective or focus area (e.g. 'self-serve analytics') that spans multiple epics and, beneath them, many user stories. Themes connect day-to-day backlog work up to organisational goals."
+    },
+    {
       "term": "Token",
       "short": "The basic unit an LLM reads and writes — roughly 3/4 of a word on average.",
       "full": "A token is the atomic unit of text that LLMs process. Tokenizers split text into tokens before feeding it to the model. One token is roughly 3/4 of an English word — 'engineering' is one token, but 'unstructured' may be two. Token count drives cost (most APIs charge per token) and context window limits. Code and non-English languages often tokenize less efficiently than English prose."
@@ -564,6 +789,21 @@
       "full": "An upsert (update + insert) applies a MERGE operation: if a record with the same key already exists in the target, update it; if not, insert it. In Delta Lake and SQL Server, this is implemented with MERGE INTO ... WHEN MATCHED THEN UPDATE ... WHEN NOT MATCHED THEN INSERT."
     },
     {
+      "term": "Use Case",
+      "short": "A description of how a user interacts with a system to achieve a specific goal.",
+      "full": "A use case describes a goal-oriented interaction between an actor (user or system) and a product, including the main success path and alternative/error flows. It's more structured and system-focused than a user story, and is useful for specifying complex behaviours where the sequence of steps and edge cases matter."
+    },
+    {
+      "term": "User Story",
+      "short": "A small requirement told from the user's view: As a [role], I want [goal], so that [benefit].",
+      "full": "A user story is a concise, user-centred description of a desired capability, classically 'As a [role], I want [goal], so that [benefit].' It's intentionally small and conversational — a placeholder for a discussion — paired with acceptance criteria that define done. Stories keep teams focused on user value rather than implementation tasks."
+    },
+    {
+      "term": "UX",
+      "short": "User Experience — the overall quality of a person's interaction with a product.",
+      "full": "UX (User Experience) is the sum of how a person perceives and interacts with a product: usability, usefulness, accessibility, performance, and emotional response. For data products, good UX means users can find the right number, trust it, and act on it with minimal effort — not just that a dashboard looks polished."
+    },
+    {
       "term": "Vector Database",
       "short": "A database optimised for storing and querying high-dimensional embedding vectors by semantic similarity.",
       "full": "A vector database stores embeddings and supports Approximate Nearest Neighbor (ANN) search — finding the K vectors most similar to a query vector efficiently, even across millions of stored vectors. Unlike SQL databases that filter by exact matches, vector databases filter by semantic similarity. Examples: Pinecone (managed), Qdrant (open-source/managed), Weaviate (hybrid search), Chroma (local/dev), Azure AI Search (enterprise Azure-native)."
@@ -572,6 +812,16 @@
       "term": "Watermark",
       "short": "A pointer that tracks how far an incremental pipeline has processed.",
       "full": "In incremental data loading, a watermark is a stored value (usually a timestamp or sequence number) that marks the last successfully processed record. Each pipeline run reads the current watermark, queries for newer records, processes them, and updates the watermark."
+    },
+    {
+      "term": "Window Function",
+      "short": "A SQL function that computes across a set of rows related to the current row, without collapsing them.",
+      "full": "A window function (OVER (...)) performs a calculation across a 'window' of rows related to the current row — running totals, rankings (ROW_NUMBER, RANK), moving averages, lag/lead — while keeping every input row (unlike GROUP BY, which collapses them). PARTITION BY defines the groups and ORDER BY defines the ordering within each."
+    },
+    {
+      "term": "YAML",
+      "short": "A human-readable, indentation-based data format used heavily for configuration.",
+      "full": "YAML ('YAML Ain't Markup Language') is a whitespace-sensitive, human-friendly serialization format widely used for configuration — CI/CD pipelines, dbt/Kubernetes/Docker configs, and more. Its indentation defines structure, so consistent spacing (no tabs) matters. It supports scalars, lists, and maps, and is a superset of JSON."
     },
     {
       "term": "Zhamak Dehghani",
