@@ -125,8 +125,9 @@
   <script>
     initGuide('2.4');
 
-    // Build the glossary from the shared GLOSSARY object in guide.js
-    (function () {
+    // Build the glossary from the shared GLOSSARY (loaded by guide.js from
+    // content/glossary.json). Wait for the data before rendering.
+    (window.GLOSSARY_READY || Promise.resolve()).then(function () {
       const container  = document.getElementById('glossContainer');
       const searchBox  = document.getElementById('glossSearch');
       const countEl    = document.getElementById('glossCount');
@@ -203,7 +204,7 @@
           ? `${totalTerms} terms`
           : `${visible} of ${totalTerms} terms match`;
       }
-    })();
+    });
   </script>
 </body>
 </html>

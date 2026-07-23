@@ -552,7 +552,7 @@ html, body {
   padding: .3rem .8rem;
   text-shadow: 0 1px 4px rgba(0,0,0,.6);
 }
-.home-theme-btn {
+.home-theme-btn, .home-hub-btn {
   position: absolute;
   top: calc(.6rem + env(safe-area-inset-top));
   right: calc(.6rem + env(safe-area-inset-right));
@@ -567,6 +567,12 @@ html, body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+.home-hub-btn {
+  right: auto;
+  left: calc(.6rem + env(safe-area-inset-left));
 }
 .home-version {
   position: absolute;
