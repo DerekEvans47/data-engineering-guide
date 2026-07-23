@@ -1,7 +1,7 @@
 {
-  "name": "Data Engineering — Study & Drill",
-  "short_name": "Study & Drill",
-  "description": "Study Mode, Drill flashcards, and a Daily Challenge on the data engineering question bank",
+  "name": "Quiz Defense",
+  "short_name": "Quiz Defense",
+  "description": "A data-engineering-themed tower defense game",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#080c14",

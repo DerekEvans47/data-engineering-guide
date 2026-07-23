@@ -1,41 +1,39 @@
-# Quiz Defense
+# Data Engineering Guide
 
-A tower-defense game that teaches the modern data engineering & AI stack. Place towers,
-defend against waves of enemies, and answer real practitioner-level questions mid-battle
-to earn gold and rewards — progressing across a node-based run map through three acts
-tied to a full written guide underneath it.
+A self-directed learning resource for the modern data engineering & AI stack. This repo
+holds the **learning material**, split into three independent pieces that share a common
+question bank:
 
-Play it at `learn/drill/index.html` (installable as a PWA — see below), or read the
-reference guide directly if you'd rather skip the game.
+- **Study & Drill app** (`learn/drill/`) — a standalone PWA with **Study Mode** (all 9
+  parts, progress tracked), **Drill Mode** (randomized flashcards, optionally filtered),
+  and a **Daily Challenge**. Open `learn/drill/index.html`.
+- **The written guide** (`guide/`) — a full reference site, Parts 1–9 plus an appendix,
+  with interactive quizzes, glossary tooltips, and diagrams. Open `guide/index.html`.
+- **The question bank** (`content/question-bank.json`) — the shared source of questions
+  the Study & Drill app is built on.
 
-## The game
+> **Note — the game moved out.** A tower-defense game (*Quiz Defense*) used to live here.
+> It has been fully separated into the self-contained [`game/`](game/) folder and is
+> destined for its own repository — it shares no code with the learning material. See
+> [`game/README.md`](game/README.md). Once it's living in its own repo, the `game/` folder
+> can be removed from here.
 
-- **Painted battle maps.** Each map is a hand-painted isometric scene (starting with
-  Frontier Town) with a fixed road your enemies walk and a handful of buildable
-  clearings alongside it.
-- **Towers that face the road.** Ranger towers render as painted-pixel-art structures
-  with distinct tiers (wood → wood/stone → stone → stone & diamond) and orient toward
-  whichever direction the road actually runs past their clearing — front or back art,
-  picked automatically from the map geometry, with code-side mirroring covering the
-  other two facings.
-- **Quiz-gated progression.** Waves start with a quiz drawn from the question bank;
-  answering correctly (or paying gold to skip) is how you fund and time your defense.
-  Getting questions right is the resource loop, not a side quiz bolted onto a normal TD
-  game.
-- **A run, not just a level.** The world map is split into three acts — **The Verdant
-  Frontier**, **The Cursed Graveyard**, and **The Void** — each mapped to three parts of
-  the guide (1–3, 4–6, 7–9 respectively). Between battles, a node-based run map offers
-  shops, rest sites, elite fights, and random events, with relics and power-ups to build
-  around.
-- **Offline-installable PWA.** Add to Home Screen on iPhone or Android; a service
-  worker caches everything needed to play without a connection.
+## The Study & Drill app
+
+- **Study Mode** — all 9 parts with per-part progress rings, worked through in order.
+- **Drill Mode** — a randomized queue across all parts (or a filtered subset) that tracks
+  which questions you've seen so it doesn't repeat until you've exhausted the pool.
+- **Daily Challenge** — a fixed 5-question set each day worth 1.5× XP.
+- **Gamification** — XP, levels/ranks, streaks, achievements, and per-question mastery,
+  all tracked client-side via `localStorage`.
+- **Offline-installable PWA** — Add to Home Screen on iPhone or Android; a service worker
+  caches everything needed to study without a connection.
 
 ## The guide
 
-Underneath the game is a full self-directed reference guide — Parts 1–9 plus an
-appendix — covering the same material the towers, enemies, and quiz content are pulled
-from. It's there if you want to read deeply on a topic instead of (or alongside)
-playing; the game doesn't require it.
+A full self-directed reference guide — Parts 1–9 plus an appendix — covering the same
+material the Study/Drill question bank is drawn from. Read deeply on a topic instead of
+(or alongside) the flashcards.
 
 <details>
 <summary><strong>Guide contents (Parts 1–9 + Appendix)</strong></summary>
@@ -134,13 +132,6 @@ diagrams, prev/next section navigation, full sidebar table of contents.
 
 </details>
 
-The app also has two non-battle study modes built on the same question bank:
-
-- **Study Mode** — all 9 parts with per-part progress bars, worked through in order.
-- **Drill Mode** — a randomised queue across all parts (or a filtered subset) that
-  tracks which questions you've seen so it doesn't repeat until you've exhausted the
-  pool.
-
 ## Installing on iPhone
 
 1. Open `learn/drill/index.html` in Safari.
@@ -160,11 +151,10 @@ Generation prompts live in `docs/QUESTION_GENERATION_PROMPT.md` and
 
 ```
 learn/
-  drill/                               ← Quiz Defense (game + Study/Drill modes)
-    index.html, drill.css, sw.js
-    drill-core.js, drill-audio.js, drill-world.js, drill-td.js
-    config.json                      ← all gameplay tuning (towers/enemies/…)
-    assets/                            ← battle maps, tower art, world/region art
+  drill/                               ← Study & Drill app (Study/Drill/Daily)
+    index.html, learn.css, sw.js
+    learn-core.js                    ← storage, XP/achievements, boot, home, study/drill flow
+    assets/                            ← splash background + font
 guide/
   index.html                           ← Cover page / table of contents
   assets/                              ← Shared CSS and JS
@@ -172,17 +162,18 @@ guide/
   appendix/                            ← A–D
 content/
   question-bank.json                   ← Shared question bank
-docs/                                  ← Planning docs, art/prompt generation notes, changelog
-  BACKLOG.md                           ← Game design & technical backlog
+game/                                  ← Standalone tower-defense game (separated; bound for
+                                         its own repo — shares no code with the above)
+docs/                                  ← Planning docs, prompt generation notes, changelog
   CHANGELOG.md                         ← Auto-generated, do not hand-edit
   *_GENERATION_PROMPT*.md              ← Paste-into-Claude prompt templates
-  ART_DIRECTION_HANDOFF.md, *_HANDOFF.md, GUIDE_PLANNING.md
-scripts/                                ← Asset-processing utilities (chroma-key/checker removal)
+scripts/                                ← Asset-processing utilities (used by the game)
 CLAUDE.md                              ← Project rules for Claude Code (stays at root)
 ```
 
 ## Technical
 
 Pure HTML, CSS, and vanilla JavaScript — no build step, no dependencies, no framework.
-Hosted on GitHub Pages. The game and drill app are a single PWA with a service worker
-for offline support; progress is tracked client-side via `localStorage`.
+Hosted on GitHub Pages. The Study & Drill app is a self-contained PWA with a service
+worker for offline support; progress is tracked client-side via `localStorage`. The
+game in `game/` is likewise self-contained and independent.

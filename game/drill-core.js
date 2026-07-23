@@ -1,6 +1,6 @@
 'use strict';
-// Quiz Defense — core: storage, XP/streaks/achievements, quiz flow, boot,
-// home/profile/filter UI.
+// Quiz Defense — core: storage, XP/streaks/achievements, boot, home/profile/
+// filter UI, and the standalone Study/Drill/Daily learning modes.
 //
 // Split from the old single-file drill.js (2026-07-14). The four files are
 // classic scripts sharing the global scope, loaded in order by index.html:
@@ -15,9 +15,9 @@ let APP_VERSION = '?';
   if (!('caches' in window)) return;
   try {
     const keys = await caches.keys();
-    const hit = keys.find(k => k.startsWith('de-drill-'));
+    const hit = keys.find(k => k.startsWith('quiz-defense-game-'));
     if (!hit) return;
-    APP_VERSION = hit.replace('de-drill-v', '');
+    APP_VERSION = hit.replace('quiz-defense-game-v', '');
     const el = document.querySelector('.home-version');
     if (el) el.textContent = el.textContent.replace(/^v[\w.?]+/, `v${APP_VERSION}`);
   } catch (_) {}
@@ -138,82 +138,11 @@ let gold = 0;
 // getElementById calls in hot paths like tdUpdateHUD.
 const EL = {};
 
-// ╔══════════════════════════════════════════════════════════════
-//  QUESTION LOGIC MODULE
-//  validateQuestionBank · shuffle · queue · mastery · accuracy
-// ╚══════════════════════════════════════════════════════════════
-
-// ── Question-bank schema validation ───────────────────────────
-function validateQuestionBank(questions) {
-  if (!Array.isArray(questions)) {
-    console.warn('[QB] question-bank.json is not an array — using empty bank');
-    return [];
-  }
-  const valid = [];
-  for (const q of questions) {
-    const missing = [];
-    if (typeof q.num       !== 'number')  missing.push('num');
-    if (typeof q.part      !== 'number')  missing.push('part');
-    if (typeof q.stem      !== 'string')  missing.push('stem');
-    if (q.type !== 'mc' && q.type !== 'tf') missing.push('type(mc|tf)');
-    if (q.type === 'mc' && (!Array.isArray(q.options) || q.options.length < 2)) missing.push('options');
-    if (q.correct == null) missing.push('correct');
-    if (missing.length) {
-      console.warn(`[QB] Skipping malformed question num=${q.num ?? '?'}: missing ${missing.join(', ')}`);
-    } else {
-      valid.push(q);
-    }
-  }
-  if (valid.length < questions.length) {
-    console.warn(`[QB] Loaded ${valid.length}/${questions.length} questions (${questions.length - valid.length} skipped)`);
-  }
-  return valid;
-}
-
-// ── Question shuffle helpers ───────────────────────────────────
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-  return a;
-}
-function seededShuffle(arr, seed) {
-  const a = [...arr]; let s = Math.abs(seed) || 1;
-  for (let i = a.length - 1; i > 0; i--) {
-    s = (s * 1664525 + 1013904223) & 0x7FFFFFFF;
-    const j = Math.abs(s) % (i + 1); [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-// ── Session queue ──────────────────────────────────────────────
-function buildDrillQueue() {
-  const seen = new Set(JSON.parse(StorageManager.get(SEEN_KEY) || '[]'));
-  queue = shuffle(allQuestions.filter(q => activeParts.includes(q.part) && !seen.has(q.id)));
-  currentQNum = 0; currentQTotal = queue.length; sessionXpEarned = 0;
-}
-function markDrillSeen(id) {
-  const seen = new Set(JSON.parse(StorageManager.get(SEEN_KEY) || '[]'));
-  seen.add(id); StorageManager.set(SEEN_KEY, JSON.stringify([...seen]));
-}
-function resetDrillSeen() { StorageManager.remove(SEEN_KEY); }
-
 // ── Boot ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  // World/map data is required for the game and is the only fatal dependency.
   try {
-    // World/map data loads in parallel with the question bank; both are
-    // required, so either failing lands on the same retry screen below.
-    const worldReady = loadWorldData();
-    const res = await fetch('../../content/question-bank.json');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const raw = await res.json();
-    const questions = Array.isArray(raw) ? raw : (raw.questions || raw);
-    allQuestions = validateQuestionBank(questions);
-    if (!Array.isArray(raw) && raw.version) {
-      const QB_VER_KEY = 'qb_version';
-      const prevVer = StorageManager.get(QB_VER_KEY);
-      if (prevVer !== raw.version) StorageManager.set(QB_VER_KEY, raw.version);
-    }
-    await worldReady;
+    await loadWorldData();
   } catch (_) {
     document.getElementById('app').innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:1rem;padding:2rem;text-align:center;font-family:system-ui">' +
       '<div style="font-size:2rem">📡</div>' +
@@ -224,14 +153,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  const saved = JSON.parse(StorageManager.get(FILTER_KEY) || 'null');
-  activeParts  = saved || [...new Set(allQuestions.map(q => q.part))].sort((a,b) => a-b);
-
   loadGameState();
   applyTheme(StorageManager.get(THEME_KEY) || 'dark');
-  colorBlindMode = StorageManager.get(COLORBLIND_KEY) === '1';
   bindUI();
-  buildFilterDrawer();
   showHome();
 });
 
@@ -297,56 +221,6 @@ function getLevel(totalXp) {
   return { ...lvl, idx, next, progress };
 }
 
-// ── XP, streak & gold ──────────────────────────────────────────
-function awardXP(isCorrect, context) {
-  if (!isCorrect) {
-    streak = 0;
-    saveGameState();
-    refreshTopBarStats();
-    return 0;
-  }
-
-  streak++;
-  if (streak > bestStreak) bestStreak = streak;
-
-  const streakMult = streak >= 10 ? 2.5 : streak >= 5 ? 2 : streak >= 3 ? 1.5 : 1;
-  const base   = context === 'daily' ? 150 : 100;
-  const earned = Math.round(base * streakMult);
-
-  const prevIdx = getLevel(xp).idx;
-  xp += earned;
-  sessionXpEarned += earned;
-  saveGameState();
-
-  const newIdx = getLevel(xp).idx;
-  if (newIdx > prevIdx) showLevelUpToast(getLevel(xp));
-
-  refreshTopBarStats();
-  if (earned > 0) showXpPopup(earned, streakMult);
-  return earned;
-}
-
-// ── Question mastery tracking ──────────────────────────────────
-const MASTERY_THRESHOLD = 3;
-
-function getMasteryData() {
-  try { return JSON.parse(StorageManager.get(MASTERY_KEY)) || {}; }
-  catch { return {}; }
-}
-
-function recordQuizResult(qId, correct) {
-  const data = getMasteryData();
-  if (!data[qId]) data[qId] = { correct: 0, seen: 0 };
-  data[qId].seen++;
-  if (correct) data[qId].correct++;
-  StorageManager.set(MASTERY_KEY, JSON.stringify(data));
-}
-
-function isMastered(qId) {
-  const data = getMasteryData();
-  return (data[qId]?.correct ?? 0) >= MASTERY_THRESHOLD;
-}
-
 function refreshTopBarStats() {
   const badge = document.getElementById('xp-badge');
   if (badge) { const l = getLevel(xp); badge.textContent = `${l.icon} ${xp.toLocaleString()}`; }
@@ -357,42 +231,7 @@ function refreshTopBarStats() {
   }
 }
 
-function showXpPopup(amount, mult) {
-  const area = EL.cardArea;
-  if (!area) return;
-  area.style.position = 'relative';
-  const el = document.createElement('div');
-  el.className = 'xp-popup';
-  el.textContent = `+${amount} XP${mult > 1 ? ` ×${mult}` : ''}`;
-  area.appendChild(el);
-  setTimeout(() => el.remove(), 1200);
-}
-
 // ── Achievements ───────────────────────────────────────────────
-function checkAchievements(isCorrect, context) {
-  if (!isCorrect) return;
-  unlockIfNew('first_blood');
-  if (streak >= 5)  unlockIfNew('streak_5');
-  if (streak >= 10) unlockIfNew('streak_10');
-  if (xp >= 500)    unlockIfNew('xp_500');
-  if (xp >= 3000)   unlockIfNew('xp_3000');
-  if (context === 'daily') unlockIfNew('daily_done');
-  if (checkPolymath())     unlockIfNew('polymath');
-  if (checkAllSeen())      unlockIfNew('all_questions');
-}
-
-function checkPolymath() {
-  return [1,2,3,4,5,6,7,8,9].every(p => partAccuracy[p] && partAccuracy[p].t > 0);
-}
-function checkAllSeen() {
-  return new Set(JSON.parse(StorageManager.get(SEEN_KEY) || '[]')).size >= allQuestions.length;
-}
-function checkPerfectPart(partNum) {
-  const acc = partAccuracy[partNum];
-  if (!acc || acc.t === 0) return false;
-  return acc.t >= allQuestions.filter(q => q.part === partNum).length && acc.c === acc.t;
-}
-
 function unlockIfNew(id) {
   if (achievements.has(id)) return;
   achievements.add(id); saveGameState();
@@ -407,46 +246,6 @@ function showAchievementToast(a) {
   clearTimeout(el._t);
   el._t = setTimeout(() => el.classList.remove('show'), 3400);
 }
-
-function showLevelUpToast(level) {
-  const el = EL.achievementToast;
-  el.innerHTML = `<span class="ach-icon">${level.icon}</span><div class="ach-text"><div class="ach-name">Level Up!</div><div class="ach-desc">You are now ${level.title}</div></div>`;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), 3400);
-}
-
-// ── Part accuracy ──────────────────────────────────────────────
-function trackAccuracy(partNum, isCorrect) {
-  if (!partAccuracy[partNum]) partAccuracy[partNum] = { c: 0, t: 0 };
-  partAccuracy[partNum].t++;
-  if (isCorrect) partAccuracy[partNum].c++;
-  saveGameState();
-}
-
-function getAccuracyDot(partNum) {
-  const acc = partAccuracy[partNum];
-  if (!acc || acc.t === 0) return '';
-  const pct   = Math.round((acc.c / acc.t) * 100);
-  const color = pct >= 80 ? '#10B981' : pct >= 60 ? '#F59E0B' : '#EF4444';
-  return `<span class="accuracy-dot" style="color:${color}">${pct}%</span>`;
-}
-
-// ── Daily challenge ────────────────────────────────────────────
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function getDailyQuestions() {
-  const seed = todayKey().split('-').reduce((a, n) => a * 31 + parseInt(n, 10), 1);
-  return seededShuffle([...allQuestions], seed).slice(0, 5);
-}
-function getDailyState() {
-  const raw = JSON.parse(StorageManager.get(DAILY_KEY) || 'null');
-  if (!raw || raw.date !== todayKey()) return { date: todayKey(), answeredIds: [], correct: 0, complete: false };
-  return raw;
-}
-function saveDailyState(state) { StorageManager.set(DAILY_KEY, JSON.stringify(state)); }
 
 // ── Theme ──────────────────────────────────────────────────────
 function applyTheme(t) { document.documentElement.dataset.theme = t; StorageManager.set(THEME_KEY, t); }
@@ -505,42 +304,10 @@ function setTopBar(state, extra = {}) {
     bar.innerHTML = '';
     return;
   }
-  bar.style.display = '';
-
-  if (state === 'study-list') {
-    bar.innerHTML = `<button class="btn-back" id="btn-back-home">← Home</button><div class="top-bar-right">${gameBadges()}${themeBtn()}</div>`;
-    document.getElementById('btn-back-home').addEventListener('click', showHome);
-    bindThemeBtn(); bindXpBadge();
-
-  } else if (state === 'study-question') {
-    const { part, idx, total } = extra;
-    bar.innerHTML = `
-      <button class="btn-back" id="btn-back">← ${dailyActive ? 'Study' : 'Parts'}</button>
-      <span class="top-center">${typeof part === 'number' ? `Part ${part}` : part} · ${idx}/${total}</span>
-      <div class="top-bar-right">${gameBadges()}</div>`;
-    document.getElementById('btn-back').addEventListener('click', () => {
-      dailyActive = false; studyPart = null;
-      setTopBar('study-list'); hideQuestion(); showPartList();
-    });
-    bindXpBadge();
-
-  } else if (state === 'drill') {
-    bar.innerHTML = `
-      <button class="btn-back" id="btn-back-home">← Home</button>
-      <span class="session-score" id="session-score"></span>
-      <div class="top-bar-right">${gameBadges()}
-        <button class="btn-filter" id="btn-filter">Filter</button>
-        ${themeBtn()}
-      </div>`;
-    document.getElementById('btn-back-home').addEventListener('click', showHome);
-    document.getElementById('btn-filter').addEventListener('click', openFilter);
-    bindThemeBtn(); bindXpBadge(); refreshSessionScore();
-  }
-}
-
-function refreshSessionScore() {
-  const el = document.getElementById('session-score');
-  if (el) el.textContent = sessionTotal > 0 ? `${sessionCorrect}/${sessionTotal}` : '';
+  // Game screens (home, world map, battle) build their own inline headers,
+  // so the shared top bar stays hidden for every state the game uses.
+  bar.style.display = 'none';
+  bar.innerHTML = '';
 }
 
 // ── Profile sheet ──────────────────────────────────────────────
@@ -850,306 +617,6 @@ function setupInstallBanner() {
   });
 }
 
-// ── Study: Part list ───────────────────────────────────────────
-function showPartList() {
-  hideQuestion();
-  EL.progressWrap.style.display = 'none';
-  EL.completeScreen.classList.remove('show');
-
-  const daily     = getDailyState();
-  const dqs       = getDailyQuestions();
-  const dAnswered = daily.answeredIds.length;
-  const dDone     = daily.complete;
-
-  const area = EL.contentArea;
-  area.innerHTML = `
-    <div class="part-list">
-      <div class="part-list-header"><h2>Study by Part</h2><p>Tap a part to begin</p></div>
-      <div class="daily-banner ${dDone ? 'done' : ''}" id="daily-banner">
-        <div class="daily-left">
-          <span class="daily-icon">${dDone ? '✅' : '📅'}</span>
-          <div>
-            <div class="daily-title">Daily Challenge</div>
-            <div class="daily-sub">${dDone ? `Done! ${daily.correct}/${dqs.length} correct` : dAnswered > 0 ? `${dAnswered}/${dqs.length} answered · 1.5× XP` : `${dqs.length} questions · 1.5× XP`}</div>
-          </div>
-        </div>
-        ${dDone ? '' : `<button class="btn-daily" id="btn-daily">${dAnswered > 0 ? 'Continue' : 'Start'}</button>`}
-      </div>
-      <div class="part-grid" id="part-grid"></div>
-    </div>`;
-
-  document.getElementById('btn-daily')?.addEventListener('click', startDailyChallenge);
-
-  const grid = document.getElementById('part-grid');
-  for (let p = 1; p <= 9; p++) {
-    const qs = allQuestions.filter(q => q.part === p);
-    const total = qs.length, seen = getStudySeen(p);
-    const pct = total === 0 ? 0 : Math.round((seen / total) * 100);
-    const hasQ = total > 0;
-    const R = 18, sz = 44, circ = 2 * Math.PI * R, off = circ * (1 - pct / 100);
-    const ringColor = pct === 100 ? 'var(--correct)' : 'var(--accent)';
-    const ringHTML = hasQ ? `<svg class="progress-ring" width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}">
-      <circle class="ring-bg" cx="${sz/2}" cy="${sz/2}" r="${R}"/>
-      <circle class="ring-fill" cx="${sz/2}" cy="${sz/2}" r="${R}" stroke="${ringColor}" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/>
-      ${pct > 0 ? `<text class="ring-text" x="${sz/2}" y="${sz/2+1}">${pct}%</text>` : ''}
-    </svg>` : '';
-    const card = document.createElement('div');
-    card.className = 'part-card' + (hasQ ? '' : ' locked');
-    card.innerHTML = `
-      <div class="part-card-top"><span class="part-badge">Part ${p}</span>${ringHTML}</div>
-      <div class="part-card-name">${PART_NAMES[p]}</div>
-      <div class="part-card-meta ${hasQ ? '' : 'coming-soon'}">${hasQ ? `${total} question${total !== 1 ? 's' : ''} ${getAccuracyDot(p)}` : 'Coming soon'}</div>`;
-    if (hasQ) card.addEventListener('click', () => startStudyPart(p));
-    grid.appendChild(card);
-  }
-}
-
-function getStudySeen(partNum) { return new Set(JSON.parse(StorageManager.get(`study_seen_p${partNum}`) || '[]')).size; }
-function markStudySeen(partNum, id) {
-  const key  = `study_seen_p${partNum}`;
-  const seen = new Set(JSON.parse(StorageManager.get(key) || '[]'));
-  seen.add(id); StorageManager.set(key, JSON.stringify([...seen]));
-}
-
-// ── Daily challenge ────────────────────────────────────────────
-function startDailyChallenge() {
-  const state = getDailyState(), dqs = getDailyQuestions();
-  const todo = dqs.filter(q => !state.answeredIds.includes(q.id));
-  if (todo.length === 0) return;
-  dailyActive = true; queue = todo;
-  currentQNum = state.answeredIds.length; currentQTotal = dqs.length;
-  sessionCorrect = state.correct; sessionTotal = state.answeredIds.length;
-  sessionXpEarned = 0; answered = false;
-  EL.contentArea.innerHTML = '';
-  showNext();
-}
-
-// ── Study flow ─────────────────────────────────────────────────
-function startStudyPart(partNum) {
-  studyPart = partNum; dailyActive = false;
-  queue = allQuestions.filter(q => q.part === partNum);
-  sessionCorrect = 0; sessionTotal = 0; sessionXpEarned = 0;
-  answered = false; currentQNum = 0; currentQTotal = queue.length;
-  EL.contentArea.innerHTML = '';
-  showNext();
-}
-
-// ── Show next question (Study / Drill only) ────────────────────
-function showNext() {
-  if (queue.length === 0) { showComplete(); return; }
-
-  current = queue.shift(); answered = false; currentQNum++;
-
-  if (mode === 'study') {
-    const total = dailyActive ? currentQTotal : allQuestions.filter(q => q.part === studyPart).length;
-    setTopBar('study-question', { part: dailyActive ? '📅 Daily' : studyPart, idx: currentQNum, total });
-    EL.progressWrap.style.display = 'none';
-  } else if (mode === 'drill') {
-    updateDrillProgress();
-  }
-
-  EL.contentArea.innerHTML = '';
-  EL.cardArea.style.display  = 'block';
-  EL.bottomBar.style.display = 'block';
-  EL.completeScreen.classList.remove('show');
-
-  renderQuestion(current, currentQNum, currentQTotal);
-  EL.btnCheck.disabled      = true;
-  EL.btnCheck.style.display = 'block';
-  EL.btnNext.classList.remove('show');
-  EL.btnNext.textContent = 'Continue →';
-}
-
-function hideQuestion() {
-  EL.cardArea.style.display  = 'none';
-  EL.bottomBar.style.display = 'none';
-}
-
-function updateDrillProgress() {
-  const seen  = JSON.parse(StorageManager.get(SEEN_KEY) || '[]').length;
-  const total = allQuestions.filter(q => activeParts.includes(q.part)).length;
-  const pct   = total === 0 ? 0 : Math.round((seen / total) * 100);
-  EL.progressWrap.style.display = 'block';
-  document.getElementById('progress-fill').style.width   = pct + '%';
-  document.getElementById('progress-label').textContent  = `${seen} of ${total} seen`;
-  refreshSessionScore();
-}
-
-// ── Render question card ───────────────────────────────────────
-function renderQuestion(q, num, total) {
-  const card      = EL.qCard;
-  const typeLabel = q.type === 'tf' ? 'True / False' : 'Multiple Choice';
-  const numLabel  = `Q${num}/${total}`;
-
-  const optHTML = q.type === 'mc'
-    ? `<div class="options">${q.options.map((o, i) =>
-        `<div class="opt" data-index="${i}"><div class="opt-letter">${LETTERS[i]}</div><div class="opt-text">${o}</div></div>`
-      ).join('')}</div>`
-    : `<div class="tf-options"><div class="tf-opt" data-value="true">True</div><div class="tf-opt" data-value="false">False</div></div>`;
-
-  card.innerHTML = `
-    <div class="card-header">
-      <div class="card-header-left"><span class="q-id">#${q.num}</span><div class="part-chip">Part ${q.part}</div></div>
-      <div class="q-num">${numLabel}</div>
-    </div>
-    <div class="q-type">${typeLabel}</div>
-    <p class="q-stem">${q.stem}</p>
-    ${optHTML}
-    <div class="explanation" id="explanation"></div>`;
-
-  const sel = q.type === 'mc' ? '.opt' : '.tf-opt';
-  card.querySelectorAll(sel).forEach(opt => {
-    opt.addEventListener('click', () => {
-      if (answered) return;
-      card.querySelectorAll(sel).forEach(o => o.classList.remove('selected'));
-      opt.classList.add('selected');
-      EL.btnCheck.disabled = false;
-    });
-  });
-}
-
-// ── Check answer ───────────────────────────────────────────────
-function checkAnswer() {
-  if (answered) return;
-  answered = true; sessionTotal++;
-
-  const card = EL.qCard;
-  let isCorrect = false;
-
-  if (current.type === 'mc') {
-    const sel = card.querySelector('.opt.selected');
-    if (!sel) { answered = false; sessionTotal--; return; }
-    const idx = parseInt(sel.dataset.index, 10);
-    isCorrect = idx === current.correct;
-    card.querySelectorAll('.opt').forEach((o, i) => {
-      if (i === current.correct) o.classList.add('correct-answer');
-      else if (i === idx && !isCorrect) o.classList.add('wrong-answer');
-    });
-  } else {
-    const sel = card.querySelector('.tf-opt.selected');
-    if (!sel) { answered = false; sessionTotal--; return; }
-    const val = sel.dataset.value === 'true';
-    isCorrect  = val === current.correct;
-    card.querySelectorAll('.tf-opt').forEach(o => {
-      const v = o.dataset.value === 'true';
-      if (v === current.correct) o.classList.add('correct-answer');
-      else if (o.classList.contains('selected') && !isCorrect) o.classList.add('wrong-answer');
-    });
-  }
-
-  card.classList.remove('answer-correct', 'answer-wrong');
-  void card.offsetWidth;
-  card.classList.add(isCorrect ? 'answer-correct' : 'answer-wrong');
-  setTimeout(() => card.classList.remove('answer-correct', 'answer-wrong'), 600);
-
-  revealAnswerResult(isCorrect);
-}
-
-function revealAnswerResult(isCorrect) {
-  if (isCorrect) sessionCorrect++;
-
-  const ctx = dailyActive ? 'daily' : 'normal';
-  awardXP(isCorrect, ctx);
-  checkAchievements(isCorrect, ctx);
-  trackAccuracy(current.part, isCorrect);
-  if (studyPart && isCorrect && checkPerfectPart(studyPart)) unlockIfNew('perfect_part');
-
-  if (mode === 'study') {
-    if (dailyActive) {
-      const ds = getDailyState();
-      if (!ds.answeredIds.includes(current.id)) {
-        ds.answeredIds.push(current.id);
-        if (isCorrect) ds.correct++;
-        if (ds.answeredIds.length >= getDailyQuestions().length) ds.complete = true;
-        saveDailyState(ds);
-      }
-    } else if (studyPart) {
-      markStudySeen(studyPart, current.id);
-    }
-  } else if (mode === 'drill') {
-    markDrillSeen(current.id);
-    updateDrillProgress();
-    refreshSessionScore();
-  }
-
-  const exp = document.getElementById('explanation');
-  if (exp) {
-    exp.innerHTML = `<strong>${isCorrect ? '✓ Correct' : '✗ Incorrect'}</strong> — ${current.explanation}`;
-    exp.classList.add('show');
-    exp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-
-  EL.btnCheck.style.display = 'none';
-  EL.btnNext.classList.add('show');
-}
-
-// ── Complete screens ───────────────────────────────────────────
-function showComplete() {
-  hideQuestion();
-  EL.progressWrap.style.display = 'none';
-  EL.contentArea.innerHTML = '';
-
-  const pct  = sessionTotal > 0 ? Math.round((sessionCorrect / sessionTotal) * 100) : 0;
-  const icon = pct >= 80 ? '🎯' : pct >= 60 ? '📈' : '📚';
-  const msg  = pct >= 80 ? 'Strong session!' : pct >= 60 ? 'Good progress.' : 'Keep reviewing.';
-  const xpLine = sessionXpEarned > 0 ? `<div class="xp-earned">+${sessionXpEarned.toLocaleString()} XP earned</div>` : '';
-
-  const screen = EL.completeScreen;
-  screen.classList.add('show');
-
-  if (dailyActive) {
-    const ds = getDailyState();
-    screen.innerHTML = `<div class="complete-icon">📅</div><h2>Daily Complete!</h2>
-      <div class="score-big">${ds.correct}/${getDailyQuestions().length}</div>${xpLine}
-      <p>Come back tomorrow for a new challenge.</p>
-      <button class="btn-restart" id="btn-back-study">← Back to Study</button>`;
-    document.getElementById('btn-back-study').addEventListener('click', () => {
-      screen.classList.remove('show'); dailyActive = false; setTopBar('study-list'); showPartList();
-    });
-  } else if (mode === 'study') {
-    screen.innerHTML = `<div class="complete-icon">${icon}</div><h2>Part ${studyPart} Done</h2>
-      <div class="score-big">${sessionCorrect}/${sessionTotal}</div>${xpLine}
-      <p>${pct}% correct.</p>
-      <button class="btn-restart" id="btn-restart">Try Again</button>
-      <button class="btn-reset-all" id="btn-back-parts">← All Parts</button>`;
-    document.getElementById('btn-restart').addEventListener('click', () => { screen.classList.remove('show'); startStudyPart(studyPart); });
-    document.getElementById('btn-back-parts').addEventListener('click', () => { screen.classList.remove('show'); studyPart = null; setTopBar('study-list'); showPartList(); });
-    if (pct === 100) unlockIfNew('perfect_part');
-  } else {
-    screen.innerHTML = `<div class="complete-icon">${icon}</div><h2>Session Complete</h2>
-      <div class="score-big">${sessionCorrect}/${sessionTotal}</div>${xpLine}
-      <p>${pct}% correct. ${msg}</p>
-      <button class="btn-restart" id="btn-restart">New Session</button>
-      <button class="btn-reset-all" id="btn-reset-all">Reset all progress</button>`;
-    document.getElementById('btn-restart').addEventListener('click', () => { screen.classList.remove('show'); setTopBar('drill'); buildDrillQueue(); showNext(); });
-    document.getElementById('btn-reset-all').addEventListener('click', () => { resetDrillSeen(); screen.classList.remove('show'); setTopBar('drill'); buildDrillQueue(); showNext(); });
-  }
-}
-
-// ── Filter drawer ──────────────────────────────────────────────
-function buildFilterDrawer() {
-  const parts  = [...new Set(allQuestions.map(q => q.part))].sort((a,b) => a-b);
-  const drawer = EL.filterDrawer;
-  drawer.innerHTML = `
-    <div class="filter-panel">
-      <h3>Filter by Part</h3>
-      <div class="filter-options" id="filter-chips">
-        ${parts.map(p => `<div class="filter-chip ${activeParts.includes(p) ? 'active' : ''}" data-part="${p}">Part ${p}</div>`).join('')}
-      </div>
-      <button class="btn-apply" id="btn-apply-filter">Apply</button>
-    </div>`;
-  drawer.querySelectorAll('.filter-chip').forEach(c => c.addEventListener('click', () => c.classList.toggle('active')));
-  document.getElementById('btn-apply-filter').addEventListener('click', () => {
-    const sel = [...drawer.querySelectorAll('.filter-chip.active')].map(c => parseInt(c.dataset.part, 10));
-    if (!sel.length) return;
-    activeParts = sel; StorageManager.set(FILTER_KEY, JSON.stringify(activeParts));
-    closeFilter(); buildDrillQueue(); setTopBar('drill'); showNext();
-  });
-  drawer.addEventListener('click', e => { if (e.target === drawer) closeFilter(); });
-}
-function openFilter()  { EL.filterDrawer.classList.add('open'); }
-function closeFilter() { EL.filterDrawer.classList.remove('open'); }
-
 // ── UI bindings ────────────────────────────────────────────────
 function bindUI() {
   // Cache static DOM refs once — avoids repeated lookups in hot paths
@@ -1158,16 +625,9 @@ function bindUI() {
   EL.completeScreen   = document.getElementById('complete-screen');
   EL.progressWrap     = document.getElementById('progress-wrap');
   EL.cardArea         = document.getElementById('card-area');
-  EL.btnCheck         = document.getElementById('btn-check');
   EL.bottomBar        = document.getElementById('bottom-bar');
-  EL.btnNext          = document.getElementById('btn-next');
-  EL.qCard            = document.getElementById('q-card');
-  EL.filterDrawer     = document.getElementById('filter-drawer');
   EL.achievementToast = document.getElementById('achievement-toast');
   EL.profileSheet     = document.getElementById('profile-sheet');
-
-  EL.btnCheck.addEventListener('click', checkAnswer);
-  EL.btnNext.addEventListener('click', showNext);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1178,8 +638,7 @@ function bindUI() {
 // these per-level at initTDGame time via levelDef.gridCols/gridRows.
 const TD_DEFAULT_COLS = 9, TD_DEFAULT_ROWS = 10;
 
-// Questions are opt-in (owner decision 2026-07-17): waves start immediately
-// with no question gate; the 📝 button offers a bonus-gold question (max
-// 3/wave) for players who want the edge. The TD must stand on its own.
+// Waves start immediately with no question gate — the tower defense stands
+// entirely on its own (kill rewards fund the economy).
 let TD_COLS = TD_DEFAULT_COLS, TD_ROWS = TD_DEFAULT_ROWS;
 const TD_STARS_KEY = 'td_stars_v1';

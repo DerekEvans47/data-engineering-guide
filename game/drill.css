@@ -1238,7 +1238,7 @@ html, body {
 .legend-node.shop { border-color: #EC4899; color: #EC4899; }
 
 /* ╔══════════════════════════════════════════════════════════
-   SCREENS — tower defense (HUD, canvas, tools, quiz overlay)
+   SCREENS — tower defense (HUD, canvas, tools, modal overlay)
    ╚══════════════════════════════════════════════════════════ */
 
 /* ── Tower Defense ─────────────────────────────────────────── */
@@ -1462,7 +1462,6 @@ html, body {
    Deliberately accent-color-driven rather than wood/parchment-textured, so
    the same chrome still reads correctly once Decay/Void get their own
    palettes — only the --tdbtn-accent changes per button, not the shape. */
-.td-quiz-btn,
 .td-wave-btn {
   --tdbtn-accent: 99,102,241;
   --tdbtn-cut: 11px;
@@ -1495,7 +1494,6 @@ html, body {
 }
 /* Rivets at the two square (uncut) corners — reinforces the "riveted metal
    tablet" read that the clip-path alone doesn't fully sell. */
-.td-quiz-btn::before, .td-quiz-btn::after,
 .td-wave-btn::before, .td-wave-btn::after {
   content: '';
   position: absolute;
@@ -1504,10 +1502,8 @@ html, body {
   background: radial-gradient(circle at 35% 35%, rgba(255,255,255,.85), rgba(var(--tdbtn-accent),.9) 60%, rgba(0,0,0,.6));
   box-shadow: 0 1px 1px rgba(0,0,0,.5);
 }
-.td-quiz-btn::before, .td-wave-btn::before { top: 5px; right: 7px; }
-.td-quiz-btn::after,  .td-wave-btn::after  { bottom: 5px; left: 7px; }
-.td-quiz-btn { color: rgb(210,212,255); }
-.td-quiz-btn:active,
+.td-wave-btn::before { top: 5px; right: 7px; }
+.td-wave-btn::after  { bottom: 5px; left: 7px; }
 .td-wave-btn:active {
   transform: translateY(1px) scale(.97);
   box-shadow:
@@ -1610,7 +1606,7 @@ html, body {
 .td-end-win  { color: #F59E0B; }
 .td-end-lose { color: #EF4444; }
 
-/* Quiz overlay (slides up from bottom) */
+/* Modal overlay (slides up from bottom) — reused by the first-run tutorial */
 .td-q-overlay {
   position: fixed;
   top: 0;
@@ -1642,65 +1638,6 @@ html, body {
   transition: transform .25s cubic-bezier(.2,.8,.4,1);
 }
 .td-q-overlay.open .td-q-sheet { transform: translateY(0); }
-
-.td-q-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: .6rem;
-}
-.td-q-reward { font-size: .8rem; font-weight: 700; color: #F59E0B; }
-.td-q-skip   {
-  background: none; border: none;
-  font-size: 1.1rem; color: var(--text-muted);
-  cursor: pointer; padding: .2rem .4rem;
-  -webkit-tap-highlight-color: transparent;
-}
-.td-q-meta   { font-size: .68rem; font-weight: 600; color: var(--text-subtle);
-                text-transform: uppercase; letter-spacing: .05em; margin-bottom: .5rem; }
-.td-q-text   { font-size: .95rem; font-weight: 600; color: var(--text);
-                line-height: 1.45; margin-bottom: .85rem; }
-.td-q-opts   { display: flex; flex-direction: column; gap: .45rem; }
-
-.td-opt {
-  text-align: left;
-  padding: .65rem .8rem;
-  background: var(--bg-elevated);
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  font-size: .85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: border-color .12s, background .12s, transform .08s;
-  -webkit-tap-highlight-color: transparent;
-}
-.td-opt:active    { transform: scale(.98); }
-.td-tf-opt        { text-align: center; font-weight: 700; }
-.td-opt.correct   { border-color: var(--correct); background: var(--correct-bg); color: var(--correct); }
-.td-opt.wrong     { border-color: var(--wrong);   background: var(--wrong-bg);   color: var(--wrong); opacity: .7; }
-
-.td-q-fb  { margin-top: .75rem; font-size: .85rem; font-weight: 600; }
-.td-fb-ok { color: var(--correct); }
-.td-fb-no { color: var(--wrong); }
-.td-q-exp { font-size: .78rem; font-weight: 400; color: var(--text-muted);
-             margin-top: .4rem; line-height: 1.45; }
-.td-q-cont {
-  display: block;
-  width: 100%;
-  margin-top: .85rem;
-  padding: .72rem;
-  background: var(--accent);
-  border: none;
-  border-radius: 10px;
-  color: #fff;
-  font-size: .9rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity .12s, transform .1s;
-  -webkit-tap-highlight-color: transparent;
-}
-.td-q-cont:active { transform: scale(.97); }
 
 /* ── Tower Defense World Map (SVG) ────────────────────────── */
 #tdm-wrap {
@@ -1886,31 +1823,6 @@ html, body {
 .td-star-reward { font-size: .72rem; font-weight: 600; color: #F59E0B; }
 .td-star-btns   { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; }
 
-/* Difficulty badge in quiz overlay */
-.td-diff-badge {
-  font-size: .62rem;
-  font-weight: 700;
-  padding: .15rem .42rem;
-  border-radius: 6px;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-.td-mastery-badge {
-  font-size: .62rem;
-  font-weight: 700;
-  padding: .15rem .42rem;
-  border-radius: 6px;
-  background: #fbbf2420;
-  color: #d97706;
-  border: 1px solid #fbbf2455;
-}
-.td-mastery-toast {
-  margin-top: .35rem;
-  font-size: .78rem;
-  color: #d97706;
-  font-weight: 600;
-}
-
 /* ╔══════════════════════════════════════════════════════════
    SCREENS — level confirm panel, inter-node panel, procedural run map
    ╚══════════════════════════════════════════════════════════ */
@@ -1979,8 +1891,6 @@ html, body {
   color: #10B981;
   text-align: center;
 }
-.tdcp-q-section { display: flex; flex-direction: column; gap: .4rem; }
-.tdcp-q-label { font-size: .7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
 .tdcp-modifiers { margin-top: 8px; }
 .tdcp-mod-label { font-size: .65rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
 .tdcp-mod-hint  { color: #FBBF24; text-transform: none; }
@@ -2032,22 +1942,6 @@ html, body {
 .tdcp-choice-sub { font-size: .68rem; font-weight: 500; opacity: .7; margin-top: .2rem; }
 .tdcp-rest-choice:active { transform: scale(.97); }
 
-/* Event card */
-.tdcp-event-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: .4rem;
-  text-align: center;
-}
-.tdcp-event-icon  { font-size: 2.4rem; }
-.tdcp-event-title { font-size: 1rem; font-weight: 700; color: var(--text); }
-.tdcp-event-desc  { font-size: .78rem; color: var(--text-muted); }
-
 /* Shop grid */
 .tdcp-shop-grid { display: flex; flex-direction: column; gap: .45rem; }
 .tdcp-shop-item {
@@ -2071,47 +1965,6 @@ html, body {
 .tdcp-shop-cost  { font-size: .78rem; font-weight: 700; color: #F59E0B; flex-shrink: 0; }
 .tdcp-shop-relic { border-color: rgba(167,139,250,.5); background: rgba(167,139,250,.08); }
 .tdcp-shop-relic:hover:not(.cannot-afford) { border-color: #A78BFA; }
-
-/* Elite question */
-.tdcp-elite-stem {
-  font-size: .88rem;
-  color: var(--text);
-  line-height: 1.5;
-  padding: .75rem;
-  background: var(--bg-elevated);
-  border-radius: 10px;
-  border: 1px solid var(--border);
-}
-.tdcp-elite-opts { display: flex; flex-direction: column; gap: .45rem; }
-.tdcp-elite-opt {
-  padding: .65rem .85rem;
-  border-radius: 10px;
-  background: var(--bg-card);
-  border: 1.5px solid var(--border);
-  color: var(--text);
-  font-size: .83rem;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color .15s;
-}
-.tdcp-elite-opt:hover  { border-color: var(--accent); }
-.tdcp-elite-opt:active { transform: scale(.98); }
-.tdcp-elite-tf {
-  width: 100%;
-  padding: .65rem .85rem;
-  background: var(--bg-card);
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  font-size: .85rem;
-}
-.tdcp-elite-feedback {
-  min-height: 1.4rem;
-  font-size: .82rem;
-  font-weight: 600;
-  text-align: center;
-  padding: .3rem;
-}
 
 /* Map inter-nodes */
 .tdm-inter-node { cursor: pointer; }

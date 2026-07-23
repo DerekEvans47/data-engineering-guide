@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Study & Drill">
+  <meta name="apple-mobile-web-app-title" content="Quiz Defense">
   <meta name="theme-color" content="#080c14">
-  <title>Data Engineering — Study &amp; Drill</title>
+  <title>Quiz Defense</title>
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="learn.css">
+  <link rel="stylesheet" href="drill.css">
 </head>
 <body>
 
@@ -28,24 +28,22 @@
 
   <div id="content-area"></div>
 
-  <div class="card-area" id="card-area" style="display:none">
-    <div class="q-card" id="q-card"></div>
-  </div>
-
+  <!-- Retained as show/hide targets used by the run-map + battle screens -->
+  <div class="card-area" id="card-area" style="display:none"></div>
   <div class="complete-screen" id="complete-screen"></div>
-
-  <div class="bottom-bar" id="bottom-bar" style="display:none">
-    <button class="btn-check" id="btn-check" disabled>Check Answer</button>
-    <button class="btn-next" id="btn-next">Continue →</button>
-  </div>
+  <div class="bottom-bar" id="bottom-bar" style="display:none"></div>
 </div>
 
 
-<div class="filter-drawer" id="filter-drawer"></div>
 <div class="achievement-toast" id="achievement-toast"></div>
 <div class="profile-sheet" id="profile-sheet"></div>
 
-<script src="learn-core.js"></script>
+<!-- Classic scripts sharing the global scope — load order matters
+     (core defines the storage/EL layer the rest bind to at boot). -->
+<script src="drill-core.js"></script>
+<script src="drill-audio.js"></script>
+<script src="drill-world.js"></script>
+<script src="drill-td.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});

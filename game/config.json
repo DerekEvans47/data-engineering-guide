@@ -1,5 +1,5 @@
 {
-  "_notes": "Runtime tuning config, loaded at boot alongside the world/map JSONs (loadWorldData -> tdApplyConfig in drill-world.js). Edit numbers HERE - no JS required; the drill-verify CI job auto-bumps the SW cache on PRs. Sections: towers (cost/range/dmg/rate + upgrade tiers - L4 ranger keeps L3 per-shot dmg on purpose, its payoff is the 2nd projectile; rates are the 2026-07-05 heavy-shot rebalance), enemies (per-type hp/speed/reward; frontier bandit roster + generic fantasy set + G-2 specials: armored halves splash, flying skips mortar, healer heals nearby on a timer), powerUps, relics (+category labels, shop pricing/odds by rarity), events (inter-node card deck), frontierTown (map-scoped knobs: enemySpeedMult 0.85 keeps the ~23s crossing on the rev6 road, enemyScaleMult 1.25 is the unit-vs-building readability retune, startGold 160 is the real economy - Creator Mode (?dev=1) overrides it to a 99999 testing purse in code), runItems (always-available consumables spent from the same run.gold wallet as everything else - instant effects (extra_life) or a pending flag consumed later (skip-first-wave at next battle start, boss-half-hp at next boss spawn)).",
+  "_notes": "Runtime tuning config, loaded at boot alongside the world/map JSONs (loadWorldData -> tdApplyConfig in drill-world.js). Edit numbers HERE - no JS required; the drill-verify CI job auto-bumps the SW cache on PRs. Sections: towers (cost/range/dmg/rate + upgrade tiers - L4 ranger keeps L3 per-shot dmg on purpose, its payoff is the 2nd projectile; rates are the 2026-07-05 heavy-shot rebalance), enemies (per-type hp/speed/reward; frontier bandit roster + generic fantasy set + G-2 specials: armored halves splash, flying skips mortar, healer heals nearby on a timer), powerUps, relics (+category labels, shop pricing/odds by rarity), frontierTown (map-scoped knobs: enemySpeedMult 0.85 keeps the ~23s crossing on the rev6 road, enemyScaleMult 1.25 is the unit-vs-building readability retune, startGold 160 is the real economy - Creator Mode (?dev=1) overrides it to a 99999 testing purse in code), runItems (always-available consumables spent from the same run.gold wallet as everything else - instant effects (extra_life) or a pending flag consumed later (skip-first-wave at next battle start, boss-half-hp at next boss spawn)).",
   "towers": [
     {
       "id": "bastion",
@@ -522,34 +522,6 @@
       "img": "assets/relics/field_hospital.png"
     },
     {
-      "id": "scholars_quill",
-      "name": "Scholar's Quill",
-      "icon": "🪶",
-      "category": "quiz",
-      "rarity": "uncommon",
-      "upkeep": 8,
-      "desc": "Bonus questions pay +50% gold",
-      "effect": {
-        "type": "quiz-gold-mult",
-        "value": 1.5
-      },
-      "img": "assets/relics/scholars_quill.png"
-    },
-    {
-      "id": "tome_of_study",
-      "name": "Tome of Study",
-      "icon": "📖",
-      "category": "quiz",
-      "rarity": "uncommon",
-      "upkeep": 5,
-      "desc": "+2 bonus questions per wave",
-      "effect": {
-        "type": "quiz-uses-add",
-        "value": 2
-      },
-      "img": "assets/relics/tome_of_study.png"
-    },
-    {
       "id": "powder_keg",
       "name": "Powder Keg",
       "icon": "🛢️",
@@ -589,7 +561,6 @@
     "build": "Construction",
     "income": "Income",
     "mending": "Mending",
-    "quiz": "Questions",
     "splash": "Siege"
   },
   "relicRarityCost": {
@@ -604,56 +575,6 @@
     "rare": 0.2,
     "legendary": 0.05
   },
-  "events": [
-    {
-      "icon": "💰",
-      "title": "Grant Funding",
-      "desc": "A research grant comes through.",
-      "effect": "gold+60"
-    },
-    {
-      "icon": "☕",
-      "title": "Coffee Break",
-      "desc": "The team recharges for your next battle.",
-      "effect": "lives+2"
-    },
-    {
-      "icon": "📉",
-      "title": "Data Breach",
-      "desc": "A security incident drains resources.",
-      "effect": "gold-30"
-    },
-    {
-      "icon": "🎓",
-      "title": "Hackathon Win",
-      "desc": "You place first. Bonus XP awarded.",
-      "effect": "xp+100"
-    },
-    {
-      "icon": "⚙️",
-      "title": "System Outage",
-      "desc": "Infrastructure issues disrupt your forces.",
-      "effect": "lives-1"
-    },
-    {
-      "icon": "🔮",
-      "title": "Mystery Cache",
-      "desc": "Hidden data cache uncovered.",
-      "effect": "gold+40"
-    },
-    {
-      "icon": "🪙",
-      "title": "Tax Refund",
-      "desc": "Unexpected reimbursement arrives.",
-      "effect": "gold+80"
-    },
-    {
-      "icon": "📡",
-      "title": "Signal Boost",
-      "desc": "Your team gets extra starting funds.",
-      "effect": "gold+50"
-    }
-  ],
   "frontierTown": {
     "enemySpeedMult": 0.85,
     "enemyScaleMult": 1.25,
