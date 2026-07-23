@@ -44,8 +44,8 @@ The PII enforcement and the browser verifier run from two git hooks. Git does **
   session. Open the repo once in Claude Code and the hooks are live.
 
 **What they enforce:**
-- `pre-commit` — scans **staged file content** for session URLs / identifiers and blocks
-  the commit if any are found.
+- `pre-commit` — scans **staged file content** for a Claude session URL and blocks the
+  commit if one is found.
 - `pre-push` — blocks any pushed **commit message/body** containing a session URL, a
   `Claude-Session:` trailer, or a generated-by footer; and runs `verify.sh` when app
   source files (`*.js`/`*.css`/`*.html`/`*.json`/`assets/`) are in the push.

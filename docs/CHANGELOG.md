@@ -100,6 +100,8 @@ A record of every feature, fix, and improvement shipped to the project.
 
 - Delete Gemini_Generated_Image_ngutc5ngutc5ngut.png
 
+- Move game docs under game/ and add the game's PII hooks + CLAUDE.md (#166)
+
 - Separate the tower-defense game from the learning material (#162)
 
 - Unify the glossary and connect every learning app to the hub (#164)
