@@ -12,17 +12,11 @@ A record of every feature, fix, and improvement shipped to the project.
 
 - Frontier Town wide battle map (30x13, rev 6) + map art pipeline updates (#133)
 
-- New Run option on the home screen
-
-- Unit Readability Standard - outline+pop pass for battlefield sprites
-
 - Ambient animation layer on the region map
 
 - Barracks units block the lane and fight enemies in melee (#158)
 
 - Dev tooling - in-app map editors, CI verify gate, config.json, dev panel (#142)
-
-- Disable quiz gate for testing, compact quiz card, letterbox backdrop, smaller goblins
 
 - Goblin attack animation + canonical art reference pipeline (#160)
 
@@ -30,11 +24,7 @@ A record of every feature, fix, and improvement shipped to the project.
 
 - Map authoring overlay (?author=1) (#136)
 
-- New regenerated region map (nodes re-placed) + road-structure occlusion
-
 - Optional quiz, real starting gold, remove dead dungeon mode (#147)
-
-- Playtest round 3 - sprite size/quality, single battle song, HUD cleanup, two-tap build with stat card, arrow SFX
 
 - Polygon occluders + back buttons in author/dev tools (#143)
 
@@ -55,8 +45,6 @@ A record of every feature, fix, and improvement shipped to the project.
 
 ### 🐛 Bug Fixes
 
-- HiDPI canvas - battle was rendering at 1/3 native resolution on phones
-
 - Author-mode copy confirmation flash + clipboard fallback (#137)
 
 - Depth-sort towers vs units + NN sampling for rev 7 map
@@ -68,8 +56,6 @@ A record of every feature, fix, and improvement shipped to the project.
 - IPhone landscape home fit + sheep tint; docs: K-section backlog review + STATUS handoff (#132)
 
 - Playtest round 4 - landscape home fit, arrow physics, full-bleed map, ambient polish (#131)
-
-- Region map node placement redone with road-mask snapping
 
 - Relic editor 3-column grid + fix dead-space bug, larger Home config button (#155)
 
@@ -97,6 +83,8 @@ A record of every feature, fix, and improvement shipped to the project.
 - Add files via upload
 
 - Add files via upload
+
+- Auto-link glossary terms across the guide and complete key-term coverage (#168)
 
 - Delete Gemini_Generated_Image_ngutc5ngutc5ngut.png
 
