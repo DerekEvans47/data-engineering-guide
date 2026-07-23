@@ -50,7 +50,7 @@ Never include session URLs, chat links, or any personally identifiable informati
 
 **Only allowed attribution:** `Co-Authored-By: Claude <noreply@anthropic.com>` or `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
 
-> **Why:** Session URLs are personal identifiers tied to the owner's account. Past violations required the repo to be recreated from scratch. The pre-push hook enforces this for commit messages but **cannot intercept GitHub API calls** — so PR body text is entirely self-enforced. Do not rely on tooling to catch this. Self-check every PR body before submitting.
+> **Why:** Session URLs are personal identifiers tied to the owner's account. Past violations required the repo to be recreated from scratch. The git hooks (`.claude/skills/pre-{commit,push}-hook.sh`, auto-installed by `.claude/settings.json`) enforce this: the **pre-commit** hook blocks staged file content containing a session URL, and the **pre-push** hook blocks any commit message/body containing a session URL, a `Claude-Session:` trailer, or a generated-by footer. But the hooks **cannot intercept GitHub API calls** — so PR body text is entirely self-enforced. Do not rely on tooling to catch this. Self-check every PR body before submitting.
 
 ---
 

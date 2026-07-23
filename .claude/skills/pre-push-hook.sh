@@ -17,17 +17,14 @@ fi
 # Compute commit range for this push
 RANGE=$(echo "$PUSH_INFO" | awk '{print $4 ".." $2}' | head -1)
 
-# Block any commit whose message or body contains a session URL
+# Block any commit whose message/body contains a personal identifier:
+# Claude session URLs, Claude-Session trailers, or generated-by footers.
 if [ -n "$RANGE" ]; then
-  bad=$(git log --format="%h %s" "$RANGE" 2>/dev/null | grep -iE "claude\.ai/code/session_[A-Za-z0-9]" || true)
+  PII_PATTERN='claude\.ai/code/session_[A-Za-z0-9]|Claude-Session:|Generated (by|with) \[?Claude Code'
+  bad=$(git log --format="%h%n%B" "$RANGE" 2>/dev/null | grep -iE "$PII_PATTERN" || true)
   if [ -n "$bad" ]; then
-    echo "ERROR: commit(s) contain session URLs (violates CLAUDE.md PII rule):" >&2
+    echo "ERROR: commit message/body contains a personal identifier (violates CLAUDE.md PII rule):" >&2
     echo "$bad" >&2
-    exit 1
-  fi
-  bad_body=$(git log --format="%h%n%B" "$RANGE" 2>/dev/null | grep -iE "claude\.ai/code/session_[A-Za-z0-9]" || true)
-  if [ -n "$bad_body" ]; then
-    echo "ERROR: commit body/trailer contains a session URL (violates CLAUDE.md PII rule)" >&2
     exit 1
   fi
 fi
