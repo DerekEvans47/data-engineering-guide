@@ -1,16 +1,18 @@
 # Data Engineering Guide
 
-A self-directed learning resource for the modern data engineering & AI stack. This repo
-holds the **learning material**, split into three independent pieces that share a common
-question bank:
+A self-directed learning resource for the modern data engineering & AI stack. Start at the
+**landing page** (`index.html`) — a hub linking to everything below. The learning material
+is split into independent pieces that share common data:
 
-- **Study & Drill app** (`learn/drill/`) — a standalone PWA with **Study Mode** (all 9
-  parts, progress tracked), **Drill Mode** (randomized flashcards, optionally filtered),
-  and a **Daily Challenge**. Open `learn/drill/index.html`.
 - **The written guide** (`guide/`) — a full reference site, Parts 1–9 plus an appendix,
   with interactive quizzes, glossary tooltips, and diagrams. Open `guide/index.html`.
-- **The question bank** (`content/question-bank.json`) — the shared source of questions
-  the Study & Drill app is built on.
+- **Study & Drill app** (`learn/drill/`) — a standalone PWA with **Study Mode** (all 9
+  parts, progress tracked), **Drill Mode** (randomized questions, optionally filtered),
+  and a **Daily Challenge**. Open `learn/drill/index.html`.
+- **Flashcards app** (`learn/flashcards/`) — a standalone PWA that flip-cards the glossary
+  (term ↔ definition) with know-it/review tracking. Open `learn/flashcards/index.html`.
+- **Shared data** (`content/`) — `question-bank.json` (powers Study & Drill) and
+  `glossary.json` (115 terms, powers the flashcards).
 
 > **Note — the game moved out.** A tower-defense game (*Quiz Defense*) used to live here.
 > It has been fully separated into the self-contained [`game/`](game/) folder and is
@@ -28,6 +30,17 @@ question bank:
   all tracked client-side via `localStorage`.
 - **Offline-installable PWA** — Add to Home Screen on iPhone or Android; a service worker
   caches everything needed to study without a connection.
+
+## The Flashcards app
+
+Flip-card drilling of the glossary — the term on the front, its definition on the back.
+
+- **Flip** any card (tap, or press <kbd>space</kbd>) to reveal the short + full definition.
+- **Know it / Review** — mark each term; the **To review** mode drills only the ones you
+  haven't marked known yet. Progress persists in `localStorage`.
+- **Shuffle** the deck at any time; keyboard shortcuts (<kbd>K</kbd> know, <kbd>R</kbd>
+  review, <kbd>←</kbd>/<kbd>→</kbd> navigate).
+- Built on `content/glossary.json`, extracted from the guide's glossary (115 terms).
 
 ## The guide
 
@@ -150,18 +163,22 @@ Generation prompts live in `docs/QUESTION_GENERATION_PROMPT.md` and
 ## Repository structure
 
 ```
+index.html                             ← Landing page / hub (GitHub Pages entry point)
 learn/
   drill/                               ← Study & Drill app (Study/Drill/Daily)
     index.html, learn.css, sw.js
     learn-core.js                    ← storage, XP/achievements, boot, home, study/drill flow
     assets/                            ← splash background + font
+  flashcards/                          ← Flashcards app (glossary term drill)
+    index.html, flashcards.css, flashcards.js, sw.js, manifest.json
 guide/
   index.html                           ← Cover page / table of contents
   assets/                              ← Shared CSS and JS
   01-data-platform-foundation/  …  09-supply-chain-analytics/
   appendix/                            ← A–D
 content/
-  question-bank.json                   ← Shared question bank
+  question-bank.json                   ← Shared question bank (Study & Drill)
+  glossary.json                        ← Shared glossary terms (Flashcards)
 game/                                  ← Standalone tower-defense game (separated; bound for
                                          its own repo — shares no code with the above)
 docs/                                  ← Planning docs, prompt generation notes, changelog
@@ -174,6 +191,6 @@ CLAUDE.md                              ← Project rules for Claude Code (stays 
 ## Technical
 
 Pure HTML, CSS, and vanilla JavaScript — no build step, no dependencies, no framework.
-Hosted on GitHub Pages. The Study & Drill app is a self-contained PWA with a service
-worker for offline support; progress is tracked client-side via `localStorage`. The
-game in `game/` is likewise self-contained and independent.
+Hosted on GitHub Pages. The Study & Drill and Flashcards apps are self-contained PWAs
+with service workers for offline support; progress is tracked client-side via
+`localStorage`. The game in `game/` is likewise self-contained and independent.

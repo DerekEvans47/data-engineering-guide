@@ -4,12 +4,20 @@
 
 This repo was split into fully independent pieces that share **no runtime code**:
 
+- **`index.html`** (repo root) — the **landing page / hub** linking to the guide, Study &
+  Drill, and Flashcards. Self-contained (inline CSS/JS); the GitHub Pages entry point.
 - **`learn/drill/`** — the **Study & Drill learning app** (Study/Drill/Daily). Files:
   `index.html`, `learn-core.js`, `learn.css`, `sw.js` (cache prefix **`de-study-v*`**),
   `manifest.json`, `assets/` (splash + font only). Loads `content/question-bank.json`.
   Verifier: `.claude/skills/verifier-browser.sh` (learning-app smoke test).
-- **`guide/`** — the written reference guide (Parts 1–9 + appendix).
-- **`content/question-bank.json`** — shared question bank.
+- **`learn/flashcards/`** — the **Flashcards app** (glossary term drill). Files:
+  `index.html`, `flashcards.js`, `flashcards.css`, `sw.js` (cache prefix
+  **`de-flashcards-v*`**), `manifest.json`. Loads `content/glossary.json`.
+- **`guide/`** — the written reference guide (Parts 1–9 + appendix). Owns its own inline
+  `GLOSSARY` object in `guide/assets/guide.js`; `content/glossary.json` is a snapshot
+  extracted from it for the flashcards. (Keep them in sync if you edit terms.)
+- **`content/question-bank.json`** — shared question bank; **`content/glossary.json`** —
+  shared glossary terms.
 - **`game/`** — the **standalone tower-defense game** (`drill-core.js`, `drill-audio.js`,
   `drill-world.js`, `drill-td.js`, `config.json`, `drill.css`, `sw.js` with cache prefix
   **`quiz-defense-game-v*`**, `assets/`). Has its own `game/verify.sh`. It is bound for
@@ -164,7 +172,8 @@ transiently sometimes — re-run the FULL workflow if so, not just failed jobs).
 Any time you modify files under an app folder, you **must** bump the cache version in that
 app's `sw.js` before committing. Each app has its own cache name:
 
-- **`learn/drill/`** (learning app) — `const CACHE = 'de-study-vN'`
+- **`learn/drill/`** (Study & Drill app) — `const CACHE = 'de-study-vN'`
+- **`learn/flashcards/`** (Flashcards app) — `const CACHE = 'de-flashcards-vN'`
 - **`game/`** (tower-defense game) — `const CACHE = 'quiz-defense-game-vN'`
 
 ```bash

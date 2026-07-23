@@ -1,0 +1,10 @@
+{
+  "name": "Data Engineering — Term Flashcards",
+  "short_name": "Flashcards",
+  "description": "Flip-card drilling of data engineering terms and definitions from the glossary",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#080c14",
+  "theme_color": "#080c14",
+  "orientation": "portrait"
+}
