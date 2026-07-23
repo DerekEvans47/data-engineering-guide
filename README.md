@@ -182,9 +182,13 @@ content/
   glossary.json                        ← Shared glossary terms (Flashcards)
 game/                                  ← Standalone tower-defense game (separated; bound for
                                          its own repo — shares no code with the above)
-docs/                                  ← Planning docs, prompt generation notes, changelog
+  docs/                                ← Game design & art docs (BACKLOG, STATUS, art pipeline…)
+  .claude/                             ← Game's own PII hooks + Claude Code settings
+  CLAUDE.md, verify.sh
+docs/                                  ← Learning-side docs only
   CHANGELOG.md                         ← Auto-generated, do not hand-edit
-  *_GENERATION_PROMPT*.md              ← Paste-into-Claude prompt templates
+  QUESTION_GENERATION_PROMPT.md, SYNTAX_… ← Question-bank generation templates
+  GUIDE_PLANNING.md                    ← Guide editorial planning
 scripts/                                ← Asset-processing utilities (used by the game)
 CLAUDE.md                              ← Project rules for Claude Code (stays at root)
 ```
