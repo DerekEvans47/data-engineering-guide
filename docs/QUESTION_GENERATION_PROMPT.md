@@ -276,7 +276,7 @@ question bank — they will never see the new questions.
 
   grep "const CACHE" learn/drill/sw.js
 
-Increment the version number by 1 (e.g. de-drill-v20 → de-drill-v21).
+Increment the version number by 1 (e.g. de-study-v2 → de-study-v3).
 This change goes in the SAME commit as question-bank.json — never a follow-up.
 
 ═══════════════════════════════════════════════════════
@@ -292,7 +292,7 @@ Branch name uses the 4 part numbers covered:
 
   Sections covered: <list>
   Difficulty range: <min>–<max>
-  SW bumped: de-drill-vX → de-drill-vY"
+  SW bumped: de-study-vX → de-study-vY"
   git push -u origin questions/parts-N-N-N-N
 
 Then open a PR to main with title:  Add questions: Parts N, N, N, N

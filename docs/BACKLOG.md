@@ -1,5 +1,19 @@
 # Game Design & Technical Backlog
 
+> ⚠️ **Read before using (updated 2026-07-23).** The tower-defense game was **separated
+> from the learning material** into its own top-level `game/` folder (bound for its own
+> repository), and the **in-battle quiz mechanic was removed** — the game now stands alone
+> with a kill-driven economy. This backlog is game-scoped and should travel with `game/`.
+> Two consequences for the items below:
+> - **Quiz-dependent items are stale** and need re-scoping or dropping — anything that
+>   charges or gates on answering questions mid-battle: K-2 (quiz-linked wave bonus),
+>   K-4 (quiz-charged active abilities), W-2 / W-4 (elite contracts / wagers tied to quiz
+>   accuracy), P-2, C-3, the "optional quiz cap", etc. The game no longer has an in-battle
+>   quiz, so these describe a mechanic that no longer exists.
+> - **Path / cache references are stale:** game files moved from `learn/drill/…` to
+>   `game/…` (and become root-relative in the game's own repo); the service-worker cache
+>   is now `quiz-defense-game-v*`, not `de-drill-v*`.
+
 This is the single source of truth for all game improvement work — both structural/technical-debt items and game design features. The nightly agent picks the **highest-priority, lowest-effort** item with no unresolved dependencies.
 
 ---

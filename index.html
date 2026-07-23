@@ -99,6 +99,15 @@
       </span>
       <span class="card-arrow">›</span>
     </a>
+
+    <a class="card" href="guide/02-data-fundamentals/2-4-glossary.html">
+      <span class="card-icon">📇</span>
+      <span class="card-text">
+        <span class="card-title">Glossary</span>
+        <span class="card-desc" id="desc-glossary">Browse and search every term and definition.</span>
+      </span>
+      <span class="card-arrow">›</span>
+    </a>
   </div>
 
   <div class="foot">
@@ -129,8 +138,11 @@
   fetch('content/glossary.json').then(r => r.ok ? r.json() : null).then(raw => {
     if (!raw) return;
     const n = (raw.terms || raw).length;
-    if (n) document.getElementById('desc-terms').textContent =
+    if (!n) return;
+    document.getElementById('desc-terms').textContent =
       `${n} glossary terms — term on the front, definition on the back.`;
+    document.getElementById('desc-glossary').textContent =
+      `Browse and search all ${n} terms and definitions.`;
   }).catch(() => {});
 </script>
 </body>

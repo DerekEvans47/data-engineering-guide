@@ -1,8 +1,8 @@
 [changelog]
 header = """
-# Quiz Defense — Changelog
+# Data Engineering Guide — Changelog
 
-A record of every feature, fix, and improvement shipped to the app.\n
+A record of every feature, fix, and improvement shipped to the project.\n
 """
 body = """
 {% if version %}\

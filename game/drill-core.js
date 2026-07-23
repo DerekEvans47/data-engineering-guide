@@ -1,6 +1,7 @@
 'use strict';
-// Quiz Defense — core: storage, XP/streaks/achievements, boot, home/profile/
-// filter UI, and the standalone Study/Drill/Daily learning modes.
+// Quiz Defense — core: storage, XP/streaks/achievements, boot, home & profile UI.
+// Standalone tower-defense game; no quiz or study/drill code (that lives in the
+// separate learning app).
 //
 // Split from the old single-file drill.js (2026-07-14). The four files are
 // classic scripts sharing the global scope, loaded in order by index.html:
@@ -291,10 +292,9 @@ function bindTdHeaderActions(onBack) {
   document.getElementById('td-header-help')?.addEventListener('click', () => showTutorial(() => {}));
 }
 
-// TD/game screens (home, map select, world map, battle) build their own
-// contextual header inline — the persistent top bar is only for the
-// study/drill screens, so it stays hidden here instead of
-// stacking a second, mostly-redundant chrome band above the game UI.
+// Every game screen (home, map select, world map, battle) builds its own
+// contextual header inline, so the shared top bar is never shown — it stays
+// hidden here instead of stacking a second, redundant chrome band above the UI.
 const TD_TOPBAR_STATES = new Set(['home', 'td-world', 'tower', 'td-level']);
 
 function setTopBar(state, extra = {}) {

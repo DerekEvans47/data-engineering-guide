@@ -1,5 +1,13 @@
 # Project Status — Quick Handoff
 
+> ⚠️ **Superseded — this snapshot predates the 2026-07 restructure.** As of 2026-07-23 the
+> repo was split: the **learning material** (the written guide, the Study & Drill app, the
+> Flashcards app, and the shared question bank + glossary) lives here behind a landing page
+> (`index.html`), and the **tower-defense game** was moved to a standalone `game/` folder
+> (bound for its own repository) with the **in-battle quiz mechanic removed**. Everything
+> below (PRs #130–132, v129, the quiz-linked roadmap) describes the pre-split game and is
+> kept only for history.
+
 *Updated 2026-07-05. One-page snapshot: what just happened, what's next, what's open.
 Deeper context: `docs/BACKLOG.md` (full item list), `docs/CHANGELOG.md` (commit history).*
 

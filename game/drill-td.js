@@ -2541,8 +2541,8 @@ function tdDevBuildPanel() {
 // ── Relic editor (?dev=1) ──────────────────────────────────────
 // Same edit-then-export loop as the map editors: tweak relics in-app
 // (changes apply live to TD_RELICS, so the next battle uses them), then 📋
-// exports the FULL updated config.json for pasting over
-// learn/drill/config.json. Relic ids are immutable — saved owned/equipped
+// exports the FULL updated config.json for pasting over the game's
+// config.json. Relic ids are immutable — saved owned/equipped
 // sets reference them; rename via the Name field instead.
 const TD_RELIC_EFFECT_TYPES = [
   ['kill-gold-mult',    'Kill gold ×'],
@@ -2732,7 +2732,7 @@ function tdOpenRelicEditor() {
           <button id="tre-close">✕</button>
         </div>
       </div>
-      <div class="tre-note">Edits apply from the next battle. 📋 copies the full config.json — paste it over learn/drill/config.json and push.</div>
+      <div class="tre-note">Edits apply from the next battle. 📋 copies the full config.json — paste it over the game's config.json and push.</div>
       <datalist id="tre-cats">${cats.map(c => `<option value="${c}">`).join('')}</datalist>
       <div class="tre-list view-${treView}" id="tre-list"></div>`;
 
