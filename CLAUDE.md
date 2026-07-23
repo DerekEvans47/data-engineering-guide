@@ -1,5 +1,23 @@
 # Claude Code — Project Rules
 
+## Repository Layout (post-split, 2026-07-23)
+
+This repo was split into fully independent pieces that share **no runtime code**:
+
+- **`learn/drill/`** — the **Study & Drill learning app** (Study/Drill/Daily). Files:
+  `index.html`, `learn-core.js`, `learn.css`, `sw.js` (cache prefix **`de-study-v*`**),
+  `manifest.json`, `assets/` (splash + font only). Loads `content/question-bank.json`.
+  Verifier: `.claude/skills/verifier-browser.sh` (learning-app smoke test).
+- **`guide/`** — the written reference guide (Parts 1–9 + appendix).
+- **`content/question-bank.json`** — shared question bank.
+- **`game/`** — the **standalone tower-defense game** (`drill-core.js`, `drill-audio.js`,
+  `drill-world.js`, `drill-td.js`, `config.json`, `drill.css`, `sw.js` with cache prefix
+  **`quiz-defense-game-v*`**, `assets/`). Has its own `game/verify.sh`. It is bound for
+  its own repository and shares nothing with the learning app. **All the game-specific
+  rules below (Creator Mode, relic/config tuning, the SW checklist) now apply to
+  `game/`, not `learn/drill/`.** The old `learn/drill` game-tooling notes are retained
+  below only until the game moves out.
+
 ## Commit & PR Hygiene — No Personal Identifiers
 
 **ABSOLUTE RULE — zero exceptions, zero tolerance:**
@@ -141,19 +159,18 @@ transiently sometimes — re-run the FULL workflow if so, not just failed jobs).
   cache bump if the PR forgot it (local bumps are still preferred — the
   auto-bump is a backstop, and it only works for same-repo PRs).
 
-## learn/drill — Service Worker Checklist
+## Service Worker Checklist (both apps)
 
-Any time you modify files under `learn/drill/` (drill-*.js, drill.css, index.html, etc.),
-you **must** bump the cache version in `learn/drill/sw.js` before committing:
+Any time you modify files under an app folder, you **must** bump the cache version in that
+app's `sw.js` before committing. Each app has its own cache name:
+
+- **`learn/drill/`** (learning app) — `const CACHE = 'de-study-vN'`
+- **`game/`** (tower-defense game) — `const CACHE = 'quiz-defense-game-vN'`
 
 ```bash
-# Find the current version
+# Find the current version (adjust path per app)
 grep "const CACHE" learn/drill/sw.js
-# e.g. const CACHE = 'de-drill-v27';
-
-# Bump it by 1 in sw.js, then verify
-grep "const CACHE" learn/drill/sw.js
-# should now read v28, v29, etc.
+# e.g. const CACHE = 'de-study-v1';  → bump to de-study-v2, etc.
 ```
 
 If you skip this, browsers with a cached service worker will continue serving
@@ -161,10 +178,10 @@ the old files even after GitHub Pages deploys the new ones.
 
 ### Display version (APP_VERSION) — auto-derived, do not set manually
 
-`APP_VERSION` in `drill-core.js` is **not a hardcoded constant**. On startup, it reads
-`caches.keys()` and extracts the numeric part from the active `de-drill-v*` cache name.
-This means the home-screen version badge (`v61`, `v62`, etc.) tracks the SW cache
-automatically — bumping `sw.js` is the only step required.
+`APP_VERSION` (in `learn-core.js` for the learning app, `drill-core.js` for the game) is
+**not a hardcoded constant**. On startup it reads `caches.keys()` and extracts the numeric
+part from the active cache name (`de-study-v*` / `quiz-defense-game-v*`). The home-screen
+version badge tracks the SW cache automatically — bumping `sw.js` is the only step required.
 
 **Do not** set `APP_VERSION` to a hardcoded string. It will be overwritten at runtime anyway.
 
