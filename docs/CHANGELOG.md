@@ -100,6 +100,8 @@ A record of every feature, fix, and improvement shipped to the project.
 
 - Adjust object placement and occlusion
 
+- Correct watermark section — audio has no visible mark
+
 - Keep repo links out of copy-paste image-gen prompts (#159)
 
 - Make ?dev=1 the single Creator Mode link (#150)

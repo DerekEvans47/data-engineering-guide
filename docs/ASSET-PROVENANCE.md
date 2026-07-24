@@ -50,25 +50,37 @@ app (including a paid, closed-source app). On **distribution**, two conditions a
 - [x] Do not use the Reserved Font Names ("Cinzel", "MedievalSharp") for any
       modified/renamed font (we don't modify the fonts).
 
-### 2. Google Flow (music) — commercial-use terms (VERIFY BEFORE LAUNCH)
+### 2. Google Flow (music) + Nano Banana (art) — ✅ VERIFIED 2026-07-24
 
-- [ ] Confirm Google's generative-AI / Flow output terms permit redistributing
-      the generated music inside a **sold or monetized** app. Depends on the
-      account/plan and the terms in effect when the audio was generated.
+Confirmed against the primary Google Terms of Service (effective 2024-05-22) and
+the Generative AI Prohibited Use Policy, both archived in
+`game/docs/terms-archive/`. Full excerpts and analysis:
+[`game/docs/ASSET-LICENSING.md`](../game/docs/ASSET-LICENSING.md).
 
-### 3. Google Nano Banana (art) — commercial-use terms + watermark (VERIFY BEFORE LAUNCH)
+- [x] **Ownership** — *"Google won't claim ownership over that content."*
+- [x] **Commercial use** — permitted; no commercial restriction or royalty in the terms.
+- [x] **Watermark removal** (art) — not prohibited by the governing documents.
+- [x] **Prohibited use** — our content complies.
+- [x] **Dated terms archived** as evidence of what applied.
+- [ ] **Only open item:** confirm no **preview / Pre-GA** commercial restriction
+      applies to the specific Flow model used (check Flow's in-app Terms link).
+      Assessed low risk — Pre-GA terms are a Google Cloud construct, and Flow's own
+      help page routes the commercial question to the main ToS.
 
-- [ ] Confirm the image-generation terms permit commercial distribution of the
-      generated art.
-- [ ] Confirm that **removing the Google/Nano watermark** on assets shipped
-      commercially is permitted under those terms.
+> **Note:** the *Generative AI Additional Terms* are **retired** — folded into the
+> main ToS on 2024-05-22. Don't go looking for them.
+
+**Residual risk (confirmed, unavoidable):** Google disclaims any warranty of
+**non-infringement**, caps liability at ~$200, and requires business users to
+indemnify Google. If a generated asset resembles third-party IP, that exposure is
+ours.
 
 ### 4. Store requirements (REQUIRED)
 
 - [ ] Privacy policy published (required by both App Store and Google Play).
 - [ ] AI-generated-content disclosure, if/when the target store requires it.
-      You attest to holding rights to all shipped content, so items 2 and 3
-      above feed directly into this.
+- [ ] **Do not market the assets as solely human-made** — the Prohibited Use Policy
+      §4e bars misrepresenting generated content's provenance in order to deceive.
 
 ## Protecting against clones
 
