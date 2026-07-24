@@ -106,6 +106,8 @@ A record of every feature, fix, and improvement shipped to the project.
 
 - Modularize Quiz Defense - map data from JSON, drill.js split in four (#141)
 
+- Record Google Flow/Nano Banana asset-licensing research
+
 - Remove dead multi-world code and retired deco/music systems from drill.js (#139)
 
 - Resolution-independent map rendering + pixelArt flag - hi-res regen prep (#145)

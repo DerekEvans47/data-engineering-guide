@@ -93,24 +93,40 @@ used was **GA, not a preview / Pre-GA model**, and (b) we're within the plan tie
 terms. This GA-vs-preview line is the single most important thing to verify — see
 the checklist.
 
-### 3. Watermarks — visible vs. invisible (SynthID)
-- Flow Help, as reported: *"All outputs generated in Google Flow using Veo and
-  Imagen include invisible SynthID watermarks."*
-- Flow Help, as reported: *"videos generated in Google One Free, Plus, and Pro
-  tiers contain a **visible watermark** that indicates the content is made with
-  Veo."*
-- Phrasly / winbuzzer, on removing the **visible** mark: *"Google's Terms of
-  Service do not explicitly prohibit removing the visible watermark"* — while
-  *"using Google's generative AI to bypass copyright protections violates the
-  company's service terms."*
+### 3. Watermarks — the mechanics differ by asset type
 
-**Net on our watermark edits:** We removed Google's **own visible watermark from
-our own generated art.** That is **not clearly prohibited** — the prohibited thing
-is using Google AI to strip *someone else's* watermark to bypass *their* copyright,
-which is not what we did. The **invisible SynthID** stays baked in and we can't
-practically remove it; that's harmless to us — it only means the assets remain
-detectable as AI-generated, not that our rights are affected. "Not explicitly
-prohibited" ≠ "expressly blessed," so this stays a confirm-on-primary-terms item.
+There are **two distinct kinds** of watermark, and they do **not** apply the same
+way to images and audio. Getting this right matters:
+
+- **Visible watermark** — a mark on the pixels: the Veo logo stamped on video
+  frames, or the Gemini/"sparkle" mark on generated images. **A pure audio file
+  has no visible watermark** — there are no pixels to stamp, so this concept does
+  **not** apply to our music.
+- **Invisible SynthID** — an imperceptible signal woven into the content itself,
+  present across Imagen (images), Veo (video), **and Lyria (audio)** outputs. For
+  audio, SynthID converts the waveform to a spectrogram, embeds the mark there,
+  then converts back; the result is **inaudible** and survives MP3 compression,
+  added noise, and speed changes. It only lets Google's SynthID Detector flag the
+  track as AI-generated — it does **not** affect ownership or usage rights.
+
+How this maps to our two asset types:
+
+| Asset | Visible watermark | Invisible SynthID | What we did / need to do |
+|-------|-------------------|-------------------|--------------------------|
+| **Art** (Nano Banana images) | Yes — Gemini/sparkle mark | Yes (in pixels) | We **cropped/removed the visible mark**; SynthID remains, harmless |
+| **Music** (Flow audio) | **None exists for audio** | Yes (in the waveform) | Nothing to remove; SynthID inaudible & harmless |
+
+**On removing the visible mark from the ART:** Phrasly/winbuzzer report that
+*"Google's Terms of Service do not explicitly prohibit removing the visible
+watermark,"* while *"using Google's generative AI to bypass copyright protections
+violates the company's service terms."* We removed Google's **own** visible mark
+from **our own** generated art — not someone else's watermark to bypass their
+copyright — so this is **not clearly prohibited**. "Not explicitly prohibited" ≠
+"expressly blessed," so it stays a confirm-on-primary-terms item.
+
+**On the MUSIC:** there is no visible watermark to remove; the only mark is the
+inaudible SynthID baked into the waveform, which we can't practically remove and
+which doesn't affect our rights. **Nothing to do.**
 
 ### 4. Prohibited uses (Generative AI Prohibited Use Policy)
 - No knowingly harmful, illegal, or deceptive content.
