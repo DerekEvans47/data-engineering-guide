@@ -2,26 +2,51 @@
 
 **Purpose.** This is our standing reference for whether we can legally ship the
 game's AI-generated assets in a public, commercial release (Android / iOS). If
-this question comes up again, start here. It records the sources, the supporting
-excerpts, and our summary stance so we don't have to re-derive it each time.
+this question comes up again, start here. It records the governing documents, the
+verbatim excerpts, and our summary stance so we don't have to re-derive it.
+
+**Status: verified against primary sources (2026-07-24).** Excerpts below are
+quoted verbatim from the archived PDFs in `game/docs/terms-archive/`. One item
+remains open — see the checklist at the end.
 
 ---
 
-## ⚠️ Read this first — two honest limits
+## ⚠️ Read this first
 
-1. **Neither the author nor Claude is a lawyer.** This is a factual research
-   record, not legal advice. Before a commercial launch, confirm against the
-   primary Google terms (while logged into the account that generated the
-   assets) and, for anything high-stakes, have a lawyer review it.
+**Neither the author nor Claude is a lawyer.** This is a factual research record,
+not legal advice. It quotes the terms accurately; it does not substitute for
+professional judgment about how they apply. For a commercial launch, a short
+lawyer review of the open item is worthwhile.
 
-2. **Evidence quality — these are secondary sources.** Google returns
-   **HTTP 403 (blocks automated access)** on `policies.google.com` and
-   `support.google.com`, so the excerpts below are **as reported by Google help
-   pages and reputable secondary summaries, not verbatim text we pulled from
-   Google's primary pages.** Confirming the wording on the primary pages, logged
-   in, is an open action item (see the checklist at the end). The findings are
-   consistent across multiple independent sources, which is why we're confident
-   enough to act on them — but "confident" is not "verified verbatim."
+*(Correction, 2026-07-24: an earlier version of this file said Google "returns
+HTTP 403 (blocks automated access)." That was wrong. The 403s came from **this
+development session's own network egress policy**, which blocks Google domains —
+not from Google blocking scrapers. The terms were obtained by the author
+downloading them directly. Noted so nobody later concludes these documents are
+unreachable by automation in general.)*
+
+---
+
+## Governing documents (archived locally)
+
+| Document | Effective / modified | Archived copy |
+|---|---|---|
+| **Google Terms of Service** | Effective **May 22, 2024** | `terms-archive/2026-07-24_google-terms-of-service_effective-2024-05-22.pdf` |
+| **Generative AI Prohibited Use Policy** | Last modified **December 17, 2024** | `terms-archive/2026-07-24_generative-ai-prohibited-use-policy_modified-2024-12-17.pdf` |
+| Google Flow Help — "Can I use outputs of these tools for commercial purposes?" | retrieved 2026-07-24 | quoted below |
+
+### ⚠️ Structural point: the "Generative AI Additional Terms" are RETIRED
+
+Google's own notice states:
+
+> *"We updated the Google Terms of Service on May 22, 2024 to cover AI-related
+> topics. As of that date, these Generative AI Additional Terms of Service no
+> longer apply, unless you're a business partner with a signed agreement that
+> references these terms."*
+
+**Implication:** do not go looking for a separate generative-AI terms document —
+it no longer governs. The **main Google Terms of Service is the operative
+document** for our AI-generated assets, alongside the Prohibited Use Policy.
 
 ---
 
@@ -29,170 +54,195 @@ excerpts, and our summary stance so we don't have to re-derive it each time.
 
 | Asset | Tool | Where in repo |
 |-------|------|---------------|
-| Music / audio | **Google Flow** (Veo/Imagen-family generation) | `game/assets/audio/` |
-| Art (sprites, maps, relic icons, terrain) | **Google Nano Banana** (Gemini image generation) + our cropping, background & watermark edits, and our composition/layout on the maps | `game/assets/enemies/`, `towers/`, `relics/`, `worlds/`, reference art |
-| Fonts (Cinzel, MedievalSharp) | Google Fonts — **SIL Open Font License 1.1** | `game/assets/fonts/` — see `game/assets/fonts/OFL.txt` |
+| Music / audio | **Google Flow** | `game/assets/audio/` |
+| Art (sprites, maps, relic icons, terrain) | **Google Nano Banana** (Gemini image generation) + our cropping, background & watermark edits, and our composition/layout on the maps | `game/assets/enemies/`, `towers/`, `relics/`, `worlds/` |
+| Fonts (Cinzel, MedievalSharp) | Google Fonts — **SIL Open Font License 1.1** | `game/assets/fonts/` — see `OFL.txt` |
 
-Fonts are handled separately and fully in `OFL.txt`; this document is about the
-**Flow (music) and Nano Banana (art)** AI-generated assets.
-
----
-
-## Sources
-
-- Get started with Google Flow — Google Flow Help
-  <https://support.google.com/flow/answer/16353333>
-- Manage your data in Google Flow — Google Labs Help
-  <https://support.google.com/labs/answer/17025472>
-- Google Generative AI Prohibited Use Policy (referenced by the Flow help page)
-  <https://policies.google.com/terms/generative-ai/use-policy>
-- Gemini Output Ownership & Commercial Rights 2026 — Terms.Law
-  <https://terms.law/ai-output-rights/gemini/>
-- Can You Use Google Gemini Outputs Commercially? — Terms.Law
-  <https://terms.law/forum/thread/google-gemini-output-commercial-use.html>
-- Veo FAQ: Commercial Rights, Watermarks, and Privacy — Flowith
-  <https://flowith.io/blog/veo-faq-commercial-rights-watermarks/>
-- Veo 3 Commercial Use Guide 2026 — veo3ai.io
-  <https://www.veo3ai.io/blog/veo-3-commercial-use-guide-2026>
-- AI Commercial Rights by Platform (2026) — vidpros
-  <https://vidpros.com/ai-platforms-rights/>
-- Is It Ethical to Remove a Gemini Watermark? — Phrasly
-  <https://phrasly.ai/blog/remove-gemini-text-watermark/>
+Fonts are handled fully in `OFL.txt`. This document covers the **Flow (music) and
+Nano Banana (art)** AI-generated assets.
 
 ---
 
-## Findings by topic (with supporting excerpts)
+## Findings — verbatim excerpts
 
-> Excerpts are quoted/paraphrased **as reported by the sources above**. They are
-> not verified verbatim against Google's primary (403-blocked) pages.
+### 1. Ownership — ✅ CONFIRMED: we own our outputs
 
-### 1. Ownership — we own our outputs
-- Flow Help, as reported: *"Google won't claim ownership over content that you
-  generate through Google Flow."*
-- Google ToS via Flow, as reported: *"Some of the services allow you to generate
-  original content. Google won't claim ownership over that content."*
-- Terms.Law: *"as between you and Google, you retain ownership of all outputs."*
+Google ToS, under *Content in Google services → Your content*:
 
-**Net:** As between us and Google, the generated music and art are ours. Google
-keeps ownership of the underlying models/platform, not of our output.
+> *"Some of our services allow you to generate original content. Google won't
+> claim ownership over that content."*
 
-### 2. Commercial use — permitted, royalty-free, WITH a GA vs. preview catch
-- Terms.Law (Gemini images): *"You can use outputs for business, advertising,
-  products, and services without paying royalties to Google … provided you don't
-  violate third-party IP."*
-- vidpros / secondary: *"Flow allows commercial use and grants full ownership
-  rights for its **general availability (GA)** features, but this permission does
-  **not** extend to **Pre-GA components** … and Google's **Pre-GA Offerings Terms
-  explicitly prohibit commercial use of preview products.**"*
-- Secondary: **paid-plan** subscribers own rights to generated content for
-  commercial purposes; the **consumer/free** tools are volume-limited and "review
-  current terms before commercial use."
+Google ToS, under *Permission to use your content → License*:
 
-**Net:** Commercial use is allowed **if** (a) the specific Flow / image feature we
-used was **GA, not a preview / Pre-GA model**, and (b) we're within the plan tier's
-terms. This GA-vs-preview line is the single most important thing to verify — see
-the checklist.
+> *"Your content remains yours, which means that you retain any intellectual
+> property rights that you have in your content."*
 
-### 3. Watermarks — the mechanics differ by asset type
+Google Flow Help, *"Can I use outputs of these tools for commercial purposes?"*:
 
-There are **two distinct kinds** of watermark, and they do **not** apply the same
-way to images and audio. Getting this right matters:
+> *"The Terms of Service govern how these tools may be used, and must be consulted
+> and followed in their entirety. Per those terms: Some of our services allow you
+> to generate original content. Google won't claim ownership over that content."*
 
-- **Visible watermark** — a mark on the pixels: the Veo logo stamped on video
-  frames, or the Gemini/"sparkle" mark on generated images. **A pure audio file
-  has no visible watermark** — there are no pixels to stamp, so this concept does
-  **not** apply to our music.
-- **Invisible SynthID** — an imperceptible signal woven into the content itself,
-  present across Imagen (images), Veo (video), **and Lyria (audio)** outputs. For
-  audio, SynthID converts the waveform to a spectrogram, embeds the mark there,
-  then converts back; the result is **inaudible** and survives MP3 compression,
-  added noise, and speed changes. It only lets Google's SynthID Detector flag the
-  track as AI-generated — it does **not** affect ownership or usage rights.
+**Net:** Confirmed at the primary source, and Flow's own help page routes the
+commercial question straight back to this same ToS language.
 
-How this maps to our two asset types:
+### 2. The license we grant Google — ✅ CONFIRMED: narrow, not a rights grab
 
-| Asset | Visible watermark | Invisible SynthID | What we did / need to do |
-|-------|-------------------|-------------------|--------------------------|
-| **Art** (Nano Banana images) | Yes — Gemini/sparkle mark | Yes (in pixels) | We **cropped/removed the visible mark**; SynthID remains, harmless |
-| **Music** (Flow audio) | **None exists for audio** | Yes (in the waveform) | Nothing to remove; SynthID inaudible & harmless |
+Google ToS, *Purpose*:
 
-**On removing the visible mark from the ART:** Phrasly/winbuzzer report that
-*"Google's Terms of Service do not explicitly prohibit removing the visible
-watermark,"* while *"using Google's generative AI to bypass copyright protections
-violates the company's service terms."* We removed Google's **own** visible mark
-from **our own** generated art — not someone else's watermark to bypass their
-copyright — so this is **not clearly prohibited**. "Not explicitly prohibited" ≠
-"expressly blessed," so it stays a confirm-on-primary-terms item.
+> *"This license is for the limited purpose of: operating and improving the
+> services, which means allowing the services to work as designed and creating new
+> features and functionalities… using content you've shared publicly to promote
+> the services."*
 
-**On the MUSIC:** there is no visible watermark to remove; the only mark is the
-inaudible SynthID baked into the waveform, which we can't practically remove and
-which doesn't affect our rights. **Nothing to do.**
+**Net:** Google takes an operational license, not ownership. Our game assets aren't
+shared publicly through a Google service, so even the promotional prong doesn't bite.
 
-### 4. Prohibited uses (Generative AI Prohibited Use Policy)
-- No knowingly harmful, illegal, or deceptive content.
-- No realistic depictions of identifiable real people without consent.
-- **Our content (a fantasy tower-defense game) doesn't touch any of these.**
+### 3. Commercial use — ✅ CONFIRMED permitted (by absence of restriction)
 
-### 5. Timing — which terms govern (asset date vs. publish date)
-- Google's ownership language ("Google won't claim ownership") reads as a standing
-  grant, not something re-decided at publish time. General principle: the rights
-  grant attaches at **generation**, and term changes normally apply **going
-  forward**, not retroactively.
-- **Practical insurance:** archive a dated copy (PDF/screenshot) of the Flow terms
-  as they read when we generated the assets, and record generation dates. If terms
-  change before we ship, that's the evidence of what we agreed to and when.
+The ToS contains **no prohibition on commercial use of generated output**, and no
+royalty or revenue-share obligation. Combined with "Google won't claim ownership,"
+commercial distribution of our music and art is permitted.
 
-### 6. Residual risk — third-party IP, unindemnified on consumer tiers
-- The real surviving exposure isn't Google clawing back our work — it's that an AI
-  output could itself **resemble third-party IP** from training data, and on
-  **consumer tiers Google does not indemnify** us for that. Low probability, but
-  it's the risk that doesn't go away. (Enterprise tiers like Vertex AI sometimes
-  offer indemnity; consumer Flow/Gemini generally don't.)
+Note the one restriction that *is* stated, under prohibited activities:
+
+> *"You may not copy, modify, distribute, sell, or lease any part of our services
+> or software."*
+
+That covers **Google's services/software** — not the content we generate with them.
+Distinct things; our game is the latter.
+
+### 4. Restriction we must not trip — ✅ CONFIRMED (does not affect us)
+
+Google ToS lists among abusive activities:
+
+> *"using AI-generated content from our services to develop machine learning models
+> or related AI technology"*
+
+**Net:** We ship a tower-defense game; we do not train models on the outputs. Clear.
+**Worth remembering** if anyone ever proposes reusing these assets as training data.
+
+### 5. Watermarks — mechanics differ by asset type
+
+Two distinct kinds, and they do **not** apply the same way:
+
+- **Visible watermark** — a mark on pixels (Veo logo on video frames, Gemini/sparkle
+  mark on images). **A pure audio file has none** — no pixels to stamp.
+- **Invisible SynthID** — imperceptible signal inside the content; present for images,
+  video, and audio. For audio it is embedded via the spectrogram, is **inaudible**, and
+  survives compression/noise/speed changes. It only flags content as AI-generated; it
+  does **not** affect ownership or usage rights.
+
+| Asset | Visible mark | SynthID | What we did / need to do |
+|---|---|---|---|
+| **Art** (Nano Banana) | Yes — Gemini/sparkle | Yes | We cropped/removed the visible mark; SynthID remains, harmless |
+| **Music** (Flow) | **None exists for audio** | Yes (waveform) | Nothing to remove; inaudible & harmless |
+
+**On our art watermark edits:** neither archived document prohibits removing a
+visible watermark from **your own** generated content. The Prohibited Use Policy's
+concern is deception (§4), not watermark removal as such. We removed Google's own
+mark from our own asset — not a third party's mark to bypass their copyright.
+*Assessment: not prohibited by the governing documents we hold.*
+
+### 6. Prohibited Use Policy — ✅ CONFIRMED we comply
+
+The policy bars: illegal/dangerous activity, CSAE, violent extremism, NCII, self-harm,
+IP/privacy violations, non-consensual tracking, security compromise, spam/malware,
+filter circumvention, hate speech, harassment, violence, sexually explicit content,
+fraud, impersonation, and misleading claims. **A fantasy tower-defense game engages
+none of these.**
+
+One clause is directly relevant to how we *describe* the game:
+
+> *"Misrepresenting the provenance of generated content by claiming it was created
+> solely by a human, in order to deceive."* (§4e)
+
+**Net:** We must not market the game as entirely human-made art/music. Our honest
+provenance records already satisfy this — keep store listings consistent with them.
+
+### 7. Warranties & liability — ✅ CONFIRMED: this is the real residual risk
+
+Google ToS, *Warranty disclaimer*:
+
+> *"TO THE EXTENT ALLOWED BY APPLICABLE LAW, WE PROVIDE OUR SERVICES "AS IS" WITHOUT
+> ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING THE IMPLIED WARRANTIES OF
+> MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND **NON-INFRINGEMENT**."*
+
+Liability is capped:
+
+> *"…limited to the greater of (1) $200 or (2) the fees paid to use the relevant
+> services in the 12 months before the dispute"*
+
+And indemnity runs *toward* Google, not from it:
+
+> *"If you're a business user or organization: To the extent allowed by applicable
+> law, you'll indemnify Google … for any third-party legal proceedings … arising out
+> of or relating to your unlawful use of the services or violation of these terms."*
+
+**Net — the honest bottom line on risk:** Google expressly disclaims any warranty of
+**non-infringement**. If a generated asset happens to resemble third-party IP, that
+exposure is **ours**, Google's liability is capped at ~$200, and as a business user we
+would owe Google indemnity rather than the reverse. Low probability, but this is the
+one risk that genuinely does not go away, and it is now confirmed verbatim rather than
+inferred.
+
+### 8. Timing — which terms govern
+
+The ToS grants ownership as a standing statement ("Your content remains yours"), not a
+per-publication permission, so rights attach at generation and later term changes apply
+going forward. **Insurance already in place:** the archived PDFs in `terms-archive/`
+are dated copies of the terms as they stood on 2026-07-24. Re-archive if we generate
+significant new assets later.
 
 ---
 
 ## Our summary of findings — the stance
 
-Based on the above, our working position (secondary-source-grounded, not
-lawyer-verified):
+Verified against the archived primary sources:
 
-1. **We own** the music (Flow) and art (Nano Banana) outputs as against Google.
-2. **We may use them commercially**, royalty-free, in a paid/monetized store app —
-   **provided the feature used was GA, not a preview/Pre-GA model.**
-3. **Removing the visible Google watermark from our own generated art is not
-   clearly prohibited.** The invisible SynthID remains and is harmless to us.
-4. **Our content breaks none of the prohibited-use rules.**
-5. **Rights attach at generation;** we archive dated terms + generation dates as
-   insurance against later term changes.
-6. **Remaining real risk:** third-party-IP resemblance, unindemnified on consumer
-   tier — low, but acknowledged.
-7. **Fonts** are cleanly handled under OFL 1.1 (`OFL.txt`) and only require shipping
-   the license text / an in-app acknowledgements screen.
+1. **We own** the Flow music and Nano Banana art as against Google. *(Confirmed)*
+2. **We may ship them commercially**, royalty-free, in a paid/monetized store app.
+   No commercial restriction exists in the governing terms. *(Confirmed)*
+3. **Google's license to our content is narrow** — operating/improving services. *(Confirmed)*
+4. **Removing the visible watermark from our own art is not prohibited** by the
+   governing documents. *(Assessment, no contrary provision found)*
+5. **Our content violates none of the prohibited uses** — but we must not claim the
+   assets were made solely by humans. *(Confirmed)*
+6. **Residual risk is third-party-IP resemblance**, expressly unwarranted by Google
+   (non-infringement disclaimed), liability capped at ~$200, indemnity flowing to
+   Google. *(Confirmed)*
+7. **Fonts** are cleanly handled under OFL 1.1 — ship `OFL.txt` via an in-app
+   acknowledgements screen.
 
-**Confidence:** high on ownership and no-royalty commercial use; **conditional** on
-the GA-vs-preview point; **"probably fine, confirm" on the watermark**.
+**Confidence: high** on ownership, commercial use, and prohibited-use compliance —
+these are now verbatim from primary sources.
+
+### Still open (one item)
+
+**GA vs. preview/Pre-GA.** Secondary sources suggested Google's *Pre-GA Offerings
+Terms* prohibit commercial use of preview products. Two things reduce this concern:
+those Pre-GA terms are a **Google Cloud / Vertex AI** construct, which is a different
+product surface from consumer Flow; and **Flow's own help page answers the commercial
+question by pointing at the main ToS**, which permits it. Neither archived document
+mentions a preview restriction. *Assessment: low risk, probably a conflation of Google
+Cloud terms with consumer Flow — but not formally closed,* since we have not read
+Flow/Labs-specific terms.
 
 ---
 
-## Open verification items — close these before commercial launch
+## Remaining checklist before commercial launch
 
-- [ ] **GA vs. Pre-GA:** confirm the exact Flow / image model used for our shipped
-      assets was a **generally available** feature, not a preview/Pre-GA one
-      (Pre-GA Offerings Terms prohibit commercial use). *Most important item.*
-- [ ] **Plan tier:** confirm the account tier we generated under permits commercial
-      use and note whether outputs carried a **visible** watermark.
-- [ ] **Primary-source read:** while logged in, read the actual Flow / Google
-      generative-AI terms (they 403 automated tools) and confirm the wording above
-      still holds.
-- [ ] **Archive:** save a dated PDF/screenshot of those terms + record asset
-      generation dates (store alongside this file).
-- [ ] **Store baseline:** publish a privacy policy (required by both stores);
-      complete any AI-generated-content disclosure the target store requires.
+- [ ] **Flow / Labs-specific terms:** open Flow → Terms link, confirm no preview /
+      Pre-GA commercial restriction applies to the model used. *(Only open legal item.)*
+- [ ] Note whether the Flow model used was labeled "preview"/"experimental."
+- [x] ~~Archive dated copies of the governing terms~~ — done, `terms-archive/`.
+- [x] ~~Confirm ownership and commercial-use rights at primary source~~ — done.
 - [ ] **Fonts:** surface `OFL.txt` via an in-app Licenses/Acknowledgements screen.
-- [ ] For a paid launch, a short lawyer review of items 1–2 above.
+- [ ] **Privacy policy** published (required by both stores).
+- [ ] **Store listing:** keep AI provenance honest — do not claim solely-human authorship.
+- [ ] For a paid launch, a short lawyer review of the residual-IP-risk position.
 
 ---
 
-*Last compiled: 2026-07-24. Recompile if Google's terms change or the shipped
-asset set changes. Sources and excerpts above are secondary; primary-source
-confirmation is a tracked open item.*
+*Last verified 2026-07-24 against archived primary sources. Re-verify if Google's
+terms change or the shipped asset set changes.*
