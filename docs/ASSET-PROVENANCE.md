@@ -7,6 +7,12 @@ obligations that attach to it. It exists so that, before any public release
 **This is a factual record, not legal advice.** For a commercial launch, have
 a lawyer confirm the two Google-terms items flagged below.
 
+> **Detailed licensing research** (sources, excerpts, and our summarized stance
+> on how we may use the Flow music and Nano Banana art) lives with the game:
+> [`game/docs/ASSET-LICENSING.md`](../game/docs/ASSET-LICENSING.md). That file is
+> the authoritative record if the "can we ship the AI assets?" question comes up
+> again; this file is the higher-level provenance + checklist.
+
 ## Provenance
 
 | Component | Source | Human contribution |

@@ -96,6 +96,8 @@ A record of every feature, fix, and improvement shipped to the project.
 
 - Unify the glossary and connect every learning app to the hub (#164)
 
+- Add OFL font license and asset provenance record
+
 - Adjust object placement and occlusion
 
 - Keep repo links out of copy-paste image-gen prompts (#159)
